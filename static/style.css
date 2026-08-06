@@ -545,3 +545,209 @@ footer {
     color:#1d4ed8;
 
 }
+
+/* ==============================
+   スマホ対応
+   ============================== */
+
+
+html,
+body {
+
+    width:100%;
+    overflow-x:hidden;
+
+}
+
+
+
+/* メイン幅を可変化 */
+
+main {
+
+    width:100%;
+    max-width:600px;
+    padding:0 15px;
+    margin:40px auto;
+
+}
+
+
+
+/* URL入力 */
+
+.url-area {
+
+    width:100%;
+
+}
+
+
+
+.url-area input {
+
+    min-width:0;
+
+}
+
+
+
+.check-button {
+
+    flex-shrink:0;
+
+}
+
+
+
+
+/* ダウンロードボタン */
+
+.download-buttons {
+
+    flex-wrap:wrap;
+
+}
+
+
+
+
+/* スマホ */
+
+@media screen and (max-width:600px){
+
+
+
+    header {
+
+        padding:20px 10px;
+
+    }
+
+
+
+    header h1 {
+
+        font-size:28px;
+
+    }
+
+
+
+    main {
+
+        margin:20px auto;
+        padding:0 10px;
+
+    }
+
+
+
+    .card {
+
+        padding:20px;
+
+    }
+
+
+
+    /*
+       URL入力＋確認を縦並び
+    */
+
+    .url-area {
+
+        flex-direction:column;
+
+    }
+
+
+
+    .check-button {
+
+        width:100%;
+
+    }
+
+
+
+
+    /*
+       mp3/mp4選択
+    */
+
+    .output-option {
+
+        flex-direction:column;
+
+        gap:10px;
+
+    }
+
+
+
+
+
+    /*
+       時間指定
+    */
+
+    .convert-option {
+
+        flex-direction:column;
+
+        align-items:stretch;
+
+    }
+
+
+
+    .convert-option input {
+
+        width:100%;
+
+    }
+
+
+
+    .symbol {
+
+        text-align:center;
+
+    }
+
+
+
+
+
+    /*
+       ダウンロードボタン
+    */
+
+    .download-buttons {
+
+        flex-direction:column;
+
+        align-items:stretch;
+
+    }
+
+
+
+    .download-buttons a {
+
+        width:100%;
+
+    }
+
+
+
+    .download-button {
+
+        width:100%;
+
+    }
+
+
+
+}
