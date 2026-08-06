@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>y2conv - YouTube Converter</title>
+
+<link rel="stylesheet" href="/static/style.css">
+
+</head>
+
+
+<body>
+
+
+<header>
+
+<h1>Youtube変換</h1>
+
+<p>YouTube Converter</p>
+
+</header>
+
+
+
+<main>
+
+
+<section class="card">
+
+
+<h2>動画変換</h2>
+
+
+
+<!-- =========================
+     YouTube URL
+========================= -->
+
+
+<label class="normal-label">
+YouTube URL
+</label>
+
+
+
+<div class="url-area">
+
+
+<input
+id="youtube-url"
+type="text"
+placeholder="https://www.youtube.com/watch?v=..."
+>
+
+
+
+<button
+type="button"
+class="check-button"
+id="check-button"
+>
+確認
+</button>
+
+
+</div>
+
+
+
+
+<div
+id="error-message"
+class="error-message"
+style="display:none;"
+>
+</div>
+
+
+
+
+
+<!-- =========================
+     変換設定
+========================= -->
+
+
+<div
+id="convert-area"
+style="display:none;"
+>
+
+
+
+<!-- タイトル -->
+
+<input
+id="filename"
+class="filename-display"
+type="text"
+readonly
+>
+
+
+
+
+
+<!-- 作成ファイル -->
+
+
+<div class="output-option">
+
+
+<label>
+
+<input
+type="checkbox"
+name="output"
+value="mp3"
+id="mp3-check"
+checked
+>
+
+mp3（音声）
+
+</label>
+
+
+
+<label>
+
+<input
+type="checkbox"
+name="output"
+value="mp4"
+id="mp4-check"
+>
+
+mp4（動画）
+
+</label>
+
+
+</div>
+
+
+
+
+
+
+<!-- 時間指定 -->
+
+
+<div class="convert-option">
+
+
+<label>
+開始時間
+</label>
+
+
+
+<input
+id="start-time"
+type="text"
+value="0:00"
+>
+
+
+
+<span class="symbol">
+～
+</span>
+
+
+
+
+<label>
+終了時間
+</label>
+
+
+
+<input
+id="end-time"
+type="text"
+placeholder="終了時間"
+>
+
+
+</div>
+
+
+
+
+
+
+<div
+id="convert-error"
+class="error-message"
+style="display:none;"
+>
+</div>
+
+
+
+
+
+<!-- =========================
+     変換開始
+========================= -->
+
+
+<button
+id="convertBtn"
+class="convert-button"
+type="button"
+>
+変換開始
+</button>
+
+
+
+
+<div id="convertStatus"></div>
+
+
+
+
+
+
+<!-- =========================
+     ダウンロード表示
+========================= -->
+
+
+<div id="downloadArea"></div>
+
+
+
+
+
+
+<!-- =========================
+     Gemini SRT作成
+========================= -->
+
+<div
+id="srtArea"
+class="gemini-test-area"
+style="display:none;"
+>
+
+
+<div
+id="srt-content"
+style="display:none;"
+>
+
+
+<div class="url-area">
+
+
+<input
+id="gemini-file"
+type="text"
+readonly
+>
+
+
+<button
+type="button"
+class="check-button"
+id="gemini-button"
+>
+文字ファイル
+</button>
+
+
+</div>
+
+
+<div
+id="gemini-result"
+class="gemini-result"
+>
+</div>
+
+
+</div>
+
+
+</div>
+
+
+</div>
+
+
+</section>
+
+
+</main>
+
+
+
+
+
+
+<footer>
+
+© 2026 y2conv
+
+</footer>
+
+
+
+
+
+<script src="/static/script.js"></script>
+
+<script src="/static/converter.js"></script>
+
+
+
+</body>
+
+
+</html>

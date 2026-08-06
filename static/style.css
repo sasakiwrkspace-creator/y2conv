@@ -1,0 +1,547 @@
+* {
+
+    box-sizing:border-box;
+
+}
+
+
+
+body {
+
+    margin:0;
+
+    font-family:
+        "Segoe UI",
+        "メイリオ",
+        sans-serif;
+
+    background:#f3f4f6;
+
+    color:#333;
+
+}
+
+
+
+
+
+header {
+
+    background:#e60023;
+
+    color:white;
+
+    text-align:center;
+
+    padding:30px;
+
+}
+
+
+
+header h1 {
+
+    margin:0;
+
+    font-size:42px;
+
+}
+
+
+
+header p {
+
+    margin:8px 0 0;
+
+}
+
+
+
+
+
+
+
+main {
+
+    width:600px;
+
+    margin:40px auto;
+
+}
+
+
+
+
+
+
+
+.card {
+
+    background:white;
+
+    padding:35px;
+
+    border-radius:12px;
+
+    box-shadow:
+    0 5px 15px rgba(0,0,0,0.1);
+
+}
+
+
+
+
+
+
+h2 {
+
+    text-align:center;
+
+    margin:0 0 25px;
+
+}
+
+
+
+
+
+
+
+/* 通常ラベル */
+
+.normal-label {
+
+    display:block;
+
+    margin-bottom:8px;
+
+    font-weight:bold;
+
+}
+
+
+
+
+
+
+input,
+select {
+
+    width:100%;
+
+    padding:12px;
+
+    font-size:16px;
+
+    border:
+    1px solid #ccc;
+
+    border-radius:6px;
+
+}
+
+
+
+
+
+
+.url-area {
+
+    display:flex;
+
+    gap:10px;
+
+}
+
+
+.url-area input {
+
+    flex:1;
+
+}
+
+
+
+
+
+.check-button {
+
+    width:100px;
+
+    background:#16a34a;
+
+}
+
+
+.loading-message {
+
+    color:#16a34a;
+
+    margin-top:10px;
+
+    font-weight:bold;
+
+}
+
+
+/* ファイル名 */
+
+.filename-display {
+
+    margin-top:15px;
+
+}
+
+
+
+
+
+
+
+
+/* チェック */
+
+.output-option {
+
+    display:flex;
+
+    gap:15px;
+
+    margin-top:8px;
+
+}
+
+
+
+.output-option label {
+
+    display:flex;
+
+    align-items:center;
+
+    gap:4px;
+
+    margin:0;
+
+    font-weight:normal;
+
+}
+
+
+
+.output-option input {
+
+    width:auto;
+
+    padding:0;
+
+    margin:0;
+
+}
+
+
+
+
+
+
+
+
+/* 時間 */
+
+.convert-option {
+
+    display:flex;
+
+    align-items:center;
+
+    gap:5px;
+
+    margin-top:15px;
+
+}
+
+
+
+.convert-option label {
+
+    margin:0;
+
+    font-weight:normal;
+
+    white-space:nowrap;
+
+}
+
+
+
+.convert-option input {
+
+    width:90px;
+
+    padding:8px;
+
+}
+
+
+
+.symbol {
+
+    font-size:20px;
+
+}
+
+
+
+
+
+
+
+button {
+
+    border:none;
+
+    border-radius:8px;
+
+    padding:14px;
+
+    color:white;
+
+    cursor:pointer;
+
+    font-size:16px;
+
+}
+
+
+
+button:hover {
+
+    opacity:0.85;
+
+}
+
+
+
+
+
+
+
+.convert-button {
+
+    width:100%;
+
+    margin-top:20px;
+
+    background:#e60023;
+
+}
+
+
+
+
+
+
+
+.error-message {
+
+    color:red;
+
+    margin-top:10px;
+
+}
+
+
+
+
+
+
+
+footer {
+
+    text-align:center;
+
+    color:#777;
+
+    padding:25px;
+
+}
+
+#convertStatus {
+
+    text-align:center;
+
+    font-size:24px;
+
+    font-weight:bold;
+
+    margin-top:20px;
+
+    color:#e60023;
+
+}
+
+/* ==============================
+   ダウンロードボタン
+   ============================== */
+
+.download-buttons {
+
+    display:flex;
+
+    flex-direction:row;
+
+    justify-content:flex-start;
+
+    align-items:center;
+
+    gap:10px;
+
+    width:100%;
+
+    margin-top:15px;
+
+}
+
+
+
+.download-buttons a {
+
+    text-decoration:none;
+
+}
+
+
+
+.download-button {
+
+    background:#2563eb;
+
+    color:white;
+
+    border:none;
+
+    border-radius:6px;
+
+    padding:10px 25px;
+
+    font-size:16px;
+
+    cursor:pointer;
+
+    min-width:80px;
+
+}
+
+
+
+.download-button:hover {
+
+    background:#1d4ed8;
+
+}
+
+
+
+.download-button:active {
+
+    background:#1e40af;
+
+}
+
+
+
+
+
+/* ==============================
+   SRT 展開・折り畳み
+   ============================== */
+
+
+.srt-button-area {
+
+    display:flex;
+
+    flex-direction:row;
+
+    align-items:center;
+
+    justify-content:flex-start;
+
+    gap:5px;
+
+    margin-top:15px;
+
+    white-space:nowrap;
+
+}
+
+
+
+
+
+/* SRT用 mp3 ボタン */
+
+.srt-button-area .download-button {
+
+    display:inline-flex;
+
+    align-items:center;
+
+}
+
+
+
+
+
+/* ▼ ▲ ボタン */
+
+.srt-toggle-button {
+
+    display:inline-flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+
+    background:none;
+
+
+    border:none;
+
+
+    color:#2563eb;
+
+
+    font-size:22px;
+
+
+    font-weight:bold;
+
+
+    cursor:pointer;
+
+
+    padding:0;
+
+
+    width:30px;
+
+
+    height:30px;
+
+
+    line-height:1;
+
+
+}
+
+
+
+
+
+.srt-toggle-button:hover {
+
+    color:#1d4ed8;
+
+}
