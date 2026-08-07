@@ -9,6 +9,7 @@ from routes.gemini import register_gemini
 
 app = Flask(__name__)
 
+app.secret_key = "y2conv-secret-key"
 
 register_index(app)
 register_check(app)
