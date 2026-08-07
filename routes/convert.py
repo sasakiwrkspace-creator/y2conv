@@ -6,7 +6,7 @@ import os
 import subprocess
 
 from routes.status import jobs
-
+from cleanup import cleanup_downloads
 
 
 def convert_task(
@@ -18,6 +18,10 @@ def convert_task(
 ):
 
     try:
+
+        # 24時間以上経過したファイルを削除
+        cleanup_downloads()
+
 
         print("変換開始:", job_id)
 
