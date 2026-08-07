@@ -1,71 +1,52 @@
-from flask import (
-    Blueprint,
-    render_template,
-    send_from_directory,
-    redirect,
-    url_for
-)
-
+from flask import render_template, send_from_directory, redirect, url_for
 import os
-
-
-files_bp = Blueprint(
-    "files",
-    __name__
-)
 
 
 DOWNLOAD_DIR = "downloads"
 
 
-# ファイル一覧表示
-@files_bp.route("/files")
-def list_files():
-
-    if not os.path.exists(DOWNLOAD_DIR):
-        files = []
-
-    else:
-        files = os.listdir(DOWNLOAD_DIR)
+def register_files(app):
 
 
-    return render_template(
-        "files.html",
-        files=files
-    )
+    @app.route("/files")
+    def list_files():
+
+        if not os.path.exists(DOWNLOAD_DIR):
+            files = []
+
+        else:
+            files = os.listdir(DOWNLOAD_DIR)
 
 
-
-# ダウンロード
-@files_bp.route("/download/<filename>")
-def download(filename):
-
-    return send_from_directory(
-        DOWNLOAD_DIR,
-        filename,
-        as_attachment=True
-    )
+        return render_template(
+            "files.html",
+            files=files
+        )
 
 
 
-# 削除
-@files_bp.route(
-    "/delete/<filename>",
-    methods=["POST"]
-)
-def delete_file(filename):
+    @app.route("/download/<filename>")
+    def download(filename):
 
-    filepath = os.path.join(
-        DOWNLOAD_DIR,
-        filename
-    )
+        return send_from_directory(
+            DOWNLOAD_DIR,
+            filename,
+            as_attachment=True
+        )
 
 
-    if os.path.exists(filepath):
 
-        os.remove(filepath)
+    @app.route("/delete/<filename>", methods=["POST"])
+    def delete_file(filename):
+
+        filepath = os.path.join(
+            DOWNLOAD_DIR,
+            filename
+        )
 
 
-    return redirect(
-        url_for("files.list_files")
-    )
+        if os.path.exists(filepath):
+            os.remove(filepath)
+
+
+        return redirect("/files")
