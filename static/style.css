@@ -751,3 +751,11 @@ main {
 
 
 }
+
+.converter-link,
+.converter-link:visited,
+.converter-link:hover,
+.converter-link:active {
+    color: black;
+    text-decoration: none;
+}
