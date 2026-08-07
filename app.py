@@ -18,7 +18,7 @@ register_convert(app)
 register_status(app)
 register_download(app)
 register_gemini(app)
-
+register_files(app)
 
 if __name__ == "__main__":
 
