@@ -3,12 +3,19 @@ import yt_dlp
 import uuid
 import threading
 import os
+import subprocess
 
 from routes.status import jobs
 
 
 
-def convert_task(job_id, url, outputs):
+def convert_task(
+    job_id,
+    url,
+    outputs,
+    start_time=None,
+    end_time=None
+):
 
     try:
 
@@ -17,7 +24,8 @@ def convert_task(job_id, url, outputs):
 
         jobs[job_id] = {
 
-            "status": "running"
+            "status":
+            "running"
 
         }
 
@@ -50,10 +58,11 @@ def convert_task(job_id, url, outputs):
                 "format":
                 "bestaudio/best",
 
-
                 "outtmpl":
                 f"{output_dir}/%(title)s.%(ext)s",
 
+                "noplaylist":
+                True,
 
                 "postprocessors": [
 
@@ -62,10 +71,8 @@ def convert_task(job_id, url, outputs):
                         "key":
                         "FFmpegExtractAudio",
 
-
                         "preferredcodec":
                         "mp3",
-
 
                         "preferredquality":
                         "192"
@@ -90,13 +97,97 @@ def convert_task(job_id, url, outputs):
                 )
 
 
+                filename = ydl.prepare_filename(
+
+                    info
+
+                )
+
+
+
+            mp3_file = os.path.splitext(
+
+                filename
+
+            )[0] + ".mp3"
+
+
+
+            # 時間指定カット
+
+            if start_time and end_time and start_time < end_time:
+
+
+                cut_file = os.path.splitext(
+
+                    mp3_file
+
+                )[0] + "_cut.mp3"
+
+
+
+                result = subprocess.run([
+
+                    "ffmpeg",
+
+                    "-y",
+
+                    "-i",
+
+                    mp3_file,
+
+                    "-ss",
+
+                    start_time,
+
+                    "-to",
+
+                    end_time,
+
+                    "-c",
+
+                    "copy",
+
+                    cut_file
+
+                ])
+
+
+
+                if result.returncode != 0:
+
+                    raise Exception(
+                        "ffmpeg処理失敗(mp3)"
+                    )
+
+
+
+                os.remove(
+
+                    mp3_file
+
+                )
+
+
+                os.rename(
+
+                    cut_file,
+
+                    mp3_file
+
+                )
+
+
 
             files.append(
 
-                info["title"] + ".mp3"
+                os.path.basename(
+
+                    mp3_file
+
+                )
 
             )
-
 
 
             print("mp3完成")
@@ -116,13 +207,24 @@ def convert_task(job_id, url, outputs):
 
             ydl_opts = {
 
-
                 "format":
-                "bestvideo+bestaudio/best",
+
+                "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/best",
+
+
+                "merge_output_format":
+
+                "mp4",
 
 
                 "outtmpl":
-                f"{output_dir}/%(title)s.%(ext)s"
+
+                f"{output_dir}/%(title)s.%(ext)s",
+
+
+                "noplaylist":
+
+                True
 
             }
 
@@ -140,17 +242,100 @@ def convert_task(job_id, url, outputs):
                 )
 
 
+                filename = ydl.prepare_filename(
+
+                    info
+
+                )
+
+
+
+            mp4_file = os.path.splitext(
+
+                filename
+
+            )[0] + ".mp4"
+
+
+
+            # 時間指定カット
+
+            if start_time and end_time and start_time < end_time:
+
+
+                cut_file = os.path.splitext(
+
+                    mp4_file
+
+                )[0] + "_cut.mp4"
+
+
+
+                result = subprocess.run([
+
+                    "ffmpeg",
+
+                    "-y",
+
+                    "-i",
+
+                    mp4_file,
+
+                    "-ss",
+
+                    start_time,
+
+                    "-to",
+
+                    end_time,
+
+                    "-c",
+
+                    "copy",
+
+                    cut_file
+
+                ])
+
+
+
+                if result.returncode != 0:
+
+                    raise Exception(
+                        "ffmpeg処理失敗(mp4)"
+                    )
+
+
+
+                os.remove(
+
+                    mp4_file
+
+                )
+
+
+                os.rename(
+
+                    cut_file,
+
+                    mp4_file
+
+                )
+
+
 
             files.append(
 
-                info["title"] + ".mp4"
+                os.path.basename(
+
+                    mp4_file
+
+                )
 
             )
 
 
-
             print("mp4完成")
-
 
 
 
@@ -161,20 +346,24 @@ def convert_task(job_id, url, outputs):
 
         jobs[job_id] = {
 
-
             "status":
+
             "complete",
 
 
             "files":
+
             files
 
         }
 
 
         print(
+
             "変換完了:",
+
             files
+
         )
 
 
@@ -183,19 +372,23 @@ def convert_task(job_id, url, outputs):
 
 
         print(
+
             "変換エラー:",
+
             e
+
         )
 
 
         jobs[job_id] = {
 
-
             "status":
+
             "error",
 
 
             "message":
+
             str(e)
 
         }
@@ -208,8 +401,11 @@ def register_convert(app):
 
 
     @app.route(
+
         "/convert",
+
         methods=["POST"]
+
     )
 
     def convert():
@@ -223,13 +419,32 @@ def register_convert(app):
 
 
             url = data.get(
+
                 "url"
+
             )
 
 
             outputs = data.get(
+
                 "outputs",
+
                 []
+
+            )
+
+
+            start_time = data.get(
+
+                "start_time"
+
+            )
+
+
+            end_time = data.get(
+
+                "end_time"
+
             )
 
 
@@ -240,10 +455,12 @@ def register_convert(app):
                 return jsonify({
 
                     "success":
+
                     False,
 
 
                     "message":
+
                     "URLがありません"
 
                 })
@@ -251,7 +468,9 @@ def register_convert(app):
 
 
             job_id = str(
+
                 uuid.uuid4()
+
             )
 
 
@@ -266,12 +485,15 @@ def register_convert(app):
 
                     url,
 
-                    outputs
+                    outputs,
+
+                    start_time,
+
+                    end_time
 
                 )
 
             )
-
 
 
             thread.start()
@@ -281,10 +503,12 @@ def register_convert(app):
             return jsonify({
 
                 "success":
+
                 True,
 
 
                 "job_id":
+
                 job_id
 
             })
@@ -297,10 +521,12 @@ def register_convert(app):
             return jsonify({
 
                 "success":
+
                 False,
 
 
                 "message":
+
                 str(e)
 
             })
