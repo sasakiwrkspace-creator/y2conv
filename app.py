@@ -6,6 +6,7 @@ from routes.convert import register_convert
 from routes.status import register_status
 from routes.download import register_download
 from routes.gemini import register_gemini
+from routes.files import files_bp
 
 app = Flask(__name__)
 
