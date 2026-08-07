@@ -2,24 +2,26 @@ import os
 import time
 
 
-DOWNLOAD_DIR = "downloads"
+# ファイル保持期間
+# max_age=3600   # 1時間（3600秒）
+# max_age=43200  # 12時間（43200秒）
+# max_age=86400  # 24時間（86400秒）
+def cleanup_downloads(
+    folder="downloads",
+    max_age=86400  # 24時間（86400秒） 
+):
 
-MAX_AGE = 86400  # 24時間
+    if not os.path.exists(folder):
+        return
 
-
-def cleanup():
 
     now = time.time()
 
 
-    if not os.path.exists(DOWNLOAD_DIR):
-        return
-
-
-    for filename in os.listdir(DOWNLOAD_DIR):
+    for filename in os.listdir(folder):
 
         filepath = os.path.join(
-            DOWNLOAD_DIR,
+            folder,
             filename
         )
 
@@ -29,15 +31,20 @@ def cleanup():
             age = now - os.path.getmtime(filepath)
 
 
-            if age > MAX_AGE:
+            if age > max_age:
 
-                os.remove(filepath)
+                try:
 
-                print(
-                    "削除:",
-                    filename
-                )
+                    os.remove(filepath)
 
+                    print(
+                        "古いファイル削除:",
+                        filename
+                    )
 
-if __name__ == "__main__":
-    cleanup()
+                except Exception as e:
+
+                    print(
+                        "削除失敗:",
+                        e
+                    )
