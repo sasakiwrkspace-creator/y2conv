@@ -3,6 +3,7 @@ from flask import (
     request,
     redirect,
     session,
+    jsonify,
     send_from_directory
 )
 
