@@ -1,14 +1,13 @@
 from flask import (
     Blueprint,
-    request,
+    render_template,
+    send_from_directory,
     redirect,
-    session,
-    jsonify,
-    send_from_directory
+    url_for
 )
 
 import os
-from cleanup import cleanup_downloads
+
 
 files_bp = Blueprint(
     "files",
@@ -19,338 +18,46 @@ files_bp = Blueprint(
 DOWNLOAD_DIR = "downloads"
 
 
-# 簡易PIN
-FILES_PIN = "1234"
-
-
-
-# ==========================
-# ファイル管理
-# ==========================
-
-@files_bp.route(
-    "/files",
-    methods=["GET", "POST"]
-)
-def files():
-
-
-    # --------------------------
-    # PIN確認
-    # --------------------------
-
-    if not session.get("files_auth"):
-
-
-        if request.method == "POST":
-
-
-            pin = request.form.get(
-                "pin"
-            )
-
-
-            if pin == FILES_PIN:
-
-
-                session["files_auth"] = True
-
-
-                return redirect(
-                    "/files"
-                )
-
-
-
-        return """
-
-<!DOCTYPE html>
-
-<html>
-
-<head>
-
-<title>Files Login</title>
-
-
-<style>
-
-body {
-
-font-family:sans-serif;
-text-align:center;
-padding-top:100px;
-
-}
-
-
-.box {
-
-width:300px;
-margin:auto;
-padding:30px;
-box-shadow:0 0 10px #aaa;
-border-radius:10px;
-
-}
-
-
-input {
-
-font-size:20px;
-width:120px;
-text-align:center;
-
-}
-
-
-button {
-
-margin-top:15px;
-padding:8px 30px;
-
-}
-
-</style>
-
-
-</head>
-
-
-<body>
-
-
-<div class="box">
-
-
-<h2>
-Downloads管理
-</h2>
-
-
-<form method="post">
-
-
-<input
-type="password"
-name="pin"
-maxlength="4"
-placeholder="4桁PIN"
->
-
-
-<br>
-
-
-<button>
-確認
-</button>
-
-
-</form>
-
-
-</div>
-
-
-</body>
-
-</html>
-
-"""
-
-
-
-    # --------------------------
-    # ファイル一覧
-    # --------------------------
-
-
-    files = []
-
-
-    if os.path.exists(
-        DOWNLOAD_DIR
-    ):
-
-        files = os.listdir(
-            DOWNLOAD_DIR
-        )
-
-
-
-    html = """
-
-<!DOCTYPE html>
-
-<html>
-
-
-<head>
-
-<title>Downloads</title>
-
-<style>
-
-body {
-
-font-family:sans-serif;
-padding:30px;
-
-}
-
-
-.file {
-
-padding:10px;
-border-bottom:1px solid #ddd;
-
-}
-
-
-button {
-
-margin-left:10px;
-
-}
-
-
-.delete {
-
-color:red;
-
-}
-
-</style>
-
-
-</head>
-
-
-<body>
-
-
-<h1>
-Downloads
-</h1>
-
-"""
-
-
-    if not files:
-
-
-        html += """
-
-<p>
-ファイルなし
-</p>
-
-"""
-
+# ファイル一覧表示
+@files_bp.route("/files")
+def list_files():
+
+    if not os.path.exists(DOWNLOAD_DIR):
+        files = []
 
     else:
+        files = os.listdir(DOWNLOAD_DIR)
 
 
-        for filename in files:
-
-
-            html += f"""
-
-<div class="file">
-
-
-{filename}
-
-
-<a href="/download/{filename}">
-
-<button>
-再ダウンロード
-</button>
-
-</a>
-
-
-
-<form
-action="/delete/{filename}"
-method="post"
-style="display:inline;"
->
-
-
-<button class="delete">
-
-削除
-
-</button>
-
-
-</form>
-
-
-</div>
-
-"""
-
-
-    html += """
-
-</body>
-
-</html>
-
-"""
-
-
-    return html
-
-
-
-
-
-# ==========================
-# ダウンロード
-# ==========================
-
-@files_bp.route(
-    "/download/<filename>"
-)
-def download(filename):
-
-
-    return send_from_directory(
-
-        DOWNLOAD_DIR,
-
-        filename,
-
-        as_attachment=True
-
+    return render_template(
+        "files.html",
+        files=files
     )
 
 
 
+# ダウンロード
+@files_bp.route("/download/<filename>")
+def download(filename):
+
+    return send_from_directory(
+        DOWNLOAD_DIR,
+        filename,
+        as_attachment=True
+    )
 
 
-# ==========================
+
 # 削除
-# ==========================
-
 @files_bp.route(
     "/delete/<filename>",
     methods=["POST"]
 )
-def delete(filename):
-
+def delete_file(filename):
 
     filepath = os.path.join(
-
         DOWNLOAD_DIR,
-
         filename
-
     )
 
 
@@ -360,5 +67,5 @@ def delete(filename):
 
 
     return redirect(
-        "/files"
+        url_for("files.list_files")
     )
