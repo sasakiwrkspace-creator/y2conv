@@ -1,4 +1,4 @@
-from flask import render_template, send_from_directory, redirect, url_for
+from flask import render_template, send_from_directory, redirect
 import os
 
 
@@ -7,16 +7,13 @@ DOWNLOAD_DIR = "downloads"
 
 def register_files(app):
 
-
     @app.route("/files")
     def list_files():
 
         if not os.path.exists(DOWNLOAD_DIR):
             files = []
-
         else:
             files = os.listdir(DOWNLOAD_DIR)
-
 
         return render_template(
             "files.html",
@@ -24,9 +21,8 @@ def register_files(app):
         )
 
 
-
     @app.route("/download/<filename>")
-    def download(filename):
+    def download_file(filename):
 
         return send_from_directory(
             DOWNLOAD_DIR,
@@ -35,8 +31,10 @@ def register_files(app):
         )
 
 
-
-    @app.route("/delete/<filename>", methods=["POST"])
+    @app.route(
+        "/delete/<filename>",
+        methods=["POST"]
+    )
     def delete_file(filename):
 
         filepath = os.path.join(
@@ -44,9 +42,7 @@ def register_files(app):
             filename
         )
 
-
         if os.path.exists(filepath):
             os.remove(filepath)
-
 
         return redirect("/files")
