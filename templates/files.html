@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta charset="UTF-8">
+
+<title>
+Downloads
+</title>
+
+<style>
+
+body {
+
+    font-family: sans-serif;
+    margin: 30px;
+
+}
+
+
+.file {
+
+    margin: 10px;
+    padding: 10px;
+    border-bottom: 1px solid #ccc;
+
+}
+
+
+button {
+
+    background: #d9534f;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+
+}
+
+
+a {
+
+    margin-right: 15px;
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<h1>
+Downloads
+</h1>
+
+
+<a href="/">
+戻る
+</a>
+
+
+<hr>
+
+
+
+{% for file in files %}
+
+<div class="file">
+
+
+{{ file }}
+
+
+<br>
+
+
+<a href="/download/{{ file }}">
+ダウンロード
+</a>
+
+
+
+<form
+action="/delete/{{ file }}"
+method="post"
+style="display:inline;"
+>
+
+
+<button>
+削除
+</button>
+
+
+</form>
+
+
+</div>
+
+
+{% else %}
+
+
+<p>
+ファイルがありません
+</p>
+
+
+{% endfor %}
+
+
+
+</body>
+
+</html>
