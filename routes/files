@@ -8,7 +8,7 @@ from flask import (
 )
 
 import os
-
+from cleanup import cleanup_downloads
 
 files_bp = Blueprint(
     "files",
