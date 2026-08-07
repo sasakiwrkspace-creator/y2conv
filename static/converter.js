@@ -1,395 +1,380 @@
-from flask import request, jsonify
-import yt_dlp
-import uuid
-import threading
-import os
-import subprocess
-
-from routes.status import jobs
+// =====================================
+// YouTube Converter JavaScript
+// =====================================
 
 
-
-def convert_task(
-    job_id,
-    url,
-    outputs,
-    start_time=None,
-    end_time=None
-):
-
-    try:
-
-        print("変換開始:", job_id)
+document.addEventListener(
+    "DOMContentLoaded",
+    function(){
 
 
-        jobs[job_id] = {
+        const urlInput =
+            document.getElementById(
+                "youtube-url"
+            );
 
-            "status":
-            "running"
+
+        const checkButton =
+            document.getElementById(
+                "check-button"
+            );
+
+
+        const convertButton =
+            document.getElementById(
+                "convertBtn"
+            );
+
+
+        const downloadArea =
+            document.getElementById(
+                "downloadArea"
+            );
+
+
+        let currentJobId = null;
+
+        let convertSeconds = 0;
+
+        let convertTimer = null;
+
+
+
+        // ================================
+        // YouTube確認
+        // ================================
+
+
+        if(checkButton){
+
+            checkButton.addEventListener(
+                "click",
+                checkVideo
+            );
 
         }
 
+        // ------------------------------
+        // Enterキーで確認
+        // ------------------------------
 
-        output_dir = "downloads"
+        if(urlInput){
 
-
-        os.makedirs(
-            output_dir,
-            exist_ok=True
-        )
-
-
-        files = []
+            urlInput.addEventListener(
+                "keydown",
+                function(event){
 
 
-
-        # ==========================
-        # mp3作成
-        # ==========================
-
-        if "mp3" in outputs:
+                    if(event.key === "Enter"){
 
 
-            print("mp3変換開始")
+                        event.preventDefault();
 
 
-            ydl_opts = {
+                        checkVideo();
 
-                "format":
-                "bestaudio/best",
-
-                "outtmpl":
-                f"{output_dir}/%(title)s.%(ext)s",
-
-                "noplaylist":
-                True,
-
-                "postprocessors": [
-
-                    {
-
-                        "key":
-                        "FFmpegExtractAudio",
-
-                        "preferredcodec":
-                        "mp3",
-
-                        "preferredquality":
-                        "192"
 
                     }
 
-                ]
+
+                }
+            );
+
+        }
+
+        async function checkVideo(){
+
+
+            const url =
+                urlInput.value.trim();
+
+
+
+            if(!url){
+
+                alert(
+                    "YouTube URLを入力してください"
+                );
+
+                return;
 
             }
 
 
 
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            checkButton.disabled = true;
 
-
-                info = ydl.extract_info(
-
-                    url,
-
-                    download=True
-
-                )
-
-
-                filename = ydl.prepare_filename(
-
-                    info
-
-                )
+            checkButton.textContent =
+                "確認中...";
 
 
 
-            mp3_file = os.path.splitext(
-
-                filename
-
-            )[0] + ".mp3"
+            try{
 
 
+                const response =
+                    await fetch(
+                        "/check",
+                        {
 
-            # 時間指定カット
+                            method:"POST",
 
-            if start_time and end_time and start_time < end_time:
+                            headers:{
+                                "Content-Type":
+                                "application/json"
+                            },
 
+                            body:
+                            JSON.stringify({
+                                url:url
+                            })
 
-                cut_file = os.path.splitext(
-
-                    mp3_file
-
-                )[0] + "_cut.mp3"
-
-
-
-                result = subprocess.run([
-
-                    "ffmpeg",
-
-                    "-y",
-
-                    "-i",
-
-                    mp3_file,
-
-                    "-ss",
-
-                    start_time,
-
-                    "-to",
-
-                    end_time,
-
-                    "-c",
-
-                    "copy",
-
-                    cut_file
-
-                ])
+                        }
+                    );
 
 
 
-                if result.returncode != 0:
+                const data =
+                    await response.json();
 
-                    raise Exception(
-                        "ffmpeg処理失敗(mp3)"
+
+
+                if(data.success){
+
+
+                    document
+                    .getElementById(
+                        "convert-area"
                     )
+                    .style.display =
+                    "block";
 
 
 
-                os.remove(
-
-                    mp3_file
-
-                )
-
-
-                os.rename(
-
-                    cut_file,
-
-                    mp3_file
-
-                )
+                    document
+                    .getElementById(
+                        "filename"
+                    )
+                    .value =
+                    data.filename;
 
 
 
-            files.append(
-
-                os.path.basename(
-
-                    mp3_file
-
-                )
-
-            )
+                    document
+                    .getElementById(
+                        "end-time"
+                    )
+                    .value =
+                    data.duration;
 
 
-            print("mp3完成")
+                }
+                else{
 
 
+                    alert(
+                        data.message
+                    );
 
+                }
 
-        # ==========================
-        # mp4作成
-        # ==========================
-
-        if "mp4" in outputs:
-
-
-            print("mp4変換開始")
-
-
-            ydl_opts = {
-
-                "format":
-
-                "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/best",
-
-
-                "merge_output_format":
-
-                "mp4",
-
-
-                "outtmpl":
-
-                f"{output_dir}/%(title)s.%(ext)s",
-
-
-                "noplaylist":
-
-                True
 
             }
+            catch(error){
 
+                console.error(error);
 
+                alert(
+                    "確認エラー"
+                );
 
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            }
+            finally{
 
+                checkButton.disabled =
+                    false;
 
-                info = ydl.extract_info(
 
-                    url,
+                checkButton.textContent =
+                    "確認";
 
-                    download=True
-
-                )
-
-
-                filename = ydl.prepare_filename(
-
-                    info
-
-                )
-
-
-
-            mp4_file = os.path.splitext(
-
-                filename
-
-            )[0] + ".mp4"
-
-
-
-            # 時間指定カット
-
-            if start_time and end_time and start_time < end_time:
-
-
-                cut_file = os.path.splitext(
-
-                    mp4_file
-
-                )[0] + "_cut.mp4"
-
-
-
-                result = subprocess.run([
-
-                    "ffmpeg",
-
-                    "-y",
-
-                    "-i",
-
-                    mp4_file,
-
-                    "-ss",
-
-                    start_time,
-
-                    "-to",
-
-                    end_time,
-
-                    "-c",
-
-                    "copy",
-
-                    cut_file
-
-                ])
-
-
-
-                if result.returncode != 0:
-
-                    raise Exception(
-                        "ffmpeg処理失敗(mp4)"
-                    )
-
-
-
-                os.remove(
-
-                    mp4_file
-
-                )
-
-
-                os.rename(
-
-                    cut_file,
-
-                    mp4_file
-
-                )
-
-
-
-            files.append(
-
-                os.path.basename(
-
-                    mp4_file
-
-                )
-
-            )
-
-
-            print("mp4完成")
-
-
-
-
-        # ==========================
-        # 完了
-        # ==========================
-
-        jobs[job_id] = {
-
-            "status":
-
-            "complete",
-
-
-            "files":
-
-            files
+            }
 
         }
 
 
-        print(
-
-            "変換完了:",
-
-            files
-
-        )
 
 
-
-    except Exception as e:
-
-
-        print(
-
-            "変換エラー:",
-
-            e
-
-        )
+        // ================================
+        // 変換開始
+        // ================================
 
 
-        jobs[job_id] = {
+        if(convertButton){
 
-            "status":
+            convertButton.addEventListener(
+                "click",
+                startConvert
+            );
 
-            "error",
+        }
 
 
-            "message":
 
-            str(e)
+        async function startConvert(){
+
+
+            const url =
+                urlInput.value.trim();
+
+
+
+            const outputs =
+                [];
+
+
+
+            document
+            .querySelectorAll(
+                "input[name='output']:checked"
+            )
+            .forEach(
+                function(item){
+
+                    outputs.push(
+                        item.value
+                    );
+
+                }
+            );
+
+
+
+            if(outputs.length === 0){
+
+                alert(
+                    "作成ファイルを選択してください"
+                );
+
+                return;
+
+            }
+
+
+
+            convertButton.disabled = true;
+
+
+
+            convertSeconds = 0;
+
+
+            convertButton.textContent =
+                "変換中 0秒";
+
+
+
+            convertTimer =
+                setInterval(
+                    function(){
+
+
+                        convertSeconds++;
+
+
+                        convertButton.textContent =
+                            "変換中 "
+                            + convertSeconds
+                            + "秒";
+
+
+                    },
+                    1000
+                );
+
+
+
+            try{
+
+
+                const response =
+                    await fetch(
+                        "/convert",
+                        {
+
+                            method:"POST",
+
+                            headers:{
+                                "Content-Type":
+                                "application/json"
+                            },
+
+                            body:
+                            JSON.stringify({
+
+                                url:url,
+                                outputs:outputs,
+                                start_time: document.getElementById("start-time").value.trim(),
+                                end_time: document.getElementById("end-time").value.trim()
+
+
+                            })
+
+                        }
+                    );
+
+
+
+                const data =
+                    await response.json();
+
+
+
+                if(data.success){
+
+
+                    currentJobId =
+                        data.job_id;
+
+
+                    checkStatus();
+
+
+                }
+                else{
+
+
+                    throw new Error(
+                        data.message
+                    );
+
+                }
+
+
+            }
+            catch(error){
+
+
+                clearInterval(
+                    convertTimer
+                );
+
+
+                convertButton.disabled =
+                    false;
+
+
+                convertButton.textContent =
+                    "変換開始";
+
+
+                alert(
+                    error.message
+                );
+
+
+            }
+
 
         }
 
@@ -397,136 +382,504 @@ def convert_task(
 
 
 
-def register_convert(app):
+        // ================================
+        // 状態確認
+        // ================================
 
 
-    @app.route(
-
-        "/convert",
-
-        methods=["POST"]
-
-    )
-
-    def convert():
+        function checkStatus(){
 
 
-        try:
-
-
-            data = request.get_json()
-
-
-
-            url = data.get(
-
-                "url"
-
+            fetch(
+                `/status/${currentJobId}`
             )
 
-
-            outputs = data.get(
-
-                "outputs",
-
-                []
-
+            .then(
+                response =>
+                    response.json()
             )
 
-
-            start_time = data.get(
-
-                "start_time"
-
-            )
+            .then(
+                data =>{
 
 
-            end_time = data.get(
-
-                "end_time"
-
-            )
+                    if(
+                        data.status === "complete"
+                    ){
 
 
-
-            if not url:
-
-
-                return jsonify({
-
-                    "success":
-
-                    False,
-
-
-                    "message":
-
-                    "URLがありません"
-
-                })
+                        clearInterval(
+                            convertTimer
+                        );
 
 
 
-            job_id = str(
+                        // 変換開始ボタン非表示
 
-                uuid.uuid4()
-
-            )
-
+                        convertButton.style.display =
+                            "none";
 
 
-            thread = threading.Thread(
 
-                target=convert_task,
+                        showFiles(
+                            data.files
+                        );
 
-                args=(
 
-                    job_id,
+                    }
 
-                    url,
+                    else if(
+                        data.status === "error"
+                    ){
 
-                    outputs,
 
-                    start_time,
+                        clearInterval(
+                            convertTimer
+                        );
 
-                    end_time
 
+                        alert(
+                            data.message
+                        );
+
+
+                    }
+
+                    else{
+
+
+                        setTimeout(
+                            checkStatus,
+                            3000
+                        );
+
+
+                    }
+
+
+                }
+            );
+
+
+        }
+
+
+
+
+
+// ================================
+// ダウンロード表示
+// ================================
+
+function showFiles(files){
+
+    console.log(files);
+
+
+    let html = `
+
+    <div class="download-buttons">
+
+    `;
+
+
+    let mp3File = "";
+
+
+    files.forEach(function(file){
+
+        if(file.endsWith(".mp3")){
+
+            mp3File = file;
+
+        }
+
+    });
+
+
+
+    // Gemini用mp3ファイル名セット
+
+    const geminiFile =
+        document.getElementById(
+            "gemini-file"
+        );
+
+
+    if(geminiFile && mp3File){
+
+        geminiFile.value = mp3File;
+
+    }
+
+
+
+
+    files.forEach(function(file){
+
+
+
+        if(file.endsWith(".mp3")){
+
+
+            html += `
+
+
+            <a
+            href="/download/${encodeURIComponent(file)}"
+            download>
+
+
+            <button
+            class="download-button">
+            mp3
+            </button>
+
+
+            </a>
+
+
+
+            <button
+            type="button"
+            id="srt-toggle-button"
+            class="srt-toggle-button">
+            ▲
+            </button>
+
+
+            `;
+
+
+        }
+
+
+
+        else if(file.endsWith(".mp4")){
+
+
+            html += `
+
+
+            <a
+            href="/download/${encodeURIComponent(file)}"
+            download>
+
+
+            <button
+            class="download-button">
+            mp4
+            </button>
+
+
+            </a>
+
+
+            `;
+
+
+        }
+
+
+
+    });
+
+
+
+    html += `
+
+    </div>
+
+    `;
+
+
+
+    downloadArea.innerHTML =
+        html;
+
+
+
+
+    // ================================
+    // SRT表示
+    // ================================
+
+
+    const srtArea =
+        document.getElementById(
+            "srtArea"
+        );
+
+
+    if(srtArea && mp3File){
+
+        srtArea.style.display =
+            "block";
+
+
+    }
+    else if(srtArea){
+
+        srtArea.style.display =
+            "none";
+
+    }
+
+
+
+
+
+    // ================================
+    // 展開ボタン
+    // ================================
+
+
+    const toggle =
+        document.getElementById(
+            "srt-toggle-button"
+        );
+
+
+    const srtContent =
+        document.getElementById(
+            "srt-content"
+        );
+
+
+
+    if(toggle && srtContent){
+
+
+        toggle.addEventListener(
+            "click",
+            function(){
+
+
+                if(
+                    srtContent.style.display === "none"
+                ){
+
+
+                    srtContent.style.display =
+                        "block";
+
+
+                    toggle.textContent =
+                        "▲";
+
+
+                }
+                else{
+
+
+                    srtContent.style.display =
+                        "none";
+
+
+                    toggle.textContent =
+                        "▼";
+
+
+                }
+
+
+            }
+        );
+
+
+    }
+
+
+}
+
+// ================================
+// Gemini 文字起こし
+// ================================
+
+const geminiButton =
+    document.getElementById(
+        "gemini-button"
+    );
+
+
+if(geminiButton){
+
+    geminiButton.addEventListener(
+        "click",
+        async function(){
+
+
+            const file =
+                document.getElementById(
+                    "gemini-file"
                 )
-
-            )
-
-
-            thread.start()
+                .value
+                .trim();
 
 
 
-            return jsonify({
+            if(!file){
 
-                "success":
+                alert(
+                    "mp3ファイル名がありません"
+                );
 
-                True,
+                return;
 
-
-                "job_id":
-
-                job_id
-
-            })
+            }
 
 
 
-        except Exception as e:
+            const result =
+                document.getElementById(
+                    "gemini-result"
+                );
 
 
-            return jsonify({
 
-                "success":
-
-                False,
+            let seconds = 0;
 
 
-                "message":
+            result.textContent =
+                "文字起こし中... 0秒";
 
-                str(e)
 
-            })
+
+            const timer =
+                setInterval(
+                    function(){
+
+
+                        seconds++;
+
+
+                        result.textContent =
+                            "文字起こし中... "
+                            + seconds
+                            + "秒";
+
+
+                    },
+                    1000
+                );
+
+
+
+            try{
+
+
+                const response =
+                    await fetch(
+                        "/gemini-transcribe",
+                        {
+
+                            method:"POST",
+
+                            headers:{
+                                "Content-Type":
+                                "application/json"
+                            },
+
+
+                            body:
+                            JSON.stringify({
+
+                                file:file
+
+                            })
+
+                        }
+                    );
+
+
+
+                const data =
+                    await response.json();
+
+
+
+                clearInterval(
+                    timer
+                );
+
+
+
+                if(data.success){
+
+
+                    // テキスト非表示
+
+                    result.style.display =
+                        "none";
+
+
+
+                    // SRTダウンロードボタン表示
+
+                    const srtButton =
+                        document.createElement(
+                            "a"
+                        );
+
+
+                    srtButton.href =
+                        "/download/"
+                        +
+                        encodeURIComponent(
+                            data.srt_file
+                        );
+
+
+                    srtButton.download =
+                        data.srt_file;
+
+
+                    srtButton.innerHTML =
+                        `
+                        <button class="download-button">
+                        srt
+                        </button>
+                        `;
+
+
+                    result.parentNode.appendChild(
+                        srtButton
+                    );
+
+
+                }
+
+                else{
+
+
+                    result.textContent =
+                        data.message;
+
+
+                }
+
+
+
+            }
+            catch(error){
+
+
+                clearInterval(
+                    timer
+                );
+
+
+                result.textContent =
+                    "エラー: "
+                    + error.message;
+
+
+            }
+
+
+        }
+    );
+
+}
+
+});   // ← DOMContentLoaded終了
