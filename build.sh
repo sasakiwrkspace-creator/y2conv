@@ -1,64 +1,29 @@
 #!/usr/bin/env bash
-set -e
 
-echo "=========================================="
-echo "Render build開始"
-echo "=========================================="
+echo "##########################################"
+echo "### BUILD.SH TEST START ###"
+echo "##########################################"
 
-echo "=========================================="
-echo "Python dependencies install"
-echo "=========================================="
+pwd
+ls -la
 
-pip install -r requirements.txt
-
-echo "=========================================="
-echo "yt-dlp-ejs install確認"
-echo "=========================================="
-
-pip install -U yt-dlp-ejs
-
-echo "=========================================="
-echo "Deno install"
-echo "=========================================="
-
-curl -fsSL https://deno.land/install.sh | sh
-
-echo "=========================================="
-echo "Deno PATH設定"
-echo "=========================================="
-
-export DENO_INSTALL="$HOME/.deno"
-export PATH="$DENO_INSTALL/bin:$PATH"
+echo "##########################################"
+echo "### BUILD.SH CONTENT TEST ###"
+echo "##########################################"
 
 echo "Deno version"
-deno --version
+deno --version || true
 
-echo "=========================================="
-echo "FFmpeg確認"
-echo "=========================================="
+echo "yt-dlp version"
+python -m yt_dlp --version || true
 
-ffmpeg -version
+echo "yt-dlp-ejs"
+pip show yt-dlp-ejs || true
 
-echo "=========================================="
-echo "yt-dlp確認"
-echo "=========================================="
+echo "##########################################"
+echo "### BUILD.SH TEST END ###"
+echo "##########################################"
 
-python -m yt_dlp --version
+set -e
 
-echo "=========================================="
-echo "yt-dlp-ejs確認"
-echo "=========================================="
-
-pip show yt-dlp-ejs
-
-echo "=========================================="
-echo "EJS GitHub component確認"
-echo "=========================================="
-
-python -m yt_dlp \
-    --remote-components ejs:github \
-    --version
-
-echo "=========================================="
-echo "Build完了"
-echo "=========================================="
+pip install -r requirements.txt
