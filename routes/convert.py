@@ -1,5 +1,4 @@
 from flask import request, jsonify
-
 import yt_dlp
 import uuid
 import threading
@@ -11,24 +10,36 @@ import tempfile
 from routes.status import jobs
 from cleanup import cleanup_downloads
 
+# ==========================================================
+
+# Cookieファイル
 
 # ==========================================================
-# Cookieファイル
-# ==========================================================
+
+# Render Secret File
 
 RENDER_COOKIE_FILE = "/etc/secrets/cookies.txt"
 
-
 # ==========================================================
-# プロジェクトルート
+
+# プロジェクトのルートディレクトリ
+
 #
+
 # convert.py
-#     ↓
+
+# ↓
+
 # routes/
-#     ↓
-# プロジェクトルート
+
+# ↓
+
+# y2conv/
+
 #
-# app.py と同じ階層
+
+# そのため、dirnameを2回戻す
+
 # ==========================================================
 
 BASE_DIR = os.path.dirname(
@@ -37,11 +48,22 @@ BASE_DIR = os.path.dirname(
     )
 )
 
-
 # ==========================================================
+
 # ローカルCookie
+
 #
-# app.py と同じ階層の cookies.txt
+
+# y2conv/
+
+# ├── app.py
+
+# ├── cookies.txt
+
+# └── routes/
+
+# └── convert.py
+
 # ==========================================================
 
 LOCAL_COOKIE_FILE = os.path.join(
@@ -49,31 +71,25 @@ LOCAL_COOKIE_FILE = os.path.join(
     "cookies.txt"
 )
 
-
 # ==========================================================
-# Render判定
+
+# Cookieファイル選択
+
 #
-# Render側のEnvironment Variablesに
+
+# Render:
+
+# /etc/secrets/cookies.txt
+
 #
-# RENDER=true
-#
-# を設定する
-# ==========================================================
 
-IS_RENDER = (
-    os.environ.get(
-        "RENDER",
-        ""
-    ).lower()
-    == "true"
-)
+# ローカル:
 
+# プロジェクト直下/cookies.txt
 
 # ==========================================================
-# 使用する元Cookieファイル
-# ==========================================================
 
-if IS_RENDER:
+if os.environ.get("RENDER") == "true":
 
     ORIGINAL_COOKIE_FILE = RENDER_COOKIE_FILE
 
@@ -83,37 +99,36 @@ else:
 
 
 print("==========================================")
-print("Cookie環境:")
-print(
-    "Render"
-    if IS_RENDER
-    else "Local"
-)
+print("Cookie設定")
+print("RENDER:", os.environ.get("RENDER"))
 print("元Cookieファイル:")
 print(ORIGINAL_COOKIE_FILE)
-print(
-    "Cookie存在:",
-    os.path.exists(
-        ORIGINAL_COOKIE_FILE
-    )
-)
 print("==========================================")
 
-
 # ==========================================================
-# yt-dlp用Cookieファイル作成
+
+# 一時Cookieファイル作成
+
 #
-# /etc/secrets は読み取り専用の場合があるため、
-# 各処理ごとに /tmp へコピーする
+
+# Renderの /etc/secrets は読み取り専用のため、
+
+# yt-dlpへ渡すCookieを /tmp にコピーする
+
 #
-# 固定ファイル名は使わない
-# → 複数ジョブ同時実行時の競合を防止
+
+# /tmpはRender / Linux / Windowsともに通常存在する
+
+# NamedTemporaryFileによりファイル名は自動生成される
+
 # ==========================================================
 
 def prepare_cookie_file():
 
     # ------------------------------------------------------
+
     # 元Cookieファイル存在確認
+
     # ------------------------------------------------------
 
     if not os.path.exists(
@@ -122,139 +137,150 @@ def prepare_cookie_file():
 
         raise Exception(
             "Cookieファイルが見つかりません: "
-            f"{ORIGINAL_COOKIE_FILE}"
+            + ORIGINAL_COOKIE_FILE
         )
 
-
     # ------------------------------------------------------
-    # 元Cookieファイルサイズ
+
+    # 元ファイルサイズ
+
     # ------------------------------------------------------
 
     original_size = os.path.getsize(
         ORIGINAL_COOKIE_FILE
     )
 
-
+    print("==========================================")
+    print("元Cookieファイル確認OK")
     print(
-        "元Cookieファイルサイズ:",
+        "ファイル:",
+        ORIGINAL_COOKIE_FILE
+    )
+    print(
+        "サイズ:",
         original_size,
         "bytes"
     )
+    print("==========================================")
 
-
-    if original_size <= 0:
+    if original_size == 0:
 
         raise Exception(
             "Cookieファイルが空です: "
-            f"{ORIGINAL_COOKIE_FILE}"
+            + ORIGINAL_COOKIE_FILE
         )
 
-
     # ------------------------------------------------------
-    # 一時ファイル作成
+
+    # /tmp に一時ファイルを作成
+
     #
-    # 固定名ではなくランダムなファイル名を使用
+
+    # prefix:
+
+    # y2conv_cookies_
+
+    #
+
+    # suffix:
+
+    # .txt
+
+    #
+
+    # 例:
+
+    # /tmp/y2conv_cookies_xxxxxxxx.txt
+
     # ------------------------------------------------------
 
     temp_file = tempfile.NamedTemporaryFile(
-
         mode="wb",
-
-        prefix="y2conv_cookies_",
-
         suffix=".txt",
-
-        dir="/tmp",
-
+        prefix="y2conv_cookies_",
         delete=False
-
     )
-
 
     temp_cookie_file = temp_file.name
 
     temp_file.close()
 
+    # ------------------------------------------------------
+
+    # Cookieコピー
+
+    # ------------------------------------------------------
+
+    shutil.copyfile(
+        ORIGINAL_COOKIE_FILE,
+        temp_cookie_file
+    )
+
+    # ------------------------------------------------------
+
+    # コピー確認
+
+    # ------------------------------------------------------
+
+    if not os.path.exists(
+        temp_cookie_file
+    ):
+
+        raise Exception(
+            "一時Cookieファイルの作成に失敗しました: "
+            + temp_cookie_file
+        )
+
+    file_size = os.path.getsize(
+        temp_cookie_file
+    )
+
+    print("==========================================")
+    print("yt-dlp用Cookieファイル作成OK")
+    print(
+        "一時Cookie:",
+        temp_cookie_file
+    )
+    print(
+        "サイズ:",
+        file_size,
+        "bytes"
+    )
+    print("==========================================")
+
+    if file_size == 0:
+
+        raise Exception(
+            "一時Cookieファイルが空です"
+        )
+
+    # ======================================================
+
+    # Cookie数確認
+
+    # ======================================================
+
+    cookie_count = 0
+    youtube_cookie_count = 0
 
     try:
 
-        # --------------------------------------------------
-        # Cookieコピー
-        # --------------------------------------------------
-
-        shutil.copyfile(
-
-            ORIGINAL_COOKIE_FILE,
-
-            temp_cookie_file
-
-        )
-
-
-        # --------------------------------------------------
-        # コピー確認
-        # --------------------------------------------------
-
-        if not os.path.exists(
-            temp_cookie_file
-        ):
-
-            raise Exception(
-                "yt-dlp用Cookieファイルの作成に失敗しました"
-            )
-
-
-        file_size = os.path.getsize(
-            temp_cookie_file
-        )
-
-
-        print(
-            "Cookieファイル準備OK:",
-            temp_cookie_file
-        )
-
-        print(
-            "Cookieファイルサイズ:",
-            file_size,
-            "bytes"
-        )
-
-
-        if file_size <= 0:
-
-            raise Exception(
-                "コピーしたCookieファイルが空です"
-            )
-
-
-        # --------------------------------------------------
-        # Cookie数確認
-        #
-        # Cookieの内容そのものはログに出さない
-        # --------------------------------------------------
-
-        cookie_count = 0
-
-        youtube_cookie_count = 0
-
-
         with open(
-
             temp_cookie_file,
-
             "r",
-
             encoding="utf-8",
-
             errors="replace"
-
         ) as f:
 
             for line in f:
 
                 line = line.strip()
 
+                # ------------------------------------------
+
+                # コメント・空行を除外
+
+                # ------------------------------------------
 
                 if (
                     not line
@@ -263,88 +289,67 @@ def prepare_cookie_file():
 
                     continue
 
+                fields = line.split("\t")
 
-                fields = line.split(
-                    "\t"
-                )
-
-
-                # Netscape形式Cookie
+                # Netscape Cookie形式
                 if len(fields) >= 7:
 
                     cookie_count += 1
 
-
-                    domain = (
-                        fields[0]
-                        .lower()
-                    )
-
+                    domain = fields[0].lower()
 
                     if (
-                        "youtube.com"
-                        in domain
-                        or
-                        "google.com"
-                        in domain
+                        "youtube.com" in domain
+                        or "google.com" in domain
                     ):
 
                         youtube_cookie_count += 1
 
+                else:
 
-        print(
-            "Cookieデータ行数:",
-            cookie_count
+                    # Cookie形式ではない行もカウントして
+                    # 後で診断できるようにする
+                    cookie_count += 1
+
+    except Exception as e:
+
+        # Cookieファイル自体は存在するので、
+        # 読み込みエラーを明示的に返す
+        raise Exception(
+            "Cookieファイルの読み込みに失敗しました: "
+            + repr(e)
         )
 
-        print(
-            "YouTube/Google Cookie数:",
-            youtube_cookie_count
+    print("==========================================")
+    print(
+        "Cookieデータ行数:",
+        cookie_count
+    )
+    print(
+        "YouTube/Google Cookie数:",
+        youtube_cookie_count
+    )
+    print("==========================================")
+
+    if cookie_count == 0:
+
+        raise Exception(
+            "Cookieデータが0件です"
         )
 
+    if youtube_cookie_count == 0:
 
-        if cookie_count == 0:
+        print(
+            "WARNING: "
+            "YouTube/Google Cookieが見つかりません"
+        )
 
-            raise Exception(
-                "Cookieデータが0件です"
-            )
-
-
-        if youtube_cookie_count == 0:
-
-            print(
-                "WARNING: "
-                "YouTube/Google Cookieが見つかりません"
-            )
-
-
-        return temp_cookie_file
-
-
-    except Exception:
-
-        # 作成途中でエラーになった場合は削除
-
-        try:
-
-            if os.path.exists(
-                temp_cookie_file
-            ):
-
-                os.remove(
-                    temp_cookie_file
-                )
-
-        except Exception:
-
-            pass
-
-
-        raise
-
+    return temp_cookie_file
 
 # ==========================================================
+
 # 一時Cookie削除
+
 # ==========================================================
 
 def remove_cookie_file(
@@ -354,7 +359,6 @@ def remove_cookie_file(
     if not cookie_file:
 
         return
-
 
     try:
 
@@ -378,16 +382,15 @@ def remove_cookie_file(
             repr(e)
         )
 
-
 # ==========================================================
+
 # yt-dlp共通設定
-#
-# Cookieファイルを受け取って使用する
+
 # ==========================================================
 
-def get_ydl_base_options(
-    cookie_file
-):
+def get_ydl_base_options():
+
+    cookie_file = prepare_cookie_file()
 
     options = {
 
@@ -396,27 +399,24 @@ def get_ydl_base_options(
         # --------------------------------------------------
 
         "cookiefile":
-            cookie_file,
-
+        cookie_file,
 
         # --------------------------------------------------
         # Playlist無効
         # --------------------------------------------------
 
         "noplaylist":
-            True,
-
+        True,
 
         # --------------------------------------------------
         # JavaScript Runtime
         #
-        # yt-dlpが対応している場合に使用
+        # yt-dlpのYouTube処理用
         # --------------------------------------------------
 
         "js_runtimes": {
             "deno": {}
         },
-
 
         # --------------------------------------------------
         # EJS challenge solver
@@ -424,324 +424,206 @@ def get_ydl_base_options(
 
         "remote_components": {
             "ejs": "github"
-        },
-
-
-        # --------------------------------------------------
-        # エラーをExceptionとして取得
-        # --------------------------------------------------
-
-        "ignoreerrors":
-            False,
-
-
-        # --------------------------------------------------
-        # ログ
-        # --------------------------------------------------
-
-        "quiet":
-            False,
-
-        "no_warnings":
-            False
+        }
 
     }
 
-
     return options
 
-
-# ==========================================================
-# FFmpeg確認
 # ==========================================================
 
-def check_ffmpeg():
-
-    try:
-
-        result = subprocess.run(
-
-            [
-                "ffmpeg",
-                "-version"
-            ],
-
-            stdout=subprocess.PIPE,
-
-            stderr=subprocess.PIPE,
-
-            text=True,
-
-            timeout=10
-
-        )
-
-
-        if result.returncode != 0:
-
-            raise Exception(
-                "FFmpegが正常に実行できません"
-            )
-
-
-        first_line = (
-            result.stdout
-            .splitlines()[0]
-            if result.stdout
-            else ""
-        )
-
-
-        print(
-            "FFmpeg確認OK:",
-            first_line
-        )
-
-
-    except FileNotFoundError:
-
-        raise Exception(
-            "FFmpegがインストールされていません"
-        )
-
-
-    except Exception as e:
-
-        raise Exception(
-            "FFmpeg確認失敗: "
-            f"{e}"
-        )
-
-
-# ==========================================================
 # YouTube情報・format診断
-#
-# 診断だけを行う。
-#
-# ここで失敗しても、
-# 実際のMP3/MP4変換処理は続行可能。
+
 # ==========================================================
 
 def diagnose_formats(
-    url,
-    cookie_file
+    url
 ):
 
-    print(
-        "=========================================="
-    )
+    temp_cookie = None
 
-    print(
-        "YouTube情報取得開始"
-    )
+    try:
 
-    print(
-        "URL:",
-        url
-    )
-
-    print(
-        "=========================================="
-    )
-
-
-    ydl_opts = get_ydl_base_options(
-        cookie_file
-    )
-
-
-    ydl_opts.update({
+        print("==========================================")
+        print("YouTube情報取得開始")
+        print("URL:", url)
+        print("==========================================")
 
         # --------------------------------------------------
-        # ダウンロードしない
+        # yt-dlp設定
         # --------------------------------------------------
 
-        "skip_download":
+        ydl_opts = get_ydl_base_options()
+
+        # Cookieファイルを取得
+        temp_cookie = ydl_opts.get(
+            "cookiefile"
+        )
+
+        ydl_opts.update({
+
+            "quiet":
+            False,
+
+            "no_warnings":
+            False,
+
+            "verbose":
             True,
 
-
-        # --------------------------------------------------
-        # formatを固定しない
-        # --------------------------------------------------
-
-        "format":
-            None,
-
-
-        # --------------------------------------------------
-        # 詳細ログ
-        # --------------------------------------------------
-
-        "quiet":
-            False,
-
-        "no_warnings":
-            False,
-
-        "verbose":
+            "skip_download":
             True
 
-    })
+        })
 
+        # --------------------------------------------------
+        # YouTube情報取得
+        # --------------------------------------------------
 
-    with yt_dlp.YoutubeDL(
-        ydl_opts
-    ) as ydl:
-
-        print(
-            "extract_info開始"
-        )
-
-
-        info = ydl.extract_info(
-
-            url,
-
-            download=False
-
-        )
-
-
-    if not info:
-
-        raise Exception(
-            "YouTube情報を取得できませんでした"
-        )
-
-
-    # ======================================================
-    # 基本情報
-    # ======================================================
-
-    title = info.get(
-        "title"
-    )
-
-
-    duration = info.get(
-        "duration"
-    )
-
-
-    print(
-        "=========================================="
-    )
-
-    print(
-        "動画タイトル:",
-        title
-    )
-
-    print(
-        "再生時間:",
-        duration,
-        "秒"
-    )
-
-    print(
-        "=========================================="
-    )
-
-
-    # ======================================================
-    # Format一覧
-    # ======================================================
-
-    formats = info.get(
-        "formats",
-        []
-    )
-
-
-    print(
-        "利用可能format数:",
-        len(formats)
-    )
-
-
-    print(
-        "=========================================="
-    )
-
-    print(
-        "音声format一覧"
-    )
-
-    print(
-        "=========================================="
-    )
-
-
-    audio_formats = []
-
-
-    for f in formats:
-
-        acodec = f.get(
-            "acodec"
-        )
-
-
-        vcodec = f.get(
-            "vcodec"
-        )
-
-
-        if (
-            acodec
-            and acodec != "none"
-            and (
-                not vcodec
-                or vcodec == "none"
-            )
-        ):
-
-            audio_formats.append(
-                f
-            )
-
+        with yt_dlp.YoutubeDL(
+            ydl_opts
+        ) as ydl:
 
             print(
-
-                "AUDIO",
-
-                "ID=",
-                f.get("format_id"),
-
-                "EXT=",
-                f.get("ext"),
-
-                "ACODEC=",
-                f.get("acodec"),
-
-                "ABR=",
-                f.get("abr"),
-
-                "ASR=",
-                f.get("asr")
-
+                "extract_info開始"
             )
 
+            info = ydl.extract_info(
+                url,
+                download=False
+            )
 
-    print(
-        "=========================================="
-    )
+        if not info:
 
-    print(
-        "音声format数:",
-        len(audio_formats)
-    )
+            raise Exception(
+                "YouTube情報を取得できませんでした"
+            )
 
-    print(
-        "=========================================="
-    )
+        # ==================================================
+        # 基本情報
+        # ==================================================
 
+        title = info.get(
+            "title"
+        )
 
-    return info
+        duration = info.get(
+            "duration"
+        )
 
+        print("==========================================")
+        print(
+            "動画タイトル:",
+            title
+        )
+        print(
+            "再生時間:",
+            duration,
+            "秒"
+        )
+        print("==========================================")
+
+        # ==================================================
+        # Format一覧
+        # ==================================================
+
+        formats = info.get(
+            "formats",
+            []
+        )
+
+        print(
+            "利用可能format数:",
+            len(formats)
+        )
+
+        print("==========================================")
+        print("利用可能format一覧")
+        print("==========================================")
+
+        for f in formats:
+
+            print(
+                "ID=",
+                f.get("format_id"),
+                "EXT=",
+                f.get("ext"),
+                "VCODEC=",
+                f.get("vcodec"),
+                "ACODEC=",
+                f.get("acodec"),
+                "RES=",
+                f.get("resolution"),
+                "ABR=",
+                f.get("abr")
+            )
+
+        print("==========================================")
+        print("音声format一覧")
+        print("==========================================")
+
+        audio_formats = []
+
+        for f in formats:
+
+            acodec = f.get(
+                "acodec"
+            )
+
+            vcodec = f.get(
+                "vcodec"
+            )
+
+            if (
+                acodec
+                and acodec != "none"
+                and (
+                    not vcodec
+                    or vcodec == "none"
+                )
+            ):
+
+                audio_formats.append(
+                    f
+                )
+
+                print(
+                    "AUDIO",
+                    "ID=",
+                    f.get("format_id"),
+                    "EXT=",
+                    f.get("ext"),
+                    "ACODEC=",
+                    f.get("acodec"),
+                    "ABR=",
+                    f.get("abr"),
+                    "ASR=",
+                    f.get("asr")
+                )
+
+        print("==========================================")
+        print(
+            "音声format数:",
+            len(audio_formats)
+        )
+        print("==========================================")
+
+        return info
+
+    finally:
+
+        # --------------------------------------------------
+        # 診断終了後に一時Cookie削除
+        # --------------------------------------------------
+
+        remove_cookie_file(
+            temp_cookie
+        )
 
 # ==========================================================
+
 # MP3変換
+
 # ==========================================================
 
 def download_mp3(
@@ -749,82 +631,63 @@ def download_mp3(
     output_dir
 ):
 
-    cookie_file = None
-
+    temp_cookie = None
 
     try:
 
-        print(
-            "=========================================="
-        )
-
-        print(
-            "MP3ダウンロード開始"
-        )
-
-        print(
-            "=========================================="
-        )
-
+        print("==========================================")
+        print("MP3ダウンロード開始")
+        print("==========================================")
 
         # --------------------------------------------------
-        # Cookie
+        # yt-dlp設定
         # --------------------------------------------------
 
-        cookie_file = prepare_cookie_file()
+        ydl_opts = get_ydl_base_options()
 
-
-        # --------------------------------------------------
-        # yt-dlp
-        # --------------------------------------------------
-
-        ydl_opts = get_ydl_base_options(
-            cookie_file
+        temp_cookie = ydl_opts.get(
+            "cookiefile"
         )
-
 
         ydl_opts.update({
 
-            # --------------------------------------------------
-            # MP3用format
+            # ------------------------------------------------
+            # 音声
             #
-            # 140固定をやめる。
-            #
-            # 140がRender側で取得できない場合でも、
-            # 利用可能な音声formatを選択する。
-            # --------------------------------------------------
+            # 140が存在すれば140
+            # なければbestaudio
+            # 最後にbest
+            # ------------------------------------------------
 
             "format":
-                "bestaudio/best",
+            "140/bestaudio/best",
 
-
-            # --------------------------------------------------
+            # ------------------------------------------------
             # 出力
-            # --------------------------------------------------
+            # ------------------------------------------------
 
             "outtmpl":
-                os.path.join(
-                    output_dir,
-                    "%(title)s.%(ext)s"
-                ),
+            os.path.join(
+                output_dir,
+                "%(title)s.%(ext)s"
+            ),
 
-
-            # --------------------------------------------------
-            # FFmpegでMP3へ変換
-            # --------------------------------------------------
+            # ------------------------------------------------
+            # MP3変換
+            # ------------------------------------------------
 
             "postprocessors": [
 
                 {
 
                     "key":
-                        "FFmpegExtractAudio",
+                    "FFmpegExtractAudio",
 
                     "preferredcodec":
-                        "mp3",
+                    "mp3",
 
                     "preferredquality":
-                        "192"
+                    "192"
 
                 }
 
@@ -832,10 +695,9 @@ def download_mp3(
 
         })
 
-
         print(
             "MP3 format:",
-            "bestaudio/best"
+            "140/bestaudio/best"
         )
 
         print(
@@ -843,19 +705,18 @@ def download_mp3(
             "192kbps"
         )
 
+        # --------------------------------------------------
+        # ダウンロード
+        # --------------------------------------------------
 
         with yt_dlp.YoutubeDL(
             ydl_opts
         ) as ydl:
 
             info = ydl.extract_info(
-
                 url,
-
                 download=True
-
             )
-
 
             if not info:
 
@@ -863,23 +724,17 @@ def download_mp3(
                     "YouTube情報を取得できませんでした"
                 )
 
-
             filename = ydl.prepare_filename(
                 info
             )
-
 
         # ==================================================
         # MP3ファイル
         # ==================================================
 
-        mp3_file = (
-            os.path.splitext(
-                filename
-            )[0]
-            + ".mp3"
-        )
-
+        mp3_file = os.path.splitext(
+            filename
+        )[0] + ".mp3"
 
         if not os.path.exists(
             mp3_file
@@ -887,20 +742,17 @@ def download_mp3(
 
             raise Exception(
                 "MP3ファイルが作成されませんでした: "
-                f"{mp3_file}"
+                + mp3_file
             )
-
 
         file_size = os.path.getsize(
             mp3_file
         )
 
-
         print(
             "MP3完成:",
             mp3_file
         )
-
 
         print(
             "MP3サイズ:",
@@ -908,23 +760,18 @@ def download_mp3(
             "bytes"
         )
 
-
         return mp3_file
-
 
     finally:
 
-        # --------------------------------------------------
-        # 一時Cookie削除
-        # --------------------------------------------------
-
         remove_cookie_file(
-            cookie_file
+            temp_cookie
         )
 
-
 # ==========================================================
+
 # MP4変換
+
 # ==========================================================
 
 def download_mp4(
@@ -932,100 +779,69 @@ def download_mp4(
     output_dir
 ):
 
-    cookie_file = None
-
+    temp_cookie = None
 
     try:
 
-        print(
-            "=========================================="
-        )
-
-        print(
-            "MP4ダウンロード開始"
-        )
-
-        print(
-            "=========================================="
-        )
-
+        print("==========================================")
+        print("MP4ダウンロード開始")
+        print("==========================================")
 
         # --------------------------------------------------
-        # Cookie
+        # yt-dlp設定
         # --------------------------------------------------
 
-        cookie_file = prepare_cookie_file()
+        ydl_opts = get_ydl_base_options()
 
-
-        # --------------------------------------------------
-        # yt-dlp
-        # --------------------------------------------------
-
-        ydl_opts = get_ydl_base_options(
-            cookie_file
+        temp_cookie = ydl_opts.get(
+            "cookiefile"
         )
-
 
         ydl_opts.update({
 
-            # --------------------------------------------------
+            # ------------------------------------------------
             # MP4動画 + M4A音声
-            #
-            # MP4/M4Aが存在すれば優先。
-            # なければ利用可能なvideo+audioへフォールバック。
-            # --------------------------------------------------
+            # ------------------------------------------------
 
             "format":
-                "bv*[ext=mp4]+ba[ext=m4a]/"
-                "bv*[ext=mp4]+ba/"
-                "bv*+ba/"
-                "b[ext=mp4]/"
-                "best",
+            "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]",
 
-
-            # --------------------------------------------------
+            # ------------------------------------------------
             # MP4として結合
-            # --------------------------------------------------
+            # ------------------------------------------------
 
             "merge_output_format":
-                "mp4",
+            "mp4",
 
-
-            # --------------------------------------------------
+            # ------------------------------------------------
             # 出力
-            # --------------------------------------------------
+            # ------------------------------------------------
 
             "outtmpl":
-                os.path.join(
-                    output_dir,
-                    "%(title)s.%(ext)s"
-                )
+            os.path.join(
+                output_dir,
+                "%(title)s.%(ext)s"
+            )
 
         })
 
-
         print(
             "MP4 format:",
-            "bv*[ext=mp4]+ba[ext=m4a]/"
-            "bv*[ext=mp4]+ba/"
-            "bv*+ba/"
-            "b[ext=mp4]/"
-            "best"
+            "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]"
         )
 
+        # --------------------------------------------------
+        # ダウンロード
+        # --------------------------------------------------
 
         with yt_dlp.YoutubeDL(
             ydl_opts
         ) as ydl:
 
             info = ydl.extract_info(
-
                 url,
-
                 download=True
-
             )
-
 
             if not info:
 
@@ -1033,23 +849,17 @@ def download_mp4(
                     "YouTube情報を取得できませんでした"
                 )
 
-
             filename = ydl.prepare_filename(
                 info
             )
-
 
         # ==================================================
         # MP4ファイル
         # ==================================================
 
-        mp4_file = (
-            os.path.splitext(
-                filename
-            )[0]
-            + ".mp4"
-        )
-
+        mp4_file = os.path.splitext(
+            filename
+        )[0] + ".mp4"
 
         if not os.path.exists(
             mp4_file
@@ -1057,20 +867,17 @@ def download_mp4(
 
             raise Exception(
                 "MP4ファイルが作成されませんでした: "
-                f"{mp4_file}"
+                + mp4_file
             )
-
 
         file_size = os.path.getsize(
             mp4_file
         )
 
-
         print(
             "MP4完成:",
             mp4_file
         )
-
 
         print(
             "MP4サイズ:",
@@ -1078,23 +885,18 @@ def download_mp4(
             "bytes"
         )
 
-
         return mp4_file
-
 
     finally:
 
-        # --------------------------------------------------
-        # 一時Cookie削除
-        # --------------------------------------------------
-
         remove_cookie_file(
-            cookie_file
+            temp_cookie
         )
 
-
 # ==========================================================
+
 # MP3カット
+
 # ==========================================================
 
 def cut_mp3(
@@ -1103,36 +905,15 @@ def cut_mp3(
     end_time
 ):
 
-    print(
-        "=========================================="
-    )
+    print("==========================================")
+    print("MP3時間指定カット開始")
+    print("開始:", start_time)
+    print("終了:", end_time)
+    print("==========================================")
 
-    print(
-        "MP3時間指定カット開始"
-    )
-
-    print(
-        "開始:",
-        start_time
-    )
-
-    print(
-        "終了:",
-        end_time
-    )
-
-    print(
-        "=========================================="
-    )
-
-
-    cut_file = (
-        os.path.splitext(
-            mp3_file
-        )[0]
-        + "_cut.mp3"
-    )
-
+    cut_file = os.path.splitext(
+        mp3_file
+    )[0] + "_cut.mp3"
 
     result = subprocess.run(
 
@@ -1166,7 +947,6 @@ def cut_mp3(
 
     )
 
-
     if result.returncode != 0:
 
         print(
@@ -1177,7 +957,6 @@ def cut_mp3(
             "ffmpeg処理失敗(mp3)"
         )
 
-
     if not os.path.exists(
         cut_file
     ):
@@ -1185,7 +964,6 @@ def cut_mp3(
         raise Exception(
             "カット後のMP3ファイルが作成されませんでした"
         )
-
 
     if os.path.exists(
         mp3_file
@@ -1195,20 +973,19 @@ def cut_mp3(
             mp3_file
         )
 
-
     os.rename(
         cut_file,
         mp3_file
     )
 
-
     print(
         "MP3時間指定カット完了"
     )
 
-
 # ==========================================================
+
 # MP4カット
+
 # ==========================================================
 
 def cut_mp4(
@@ -1217,36 +994,15 @@ def cut_mp4(
     end_time
 ):
 
-    print(
-        "=========================================="
-    )
+    print("==========================================")
+    print("MP4時間指定カット開始")
+    print("開始:", start_time)
+    print("終了:", end_time)
+    print("==========================================")
 
-    print(
-        "MP4時間指定カット開始"
-    )
-
-    print(
-        "開始:",
-        start_time
-    )
-
-    print(
-        "終了:",
-        end_time
-    )
-
-    print(
-        "=========================================="
-    )
-
-
-    cut_file = (
-        os.path.splitext(
-            mp4_file
-        )[0]
-        + "_cut.mp4"
-    )
-
+    cut_file = os.path.splitext(
+        mp4_file
+    )[0] + "_cut.mp4"
 
     result = subprocess.run(
 
@@ -1280,7 +1036,6 @@ def cut_mp4(
 
     )
 
-
     if result.returncode != 0:
 
         print(
@@ -1291,7 +1046,6 @@ def cut_mp4(
             "ffmpeg処理失敗(mp4)"
         )
 
-
     if not os.path.exists(
         cut_file
     ):
@@ -1299,7 +1053,6 @@ def cut_mp4(
         raise Exception(
             "カット後のMP4ファイルが作成されませんでした"
         )
-
 
     if os.path.exists(
         mp4_file
@@ -1309,20 +1062,19 @@ def cut_mp4(
             mp4_file
         )
 
-
     os.rename(
         cut_file,
         mp4_file
     )
 
-
     print(
         "MP4時間指定カット完了"
     )
 
-
 # ==========================================================
+
 # 変換処理
+
 # ==========================================================
 
 def convert_task(
@@ -1342,86 +1094,21 @@ def convert_task(
         jobs[job_id] = {
 
             "status":
-                "running"
+            "running"
 
         }
 
-
-        print(
-            "=========================================="
-        )
-
-        print(
-            "変換開始:",
-            job_id
-        )
-
-        print(
-            "URL:",
-            url
-        )
-
-        print(
-            "OUTPUTS:",
-            outputs
-        )
-
-        print(
-            "START:",
-            start_time
-        )
-
-        print(
-            "END:",
-            end_time
-        )
-
-        print(
-            "=========================================="
-        )
-
+        print("==========================================")
+        print("変換開始:", job_id)
+        print("URL:", url)
+        print("OUTPUTS:", outputs)
+        print("==========================================")
 
         # ==================================================
         # Cookie確認
         # ==================================================
 
-        if not os.path.exists(
-            ORIGINAL_COOKIE_FILE
-        ):
-
-            raise Exception(
-                "元Cookieファイルが見つかりません: "
-                f"{ORIGINAL_COOKIE_FILE}"
-            )
-
-
-        print(
-            "Cookie環境:",
-            "Render"
-            if IS_RENDER
-            else "Local"
-        )
-
-        print(
-            "Cookieファイル:",
-            ORIGINAL_COOKIE_FILE
-        )
-
-        print(
-            "Cookieサイズ:",
-            os.path.getsize(
-                ORIGINAL_COOKIE_FILE
-            ),
-            "bytes"
-        )
-
-
-        # ==================================================
-        # FFmpeg確認
-        # ==================================================
-
-        check_ffmpeg()
-
+        prepare_cookie_file()
 
         # ==================================================
         # 古いファイル削除
@@ -1429,25 +1116,18 @@ def convert_task(
 
         cleanup_downloads()
 
-
         # ==================================================
         # 出力ディレクトリ
         # ==================================================
 
         output_dir = "downloads"
 
-
         os.makedirs(
-
             output_dir,
-
             exist_ok=True
-
         )
 
-
         files = []
-
 
         # ==================================================
         # MP3
@@ -1455,30 +1135,15 @@ def convert_task(
 
         if "mp3" in outputs:
 
-            # ------------------------------------------------
+            # ----------------------------------------------
             # format診断
-            #
-            # 診断失敗しても変換は継続
-            # ------------------------------------------------
-
-            diagnostic_cookie = None
-
+            # ----------------------------------------------
 
             try:
 
-                diagnostic_cookie = (
-                    prepare_cookie_file()
-                )
-
-
                 diagnose_formats(
-
-                    url,
-
-                    diagnostic_cookie
-
+                    url
                 )
-
 
             except Exception as e:
 
@@ -1487,30 +1152,21 @@ def convert_task(
                     repr(e)
                 )
 
+                # 診断失敗しても
+                # 実際のダウンロードは試す
 
-            finally:
-
-                remove_cookie_file(
-                    diagnostic_cookie
-                )
-
-
-            # ------------------------------------------------
+            # ----------------------------------------------
             # MP3取得
-            # ------------------------------------------------
+            # ----------------------------------------------
 
             mp3_file = download_mp3(
-
                 url,
-
                 output_dir
-
             )
 
-
-            # ------------------------------------------------
+            # ----------------------------------------------
             # 時間指定
-            # ------------------------------------------------
+            # ----------------------------------------------
 
             if (
                 start_time
@@ -1528,13 +1184,11 @@ def convert_task(
 
                 )
 
-
             files.append(
                 os.path.basename(
                     mp3_file
                 )
             )
-
 
         # ==================================================
         # MP4
@@ -1543,17 +1197,13 @@ def convert_task(
         if "mp4" in outputs:
 
             mp4_file = download_mp4(
-
                 url,
-
                 output_dir
-
             )
 
-
-            # ------------------------------------------------
+            # ----------------------------------------------
             # 時間指定
-            # ------------------------------------------------
+            # ----------------------------------------------
 
             if (
                 start_time
@@ -1571,13 +1221,11 @@ def convert_task(
 
                 )
 
-
             files.append(
                 os.path.basename(
                     mp4_file
                 )
             )
-
 
         # ==================================================
         # 完了
@@ -1586,36 +1234,18 @@ def convert_task(
         jobs[job_id] = {
 
             "status":
-                "complete",
+            "complete",
 
             "files":
-                files
+            files
 
         }
 
-
-        print(
-            "=========================================="
-        )
-
-        print(
-            "変換完了"
-        )
-
-        print(
-            "JOB:",
-            job_id
-        )
-
-        print(
-            "FILES:",
-            files
-        )
-
-        print(
-            "=========================================="
-        )
-
+        print("==========================================")
+        print("変換完了")
+        print("JOB:", job_id)
+        print("FILES:", files)
+        print("==========================================")
 
     # ======================================================
     # エラー
@@ -1623,46 +1253,29 @@ def convert_task(
 
     except Exception as e:
 
-        print(
-            "=========================================="
-        )
-
-        print(
-            "変換エラー"
-        )
-
-        print(
-            "JOB:",
-            job_id
-        )
-
-        print(
-            "ERROR:",
-            repr(e)
-        )
-
-        print(
-            "=========================================="
-        )
-
+        print("==========================================")
+        print("変換エラー")
+        print("JOB:", job_id)
+        print("ERROR:", repr(e))
+        print("==========================================")
 
         jobs[job_id] = {
 
             "status":
-                "error",
+            "error",
 
             "message":
-                str(e)
+            str(e)
 
         }
 
-
 # ==========================================================
+
 # /convert
+
 # ==========================================================
 
 def register_convert(app):
-
 
     @app.route(
         "/convert",
@@ -1681,19 +1294,17 @@ def register_convert(app):
                 silent=True
             )
 
-
             if not data:
 
                 return jsonify({
 
                     "success":
-                        False,
+                    False,
 
                     "message":
-                        "JSONデータがありません"
+                    "JSONデータがありません"
 
                 })
-
 
             # ==================================================
             # URL
@@ -1703,19 +1314,17 @@ def register_convert(app):
                 "url"
             )
 
-
             if not url:
 
                 return jsonify({
 
                     "success":
-                        False,
+                    False,
 
                     "message":
-                        "URLがありません"
+                    "URLがありません"
 
                 })
-
 
             # ==================================================
             # outputs
@@ -1726,42 +1335,23 @@ def register_convert(app):
                 []
             )
 
-
-            if not isinstance(
-                outputs,
-                list
-            ):
-
-                return jsonify({
-
-                    "success":
-                        False,
-
-                    "message":
-                        "outputsは配列で指定してください"
-
-                })
-
-
             if not outputs:
 
                 return jsonify({
 
                     "success":
-                        False,
+                    False,
 
                     "message":
-                        "出力形式が指定されていません"
+                    "出力形式が指定されていません"
 
                 })
-
 
             # ==================================================
             # 有効な出力形式だけ残す
             # ==================================================
 
             valid_outputs = []
-
 
             for output in outputs:
 
@@ -1776,19 +1366,17 @@ def register_convert(app):
                             output
                         )
 
-
             if not valid_outputs:
 
                 return jsonify({
 
                     "success":
-                        False,
+                    False,
 
                     "message":
-                        "mp3またはmp4を指定してください"
+                    "mp3またはmp4を指定してください"
 
                 })
-
 
             # ==================================================
             # 時間指定
@@ -1798,11 +1386,9 @@ def register_convert(app):
                 "start_time"
             )
 
-
             end_time = data.get(
                 "end_time"
             )
-
 
             # ==================================================
             # Job ID
@@ -1812,7 +1398,6 @@ def register_convert(app):
                 uuid.uuid4()
             )
 
-
             # ==================================================
             # Jobを先に登録
             # ==================================================
@@ -1820,56 +1405,17 @@ def register_convert(app):
             jobs[job_id] = {
 
                 "status":
-                    "queued"
+                "queued"
 
             }
 
-
-            print(
-                "=========================================="
-            )
-
-            print(
-                "JOB登録:",
-                job_id
-            )
-
-            print(
-                "URL:",
-                url
-            )
-
-            print(
-                "OUTPUTS:",
-                valid_outputs
-            )
-
-            print(
-                "START:",
-                start_time
-            )
-
-            print(
-                "END:",
-                end_time
-            )
-
-            print(
-                "Cookie環境:",
-                "Render"
-                if IS_RENDER
-                else "Local"
-            )
-
-            print(
-                "Cookie:",
-                ORIGINAL_COOKIE_FILE
-            )
-
-            print(
-                "=========================================="
-            )
-
+            print("==========================================")
+            print("JOB登録:", job_id)
+            print("URL:", url)
+            print("OUTPUTS:", valid_outputs)
+            print("START:", start_time)
+            print("END:", end_time)
+            print("==========================================")
 
             # ==================================================
             # Thread
@@ -1895,12 +1441,9 @@ def register_convert(app):
 
             )
 
-
             thread.daemon = True
 
-
             thread.start()
-
 
             # ==================================================
             # Job ID返却
@@ -1909,13 +1452,12 @@ def register_convert(app):
             return jsonify({
 
                 "success":
-                    True,
+                True,
 
                 "job_id":
-                    job_id
+                job_id
 
             })
-
 
         except Exception as e:
 
@@ -1924,14 +1466,12 @@ def register_convert(app):
                 repr(e)
             )
 
-
             return jsonify({
 
                 "success":
-                    False,
+                False,
 
                 "message":
-                    str(e)
+                str(e)
 
             })
-
