@@ -1,101 +1,321 @@
 from flask import request, jsonify
 import yt_dlp
+import os
 
+
+# ==========================================
+# Cookieファイル
+# ==========================================
+
+RENDER_COOKIE_FILE = "/etc/secrets/cookies.txt"
+LOCAL_COOKIE_FILE = "cookies.txt"
+
+
+if os.path.exists(RENDER_COOKIE_FILE):
+
+    COOKIE_FILE = RENDER_COOKIE_FILE
+
+else:
+
+    COOKIE_FILE = LOCAL_COOKIE_FILE
+
+
+# ==========================================
+# Cookie確認
+# ==========================================
+
+def check_cookie_file():
+
+    if not os.path.exists(COOKIE_FILE):
+
+        raise Exception(
+            f"Cookieファイルが見つかりません: {COOKIE_FILE}"
+        )
+
+
+    file_size = os.path.getsize(
+        COOKIE_FILE
+    )
+
+
+    print(
+        f"Cookieファイル確認OK: "
+        f"{COOKIE_FILE}, "
+        f"{file_size} bytes"
+    )
+
+
+    cookie_count = 0
+
+    youtube_cookie_count = 0
+
+
+    with open(
+        COOKIE_FILE,
+        "r",
+        encoding="utf-8",
+        errors="replace"
+    ) as f:
+
+        for line in f:
+
+            line = line.strip()
+
+
+            if not line:
+
+                continue
+
+
+            if line.startswith("#"):
+
+                continue
+
+
+            cookie_count += 1
+
+
+            fields = line.split("\t")
+
+
+            if len(fields) >= 7:
+
+                domain = fields[0].lower()
+
+
+                if (
+                    "youtube.com" in domain
+                    or "google.com" in domain
+                ):
+
+                    youtube_cookie_count += 1
+
+
+    print(
+        "Cookieデータ行数:",
+        cookie_count
+    )
+
+
+    print(
+        "YouTube/Google Cookie数:",
+        youtube_cookie_count
+    )
+
+
+# ==========================================
+# /check
+# ==========================================
 
 def register_check(app):
 
 
-    @app.route("/check", methods=["POST"])
+    @app.route(
+        "/check",
+        methods=["POST"]
+    )
+
     def check():
 
         try:
 
+            # ==========================================
+            # URL取得
+            # ==========================================
+
             data = request.get_json()
 
-            url = data.get("url")
+
+            if not data:
+
+                return jsonify({
+
+                    "success":
+                    False,
+
+                    "message":
+                    "リクエストデータがありません"
+
+                })
+
+
+            url = data.get(
+                "url"
+            )
 
 
             if not url:
 
                 return jsonify({
-                    "success": False,
-                    "message": "YouTube URLを入力してください"
+
+                    "success":
+                    False,
+
+                    "message":
+                    "YouTube URLを入力してください"
+
                 })
 
 
+            # ==========================================
+            # Cookie確認
+            # ==========================================
+
+            check_cookie_file()
+
+
+            print(
+                "YouTube情報取得開始:",
+                url
+            )
+
+
+            # ==========================================
+            # yt-dlp設定
+            # ==========================================
 
             ydl_opts = {
 
-                "quiet": True,
+                "quiet":
+                True,
 
-                "no_warnings": True,
+                "no_warnings":
+                False,
 
-                "skip_download": True
+                "skip_download":
+                True,
+
+                # Cookie
+                "cookiefile":
+                COOKIE_FILE,
+
+                # YouTube JS challenge
+                "js_runtimes": {
+                    "deno": {}
+                }
 
             }
 
 
+            # ==========================================
+            # YouTube情報取得
+            # ==========================================
 
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            with yt_dlp.YoutubeDL(
+                ydl_opts
+            ) as ydl:
 
                 info = ydl.extract_info(
+
                     url,
+
                     download=False
+
                 )
 
 
+            # ==========================================
+            # タイトル
+            # ==========================================
 
             title = info.get(
+
                 "title",
+
                 "タイトル取得失敗"
+
             )
 
+
+            # ==========================================
+            # 再生時間
+            # ==========================================
 
             duration_sec = info.get(
+
                 "duration",
+
                 0
+
             )
 
 
-            hours = duration_sec // 3600
+            if not duration_sec:
+
+                duration_sec = 0
+
+
+            duration_sec = int(
+                duration_sec
+            )
+
+
+            hours = (
+                duration_sec
+                // 3600
+            )
+
 
             minutes = (
-                duration_sec % 3600
+                duration_sec
+                % 3600
             ) // 60
 
-            seconds = (
-                duration_sec % 60
-            )
 
+            seconds = (
+                duration_sec
+                % 60
+            )
 
 
             if hours > 0:
 
                 duration = (
+
                     f"{hours}:"
                     f"{minutes:02}:"
                     f"{seconds:02}"
+
                 )
 
             else:
 
                 duration = (
+
                     f"{minutes}:"
                     f"{seconds:02}"
+
                 )
 
+
+            # ==========================================
+            # 成功
+            # ==========================================
+
+            print(
+                "YouTube情報取得成功:",
+                title,
+                duration
+            )
 
 
             return jsonify({
 
-                "success": True,
+                "success":
+                True,
 
-                "filename": title,
+                "filename":
+                title,
 
-                "duration": duration
+                "duration":
+                duration
 
             })
 
+
+        # ==========================================
+        # エラー
+        # ==========================================
 
         except Exception as e:
 
@@ -108,8 +328,10 @@ def register_check(app):
 
             return jsonify({
 
-                "success": False,
+                "success":
+                False,
 
-                "message": str(e)
+                "message":
+                str(e)
 
             })
