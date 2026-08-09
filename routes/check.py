@@ -1,12 +1,14 @@
+```python
 from flask import request, jsonify
 import yt_dlp
 import os
 import tempfile
+import shutil
 
 
-# ==========================================
-# Cookieファイル
-# ==========================================
+# =========================================================
+# Cookie
+# =========================================================
 
 RENDER_COOKIE_FILE = "/etc/secrets/cookies.txt"
 
@@ -22,108 +24,107 @@ LOCAL_COOKIE_FILE = os.path.join(
 )
 
 
-# ==========================================
-# Cookieファイル判定
-# ==========================================
+# =========================================================
+# Cookieファイル確認
+# =========================================================
 
-if os.path.exists(RENDER_COOKIE_FILE):
+def get_cookie_file():
 
-    COOKIE_FILE = RENDER_COOKIE_FILE
+    if os.path.exists(RENDER_COOKIE_FILE):
 
-else:
+        return RENDER_COOKIE_FILE
 
-    COOKIE_FILE = LOCAL_COOKIE_FILE
+    if os.path.exists(LOCAL_COOKIE_FILE):
 
+        return LOCAL_COOKIE_FILE
 
-print(
-    "使用するCookieファイル:",
-    COOKIE_FILE
-)
+    return None
 
 
-# ==========================================
-# Cookie確認
-# ==========================================
+# =========================================================
+# 一時Cookie作成
+#
+# /etc/secrets は読み取り専用なので、
+# yt-dlpがCookieを扱う際の問題を避けるため
+# /tmpへコピーする
+# =========================================================
 
-def check_cookie_file():
+def create_temp_cookie():
 
-    if not os.path.exists(COOKIE_FILE):
+    source = get_cookie_file()
+
+    if not source:
 
         raise Exception(
-            f"Cookieファイルが見つかりません: {COOKIE_FILE}"
+            "Cookieファイルが見つかりません"
         )
-
-    file_size = os.path.getsize(
-        COOKIE_FILE
-    )
 
     print(
         "Cookieファイル確認OK:",
-        COOKIE_FILE,
-        file_size,
-        "bytes"
+        source
     )
 
-
-# ==========================================
-# 一時Cookieファイル作成
-#
-# Render Secret File は
-# 直接yt-dlpに渡すと問題になる場合があるため、
-# /tmp にコピーして使用する
-# ==========================================
-
-def create_temp_cookie_file():
-
-    check_cookie_file()
+    print(
+        "Cookieファイルサイズ:",
+        os.path.getsize(source),
+        "bytes"
+    )
 
     temp_file = tempfile.NamedTemporaryFile(
         mode="w",
         suffix=".txt",
+        prefix="ytcookies_",
         delete=False,
         encoding="utf-8"
     )
 
-    temp_cookie_path = temp_file.name
+    temp_path = temp_file.name
+
+    temp_file.close()
+
+    shutil.copyfile(
+        source,
+        temp_path
+    )
+
+    print(
+        "一時Cookieファイル作成:",
+        temp_path
+    )
+
+    return temp_path
+
+
+# =========================================================
+# Cookie削除
+# =========================================================
+
+def remove_temp_cookie(path):
+
+    if not path:
+        return
 
     try:
 
-        with open(
-            COOKIE_FILE,
-            "r",
-            encoding="utf-8",
-            errors="replace"
-        ) as source:
+        if os.path.exists(path):
 
-            for line in source:
+            os.remove(path)
 
-                temp_file.write(line)
-
-        temp_file.close()
-
-        print(
-            "一時Cookieファイル作成:",
-            temp_cookie_path
-        )
-
-        return temp_cookie_path
-
-    except Exception:
-
-        temp_file.close()
-
-        if os.path.exists(temp_cookie_path):
-
-            os.remove(
-                temp_cookie_path
+            print(
+                "一時Cookieファイル削除OK"
             )
 
-        raise
+    except Exception as e:
+
+        print(
+            "一時Cookieファイル削除失敗:",
+            repr(e)
+        )
 
 
-# ==========================================
-# 時間フォーマット
-# ==========================================
+# =========================================================
+# 秒 → 時間表示
+# =========================================================
 
 def format_duration(duration_sec):
 
@@ -131,15 +132,9 @@ def format_duration(duration_sec):
 
         return "0:00"
 
-    try:
-
-        duration_sec = int(
-            duration_sec
-        )
-
-    except Exception:
-
-        return "0:00"
+    duration_sec = int(
+        duration_sec
+    )
 
     hours = duration_sec // 3600
 
@@ -165,11 +160,112 @@ def format_duration(duration_sec):
     )
 
 
-# ==========================================
-# /check
-#
+# =========================================================
 # YouTube情報取得
-# ==========================================
+# =========================================================
+
+def get_youtube_info(url, cookie_file):
+
+    print(
+        "=========================================="
+    )
+
+    print(
+        "YouTube情報取得開始:",
+        url
+    )
+
+    print(
+        "=========================================="
+    )
+
+    ydl_opts = {
+
+        # -----------------------------------------
+        # ダウンロードしない
+        # -----------------------------------------
+
+        "skip_download": True,
+
+        # -----------------------------------------
+        # Cookie
+        # -----------------------------------------
+
+        "cookiefile":
+        cookie_file,
+
+        # -----------------------------------------
+        # Playlist無効
+        # -----------------------------------------
+
+        "noplaylist":
+        True,
+
+        # -----------------------------------------
+        # 情報取得
+        # -----------------------------------------
+
+        "extract_flat":
+        False,
+
+        # -----------------------------------------
+        # エラーを通常のExceptionとして取得
+        # -----------------------------------------
+
+        "ignoreerrors":
+        False,
+
+        # -----------------------------------------
+        # ログを見やすくする
+        # -----------------------------------------
+
+        "quiet":
+        False,
+
+        "no_warnings":
+        False,
+
+        # -----------------------------------------
+        # YouTube client
+        #
+        # webを優先
+        # -----------------------------------------
+
+        "extractor_args": {
+
+            "youtube": {
+
+                "player_client": [
+                    "web"
+                ]
+
+            }
+
+        }
+
+    }
+
+    with yt_dlp.YoutubeDL(
+        ydl_opts
+    ) as ydl:
+
+        info = ydl.extract_info(
+            url,
+            download=False
+        )
+
+    if not info:
+
+        raise Exception(
+            "YouTube情報を取得できませんでした"
+        )
+
+    return info
+
+
+# =========================================================
+# /check
+# =========================================================
 
 def register_check(app):
 
@@ -177,15 +273,16 @@ def register_check(app):
         "/check",
         methods=["POST"]
     )
+
     def check():
 
-        temp_cookie_path = None
+        temp_cookie = None
 
         try:
 
-            # ==========================================
-            # JSON取得
-            # ==========================================
+            # =====================================
+            # JSON
+            # =====================================
 
             data = request.get_json(
                 silent=True
@@ -201,17 +298,16 @@ def register_check(app):
                     "message":
                     "JSONデータがありません"
 
-                }), 400
+                })
 
 
-            # ==========================================
+            # =====================================
             # URL
-            # ==========================================
+            # =====================================
 
             url = data.get(
                 "url"
             )
-
 
             if not url:
 
@@ -223,7 +319,7 @@ def register_check(app):
                     "message":
                     "YouTube URLを入力してください"
 
-                }), 400
+                })
 
 
             print(
@@ -231,7 +327,11 @@ def register_check(app):
             )
 
             print(
-                "YouTube情報取得開始:",
+                "CHECK START"
+            )
+
+            print(
+                "URL:",
                 url
             )
 
@@ -240,100 +340,52 @@ def register_check(app):
             )
 
 
-            # ==========================================
+            # =====================================
             # Cookie
-            # ==========================================
+            # =====================================
 
-            temp_cookie_path = create_temp_cookie_file()
-
-
-            # ==========================================
-            # yt-dlp設定
-            #
-            # 情報取得だけなので
-            # skip_download=True
-            #
-            # formatを指定しない
-            # ==========================================
-
-            ydl_opts = {
-
-                "quiet":
-                False,
-
-                "no_warnings":
-                False,
-
-                "skip_download":
-                True,
-
-                "noplaylist":
-                True,
-
-                "cookiefile":
-                temp_cookie_path,
-
-                "extract_flat":
-                False,
-
-                "ignoreerrors":
-                False
-
-            }
+            temp_cookie = create_temp_cookie()
 
 
-            # ==========================================
+            # =====================================
             # YouTube情報取得
-            # ==========================================
+            # =====================================
 
-            with yt_dlp.YoutubeDL(
-                ydl_opts
-            ) as ydl:
-
-                info = ydl.extract_info(
-                    url,
-                    download=False
-                )
+            info = get_youtube_info(
+                url,
+                temp_cookie
+            )
 
 
-            if not info:
-
-                raise Exception(
-                    "YouTube情報を取得できませんでした"
-                )
-
-
-            # ==========================================
+            # =====================================
             # タイトル
-            # ==========================================
+            # =====================================
 
             title = info.get(
                 "title"
             )
-
 
             if not title:
 
                 title = "タイトル取得失敗"
 
 
-            # ==========================================
+            # =====================================
             # 再生時間
-            # ==========================================
+            # =====================================
 
             duration_sec = info.get(
                 "duration"
             )
-
 
             duration = format_duration(
                 duration_sec
             )
 
 
-            # ==========================================
-            # 基本情報ログ
-            # ==========================================
+            # =====================================
+            # 結果
+            # =====================================
 
             print(
                 "=========================================="
@@ -354,18 +406,9 @@ def register_check(app):
             )
 
             print(
-                "動画ID:",
-                info.get("id")
-            )
-
-            print(
                 "=========================================="
             )
 
-
-            # ==========================================
-            # 成功
-            # ==========================================
 
             return jsonify({
 
@@ -375,17 +418,8 @@ def register_check(app):
                 "filename":
                 title,
 
-                "title":
-                title,
-
                 "duration":
-                duration,
-
-                "duration_sec":
-                duration_sec,
-
-                "id":
-                info.get("id")
+                duration
 
             })
 
@@ -414,35 +448,16 @@ def register_check(app):
                 "message":
                 str(e)
 
-            }), 200
+            })
 
 
         finally:
 
-            # ==========================================
+            # =====================================
             # 一時Cookie削除
-            # ==========================================
+            # =====================================
 
-            if (
-                temp_cookie_path
-                and os.path.exists(
-                    temp_cookie_path
-                )
-            ):
-
-                try:
-
-                    os.remove(
-                        temp_cookie_path
-                    )
-
-                    print(
-                        "一時Cookieファイル削除OK"
-                    )
-
-                except Exception as e:
-
-                    print(
-                        "一時Cookieファイル削除失敗:",
-                        e
-                    )
+            remove_temp_cookie(
+                temp_cookie
+            )
+```
