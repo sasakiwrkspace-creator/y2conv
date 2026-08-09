@@ -45,3 +45,5 @@ COPY . .
 # ==========================================
 
 CMD ["gunicorn", "--bind", "0.0.0.0:10000", "app:app"]
+
+CMD ["sh", "-c", "python --version && pip show yt-dlp && deno --version && gunicorn --bind 0.0.0.0:10000 app:app"]
