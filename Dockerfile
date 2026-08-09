@@ -1,5 +1,10 @@
 FROM python:3.12-slim
 
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
 # ==========================================
 # OSパッケージ
 # ==========================================
@@ -8,9 +13,9 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ffmpeg \
         curl \
-        ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
+        unzip \
+        ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
 # ==========================================
 # Deno
@@ -18,16 +23,7 @@ RUN apt-get update && \
 
 RUN curl -fsSL https://deno.land/install.sh | sh
 
-ENV DENO_INSTALL=/root/.deno
-ENV PATH=/root/.deno/bin:$PATH
-
-
-# ==========================================
-# アプリケーション
-# ==========================================
-
-WORKDIR /app
-
+ENV PATH="/root/.deno/bin:${PATH}"
 
 # ==========================================
 # Python dependencies
@@ -35,40 +31,17 @@ WORKDIR /app
 
 COPY requirements.txt .
 
-RUN pip install --no-cache-dir -r requirements.txt
-
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # ==========================================
-# アプリケーションコピー
+# アプリ
 # ==========================================
 
 COPY . .
 
-
 # ==========================================
-# 環境確認
-# ==========================================
-
-RUN echo "==========================================" && \
-    echo "FFmpeg VERSION" && \
-    ffmpeg -version | head -n 1 && \
-    echo "==========================================" && \
-    echo "Deno VERSION" && \
-    deno --version && \
-    echo "==========================================" && \
-    echo "Python VERSION" && \
-    python --version && \
-    echo "==========================================" && \
-    echo "yt-dlp VERSION" && \
-    python -m yt_dlp --version && \
-    echo "==========================================" && \
-    echo "yt-dlp-ejs" && \
-    pip show yt-dlp-ejs && \
-    echo "=========================================="
-
-
-# ==========================================
-# Render起動
+# 起動
 # ==========================================
 
-CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-10000} app:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:10000", "app:app"]
