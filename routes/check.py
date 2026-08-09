@@ -1,8 +1,10 @@
+```python
 from flask import request, jsonify
 import yt_dlp
 import os
 import tempfile
 import shutil
+import subprocess
 
 
 # =========================================================
@@ -30,11 +32,9 @@ LOCAL_COOKIE_FILE = os.path.join(
 def get_cookie_file():
 
     if os.path.exists(RENDER_COOKIE_FILE):
-
         return RENDER_COOKIE_FILE
 
     if os.path.exists(LOCAL_COOKIE_FILE):
-
         return LOCAL_COOKIE_FILE
 
     return None
@@ -44,7 +44,6 @@ def get_cookie_file():
 # 一時Cookie作成
 #
 # /etc/secrets は読み取り専用なので、
-# yt-dlpがCookieを扱う際の問題を避けるため
 # /tmpへコピーする
 # =========================================================
 
@@ -128,7 +127,6 @@ def remove_temp_cookie(path):
 def format_duration(duration_sec):
 
     if not duration_sec:
-
         return "0:00"
 
     duration_sec = int(
@@ -160,6 +158,71 @@ def format_duration(duration_sec):
 
 
 # =========================================================
+# yt-dlp共通オプション
+# =========================================================
+
+def get_ytdlp_options(cookie_file):
+
+    return {
+
+        # -----------------------------------------
+        # ダウンロードしない
+        # -----------------------------------------
+
+        "skip_download": True,
+
+        # -----------------------------------------
+        # Cookie
+        # -----------------------------------------
+
+        "cookiefile": cookie_file,
+
+        # -----------------------------------------
+        # Playlist無効
+        # -----------------------------------------
+
+        "noplaylist": True,
+
+        # -----------------------------------------
+        # 情報取得
+        # -----------------------------------------
+
+        "extract_flat": False,
+
+        # -----------------------------------------
+        # エラーをExceptionとして取得
+        # -----------------------------------------
+
+        "ignoreerrors": False,
+
+        # -----------------------------------------
+        # ログ
+        # -----------------------------------------
+
+        "quiet": False,
+
+        "no_warnings": False,
+
+        # -----------------------------------------
+        # YouTube client
+        # -----------------------------------------
+
+        "extractor_args": {
+
+            "youtube": {
+
+                "player_client": [
+                    "web"
+                ]
+
+            }
+
+        }
+
+    }
+
+
+# =========================================================
 # YouTube情報取得
 # =========================================================
 
@@ -178,71 +241,9 @@ def get_youtube_info(url, cookie_file):
         "=========================================="
     )
 
-    ydl_opts = {
-
-        # -----------------------------------------
-        # ダウンロードしない
-        # -----------------------------------------
-
-        "skip_download": True,
-
-        # -----------------------------------------
-        # Cookie
-        # -----------------------------------------
-
-        "cookiefile":
-        cookie_file,
-
-        # -----------------------------------------
-        # Playlist無効
-        # -----------------------------------------
-
-        "noplaylist":
-        True,
-
-        # -----------------------------------------
-        # 情報取得
-        # -----------------------------------------
-
-        "extract_flat":
-        False,
-
-        # -----------------------------------------
-        # エラーを通常のExceptionとして取得
-        # -----------------------------------------
-
-        "ignoreerrors":
-        False,
-
-        # -----------------------------------------
-        # ログを見やすくする
-        # -----------------------------------------
-
-        "quiet":
-        False,
-
-        "no_warnings":
-        False,
-
-        # -----------------------------------------
-        # YouTube client
-        #
-        # webを優先
-        # -----------------------------------------
-
-        "extractor_args": {
-
-            "youtube": {
-
-                "player_client": [
-                    "web"
-                ]
-
-            }
-
-        }
-
-    }
+    ydl_opts = get_ytdlp_options(
+        cookie_file
+    )
 
     with yt_dlp.YoutubeDL(
         ydl_opts
@@ -263,16 +264,190 @@ def get_youtube_info(url, cookie_file):
 
 
 # =========================================================
+# YouTubeフォーマット情報取得
+#
+# 今回の
+#
+# Requested format is not available
+#
+# の原因確認用
+# =========================================================
+
+def get_youtube_formats(url, cookie_file):
+
+    print(
+        "=========================================="
+    )
+
+    print(
+        "YouTubeフォーマット取得開始:",
+        url
+    )
+
+    print(
+        "=========================================="
+    )
+
+    ydl_opts = get_ytdlp_options(
+        cookie_file
+    )
+
+    # ログを抑える
+    ydl_opts["quiet"] = True
+
+    with yt_dlp.YoutubeDL(
+        ydl_opts
+    ) as ydl:
+
+        info = ydl.extract_info(
+            url,
+            download=False
+        )
+
+    if not info:
+
+        raise Exception(
+            "YouTube情報を取得できませんでした"
+        )
+
+    formats = []
+
+    for f in info.get(
+        "formats",
+        []
+    ):
+
+        formats.append({
+
+            "format_id":
+                f.get("format_id"),
+
+            "ext":
+                f.get("ext"),
+
+            "resolution":
+                f.get("resolution"),
+
+            "width":
+                f.get("width"),
+
+            "height":
+                f.get("height"),
+
+            "fps":
+                f.get("fps"),
+
+            "vcodec":
+                f.get("vcodec"),
+
+            "acodec":
+                f.get("acodec"),
+
+            "format_note":
+                f.get("format_note"),
+
+            "filesize":
+                f.get("filesize"),
+
+            "filesize_approx":
+                f.get("filesize_approx"),
+
+            "tbr":
+                f.get("tbr"),
+
+            "protocol":
+                f.get("protocol")
+
+        })
+
+    print(
+        "取得フォーマット数:",
+        len(formats)
+    )
+
+    return formats
+
+
+# =========================================================
+# コマンド存在・バージョン確認
+# =========================================================
+
+def command_info(
+    command,
+    args=None
+):
+
+    if args is None:
+        args = []
+
+    try:
+
+        result = subprocess.run(
+
+            [command] + args,
+
+            capture_output=True,
+
+            text=True,
+
+            timeout=10
+
+        )
+
+        return {
+
+            "installed":
+                True,
+
+            "returncode":
+                result.returncode,
+
+            "stdout":
+                result.stdout.strip(),
+
+            "stderr":
+                result.stderr.strip()
+
+        }
+
+    except FileNotFoundError:
+
+        return {
+
+            "installed":
+                False,
+
+            "error":
+                "command not found"
+
+        }
+
+    except Exception as e:
+
+        return {
+
+            "installed":
+                False,
+
+            "error":
+                repr(e)
+
+        }
+
+
+# =========================================================
 # /check
+#
+# YouTube動画情報確認
 # =========================================================
 
 def register_check(app):
+
 
     @app.route(
         "/check",
         methods=["POST"]
     )
-
     def check():
 
         temp_cookie = None
@@ -292,10 +467,10 @@ def register_check(app):
                 return jsonify({
 
                     "success":
-                    False,
+                        False,
 
                     "message":
-                    "JSONデータがありません"
+                        "JSONデータがありません"
 
                 })
 
@@ -313,10 +488,10 @@ def register_check(app):
                 return jsonify({
 
                     "success":
-                    False,
+                        False,
 
                     "message":
-                    "YouTube URLを入力してください"
+                        "YouTube URLを入力してください"
 
                 })
 
@@ -383,7 +558,19 @@ def register_check(app):
 
 
             # =====================================
-            # 結果
+            # フォーマット取得
+            #
+            # 今回のエラー確認用
+            # =====================================
+
+            formats = get_youtube_formats(
+                url,
+                temp_cookie
+            )
+
+
+            # =====================================
+            # 結果ログ
             # =====================================
 
             print(
@@ -405,20 +592,35 @@ def register_check(app):
             )
 
             print(
+                "フォーマット数:",
+                len(formats)
+            )
+
+            print(
                 "=========================================="
             )
 
 
+            # =====================================
+            # 結果
+            # =====================================
+
             return jsonify({
 
                 "success":
-                True,
+                    True,
 
                 "filename":
-                title,
+                    title,
 
                 "duration":
-                duration
+                    duration,
+
+                "format_count":
+                    len(formats),
+
+                "formats":
+                    formats
 
             })
 
@@ -442,10 +644,13 @@ def register_check(app):
             return jsonify({
 
                 "success":
-                False,
+                    False,
 
                 "message":
-                str(e)
+                    str(e),
+
+                "error_type":
+                    type(e).__name__
 
             })
 
@@ -460,3 +665,237 @@ def register_check(app):
                 temp_cookie
             )
 
+
+    # =====================================================
+    # /system-check
+    #
+    # Render / Docker環境確認
+    # =====================================================
+
+    @app.route(
+        "/system-check",
+        methods=["GET"]
+    )
+    def system_check():
+
+        result = {}
+
+
+        # ==========================================
+        # Python
+        # ==========================================
+
+        result["python"] = command_info(
+            "python",
+            ["--version"]
+        )
+
+
+        # ==========================================
+        # Python3
+        # ==========================================
+
+        result["python3"] = command_info(
+            "python3",
+            ["--version"]
+        )
+
+
+        # ==========================================
+        # yt-dlp CLI
+        # ==========================================
+
+        result["yt-dlp"] = command_info(
+            "yt-dlp",
+            ["--version"]
+        )
+
+
+        # ==========================================
+        # FFmpeg
+        # ==========================================
+
+        result["ffmpeg"] = command_info(
+            "ffmpeg",
+            ["-version"]
+        )
+
+
+        # ==========================================
+        # FFprobe
+        # ==========================================
+
+        result["ffprobe"] = command_info(
+            "ffprobe",
+            ["-version"]
+        )
+
+
+        # ==========================================
+        # Python版yt-dlp
+        # ==========================================
+
+        try:
+
+            result["python_yt_dlp"] = {
+
+                "installed":
+                    True,
+
+                "version":
+                    yt_dlp.version.__version__
+
+            }
+
+        except Exception as e:
+
+            result["python_yt_dlp"] = {
+
+                "installed":
+                    False,
+
+                "error":
+                    repr(e)
+
+            }
+
+
+        # ==========================================
+        # Python実行ファイル
+        # ==========================================
+
+        result["python_executable"] = {
+
+            "path":
+                os.sys.executable
+
+        }
+
+
+        # ==========================================
+        # 現在のディレクトリ
+        # ==========================================
+
+        result["working_directory"] = {
+
+            "path":
+                os.getcwd()
+
+        }
+
+
+        # ==========================================
+        # Cookie
+        # ==========================================
+
+        cookie_file = get_cookie_file()
+
+        if cookie_file:
+
+            result["cookie"] = {
+
+                "exists":
+                    True,
+
+                "path":
+                    cookie_file,
+
+                "size":
+                    os.path.getsize(
+                        cookie_file
+                    )
+
+            }
+
+        else:
+
+            result["cookie"] = {
+
+                "exists":
+                    False,
+
+                "path":
+                    None,
+
+                "size":
+                    0
+
+            }
+
+
+        # ==========================================
+        # /tmp 書き込み確認
+        # ==========================================
+
+        test_file = None
+
+        try:
+
+            test_file = tempfile.NamedTemporaryFile(
+                mode="w",
+                prefix="render_check_",
+                suffix=".txt",
+                delete=False
+            )
+
+            test_file.write(
+                "Render Docker write test"
+            )
+
+            test_file.close()
+
+            result["tmp"] = {
+
+                "writable":
+                    True,
+
+                "path":
+                    test_file.name
+
+            }
+
+        except Exception as e:
+
+            result["tmp"] = {
+
+                "writable":
+                    False,
+
+                "error":
+                    repr(e)
+
+            }
+
+        finally:
+
+            if test_file:
+
+                try:
+
+                    if os.path.exists(
+                        test_file.name
+                    ):
+
+                        os.remove(
+                            test_file.name
+                        )
+
+                except Exception:
+
+                    pass
+
+
+        # ==========================================
+        # 結果
+        # ==========================================
+
+        return jsonify({
+
+            "success":
+                True,
+
+            "environment":
+                result
+
+        })
+```
