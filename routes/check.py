@@ -1,4 +1,3 @@
-```python
 from flask import request, jsonify
 import yt_dlp
 import os
@@ -460,4 +459,4 @@ def register_check(app):
             remove_temp_cookie(
                 temp_cookie
             )
-```
+
