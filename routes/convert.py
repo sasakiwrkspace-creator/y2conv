@@ -390,46 +390,25 @@ def remove_cookie_file(
 
 def get_ydl_base_options():
 
+    print("==========================================")
+    print("yt-dlp version:", yt_dlp.version.__version__)
+    print("==========================================")
+
     cookie_file = prepare_cookie_file()
 
     options = {
-
-        # --------------------------------------------------
-        # Cookie
-        # --------------------------------------------------
-
-        "cookiefile":
-        cookie_file,
-
-        # --------------------------------------------------
-        # Playlist無効
-        # --------------------------------------------------
-
-        "noplaylist":
-        True,
-
-        # --------------------------------------------------
-        # JavaScript Runtime
-        #
-        # yt-dlpのYouTube処理用
-        # --------------------------------------------------
-
+        "cookiefile": cookie_file,
+        "noplaylist": True,
         "js_runtimes": {
             "deno": {}
         },
-
-        # --------------------------------------------------
-        # EJS challenge solver
-        # --------------------------------------------------
-
         "remote_components": {
             "ejs": "github"
         }
-
     }
 
     return options
-
+    
 # ==========================================================
 
 # YouTube情報・format診断
