@@ -1,6 +1,8 @@
 from flask import request, jsonify
 import yt_dlp
 import os
+import shutil
+import tempfile
 
 
 # ==========================================
@@ -46,7 +48,6 @@ def check_cookie_file():
 
 
     cookie_count = 0
-
     youtube_cookie_count = 0
 
 
@@ -104,6 +105,49 @@ def check_cookie_file():
 
 
 # ==========================================
+# 書き込み可能なCookieファイルを作成
+# ==========================================
+
+def create_temp_cookie_file():
+
+    if not os.path.exists(COOKIE_FILE):
+
+        raise Exception(
+            f"Cookieファイルが見つかりません: {COOKIE_FILE}"
+        )
+
+
+    temp_file = tempfile.NamedTemporaryFile(
+        mode="w",
+        suffix=".txt",
+        prefix="ytcookies_",
+        delete=False,
+        encoding="utf-8"
+    )
+
+
+    temp_cookie_file = temp_file.name
+
+
+    temp_file.close()
+
+
+    shutil.copyfile(
+        COOKIE_FILE,
+        temp_cookie_file
+    )
+
+
+    print(
+        "一時Cookieファイル作成:",
+        temp_cookie_file
+    )
+
+
+    return temp_cookie_file
+
+
+# ==========================================
 # /check
 # ==========================================
 
@@ -116,6 +160,9 @@ def register_check(app):
     )
 
     def check():
+
+        temp_cookie_file = None
+
 
         try:
 
@@ -164,6 +211,15 @@ def register_check(app):
             check_cookie_file()
 
 
+            # ==========================================
+            # Secret Fileを/tmpへコピー
+            # ==========================================
+
+            temp_cookie_file = (
+                create_temp_cookie_file()
+            )
+
+
             print(
                 "YouTube情報取得開始:",
                 url
@@ -171,7 +227,7 @@ def register_check(app):
 
 
             # ==========================================
-            # yt-dlp設定
+            # yt-dlp
             # ==========================================
 
             ydl_opts = {
@@ -185,9 +241,9 @@ def register_check(app):
                 "skip_download":
                 True,
 
-                # Cookie
+                # 書き込み可能な一時Cookie
                 "cookiefile":
-                COOKIE_FILE,
+                temp_cookie_file,
 
                 # YouTube JS challenge
                 "js_runtimes": {
@@ -197,20 +253,13 @@ def register_check(app):
             }
 
 
-            # ==========================================
-            # YouTube情報取得
-            # ==========================================
-
             with yt_dlp.YoutubeDL(
                 ydl_opts
             ) as ydl:
 
                 info = ydl.extract_info(
-
                     url,
-
                     download=False
-
                 )
 
 
@@ -219,11 +268,8 @@ def register_check(app):
             # ==========================================
 
             title = info.get(
-
                 "title",
-
                 "タイトル取得失敗"
-
             )
 
 
@@ -232,11 +278,8 @@ def register_check(app):
             # ==========================================
 
             duration_sec = info.get(
-
                 "duration",
-
                 0
-
             )
 
 
@@ -251,40 +294,33 @@ def register_check(app):
 
 
             hours = (
-                duration_sec
-                // 3600
+                duration_sec // 3600
             )
 
 
             minutes = (
-                duration_sec
-                % 3600
+                duration_sec % 3600
             ) // 60
 
 
             seconds = (
-                duration_sec
-                % 60
+                duration_sec % 60
             )
 
 
             if hours > 0:
 
                 duration = (
-
                     f"{hours}:"
                     f"{minutes:02}:"
                     f"{seconds:02}"
-
                 )
 
             else:
 
                 duration = (
-
                     f"{minutes}:"
                     f"{seconds:02}"
-
                 )
 
 
@@ -313,12 +349,7 @@ def register_check(app):
             })
 
 
-        # ==========================================
-        # エラー
-        # ==========================================
-
         except Exception as e:
-
 
             print(
                 "check error:",
@@ -335,3 +366,33 @@ def register_check(app):
                 str(e)
 
             })
+
+
+        finally:
+
+            # ==========================================
+            # 一時Cookie削除
+            # ==========================================
+
+            if (
+                temp_cookie_file
+                and os.path.exists(temp_cookie_file)
+            ):
+
+                try:
+
+                    os.remove(
+                        temp_cookie_file
+                    )
+
+
+                    print(
+                        "一時Cookieファイル削除OK"
+                    )
+
+                except Exception as cleanup_error:
+
+                    print(
+                        "一時Cookie削除失敗:",
+                        cleanup_error
+                    )
