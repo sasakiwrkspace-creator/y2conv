@@ -1,4 +1,3 @@
-```python
 from flask import request, jsonify
 
 import yt_dlp
@@ -1935,4 +1934,4 @@ def register_convert(app):
                     str(e)
 
             })
-```
+
