@@ -768,13 +768,14 @@ def register_check(app):
 
             print("==========================================")
 
-            return jsonify({
-                "success": False,
-                "message": str(e)
-            })
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        })
 
-            print("Python:", os.sys.version)
-            print("yt-dlp:", yt_dlp.version.__version__)
-            print("Deno:", shutil.which("deno"))
-            print("ffmpeg:", shutil.which("ffmpeg"))
+
+print("Python:", os.sys.version)
+print("yt-dlp:", yt_dlp.version.__version__)
+print("Deno:", shutil.which("deno"))
+print("ffmpeg:", shutil.which("ffmpeg"))
 
