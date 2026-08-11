@@ -1,7 +1,7 @@
 def get_ydl_base_options():
 cookie_file = prepare_cookie_file()
 
-```
+
 options = {
     "cookiefile": cookie_file,
     "noplaylist": True,
@@ -31,4 +31,4 @@ if deno_path:
     }
 
 return options
-```
+
