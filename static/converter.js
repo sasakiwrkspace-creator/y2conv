@@ -4,7 +4,7 @@
 
 document.addEventListener(
     "DOMContentLoaded",
-    function () {
+    function(){
 
         const urlInput =
             document.getElementById(
@@ -28,120 +28,16 @@ document.addEventListener(
 
         let currentJobId = null;
 
-        // =====================================
-        // 確認用タイマー
-        // =====================================
-
-        let checkSeconds = 0;
-        let checkTimer = null;
-
-        // =====================================
-        // 変換用タイマー
-        // =====================================
-
         let convertSeconds = 0;
+
         let convertTimer = null;
 
-        // =====================================
-        // 確認タイマー停止
-        // =====================================
 
-        function stopCheckTimer() {
+        // ================================
+        // YouTube確認
+        // ================================
 
-            if (checkTimer) {
-
-                clearInterval(
-                    checkTimer
-                );
-
-                checkTimer = null;
-
-            }
-
-        }
-
-        // =====================================
-        // 変換タイマー停止
-        // =====================================
-
-        function stopConvertTimer() {
-
-            if (convertTimer) {
-
-                clearInterval(
-                    convertTimer
-                );
-
-                convertTimer = null;
-
-            }
-
-        }
-
-        // =====================================
-        // HTTPエラー確認
-        // =====================================
-
-        async function parseResponse(response) {
-
-            const text =
-                await response.text();
-
-            if (!response.ok) {
-
-                throw new Error(
-                    "HTTP "
-                    + response.status
-                    + " : "
-                    + (
-                        text
-                            ? text.substring(0, 500)
-                            : "サーバーから応答がありません"
-                    )
-                );
-
-            }
-
-            if (!text) {
-
-                throw new Error(
-                    "サーバーから空の応答が返されました"
-                );
-
-            }
-
-            try {
-
-                return JSON.parse(
-                    text
-                );
-
-            }
-            catch (error) {
-
-                console.error(
-                    "JSON parse error:",
-                    error
-                );
-
-                console.error(
-                    "Response:",
-                    text
-                );
-
-                throw new Error(
-                    "サーバーから正しいJSON応答が返されませんでした"
-                );
-
-            }
-
-        }
-
-        // =====================================
-        // YouTube確認ボタン
-        // =====================================
-
-        if (checkButton) {
+        if(checkButton){
 
             checkButton.addEventListener(
                 "click",
@@ -150,17 +46,18 @@ document.addEventListener(
 
         }
 
-        // =====================================
-        // Enterキーで確認
-        // =====================================
 
-        if (urlInput) {
+        // ================================
+        // Enterキーで確認
+        // ================================
+
+        if(urlInput){
 
             urlInput.addEventListener(
                 "keydown",
-                function (event) {
+                function(event){
 
-                    if (event.key === "Enter") {
+                    if(event.key === "Enter"){
 
                         event.preventDefault();
 
@@ -173,16 +70,18 @@ document.addEventListener(
 
         }
 
-        // =====================================
-        // YouTube確認
-        // =====================================
 
-        async function checkVideo() {
+        // ================================
+        // YouTube確認
+        // ================================
+
+        async function checkVideo(){
 
             const url =
                 urlInput.value.trim();
 
-            if (!url) {
+
+            if(!url){
 
                 alert(
                     "YouTube URLを入力してください"
@@ -192,44 +91,14 @@ document.addEventListener(
 
             }
 
-            // ---------------------------------
-            // 既存タイマー停止
-            // ---------------------------------
 
-            stopCheckTimer();
-
-            // ---------------------------------
-            // ボタン状態
-            // ---------------------------------
-
-            checkButton.disabled =
-                true;
-
-            checkSeconds = 0;
+            checkButton.disabled = true;
 
             checkButton.textContent =
-                "確認中 0秒";
+                "確認中...";
 
-            // ---------------------------------
-            // 確認タイマー開始
-            // ---------------------------------
 
-            checkTimer =
-                setInterval(
-                    function () {
-
-                        checkSeconds++;
-
-                        checkButton.textContent =
-                            "確認中 "
-                            + checkSeconds
-                            + "秒";
-
-                    },
-                    1000
-                );
-
-            try {
+            try{
 
                 const response =
                     await fetch(
@@ -239,104 +108,158 @@ document.addEventListener(
 
                             headers: {
                                 "Content-Type":
-                                    "application/json"
+                                "application/json"
                             },
 
                             body:
-                                JSON.stringify({
-                                    url: url
-                                })
+                            JSON.stringify({
+                                url: url
+                            })
                         }
                     );
 
-                const data =
-                    await parseResponse(
-                        response
+
+                // --------------------------------
+                // HTTPエラー確認
+                // --------------------------------
+
+                if(!response.ok){
+
+                    const text =
+                        await response.text();
+
+                    console.error(
+                        "確認HTTPエラー:",
+                        response.status,
+                        text
                     );
 
-                // ---------------------------------
-                // 成功
-                // ---------------------------------
+                    throw new Error(
+                        "HTTP "
+                        + response.status
+                        + " : "
+                        + (
+                            text ||
+                            "サーバーから空のレスポンスが返されました"
+                        )
+                    );
 
-                if (data.success) {
+                }
+
+
+                // --------------------------------
+                // 空レスポンス確認
+                // --------------------------------
+
+                const text =
+                    await response.text();
+
+
+                if(!text){
+
+                    throw new Error(
+                        "サーバーから空のレスポンスが返されました"
+                    );
+
+                }
+
+
+                // --------------------------------
+                // JSON解析
+                // --------------------------------
+
+                let data;
+
+                try{
+
+                    data =
+                        JSON.parse(text);
+
+                }
+                catch(jsonError){
+
+                    console.error(
+                        "確認JSON解析エラー:",
+                        jsonError
+                    );
+
+                    console.error(
+                        "サーバーレスポンス:",
+                        text
+                    );
+
+                    throw new Error(
+                        "サーバーから正しいJSONが返されませんでした"
+                    );
+
+                }
+
+
+                if(data.success){
 
                     const convertArea =
                         document.getElementById(
                             "convert-area"
                         );
 
-                    if (convertArea) {
+                    if(convertArea){
 
                         convertArea.style.display =
                             "block";
 
                     }
 
+
                     const filename =
                         document.getElementById(
                             "filename"
                         );
 
-                    if (
-                        filename
-                        && data.filename !== undefined
-                    ) {
+                    if(filename){
 
                         filename.value =
-                            data.filename;
+                            data.filename || "";
 
                     }
+
 
                     const endTime =
                         document.getElementById(
                             "end-time"
                         );
 
-                    if (
-                        endTime
-                        && data.duration !== undefined
-                    ) {
+                    if(endTime){
 
                         endTime.value =
-                            data.duration;
+                            data.duration || "";
 
                     }
 
                 }
-                else {
+                else{
 
-                    throw new Error(
-                        data.message
-                        || "YouTube情報の確認に失敗しました"
+                    alert(
+                        data.message ||
+                        "動画情報を取得できませんでした"
                     );
 
                 }
 
             }
-            catch (error) {
+            catch(error){
 
                 console.error(
-                    "checkVideo error:",
+                    "確認エラー:",
                     error
                 );
 
                 alert(
-                    error.message
-                    || "確認エラー"
+                    "確認エラー: "
+                    + error.message
                 );
 
             }
-            finally {
-
-                // ---------------------------------
-                // 必ずタイマー停止
-                // ---------------------------------
-
-                stopCheckTimer();
-
-                // ---------------------------------
-                // ボタン復帰
-                // ---------------------------------
+            finally{
 
                 checkButton.disabled =
                     false;
@@ -348,11 +271,12 @@ document.addEventListener(
 
         }
 
-        // =====================================
-        // 変換ボタン
-        // =====================================
 
-        if (convertButton) {
+        // ================================
+        // 変換開始
+        // ================================
+
+        if(convertButton){
 
             convertButton.addEventListener(
                 "click",
@@ -361,33 +285,14 @@ document.addEventListener(
 
         }
 
-        // =====================================
-        // 変換開始
-        // =====================================
 
-        async function startConvert() {
+        async function startConvert(){
 
             const url =
                 urlInput.value.trim();
 
-            const outputs =
-                [];
 
-            document
-                .querySelectorAll(
-                    "input[name='output']:checked"
-                )
-                .forEach(
-                    function (item) {
-
-                        outputs.push(
-                            item.value
-                        );
-
-                    }
-                );
-
-            if (!url) {
+            if(!url){
 
                 alert(
                     "YouTube URLを入力してください"
@@ -397,7 +302,26 @@ document.addEventListener(
 
             }
 
-            if (outputs.length === 0) {
+
+            const outputs = [];
+
+
+            document
+                .querySelectorAll(
+                    "input[name='output']:checked"
+                )
+                .forEach(
+                    function(item){
+
+                        outputs.push(
+                            item.value
+                        );
+
+                    }
+                );
+
+
+            if(outputs.length === 0){
 
                 alert(
                     "作成ファイルを選択してください"
@@ -407,39 +331,33 @@ document.addEventListener(
 
             }
 
-            // ---------------------------------
-            // 確認タイマー停止
-            // ---------------------------------
-
-            stopCheckTimer();
-
-            // ---------------------------------
-            // 変換タイマー停止
-            // ---------------------------------
-
-            stopConvertTimer();
-
-            // ---------------------------------
-            // ボタン状態
-            // ---------------------------------
 
             convertButton.disabled =
                 true;
 
+
             convertSeconds = 0;
+
 
             convertButton.textContent =
                 "変換中 0秒";
 
-            // ---------------------------------
-            // 変換タイマー開始
-            // ---------------------------------
+
+            if(convertTimer){
+
+                clearInterval(
+                    convertTimer
+                );
+
+            }
+
 
             convertTimer =
                 setInterval(
-                    function () {
+                    function(){
 
                         convertSeconds++;
+
 
                         convertButton.textContent =
                             "変換中 "
@@ -450,7 +368,8 @@ document.addEventListener(
                     1000
                 );
 
-            try {
+
+            try{
 
                 const startTimeElement =
                     document.getElementById(
@@ -462,19 +381,18 @@ document.addEventListener(
                         "end-time"
                     );
 
+
                 const startTime =
                     startTimeElement
-                        ? startTimeElement.value.trim()
-                        : "";
+                    ? startTimeElement.value.trim()
+                    : "";
+
 
                 const endTime =
                     endTimeElement
-                        ? endTimeElement.value.trim()
-                        : "";
+                    ? endTimeElement.value.trim()
+                    : "";
 
-                // ---------------------------------
-                // /convert
-                // ---------------------------------
 
                 const response =
                     await fetch(
@@ -484,190 +402,423 @@ document.addEventListener(
 
                             headers: {
                                 "Content-Type":
-                                    "application/json"
+                                "application/json"
                             },
 
                             body:
-                                JSON.stringify({
+                            JSON.stringify({
 
-                                    url: url,
+                                url: url,
 
-                                    outputs:
-                                        outputs,
+                                outputs: outputs,
 
-                                    start_time:
-                                        startTime,
+                                start_time:
+                                    startTime,
 
-                                    end_time:
-                                        endTime
+                                end_time:
+                                    endTime
 
-                                })
+                            })
                         }
                     );
 
-                const data =
-                    await parseResponse(
-                        response
+
+                // --------------------------------
+                // HTTPエラー確認
+                // --------------------------------
+
+                if(!response.ok){
+
+                    const text =
+                        await response.text();
+
+                    console.error(
+                        "変換HTTPエラー:",
+                        response.status,
+                        text
                     );
 
-                // ---------------------------------
-                // Job開始成功
-                // ---------------------------------
+                    throw new Error(
+                        "HTTP "
+                        + response.status
+                        + " : "
+                        + (
+                            text ||
+                            "サーバーから空のレスポンスが返されました"
+                        )
+                    );
 
-                if (data.success) {
+                }
+
+
+                // --------------------------------
+                // 空レスポンス確認
+                // --------------------------------
+
+                const text =
+                    await response.text();
+
+
+                if(!text){
+
+                    throw new Error(
+                        "サーバーから空のレスポンスが返されました"
+                    );
+
+                }
+
+
+                // --------------------------------
+                // JSON解析
+                // --------------------------------
+
+                let data;
+
+                try{
+
+                    data =
+                        JSON.parse(text);
+
+                }
+                catch(jsonError){
+
+                    console.error(
+                        "変換JSON解析エラー:",
+                        jsonError
+                    );
+
+                    console.error(
+                        "サーバーレスポンス:",
+                        text
+                    );
+
+                    throw new Error(
+                        "サーバーから正しいJSONが返されませんでした"
+                    );
+
+                }
+
+
+                if(data.success){
 
                     currentJobId =
                         data.job_id;
 
-                    if (!currentJobId) {
 
-                        throw new Error(
-                            "Job IDが返されませんでした"
-                        );
+                    console.log(
+                        "変換JOB:",
+                        currentJobId
+                    );
 
-                    }
 
                     checkStatus();
 
                 }
-                else {
+                else{
 
                     throw new Error(
-                        data.message
-                        || "変換を開始できませんでした"
+                        data.message ||
+                        "変換開始に失敗しました"
                     );
 
                 }
 
             }
-            catch (error) {
+            catch(error){
 
-                console.error(
-                    "startConvert error:",
-                    error
-                );
+                if(convertTimer){
 
-                stopConvertTimer();
+                    clearInterval(
+                        convertTimer
+                    );
+
+                    convertTimer =
+                        null;
+
+                }
+
 
                 convertButton.disabled =
                     false;
 
+
                 convertButton.textContent =
                     "変換開始";
 
+
+                console.error(
+                    "変換開始エラー:",
+                    error
+                );
+
+
                 alert(
                     error.message
-                    || "変換開始エラー"
                 );
 
             }
 
         }
 
-        // =====================================
+
+        // ================================
         // 状態確認
-        // =====================================
+        // ================================
 
-        async function checkStatus() {
+        async function checkStatus(){
 
-            if (!currentJobId) {
+            if(!currentJobId){
 
-                stopConvertTimer();
-
-                if (convertButton) {
-
-                    convertButton.disabled =
-                        false;
-
-                    convertButton.textContent =
-                        "変換開始";
-
-                }
+                console.error(
+                    "JOB IDがありません"
+                );
 
                 return;
 
             }
 
-            try {
+
+            try{
 
                 const response =
                     await fetch(
                         `/status/${encodeURIComponent(currentJobId)}`,
                         {
                             method: "GET",
+
                             cache: "no-store"
                         }
                     );
 
-                const data =
-                    await parseResponse(
-                        response
+
+                // --------------------------------
+                // HTTPエラー
+                // --------------------------------
+
+                if(!response.ok){
+
+                    const text =
+                        await response.text();
+
+
+                    console.error(
+                        "ステータスHTTPエラー:",
+                        response.status,
+                        text
                     );
 
+
+                    // --------------------------------
+                    // 502 / 503 / 504 は
+                    // 一時的なRenderエラーの可能性が
+                    // あるため、すぐ終了させない
+                    // --------------------------------
+
+                    if(
+                        response.status === 502 ||
+                        response.status === 503 ||
+                        response.status === 504
+                    ){
+
+                        console.warn(
+                            "一時的なサーバーエラー。"
+                            + "3秒後に再試行します。"
+                        );
+
+
+                        setTimeout(
+                            checkStatus,
+                            3000
+                        );
+
+
+                        return;
+
+                    }
+
+
+                    throw new Error(
+                        "HTTP "
+                        + response.status
+                        + " : "
+                        + (
+                            text ||
+                            "サーバーから空のレスポンスが返されました"
+                        )
+                    );
+
+                }
+
+
+                // --------------------------------
+                // レスポンス本文取得
+                // --------------------------------
+
+                const text =
+                    await response.text();
+
+
+                if(!text){
+
+                    console.warn(
+                        "STATUSレスポンスが空です。"
+                        + "3秒後に再試行します。"
+                    );
+
+
+                    setTimeout(
+                        checkStatus,
+                        3000
+                    );
+
+
+                    return;
+
+                }
+
+
+                // --------------------------------
+                // JSON解析
+                // --------------------------------
+
+                let data;
+
+                try{
+
+                    data =
+                        JSON.parse(text);
+
+                }
+                catch(jsonError){
+
+                    console.error(
+                        "STATUS JSON解析エラー:",
+                        jsonError
+                    );
+
+                    console.error(
+                        "STATUSレスポンス:",
+                        text
+                    );
+
+
+                    // JSONでないレスポンスの場合も
+                    // すぐに変換失敗にはしない
+
+                    setTimeout(
+                        checkStatus,
+                        3000
+                    );
+
+
+                    return;
+
+                }
+
+
                 console.log(
-                    "Job status:",
+                    "STATUS:",
                     data
                 );
 
-                // ---------------------------------
+
+                // --------------------------------
                 // 完了
-                // ---------------------------------
+                // --------------------------------
 
-                if (
-                    data.status ===
-                    "complete"
-                ) {
+                if(
+                    data.status === "complete"
+                ){
 
-                    stopConvertTimer();
+                    if(convertTimer){
 
-                    if (convertButton) {
+                        clearInterval(
+                            convertTimer
+                        );
 
-                        convertButton.style.display =
-                            "none";
+                        convertTimer =
+                            null;
 
                     }
+
+
+                    convertButton.style.display =
+                        "none";
+
 
                     showFiles(
-                        data.files || []
+                        Array.isArray(data.files)
+                            ? data.files
+                            : []
                     );
+
 
                     return;
 
                 }
 
-                // ---------------------------------
-                // エラー
-                // ---------------------------------
 
-                if (
-                    data.status ===
-                    "error"
-                ) {
+                // --------------------------------
+                // 変換エラー
+                // --------------------------------
 
-                    stopConvertTimer();
+                if(
+                    data.status === "error"
+                ){
 
-                    if (convertButton) {
+                    if(convertTimer){
 
-                        convertButton.disabled =
-                            false;
+                        clearInterval(
+                            convertTimer
+                        );
 
-                        convertButton.textContent =
-                            "変換開始";
+                        convertTimer =
+                            null;
 
                     }
 
+
+                    convertButton.disabled =
+                        false;
+
+
+                    convertButton.textContent =
+                        "変換開始";
+
+
                     alert(
-                        data.message
-                        || "変換中にエラーが発生しました"
+                        data.message ||
+                        "変換中にエラーが発生しました"
                     );
+
 
                     return;
 
                 }
 
-                // ---------------------------------
+
+                // --------------------------------
                 // queued / running
-                // ---------------------------------
+                // --------------------------------
+
+                setTimeout(
+                    checkStatus,
+                    3000
+                );
+
+
+            }
+            catch(error){
+
+                console.error(
+                    "変換状態確認エラー:",
+                    error
+                );
+
+
+                // ネットワークエラーなどの場合も
+                // 変換処理そのものを止めず、
+                // 再度STATUSを確認する
 
                 setTimeout(
                     checkStatus,
@@ -675,68 +826,38 @@ document.addEventListener(
                 );
 
             }
-            catch (error) {
-
-                console.error(
-                    "checkStatus error:",
-                    error
-                );
-
-                stopConvertTimer();
-
-                if (convertButton) {
-
-                    convertButton.disabled =
-                        false;
-
-                    convertButton.textContent =
-                        "変換開始";
-
-                }
-
-                alert(
-                    "変換状態の確認に失敗しました。\n\n"
-                    + error.message
-                );
-
-            }
 
         }
 
-        // =====================================
-        // ダウンロード表示
-        // =====================================
 
-        function showFiles(files) {
+        // ================================
+        // ダウンロード表示
+        // ================================
+
+        function showFiles(files){
 
             console.log(
-                "Completed files:",
+                "完成ファイル:",
                 files
             );
 
-            if (!downloadArea) {
-
-                return;
-
-            }
 
             let html = `
+
                 <div class="download-buttons">
+
             `;
+
 
             let mp3File = "";
 
-            // ---------------------------------
-            // MP3検索
-            // ---------------------------------
 
             files.forEach(
-                function (file) {
+                function(file){
 
-                    if (
-                        typeof file === "string"
-                        && file.toLowerCase().endsWith(".mp3")
-                    ) {
+                    if(
+                        file.endsWith(".mp3")
+                    ){
 
                         mp3File = file;
 
@@ -745,45 +866,38 @@ document.addEventListener(
                 }
             );
 
-            // ---------------------------------
-            // Gemini用MP3ファイル名
-            // ---------------------------------
+
+            // --------------------------------
+            // Gemini用mp3ファイル名セット
+            // --------------------------------
 
             const geminiFile =
                 document.getElementById(
                     "gemini-file"
                 );
 
-            if (
-                geminiFile
-                && mp3File
-            ) {
+
+            if(
+                geminiFile &&
+                mp3File
+            ){
 
                 geminiFile.value =
                     mp3File;
 
             }
 
-            // ---------------------------------
+
+            // --------------------------------
             // ファイルボタン
-            // ---------------------------------
+            // --------------------------------
 
             files.forEach(
-                function (file) {
+                function(file){
 
-                    if (
-                        typeof file !== "string"
-                    ) {
-
-                        return;
-
-                    }
-
-                    if (
-                        file
-                            .toLowerCase()
-                            .endsWith(".mp3")
-                    ) {
+                    if(
+                        file.endsWith(".mp3")
+                    ){
 
                         html += `
 
@@ -791,12 +905,13 @@ document.addEventListener(
                                 href="/download/${encodeURIComponent(file)}"
                                 download
                             >
+
                                 <button
-                                    type="button"
                                     class="download-button"
                                 >
                                     mp3
                                 </button>
+
                             </a>
 
                             <button
@@ -811,11 +926,10 @@ document.addEventListener(
 
                     }
 
-                    else if (
-                        file
-                            .toLowerCase()
-                            .endsWith(".mp4")
-                    ) {
+
+                    else if(
+                        file.endsWith(".mp4")
+                    ){
 
                         html += `
 
@@ -823,12 +937,13 @@ document.addEventListener(
                                 href="/download/${encodeURIComponent(file)}"
                                 download
                             >
+
                                 <button
-                                    type="button"
                                     class="download-button"
                                 >
                                     mp4
                                 </button>
+
                             </a>
 
                         `;
@@ -838,68 +953,78 @@ document.addEventListener(
                 }
             );
 
+
             html += `
+
                 </div>
+
             `;
 
-            downloadArea.innerHTML =
-                html;
 
-            // =================================
+            if(downloadArea){
+
+                downloadArea.innerHTML =
+                    html;
+
+            }
+
+
+            // ================================
             // SRT表示
-            // =================================
+            // ================================
 
             const srtArea =
                 document.getElementById(
                     "srtArea"
                 );
 
-            if (
-                srtArea
-                && mp3File
-            ) {
+
+            if(
+                srtArea &&
+                mp3File
+            ){
 
                 srtArea.style.display =
                     "block";
 
             }
-            else if (srtArea) {
+            else if(srtArea){
 
                 srtArea.style.display =
                     "none";
 
             }
 
-            // =================================
-            // SRT展開ボタン
-            // =================================
+
+            // ================================
+            // 展開ボタン
+            // ================================
 
             const toggle =
                 document.getElementById(
                     "srt-toggle-button"
                 );
 
+
             const srtContent =
                 document.getElementById(
                     "srt-content"
                 );
 
-            if (
-                toggle
-                && srtContent
-            ) {
+
+            if(
+                toggle &&
+                srtContent
+            ){
 
                 toggle.addEventListener(
                     "click",
-                    function () {
+                    function(){
 
-                        if (
+                        if(
                             srtContent.style.display ===
                             "none"
-                            ||
-                            srtContent.style.display ===
-                            ""
-                        ) {
+                        ){
 
                             srtContent.style.display =
                                 "block";
@@ -908,7 +1033,7 @@ document.addEventListener(
                                 "▲";
 
                         }
-                        else {
+                        else{
 
                             srtContent.style.display =
                                 "none";
@@ -925,32 +1050,32 @@ document.addEventListener(
 
         }
 
-        // =====================================
+
+        // ================================
         // Gemini文字起こし
-        // =====================================
+        // ================================
 
         const geminiButton =
             document.getElementById(
                 "gemini-button"
             );
 
-        if (geminiButton) {
+
+        if(geminiButton){
 
             geminiButton.addEventListener(
                 "click",
-                async function () {
-
-                    const geminiFileElement =
-                        document.getElementById(
-                            "gemini-file"
-                        );
+                async function(){
 
                     const file =
-                        geminiFileElement
-                            ? geminiFileElement.value.trim()
-                            : "";
+                        document.getElementById(
+                            "gemini-file"
+                        )
+                        .value
+                        .trim();
 
-                    if (!file) {
+
+                    if(!file){
 
                         alert(
                             "mp3ファイル名がありません"
@@ -960,33 +1085,26 @@ document.addEventListener(
 
                     }
 
+
                     const result =
                         document.getElementById(
                             "gemini-result"
                         );
 
-                    if (!result) {
-
-                        return;
-
-                    }
 
                     let seconds = 0;
 
-                    result.style.display =
-                        "block";
 
                     result.textContent =
                         "文字起こし中... 0秒";
 
-                    geminiButton.disabled =
-                        true;
 
                     const timer =
                         setInterval(
-                            function () {
+                            function(){
 
                                 seconds++;
+
 
                                 result.textContent =
                                     "文字起こし中... "
@@ -997,55 +1115,107 @@ document.addEventListener(
                             1000
                         );
 
-                    try {
+
+                    try{
 
                         const response =
                             await fetch(
                                 "/gemini-transcribe",
                                 {
-                                    method: "POST",
 
-                                    headers: {
+                                    method:
+                                        "POST",
+
+                                    headers:{
                                         "Content-Type":
-                                            "application/json"
+                                        "application/json"
                                     },
 
                                     body:
-                                        JSON.stringify({
-                                            file: file
-                                        })
+                                    JSON.stringify({
+                                        file:file
+                                    })
+
                                 }
                             );
 
-                        const data =
-                            await parseResponse(
-                                response
+
+                        if(!response.ok){
+
+                            const text =
+                                await response.text();
+
+
+                            throw new Error(
+                                "HTTP "
+                                + response.status
+                                + " : "
+                                + (
+                                    text ||
+                                    "サーバーから空のレスポンスが返されました"
+                                )
                             );
+
+                        }
+
+
+                        const text =
+                            await response.text();
+
+
+                        if(!text){
+
+                            throw new Error(
+                                "サーバーから空のレスポンスが返されました"
+                            );
+
+                        }
+
+
+                        let data;
+
+
+                        try{
+
+                            data =
+                                JSON.parse(text);
+
+                        }
+                        catch(jsonError){
+
+                            console.error(
+                                "Gemini JSON解析エラー:",
+                                jsonError
+                            );
+
+                            console.error(
+                                "Geminiレスポンス:",
+                                text
+                            );
+
+                            throw new Error(
+                                "サーバーから正しいJSONが返されませんでした"
+                            );
+
+                        }
+
 
                         clearInterval(
                             timer
                         );
 
-                        geminiButton.disabled =
-                            false;
 
-                        if (data.success) {
-
-                            // -------------------------
-                            // テキスト非表示
-                            // -------------------------
+                        if(data.success){
 
                             result.style.display =
                                 "none";
 
-                            // -------------------------
-                            // SRTボタン
-                            // -------------------------
 
                             const srtButton =
                                 document.createElement(
                                     "a"
                                 );
+
 
                             srtButton.href =
                                 "/download/"
@@ -1054,52 +1224,50 @@ document.addEventListener(
                                     data.srt_file
                                 );
 
+
                             srtButton.download =
                                 data.srt_file;
 
-                            srtButton.innerHTML = `
-                                <button
-                                    type="button"
-                                    class="download-button"
-                                >
+
+                            srtButton.innerHTML =
+                                `
+                                <button class="download-button">
                                     srt
                                 </button>
-                            `;
+                                `;
+
 
                             result.parentNode.appendChild(
                                 srtButton
                             );
 
                         }
-                        else {
+                        else{
 
                             result.textContent =
-                                data.message
-                                || "文字起こしに失敗しました";
+                                data.message ||
+                                "文字起こしに失敗しました";
 
                         }
 
+
                     }
-                    catch (error) {
+                    catch(error){
 
                         clearInterval(
                             timer
                         );
 
-                        geminiButton.disabled =
-                            false;
 
                         console.error(
-                            "Gemini error:",
+                            "Geminiエラー:",
                             error
                         );
 
+
                         result.textContent =
                             "エラー: "
-                            + (
-                                error.message
-                                || "文字起こしに失敗しました"
-                            );
+                            + error.message;
 
                     }
 
