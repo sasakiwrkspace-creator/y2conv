@@ -13,19 +13,16 @@ from cleanup import cleanup_downloads
 
 RENDER_COOKIE_FILE = "/etc/secrets/cookies.txt"
 
-
 BASE_DIR = os.path.dirname(
     os.path.dirname(
         os.path.abspath(__file__)
     )
 )
 
-
 LOCAL_COOKIE_FILE = os.path.join(
     BASE_DIR,
     "cookies.txt"
 )
-
 
 DENO_PATH = "/opt/render/project/src/.deno/bin/deno"
 DENO_DIR = "/opt/render/project/src/.deno/bin"
@@ -38,9 +35,7 @@ if os.path.exists(DENO_DIR):
         ""
     )
 
-    if DENO_DIR not in current_path.split(
-        os.pathsep
-    ):
+    if DENO_DIR not in current_path.split(os.pathsep):
 
         os.environ["PATH"] = (
             DENO_DIR
@@ -51,15 +46,11 @@ if os.path.exists(DENO_DIR):
 
 if os.environ.get("RENDER") == "true":
 
-    ORIGINAL_COOKIE_FILE = (
-        RENDER_COOKIE_FILE
-    )
+    ORIGINAL_COOKIE_FILE = RENDER_COOKIE_FILE
 
 else:
 
-    ORIGINAL_COOKIE_FILE = (
-        LOCAL_COOKIE_FILE
-    )
+    ORIGINAL_COOKIE_FILE = LOCAL_COOKIE_FILE
 
 
 print("==========================================")
@@ -95,22 +86,16 @@ print(
 print("==========================================")
 
 
-def remove_cookie_file(
-    cookie_file
-):
+def remove_cookie_file(cookie_file):
 
     if not cookie_file:
         return
 
     try:
 
-        if os.path.exists(
-            cookie_file
-        ):
+        if os.path.exists(cookie_file):
 
-            os.remove(
-                cookie_file
-            )
+            os.remove(cookie_file)
 
             print(
                 "一時Cookieファイル削除OK:",
@@ -127,20 +112,16 @@ def remove_cookie_file(
 
 def prepare_cookie_file():
 
-    if not os.path.exists(
-        ORIGINAL_COOKIE_FILE
-    ):
+    if not os.path.exists(ORIGINAL_COOKIE_FILE):
 
         raise Exception(
             "Cookieファイルが見つかりません: "
             + ORIGINAL_COOKIE_FILE
         )
 
-
     original_size = os.path.getsize(
         ORIGINAL_COOKIE_FILE
     )
-
 
     print("==========================================")
     print(
@@ -157,14 +138,12 @@ def prepare_cookie_file():
     )
     print("==========================================")
 
-
     if original_size == 0:
 
         raise Exception(
             "Cookieファイルが空です: "
             + ORIGINAL_COOKIE_FILE
         )
-
 
     temp_file = tempfile.NamedTemporaryFile(
         mode="wb",
@@ -173,14 +152,9 @@ def prepare_cookie_file():
         delete=False
     )
 
-
-    temp_cookie_file = (
-        temp_file.name
-    )
-
+    temp_cookie_file = temp_file.name
 
     temp_file.close()
-
 
     try:
 
@@ -197,21 +171,16 @@ def prepare_cookie_file():
 
         raise
 
-
-    if not os.path.exists(
-        temp_cookie_file
-    ):
+    if not os.path.exists(temp_cookie_file):
 
         raise Exception(
             "一時Cookieファイルの作成に失敗しました: "
             + temp_cookie_file
         )
 
-
     file_size = os.path.getsize(
         temp_cookie_file
     )
-
 
     print("==========================================")
     print(
@@ -228,7 +197,6 @@ def prepare_cookie_file():
     )
     print("==========================================")
 
-
     if file_size == 0:
 
         remove_cookie_file(
@@ -239,10 +207,8 @@ def prepare_cookie_file():
             "一時Cookieファイルが空です"
         )
 
-
     cookie_count = 0
     youtube_cookie_count = 0
-
 
     try:
 
@@ -257,7 +223,6 @@ def prepare_cookie_file():
 
                 line = line.strip()
 
-
                 if (
                     not line
                     or line.startswith("#")
@@ -265,28 +230,18 @@ def prepare_cookie_file():
 
                     continue
 
-
-                fields = line.split(
-                    "\t"
-                )
-
+                fields = line.split("\t")
 
                 if len(fields) >= 7:
 
                     cookie_count += 1
 
-
-                    domain = (
-                        fields[0].lower()
-                    )
-
+                    domain = fields[0].lower()
 
                     if (
-                        "youtube.com"
-                        in domain
+                        "youtube.com" in domain
                         or
-                        "google.com"
-                        in domain
+                        "google.com" in domain
                     ):
 
                         youtube_cookie_count += 1
@@ -294,7 +249,6 @@ def prepare_cookie_file():
                 else:
 
                     cookie_count += 1
-
 
     except Exception as e:
 
@@ -307,7 +261,6 @@ def prepare_cookie_file():
             + repr(e)
         )
 
-
     print("==========================================")
     print(
         "Cookieデータ行数:",
@@ -319,7 +272,6 @@ def prepare_cookie_file():
     )
     print("==========================================")
 
-
     if cookie_count == 0:
 
         remove_cookie_file(
@@ -330,7 +282,6 @@ def prepare_cookie_file():
             "Cookieデータが0件です"
         )
 
-
     if youtube_cookie_count == 0:
 
         print(
@@ -338,51 +289,33 @@ def prepare_cookie_file():
             "YouTube/Google Cookieが見つかりません"
         )
 
-
     return temp_cookie_file
 
 
 def get_ydl_base_options():
 
-    cookie_file = (
-        prepare_cookie_file()
-    )
-
+    cookie_file = prepare_cookie_file()
 
     return {
+        "cookiefile": cookie_file,
 
-        "cookiefile":
-            cookie_file,
-
-        "noplaylist":
-            True,
+        "noplaylist": True,
 
         "js_runtimes": {
-
             "deno": {
-
-                "path":
-                    DENO_PATH
-
+                "path": DENO_PATH
             }
-
         },
 
         "remote_components": {
-
             "ejs:github"
-
         }
-
     }
 
 
-def diagnose_formats(
-    url
-):
+def diagnose_formats(url):
 
     temp_cookie = None
-
 
     try:
 
@@ -396,35 +329,23 @@ def diagnose_formats(
         )
         print("==========================================")
 
+        ydl_opts = get_ydl_base_options()
 
-        ydl_opts = (
-            get_ydl_base_options()
+        temp_cookie = ydl_opts.get(
+            "cookiefile"
         )
-
-
-        temp_cookie = (
-            ydl_opts.get(
-                "cookiefile"
-            )
-        )
-
 
         ydl_opts.update({
 
-            "quiet":
-                False,
+            "quiet": False,
 
-            "no_warnings":
-                False,
+            "no_warnings": False,
 
-            "verbose":
-                True,
+            "verbose": True,
 
-            "skip_download":
-                True
+            "skip_download": True
 
         })
-
 
         print("==========================================")
         print(
@@ -432,32 +353,26 @@ def diagnose_formats(
         )
         print("==========================================")
 
-
         print(
             "yt-dlp version:",
             yt_dlp.version.__version__
         )
-
 
         print(
             "Cookie:",
             temp_cookie
         )
 
-
         print(
             "EJS: ejs:github"
         )
-
 
         print(
             "JavaScript Runtime:",
             DENO_PATH
         )
 
-
         print("==========================================")
-
 
         with yt_dlp.YoutubeDL(
             ydl_opts
@@ -467,19 +382,16 @@ def diagnose_formats(
                 "extract_info開始"
             )
 
-
             info = ydl.extract_info(
                 url,
                 download=False
             )
-
 
         if not info:
 
             raise Exception(
                 "YouTube情報を取得できませんでした"
             )
-
 
         print("==========================================")
         print(
@@ -493,25 +405,21 @@ def diagnose_formats(
         )
         print("==========================================")
 
-
         formats = info.get(
             "formats",
             []
         )
-
 
         print(
             "利用可能format数:",
             len(formats)
         )
 
-
         print("==========================================")
         print(
             "利用可能format一覧"
         )
         print("==========================================")
-
 
         for f in formats:
 
@@ -530,16 +438,13 @@ def diagnose_formats(
                 f.get("abr")
             )
 
-
         print("==========================================")
         print(
             "音声format一覧"
         )
         print("==========================================")
 
-
         audio_formats = []
-
 
         for f in formats:
 
@@ -551,7 +456,6 @@ def diagnose_formats(
                 "vcodec"
             )
 
-
             if (
                 acodec
                 and acodec != "none"
@@ -561,10 +465,7 @@ def diagnose_formats(
                 )
             ):
 
-                audio_formats.append(
-                    f
-                )
-
+                audio_formats.append(f)
 
                 print(
                     "AUDIO",
@@ -580,7 +481,6 @@ def diagnose_formats(
                     f.get("asr")
                 )
 
-
         print("==========================================")
         print(
             "音声format数:",
@@ -588,9 +488,7 @@ def diagnose_formats(
         )
         print("==========================================")
 
-
         return info
-
 
     finally:
 
@@ -606,7 +504,6 @@ def download_mp3(
 
     temp_cookie = None
 
-
     try:
 
         print("==========================================")
@@ -615,42 +512,35 @@ def download_mp3(
         )
         print("==========================================")
 
+        ydl_opts = get_ydl_base_options()
 
-        ydl_opts = (
-            get_ydl_base_options()
+        temp_cookie = ydl_opts.get(
+            "cookiefile"
         )
-
-
-        temp_cookie = (
-            ydl_opts.get(
-                "cookiefile"
-            )
-        )
-
 
         ydl_opts.update({
 
             "format":
-                "bestaudio/best",
+            "bestaudio/best",
 
             "outtmpl":
-                os.path.join(
-                    output_dir,
-                    "%(title)s.%(ext)s"
-                ),
+            os.path.join(
+                output_dir,
+                "%(title)s.%(ext)s"
+            ),
 
             "postprocessors": [
 
                 {
 
                     "key":
-                        "FFmpegExtractAudio",
+                    "FFmpegExtractAudio",
 
                     "preferredcodec":
-                        "mp3",
+                    "mp3",
 
                     "preferredquality":
-                        "192"
+                    "192"
 
                 }
 
@@ -658,18 +548,15 @@ def download_mp3(
 
         })
 
-
         print(
             "MP3 format:",
             "bestaudio/best"
         )
 
-
         print(
             "MP3品質:",
             "192kbps"
         )
-
 
         with yt_dlp.YoutubeDL(
             ydl_opts
@@ -680,20 +567,15 @@ def download_mp3(
                 download=True
             )
 
-
             if not info:
 
                 raise Exception(
                     "YouTube情報を取得できませんでした"
                 )
 
-
-            filename = (
-                ydl.prepare_filename(
-                    info
-                )
+            filename = ydl.prepare_filename(
+                info
             )
-
 
         mp3_file = (
             os.path.splitext(
@@ -702,29 +584,21 @@ def download_mp3(
             + ".mp3"
         )
 
-
-        if not os.path.exists(
-            mp3_file
-        ):
+        if not os.path.exists(mp3_file):
 
             raise Exception(
                 "MP3ファイルが作成されませんでした: "
                 + mp3_file
             )
 
-
-        file_size = (
-            os.path.getsize(
-                mp3_file
-            )
+        file_size = os.path.getsize(
+            mp3_file
         )
-
 
         print(
             "MP3完成:",
             mp3_file
         )
-
 
         print(
             "MP3サイズ:",
@@ -732,9 +606,7 @@ def download_mp3(
             "bytes"
         )
 
-
         return mp3_file
-
 
     finally:
 
@@ -750,7 +622,6 @@ def download_mp4(
 
     temp_cookie = None
 
-
     try:
 
         print("==========================================")
@@ -759,41 +630,32 @@ def download_mp4(
         )
         print("==========================================")
 
+        ydl_opts = get_ydl_base_options()
 
-        ydl_opts = (
-            get_ydl_base_options()
+        temp_cookie = ydl_opts.get(
+            "cookiefile"
         )
-
-
-        temp_cookie = (
-            ydl_opts.get(
-                "cookiefile"
-            )
-        )
-
 
         ydl_opts.update({
 
             "format":
-                "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]",
+            "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]",
 
             "merge_output_format":
-                "mp4",
+            "mp4",
 
             "outtmpl":
-                os.path.join(
-                    output_dir,
-                    "%(title)s.%(ext)s"
-                )
+            os.path.join(
+                output_dir,
+                "%(title)s.%(ext)s"
+            )
 
         })
-
 
         print(
             "MP4 format:",
             "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]"
         )
-
 
         with yt_dlp.YoutubeDL(
             ydl_opts
@@ -804,20 +666,15 @@ def download_mp4(
                 download=True
             )
 
-
             if not info:
 
                 raise Exception(
                     "YouTube情報を取得できませんでした"
                 )
 
-
-            filename = (
-                ydl.prepare_filename(
-                    info
-                )
+            filename = ydl.prepare_filename(
+                info
             )
-
 
         mp4_file = (
             os.path.splitext(
@@ -826,29 +683,21 @@ def download_mp4(
             + ".mp4"
         )
 
-
-        if not os.path.exists(
-            mp4_file
-        ):
+        if not os.path.exists(mp4_file):
 
             raise Exception(
                 "MP4ファイルが作成されませんでした: "
                 + mp4_file
             )
 
-
-        file_size = (
-            os.path.getsize(
-                mp4_file
-            )
+        file_size = os.path.getsize(
+            mp4_file
         )
-
 
         print(
             "MP4完成:",
             mp4_file
         )
-
 
         print(
             "MP4サイズ:",
@@ -856,9 +705,7 @@ def download_mp4(
             "bytes"
         )
 
-
         return mp4_file
-
 
     finally:
 
@@ -887,14 +734,12 @@ def cut_mp3(
     )
     print("==========================================")
 
-
     cut_file = (
         os.path.splitext(
             mp3_file
         )[0]
         + "_cut.mp3"
     )
-
 
     result = subprocess.run(
 
@@ -925,9 +770,7 @@ def cut_mp3(
         stderr=subprocess.PIPE,
 
         text=True
-
     )
-
 
     if result.returncode != 0:
 
@@ -939,30 +782,20 @@ def cut_mp3(
             "ffmpeg処理失敗(mp3)"
         )
 
-
-    if not os.path.exists(
-        cut_file
-    ):
+    if not os.path.exists(cut_file):
 
         raise Exception(
             "カット後のMP3ファイルが作成されませんでした"
         )
 
+    if os.path.exists(mp3_file):
 
-    if os.path.exists(
-        mp3_file
-    ):
-
-        os.remove(
-            mp3_file
-        )
-
+        os.remove(mp3_file)
 
     os.rename(
         cut_file,
         mp3_file
     )
-
 
     print(
         "MP3時間指定カット完了"
@@ -989,14 +822,12 @@ def cut_mp4(
     )
     print("==========================================")
 
-
     cut_file = (
         os.path.splitext(
             mp4_file
         )[0]
         + "_cut.mp4"
     )
-
 
     result = subprocess.run(
 
@@ -1027,9 +858,7 @@ def cut_mp4(
         stderr=subprocess.PIPE,
 
         text=True
-
     )
-
 
     if result.returncode != 0:
 
@@ -1041,30 +870,20 @@ def cut_mp4(
             "ffmpeg処理失敗(mp4)"
         )
 
-
-    if not os.path.exists(
-        cut_file
-    ):
+    if not os.path.exists(cut_file):
 
         raise Exception(
             "カット後のMP4ファイルが作成されませんでした"
         )
 
+    if os.path.exists(mp4_file):
 
-    if os.path.exists(
-        mp4_file
-    ):
-
-        os.remove(
-            mp4_file
-        )
-
+        os.remove(mp4_file)
 
     os.rename(
         cut_file,
         mp4_file
     )
-
 
     print(
         "MP4時間指定カット完了"
@@ -1085,7 +904,6 @@ def convert_task(
             "status": "running"
         }
 
-
         print("==========================================")
         print(
             "変換開始:",
@@ -1101,21 +919,16 @@ def convert_task(
         )
         print("==========================================")
 
-
         cleanup_downloads()
 
-
         output_dir = "downloads"
-
 
         os.makedirs(
             output_dir,
             exist_ok=True
         )
 
-
         files = []
-
 
         if "mp3" in outputs:
 
@@ -1132,12 +945,10 @@ def convert_task(
                     repr(e)
                 )
 
-
             mp3_file = download_mp3(
                 url,
                 output_dir
             )
-
 
             if (
                 start_time
@@ -1146,22 +957,16 @@ def convert_task(
             ):
 
                 cut_mp3(
-
                     mp3_file,
-
                     start_time,
-
                     end_time
-
                 )
-
 
             files.append(
                 os.path.basename(
                     mp3_file
                 )
             )
-
 
         if "mp4" in outputs:
 
@@ -1170,7 +975,6 @@ def convert_task(
                 output_dir
             )
 
-
             if (
                 start_time
                 and end_time
@@ -1178,15 +982,10 @@ def convert_task(
             ):
 
                 cut_mp4(
-
                     mp4_file,
-
                     start_time,
-
                     end_time
-
                 )
-
 
             files.append(
                 os.path.basename(
@@ -1194,17 +993,15 @@ def convert_task(
                 )
             )
 
-
         jobs[job_id] = {
 
             "status":
-                "complete",
+            "complete",
 
             "files":
-                files
+            files
 
         }
-
 
         print("==========================================")
         print(
@@ -1219,7 +1016,6 @@ def convert_task(
             files
         )
         print("==========================================")
-
 
     except Exception as e:
 
@@ -1241,14 +1037,13 @@ def convert_task(
         )
         print("==========================================")
 
-
         jobs[job_id] = {
 
             "status":
-                "error",
+            "error",
 
             "message":
-                str(e)
+            str(e)
 
         }
 
@@ -1267,59 +1062,52 @@ def register_convert(app):
                 silent=True
             )
 
-
             if not data:
 
                 return jsonify({
 
                     "success":
-                        False,
+                    False,
 
                     "message":
-                        "JSONデータがありません"
+                    "JSONデータがありません"
 
                 })
-
 
             url = data.get(
                 "url"
             )
-
 
             if not url:
 
                 return jsonify({
 
                     "success":
-                        False,
+                    False,
 
                     "message":
-                        "URLがありません"
+                    "URLがありません"
 
                 })
-
 
             outputs = data.get(
                 "outputs",
                 []
             )
 
-
             if not outputs:
 
                 return jsonify({
 
                     "success":
-                        False,
+                    False,
 
                     "message":
-                        "出力形式が指定されていません"
+                    "出力形式が指定されていません"
 
                 })
 
-
             valid_outputs = []
-
 
             for output in outputs:
 
@@ -1334,42 +1122,36 @@ def register_convert(app):
                             output
                         )
 
-
             if not valid_outputs:
 
                 return jsonify({
 
                     "success":
-                        False,
+                    False,
 
                     "message":
-                        "mp3またはmp4を指定してください"
+                    "mp3またはmp4を指定してください"
 
                 })
-
 
             start_time = data.get(
                 "start_time"
             )
 
-
             end_time = data.get(
                 "end_time"
             )
-
 
             job_id = str(
                 uuid.uuid4()
             )
 
-
             jobs[job_id] = {
 
                 "status":
-                    "queued"
+                "queued"
 
             }
-
 
             print("==========================================")
             print(
@@ -1394,7 +1176,6 @@ def register_convert(app):
             )
             print("==========================================")
 
-
             thread = threading.Thread(
 
                 target=convert_task,
@@ -1415,23 +1196,19 @@ def register_convert(app):
 
             )
 
-
             thread.daemon = True
 
-
             thread.start()
-
 
             return jsonify({
 
                 "success":
-                    True,
+                True,
 
                 "job_id":
-                    job_id
+                job_id
 
             })
-
 
         except Exception as e:
 
@@ -1440,13 +1217,12 @@ def register_convert(app):
                 repr(e)
             )
 
-
             return jsonify({
 
                 "success":
-                    False,
+                False,
 
                 "message":
-                    str(e)
+                str(e)
 
             })
