@@ -14,7 +14,7 @@ RENDER_COOKIE_FILE = "/etc/secrets/cookies.txt"
 
 BASE_DIR = os.path.dirname(
 os.path.dirname(
-os.path.abspath(**file**)
+os.path.abspath(__file__)
 )
 )
 
