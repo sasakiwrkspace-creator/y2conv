@@ -19,6 +19,8 @@ BASE_DIR,
 "cookies.txt"
 )
 
+DENO_PATH = "/opt/render/project/src/.deno/bin/deno"
+
 if os.environ.get("RENDER") == "true":
 ORIGINAL_COOKIE_FILE = RENDER_COOKIE_FILE
 else:
@@ -58,13 +60,16 @@ def prepare_cookie_file():
 print("==========================================")
 print("Cookieファイル準備")
 print("==========================================")
+
+
 print(
-"元Cookieファイル:",
-ORIGINAL_COOKIE_FILE
+    "元Cookieファイル:",
+    ORIGINAL_COOKIE_FILE
 )
 
-
-if not os.path.exists(ORIGINAL_COOKIE_FILE):
+if not os.path.exists(
+    ORIGINAL_COOKIE_FILE
+):
     raise Exception(
         "Cookieファイルが見つかりません: "
         + ORIGINAL_COOKIE_FILE
@@ -103,12 +108,18 @@ try:
     )
 
 except Exception:
-    if os.path.exists(temp_cookie_file):
-        os.remove(temp_cookie_file)
+    if os.path.exists(
+        temp_cookie_file
+    ):
+        os.remove(
+            temp_cookie_file
+        )
 
     raise
 
-if not os.path.exists(temp_cookie_file):
+if not os.path.exists(
+    temp_cookie_file
+):
     raise Exception(
         "一時Cookieファイルの作成に失敗しました: "
         + temp_cookie_file
@@ -139,6 +150,7 @@ try:
     ) as f:
 
         for line in f:
+
             line = line.strip()
 
             if not line:
@@ -150,6 +162,7 @@ try:
             fields = line.split("\t")
 
             if len(fields) >= 7:
+
                 cookie_count += 1
 
                 domain = fields[0].lower()
@@ -164,6 +177,7 @@ try:
                 cookie_count += 1
 
 except Exception as e:
+
     remove_cookie_file(
         temp_cookie_file
     )
@@ -195,6 +209,7 @@ print(
 print("==========================================")
 
 if cookie_count == 0:
+
     remove_cookie_file(
         temp_cookie_file
     )
@@ -204,6 +219,7 @@ if cookie_count == 0:
     )
 
 if youtube_cookie_count == 0:
+
     print(
         "WARNING: YouTube/Google Cookieが見つかりません"
     )
@@ -212,15 +228,58 @@ return temp_cookie_file
 
 
 def get_ydl_base_options():
+
+
 cookie_file = prepare_cookie_file()
 
+js_runtime_config = {}
+
+if os.path.exists(
+    DENO_PATH
+):
+
+    js_runtime_config = {
+        "deno": {
+            "executable": DENO_PATH
+        }
+    }
+
+    print("==========================================")
+    print("Deno確認")
+    print("==========================================")
+    print(
+        "Deno:",
+        DENO_PATH
+    )
+    print(
+        "Deno存在:",
+        True
+    )
+    print("==========================================")
+
+else:
+
+    js_runtime_config = {
+        "deno": {}
+    }
+
+    print("==========================================")
+    print("Deno確認")
+    print("==========================================")
+    print(
+        "Deno:",
+        DENO_PATH
+    )
+    print(
+        "Deno存在:",
+        False
+    )
+    print("==========================================")
 
 options = {
     "cookiefile": cookie_file,
     "noplaylist": True,
-    "js_runtimes": {
-        "deno": {}
-    },
+    "js_runtimes": js_runtime_config,
     "remote_components": {
         "ejs:github"
     }
@@ -236,14 +295,6 @@ print(
 print(
     "Cookie:",
     cookie_file
-)
-print(
-    "EJS:",
-    "github"
-)
-print(
-    "JavaScript Runtime:",
-    "deno"
 )
 print(
     "js_runtimes:",
@@ -263,10 +314,12 @@ return options
 
 
 def diagnose_formats(url):
+
+
 temp_cookie = None
 
-
 try:
+
     print("==========================================")
     print("YouTube情報取得開始")
     print("==========================================")
@@ -303,6 +356,7 @@ try:
         )
 
     if not info:
+
         raise Exception(
             "YouTube情報を取得できませんでした"
         )
@@ -310,19 +364,23 @@ try:
     print("==========================================")
     print("YouTube情報取得成功")
     print("==========================================")
+
     print(
         "動画タイトル:",
         info.get("title")
     )
+
     print(
         "動画ID:",
         info.get("id")
     )
+
     print(
         "再生時間:",
         info.get("duration"),
         "秒"
     )
+
     print("==========================================")
 
     formats = info.get(
@@ -340,6 +398,7 @@ try:
     print("==========================================")
 
     for f in formats:
+
         print(
             "ID=",
             f.get("format_id"),
@@ -360,6 +419,7 @@ try:
     return info
 
 finally:
+
     remove_cookie_file(
         temp_cookie
     )
@@ -375,6 +435,7 @@ def register_check(app):
 def check():
 
     try:
+
         print("==========================================")
         print("/check 呼び出し")
         print("==========================================")
@@ -384,6 +445,7 @@ def check():
         )
 
         if not data:
+
             return jsonify({
                 "success": False,
                 "message": "JSONデータがありません"
@@ -394,6 +456,7 @@ def check():
         )
 
         if not url:
+
             return jsonify({
                 "success": False,
                 "message": "URLがありません"
@@ -451,47 +514,59 @@ def check():
         print("==========================================")
         print("/check 成功")
         print("==========================================")
+
         print(
             "TITLE:",
             result["title"]
         )
+
         print(
             "VIDEO ID:",
             result["video_id"]
         )
+
         print(
             "DURATION:",
             result["duration"]
         )
+
         print(
             "HAS AUDIO:",
             result["has_audio"]
         )
+
         print(
             "HAS VIDEO:",
             result["has_video"]
         )
+
         print(
             "FORMAT COUNT:",
             result["format_count"]
         )
+
         print("==========================================")
 
-        return jsonify(result)
+        return jsonify(
+            result
+        )
 
     except Exception as e:
 
         print("==========================================")
         print("/check エラー")
         print("==========================================")
+
         print(
             "ERROR TYPE:",
             type(e).__name__
         )
+
         print(
             "ERROR:",
             repr(e)
         )
+
         print("==========================================")
 
         return jsonify({
