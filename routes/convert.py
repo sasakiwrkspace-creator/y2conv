@@ -395,17 +395,22 @@ def get_ydl_base_options():
     # Deno
     # ------------------------------------------------------
 
-    if deno_available:
-
-        ydl_opts[
-            "js_runtimes"
-        ] = {
-
             "deno":
             DENO_PATH
 
         }
 
+    if deno_available:
+
+       ydl_opts[
+           "js_runtimes"
+       ] = {
+
+           "deno": {
+               "path": DENO_PATH
+           }
+       }
+    
     print("==========================================")
     print("yt-dlp設定")
     print("==========================================")
