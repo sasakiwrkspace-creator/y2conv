@@ -10,9 +10,10 @@ import os
 
 
 # ==========================================================
-# プロジェクトルート
+# 基本設定
 # ==========================================================
 
+# プロジェクトルート
 BASE_DIR = os.path.dirname(
     os.path.dirname(
         os.path.abspath(__file__)
@@ -20,634 +21,348 @@ BASE_DIR = os.path.dirname(
 )
 
 
-# ==========================================================
 # downloads
-# ==========================================================
-
 DOWNLOAD_DIR = os.path.join(
     BASE_DIR,
     "downloads"
 )
 
 
-# ==========================================================
-# プロジェクトルート
-#
-# この配下だけファイル操作可能
-# ==========================================================
-
-PROJECT_ROOT = os.path.abspath(
-    BASE_DIR
-)
-
-
-# ==========================================================
 # 4桁番号
-# ==========================================================
-
 FILE_PASSWORD = "1234"
 
 
 # ==========================================================
-# 相対パス取得
+# パス安全確認
 # ==========================================================
 
-def relative_path(path):
-
-    return os.path.relpath(
-        path,
-        PROJECT_ROOT
-    ).replace(
-        os.sep,
-        "/"
-    )
-
-
-# ==========================================================
-# プロジェクト全体ツリー
-#
-# downloads は別表示するため除外
-#
-# .git
-# .venv
-# __pycache__
-# も除外
-# ==========================================================
-
-def get_project_tree():
-
-    tree = []
-
-    if not os.path.exists(
-        PROJECT_ROOT
-    ):
-
-        return tree
-
-
-    for root, dirs, files in os.walk(
-        PROJECT_ROOT
-    ):
-
-        # --------------------------------------------------
-        # 表示しないディレクトリ
-        # --------------------------------------------------
-
-        dirs[:] = [
-            d
-            for d in dirs
-            if d not in [
-                ".git",
-                ".venv",
-                "__pycache__",
-                "downloads"
-            ]
-        ]
-
-
-        # --------------------------------------------------
-        # 相対パス
-        # --------------------------------------------------
-
-        rel_root = relative_path(
-            root
-        )
-
-
-        # --------------------------------------------------
-        # ディレクトリ表示名
-        # --------------------------------------------------
-
-        if rel_root == ".":
-
-            display_root = "y2conv"
-
-        else:
-
-            display_root = (
-                "y2conv/"
-                + rel_root
-            )
-
-
-        tree.append({
-            "type": "directory",
-            "path": display_root
-        })
-
-
-        # --------------------------------------------------
-        # ファイル
-        # --------------------------------------------------
-
-        for filename in sorted(
-            files
-        ):
-
-            full_path = os.path.join(
-                root,
-                filename
-            )
-
-
-            rel_path = relative_path(
-                full_path
-            )
-
-
-            tree.append({
-                "type": "file",
-                "path":
-                    "y2conv/"
-                    + rel_path
-            })
-
-
-    return tree
-
-
-# ==========================================================
-# downloads一覧
-# ==========================================================
-
-def get_download_files():
-
-    if not os.path.exists(
-        DOWNLOAD_DIR
-    ):
-
-        return []
-
-
-    files = []
-
-
-    for filename in sorted(
-        os.listdir(
-            DOWNLOAD_DIR
-        )
-    ):
-
-        filepath = os.path.join(
-            DOWNLOAD_DIR,
-            filename
-        )
-
-
-        if os.path.isfile(
-            filepath
-        ):
-
-            files.append(
-                filename
-            )
-
-
-    return files
-
-
-# ==========================================================
-# /tmp ツリー
-#
-# y2conv関連だけ表示
-#
-# 特に
-#
-# /tmp/y2conv_downloads
-#
-# の存在確認に使用
-# ==========================================================
-
-def get_tmp_tree():
-
-    tree = []
-
-    TMP_DIR = "/tmp"
-
-
-    # ======================================================
-    # /tmp/y2conv_downloads
-    # ======================================================
-
-    tmp_download_dir = os.path.join(
-        TMP_DIR,
-        "y2conv_downloads"
-    )
-
-
-    if os.path.exists(
-        tmp_download_dir
-    ):
-
-        # --------------------------------------------------
-        # フォルダ
-        # --------------------------------------------------
-
-        tree.append({
-            "type": "directory",
-            "path": "/tmp/y2conv_downloads"
-        })
-
-
-        # --------------------------------------------------
-        # 中身
-        # --------------------------------------------------
-
-        for root, dirs, files in os.walk(
-            tmp_download_dir
-        ):
-
-            # ----------------------------------------------
-            # サブフォルダ
-            # ----------------------------------------------
-
-            for dirname in sorted(
-                dirs
-            ):
-
-                full_path = os.path.join(
-                    root,
-                    dirname
-                )
-
-
-                tree.append({
-                    "type": "directory",
-                    "path":
-                        full_path.replace(
-                            os.sep,
-                            "/"
-                        )
-                })
-
-
-            # ----------------------------------------------
-            # ファイル
-            # ----------------------------------------------
-
-            for filename in sorted(
-                files
-            ):
-
-                full_path = os.path.join(
-                    root,
-                    filename
-                )
-
-
-                tree.append({
-                    "type": "file",
-                    "path":
-                        full_path.replace(
-                            os.sep,
-                            "/"
-                        )
-                })
-
-
-    else:
-
-        # --------------------------------------------------
-        # 存在しない場合
-        # --------------------------------------------------
-
-        tree.append({
-            "type": "missing",
-            "path":
-                "/tmp/y2conv_downloads は存在しません"
-        })
-
-
-    # ======================================================
-    # /tmp の y2conv関連ファイル
-    #
-    # 例:
-    #
-    # /tmp/y2conv_cookies_xxxxx.txt
-    #
-    # ======================================================
-
-    tmp_files = []
-
-
-    try:
-
-        for name in os.listdir(
-            TMP_DIR
-        ):
-
-            # --------------------------------------------------
-            # y2conv_downloads は上ですでに確認済み
-            # --------------------------------------------------
-
-            if name == "y2conv_downloads":
-
-                continue
-
-
-            # --------------------------------------------------
-            # y2conv関連だけ
-            # --------------------------------------------------
-
-            if (
-                name.startswith(
-                    "y2conv_"
-                )
-                or name.startswith(
-                    "y2conv"
-                )
-            ):
-
-                full_path = os.path.join(
-                    TMP_DIR,
-                    name
-                )
-
-
-                tmp_files.append(
-                    full_path
-                )
-
-
-    except Exception as e:
-
-        print(
-            "TMP一覧取得失敗:",
-            repr(e)
-        )
-
-
-    # ======================================================
-    # y2conv関連一時ファイル表示
-    # ======================================================
-
-    for full_path in sorted(
-        tmp_files
-    ):
-
-        if os.path.isdir(
-            full_path
-        ):
-
-            tree.append({
-                "type": "directory",
-                "path":
-                    full_path.replace(
-                        os.sep,
-                        "/"
-                    )
-            })
-
-        else:
-
-            tree.append({
-                "type": "file",
-                "path":
-                    full_path.replace(
-                        os.sep,
-                        "/"
-                    )
-            })
-
-
-    return tree
-
-
-# ==========================================================
-# プロジェクト配下の安全なパスを取得
-# ==========================================================
-
-def safe_project_path(
-    requested_path
-):
-
-    if not requested_path:
-
-        return None
-
-
-    # ------------------------------------------------------
-    # 前後空白除去
-    # ------------------------------------------------------
-
-    requested_path = (
-        requested_path
+def safe_path(relative_path):
+    """
+    プロジェクトルート以下だけを操作可能にする。
+    ../ などによるプロジェクト外へのアクセスを防止。
+    """
+
+    relative_path = (
+        relative_path
+        .replace("\\", "/")
         .strip()
-        .replace(
-            "\\",
-            "/"
-        )
     )
 
-
-    if not requested_path:
-
-        return None
-
-
-    # ------------------------------------------------------
-    # y2conv/ を取り除く
-    #
-    # 例:
-    #
-    # y2conv/routes/convert.py
-    #
-    # ↓
-    #
-    # routes/convert.py
-    # ------------------------------------------------------
-
-    if requested_path.startswith(
-        "y2conv/"
-    ):
-
-        requested_path = (
-            requested_path[
-                len("y2conv/") :
-            ]
-        )
-
-
-    # ------------------------------------------------------
-    # y2conv/ だけの場合
-    # ------------------------------------------------------
-
-    if requested_path == "y2conv":
-
-        requested_path = ""
-
-
-    # ------------------------------------------------------
-    # 絶対パス化
-    # ------------------------------------------------------
+    # 先頭の / を除去
+    relative_path = relative_path.lstrip("/")
 
     full_path = os.path.abspath(
         os.path.join(
-            PROJECT_ROOT,
-            requested_path
+            BASE_DIR,
+            relative_path
         )
     )
 
+    base_path = os.path.abspath(
+        BASE_DIR
+    )
 
-    # ------------------------------------------------------
-    # PROJECT_ROOT外へのアクセス禁止
-    #
-    # ../
-    # などによる脱出を防止
-    # ------------------------------------------------------
+    try:
 
-    if (
-        full_path != PROJECT_ROOT
-        and not full_path.startswith(
-            PROJECT_ROOT + os.sep
+        common = os.path.commonpath(
+            [
+                base_path,
+                full_path
+            ]
         )
-    ):
+
+    except ValueError:
 
         return None
 
+    if common != base_path:
+
+        return None
 
     return full_path
 
 
 # ==========================================================
-# Flask登録
+# ツリー作成
+# ==========================================================
+
+def build_file_tree():
+
+    def scan_directory(
+        directory,
+        relative_path="",
+        depth=0
+    ):
+
+        items = []
+
+        try:
+
+            names = os.listdir(
+                directory
+            )
+
+        except Exception as e:
+
+            print(
+                "ディレクトリ読み込み失敗:",
+                directory,
+                repr(e)
+            )
+
+            return items
+
+        # 名前順
+        names.sort(
+            key=lambda name: (
+                not os.path.isdir(
+                    os.path.join(
+                        directory,
+                        name
+                    )
+                ),
+                name.lower()
+            )
+        )
+
+        for name in names:
+
+            full_path = os.path.join(
+                directory,
+                name
+            )
+
+            relative_file_path = os.path.join(
+                relative_path,
+                name
+            )
+
+            try:
+
+                is_dir = os.path.isdir(
+                    full_path
+                )
+
+            except Exception:
+
+                is_dir = False
+
+            item = {
+                "name": name,
+                "path": relative_file_path.replace(
+                    os.sep,
+                    "/"
+                ),
+                "is_dir": is_dir,
+                "depth": depth
+            }
+
+            items.append(
+                item
+            )
+
+            if is_dir:
+
+                items.extend(
+                    scan_directory(
+                        full_path,
+                        relative_file_path,
+                        depth + 1
+                    )
+                )
+
+        return items
+
+    return scan_directory(
+        BASE_DIR
+    )
+
+
+# ==========================================================
+# /files
 # ==========================================================
 
 def register_files(app):
 
-
-    # ======================================================
-    # /files
-    # ======================================================
-
     @app.route(
         "/files",
-        methods=[
-            "GET",
-            "POST"
-        ]
+        methods=["GET", "POST"]
     )
     def list_files():
 
+        # ==================================================
+        # パス削除処理
+        # ==================================================
 
-        # ==================================================
-        # パスワード確認
-        # ==================================================
+        delete_message = None
+        delete_error = None
 
         if request.method == "POST":
 
-
-            password = request.form.get(
-                "password",
+            action = request.form.get(
+                "action",
                 ""
             )
 
+            # ==============================================
+            # パス指定削除
+            # ==============================================
 
-            if password == FILE_PASSWORD:
+            if action == "delete_path":
 
-
-                # ------------------------------------------
-                # downloads作成
-                # ------------------------------------------
-
-                os.makedirs(
-                    DOWNLOAD_DIR,
-                    exist_ok=True
+                password = request.form.get(
+                    "password",
+                    ""
                 )
 
+                target_path = request.form.get(
+                    "target_path",
+                    ""
+                ).strip()
 
-                # ------------------------------------------
-                # downloads
-                # ------------------------------------------
+                if password != FILE_PASSWORD:
 
-                download_files = (
-                    get_download_files()
-                )
+                    delete_error = (
+                        "4桁番号が正しくありません。"
+                    )
 
+                elif not target_path:
 
-                # ------------------------------------------
-                # プロジェクトツリー
-                # ------------------------------------------
+                    delete_error = (
+                        "削除するファイルまたはフォルダを指定してください。"
+                    )
 
-                project_tree = (
-                    get_project_tree()
-                )
+                else:
 
+                    full_path = safe_path(
+                        target_path
+                    )
 
-                # ------------------------------------------
-                # TMPツリー
-                # ------------------------------------------
+                    if full_path is None:
 
-                tmp_tree = (
-                    get_tmp_tree()
-                )
+                        delete_error = (
+                            "プロジェクト外のファイルは削除できません。"
+                        )
 
+                    elif not os.path.exists(
+                        full_path
+                    ):
 
-                # ------------------------------------------
-                # 表示
-                # ------------------------------------------
+                        delete_error = (
+                            "指定されたファイルまたはフォルダが存在しません。"
+                        )
 
-                return render_template(
+                    elif os.path.abspath(
+                        full_path
+                    ) == os.path.abspath(
+                        BASE_DIR
+                    ):
 
-                    "files.html",
+                        delete_error = (
+                            "プロジェクトルート自体は削除できません。"
+                        )
 
-                    files=download_files,
+                    else:
 
-                    project_tree=project_tree,
+                        try:
 
-                    tmp_tree=tmp_tree
+                            if os.path.isdir(
+                                full_path
+                            ):
 
-                )
+                                import shutil
 
+                                shutil.rmtree(
+                                    full_path
+                                )
+
+                                delete_message = (
+                                    f"フォルダを削除しました: "
+                                    f"{target_path}"
+                                )
+
+                            else:
+
+                                os.remove(
+                                    full_path
+                                )
+
+                                delete_message = (
+                                    f"ファイルを削除しました: "
+                                    f"{target_path}"
+                                )
+
+                        except Exception as e:
+
+                            print(
+                                "指定パス削除失敗:",
+                                repr(e)
+                            )
+
+                            delete_error = (
+                                "削除に失敗しました: "
+                                + str(e)
+                            )
 
         # ==================================================
-        # パスワード入力画面
+        # downloads一覧
         # ==================================================
 
-        return """
-        <!DOCTYPE html>
+        files = []
 
-        <html lang="ja">
+        if os.path.exists(
+            DOWNLOAD_DIR
+        ):
 
-        <head>
+            try:
 
-        <meta charset="UTF-8">
+                names = os.listdir(
+                    DOWNLOAD_DIR
+                )
 
-        <title>File Check</title>
+                names.sort(
+                    key=lambda x: x.lower()
+                )
 
-        </head>
+                for name in names:
 
-        <body>
+                    full_path = os.path.join(
+                        DOWNLOAD_DIR,
+                        name
+                    )
 
-        <h3>
-        ファイル管理
-        </h3>
+                    if os.path.isfile(
+                        full_path
+                    ):
 
-        <form method="post">
+                        files.append(
+                            name
+                        )
 
-        <p>
-        4桁番号を入力してください
-        </p>
+            except Exception as e:
 
-        <input
-            type="password"
-            name="password"
-            maxlength="4"
-            autofocus
-        >
+                print(
+                    "downloads読み込み失敗:",
+                    repr(e)
+                )
 
-        <button
-            type="submit"
-        >
-        確認
-        </button>
+        # ==================================================
+        # ファイル構成ツリー
+        # ==================================================
 
-        </form>
+        tree = build_file_tree()
 
-        </body>
+        # ==================================================
+        # 表示
+        # ==================================================
 
-        </html>
-        """
+        return render_template(
+            "files.html",
+            files=files,
+            tree=tree,
+            delete_message=delete_message,
+            delete_error=delete_error
+        )
 
 
     # ======================================================
@@ -657,283 +372,54 @@ def register_files(app):
     @app.route(
         "/download/<path:filename>"
     )
-    def download_file(
-        filename
-    ):
+    def download_file(filename):
 
         return send_from_directory(
-
             DOWNLOAD_DIR,
-
             filename,
-
             as_attachment=True
-
         )
 
 
     # ======================================================
-    # downloads 個別削除
+    # downloads内ファイル削除
     # ======================================================
 
     @app.route(
         "/delete/<path:filename>",
         methods=["POST"]
     )
-    def delete_file(
-        filename
-    ):
+    def delete_file(filename):
 
-
-        filepath = os.path.abspath(
+        filepath = safe_path(
             os.path.join(
-                DOWNLOAD_DIR,
+                "downloads",
                 filename
             )
         )
 
-
-        # --------------------------------------------------
-        # downloads外へのアクセス禁止
-        # --------------------------------------------------
-
-        if (
-            filepath != DOWNLOAD_DIR
-            and not filepath.startswith(
-                DOWNLOAD_DIR + os.sep
-            )
-        ):
+        # downloads外へのアクセス防止
+        if filepath is None:
 
             abort(403)
 
-
-        # --------------------------------------------------
-        # ファイル削除
-        # --------------------------------------------------
-
+        # ファイルが存在する場合だけ削除
         if os.path.isfile(
             filepath
         ):
 
-            os.remove(
-                filepath
-            )
-
-
-        return redirect(
-            "/files"
-        )
-
-
-    # ======================================================
-    # y2conv配下 削除確認
-    # ======================================================
-
-    @app.route(
-        "/delete-project",
-        methods=["POST"]
-    )
-    def delete_project():
-
-
-        requested_path = request.form.get(
-            "path",
-            ""
-        )
-
-
-        filepath = safe_project_path(
-            requested_path
-        )
-
-
-        # --------------------------------------------------
-        # 不正パス
-        # --------------------------------------------------
-
-        if not filepath:
-
-            return """
-            <!DOCTYPE html>
-
-            <html lang="ja">
-
-            <head>
-            <meta charset="UTF-8">
-            <title>削除エラー</title>
-            </head>
-
-            <body>
-
-            <h3>
-            削除できません
-            </h3>
-
-            <p>
-            無効なファイルパスです。
-            </p>
-
-            <a href="/files">
-            ファイル管理へ戻る
-            </a>
-
-            </body>
-
-            </html>
-            """
-
-
-        # --------------------------------------------------
-        # PROJECT_ROOT自体は禁止
-        # --------------------------------------------------
-
-        if filepath == PROJECT_ROOT:
-
-            abort(403)
-
-
-        # --------------------------------------------------
-        # 存在確認
-        # --------------------------------------------------
-
-        if not os.path.exists(
-            filepath
-        ):
-
-            return """
-            <!DOCTYPE html>
-
-            <html lang="ja">
-
-            <head>
-            <meta charset="UTF-8">
-            <title>削除エラー</title>
-            </head>
-
-            <body>
-
-            <h3>
-            ファイルがありません
-            </h3>
-
-            <p>
-            指定されたファイルまたはフォルダは
-            存在しません。
-            </p>
-
-            <a href="/files">
-            ファイル管理へ戻る
-            </a>
-
-            </body>
-
-            </html>
-            """
-
-
-        # --------------------------------------------------
-        # 表示用パス
-        # --------------------------------------------------
-
-        display_path = relative_path(
-            filepath
-        )
-
-
-        # --------------------------------------------------
-        # 確認画面
-        # --------------------------------------------------
-
-        return render_template(
-            "delete_confirm.html",
-            path=display_path
-        )
-
-
-    # ======================================================
-    # y2conv配下 削除実行
-    # ======================================================
-
-    @app.route(
-        "/delete-project-confirm",
-        methods=["POST"]
-    )
-    def delete_project_confirm():
-
-
-        requested_path = request.form.get(
-            "path",
-            ""
-        )
-
-
-        filepath = safe_project_path(
-            requested_path
-        )
-
-
-        # --------------------------------------------------
-        # 不正パス
-        # --------------------------------------------------
-
-        if not filepath:
-
-            abort(400)
-
-
-        # --------------------------------------------------
-        # PROJECT_ROOTは禁止
-        # --------------------------------------------------
-
-        if filepath == PROJECT_ROOT:
-
-            abort(403)
-
-
-        # --------------------------------------------------
-        # プロジェクト外は禁止
-        # --------------------------------------------------
-
-        if not (
-            filepath.startswith(
-                PROJECT_ROOT + os.sep
-            )
-        ):
-
-            abort(403)
-
-
-        # --------------------------------------------------
-        # 削除
-        # --------------------------------------------------
-
-        try:
-
-            if os.path.isdir(
-                filepath
-            ):
-
-                import shutil
-
-                shutil.rmtree(
-                    filepath
-                )
-
-            elif os.path.isfile(
-                filepath
-            ):
+            try:
 
                 os.remove(
                     filepath
                 )
 
-        except Exception as e:
+            except Exception as e:
 
-            print(
-                "ファイル削除失敗:",
-                repr(e)
-            )
-
+                print(
+                    "downloadsファイル削除失敗:",
+                    repr(e)
+                )
 
         return redirect(
             "/files"
