@@ -1,4 +1,3 @@
-```python
 from flask import request, jsonify
 import yt_dlp
 import os
@@ -1284,4 +1283,3 @@ def register_check(
                 type(e).__name__
 
             })
-```
