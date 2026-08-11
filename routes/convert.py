@@ -28,7 +28,7 @@ DENO_DIR = "/opt/render/project/src/.deno/bin"
 
 if os.path.exists(DENO_DIR):
 
-```
+
 current_path = os.environ.get(
     "PATH",
     ""
@@ -43,23 +43,23 @@ if DENO_DIR not in current_path.split(
         + os.pathsep
         + current_path
     )
-```
+
 
 if os.environ.get("RENDER") == "true":
 
-```
+
 ORIGINAL_COOKIE_FILE = (
     RENDER_COOKIE_FILE
 )
-```
+
 
 else:
 
-```
+
 ORIGINAL_COOKIE_FILE = (
     LOCAL_COOKIE_FILE
 )
-```
+
 
 print("==========================================")
 print("Cookie設定")
@@ -96,7 +96,7 @@ def remove_cookie_file(
 cookie_file
 ):
 
-```
+
 if not cookie_file:
     return
 
@@ -121,11 +121,11 @@ except Exception as e:
         "一時Cookieファイル削除失敗:",
         repr(e)
     )
-```
+
 
 def prepare_cookie_file():
 
-```
+
 if not os.path.exists(
     ORIGINAL_COOKIE_FILE
 ):
@@ -339,11 +339,11 @@ if youtube_cookie_count == 0:
 
 
 return temp_cookie_file
-```
+
 
 def get_ydl_base_options():
 
-```
+
 cookie_file = (
     prepare_cookie_file()
 )
@@ -374,13 +374,13 @@ return {
     }
 
 }
-```
+
 
 def diagnose_formats(
 url
 ):
 
-```
+
 temp_cookie = None
 
 
@@ -592,14 +592,14 @@ finally:
     remove_cookie_file(
         temp_cookie
     )
-```
+
 
 def download_mp3(
 url,
 output_dir
 ):
 
-```
+
 temp_cookie = None
 
 
@@ -739,14 +739,14 @@ finally:
     remove_cookie_file(
         temp_cookie
     )
-```
+
 
 def download_mp4(
 url,
 output_dir
 ):
 
-```
+
 temp_cookie = None
 
 
@@ -866,7 +866,7 @@ finally:
     remove_cookie_file(
         temp_cookie
     )
-```
+
 
 def cut_mp3(
 mp3_file,
@@ -874,7 +874,7 @@ start_time,
 end_time
 ):
 
-```
+
 print("==========================================")
 print(
     "MP3時間指定カット開始"
@@ -969,7 +969,7 @@ os.rename(
 print(
     "MP3時間指定カット完了"
 )
-```
+
 
 def cut_mp4(
 mp4_file,
@@ -977,7 +977,7 @@ start_time,
 end_time
 ):
 
-```
+
 print("==========================================")
 print(
     "MP4時間指定カット開始"
@@ -1072,7 +1072,7 @@ os.rename(
 print(
     "MP4時間指定カット完了"
 )
-```
+
 
 def convert_task(
 job_id,
@@ -1082,7 +1082,7 @@ start_time=None,
 end_time=None
 ):
 
-```
+
 try:
 
     jobs[job_id] = {
@@ -1255,11 +1255,11 @@ except Exception as e:
         str(e)
 
     }
-```
+
 
 def register_convert(app):
 
-```
+
 @app.route(
     "/convert",
     methods=["POST"]
