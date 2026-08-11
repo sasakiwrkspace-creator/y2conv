@@ -1,46 +1,67 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
+
 <head>
 
-<meta charset="UTF-8">
+<meta charset="utf-8">
 
-<title>
-Downloads
-</title>
+<meta name="viewport"
+      content="width=device-width, initial-scale=1">
+
+<title>ファイル管理</title>
 
 <style>
 
 body {
-
     font-family: sans-serif;
     margin: 30px;
-
 }
 
+h2 {
+    margin-top: 30px;
+}
 
-.file {
+.delete-area {
+    padding: 15px;
+    background: #f5f5f5;
+    border: 1px solid #ccc;
+    margin-bottom: 30px;
+}
 
-    margin: 10px;
+.delete-input {
+    width: 70%;
+    max-width: 600px;
     padding: 10px;
-    border-bottom: 1px solid #ccc;
-
+    font-size: 16px;
 }
 
-
-button {
-
-    background: #d9534f;
-    color: white;
-    border: none;
-    padding: 5px 10px;
-
+.delete-button {
+    padding: 10px 18px;
+    font-size: 16px;
+    cursor: pointer;
 }
 
+.file-list {
+    border: 1px solid #ddd;
+    padding: 10px;
+    margin-bottom: 30px;
+}
 
-a {
+.file-item {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+    word-break: break-all;
+}
 
-    margin-right: 15px;
+.tmp-area {
+    background: #fff8e1;
+    border: 1px solid #e0b84c;
+    padding: 15px;
+}
 
+.tmp-file {
+    padding: 6px;
+    word-break: break-all;
 }
 
 </style>
@@ -52,73 +73,127 @@ a {
 
 
 <h1>
-Downloads
+ファイル管理
 </h1>
 
 
-<a href="/">
-戻る
-</a>
+<!-- ================================================== -->
+<!-- ファイル削除 -->
+<!-- ================================================== -->
 
+<div class="delete-area">
 
-<hr>
+<h3>
+ファイル削除
+</h3>
 
-
-
-{% for file in files %}
-
-<div class="file">
-
-
-{{ file }}
-
-
-<br>
-
-
-<a href="/download/{{ file }}">
-ダウンロード
-</a>
-
-
+<p>
+downloads/ 内のファイルを指定してください。
+</p>
 
 <form
-action="/delete/{{ file }}"
-method="post"
-style="display:inline;"
+    method="post"
+    action="/delete-confirm"
 >
 
+<input
+    class="delete-input"
+    type="text"
+    name="filename"
+    placeholder="downloads/動画タイトル.mp3"
+    required
+>
 
-<button>
+<button
+    class="delete-button"
+    type="submit"
+>
 削除
 </button>
 
-
 </form>
 
+<p>
+例：
+<code>
+downloads/動画タイトル.mp3
+</code>
+</p>
 
 </div>
 
 
+<!-- ================================================== -->
+<!-- downloads -->
+<!-- ================================================== -->
+
+<h2>
+downloads
+</h2>
+
+<div class="file-list">
+
+{% if files %}
+
+    {% for file in files %}
+
+        <div class="file-item">
+            {{ file }}
+        </div>
+
+    {% endfor %}
+
 {% else %}
 
+    <p>
+    ファイルはありません。
+    </p>
 
-<p>
-ファイルがありません
-</p>
+{% endif %}
+
+</div>
 
 
-{% endfor %}
+<!-- ================================================== -->
+<!-- TMP -->
+<!-- ================================================== -->
 
-<form
-    method="post"
-    action="/tmp-cleanup"
-    onsubmit="return confirm('/tmp/y2conv_downloads を削除しますか？');"
->
-    <button type="submit">
-        /tmp/y2conv_downloads を削除
-    </button>
-</form>
+<h2>
+/tmp/y2conv_downloads
+</h2>
+
+<div class="tmp-area">
+
+{% if tmp_exists %}
+
+    {% if tmp_files %}
+
+        {% for file in tmp_files %}
+
+            <div class="tmp-file">
+                {{ file }}
+            </div>
+
+        {% endfor %}
+
+    {% else %}
+
+        <p>
+        フォルダは存在しますが、中身は空です。
+        </p>
+
+    {% endif %}
+
+{% else %}
+
+    <p>
+    /tmp/y2conv_downloads は存在しません。
+    </p>
+
+{% endif %}
+
+</div>
+
 
 </body>
 
