@@ -278,6 +278,12 @@ def get_ydl_base_options():
 
 def get_youtube_info(url):
 
+    print("Python:", os.sys.version)
+    print("yt-dlp:", yt_dlp.version.__version__)
+    print("Deno:", shutil.which("deno"))
+    print("ffmpeg:", shutil.which("ffmpeg"))
+
+    temp_cookie = None
     temp_cookie = None
 
     try:
