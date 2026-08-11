@@ -12,15 +12,14 @@ from cleanup import cleanup_downloads
 
 
 # ==========================================================
-# Cookieファイル
+# Render Cookie
 # ==========================================================
 
-# Render Secret File
 RENDER_COOKIE_FILE = "/etc/secrets/cookies.txt"
 
 
 # ==========================================================
-# プロジェクトのルートディレクトリ
+# プロジェクトルート
 # ==========================================================
 
 BASE_DIR = os.path.dirname(
@@ -50,27 +49,14 @@ DENO_PATH = "/opt/render/project/src/.deno/bin/deno"
 # ==========================================================
 # ダウンロードディレクトリ
 #
-# Renderでは書き込み可能な /tmp を使用
+# Renderでは /tmp を使用
 # ==========================================================
 
 DOWNLOAD_DIR = "/tmp/y2conv_downloads"
 
 
 # ==========================================================
-# ffmpeg
-# ==========================================================
-
-FFMPEG_PATH = "/usr/bin/ffmpeg"
-
-
-# ==========================================================
 # Cookieファイル選択
-#
-# Render:
-# /etc/secrets/cookies.txt
-#
-# ローカル:
-# プロジェクト直下/cookies.txt
 # ==========================================================
 
 if os.environ.get("RENDER") == "true":
@@ -96,7 +82,6 @@ def check_cookie_file():
     if not os.path.exists(
         SOURCE_COOKIE_FILE
     ):
-
         raise Exception(
             f"Cookieファイルが見つかりません: "
             f"{SOURCE_COOKIE_FILE}"
@@ -107,22 +92,12 @@ def check_cookie_file():
     )
 
     print("==========================================")
-    print("Cookieファイル確認")
+    print("元Cookieファイル確認OK")
+    print("ファイル:", SOURCE_COOKIE_FILE)
+    print("サイズ:", file_size, "bytes")
     print("==========================================")
 
-    print(
-        "Cookieファイル:",
-        SOURCE_COOKIE_FILE
-    )
-
-    print(
-        "Cookieファイルサイズ:",
-        file_size,
-        "bytes"
-    )
-
     if file_size == 0:
-
         raise Exception(
             f"Cookieファイルが空です: "
             f"{SOURCE_COOKIE_FILE}"
@@ -162,7 +137,6 @@ def check_cookie_file():
                         "youtube.com" in domain
                         or "google.com" in domain
                     ):
-
                         youtube_cookie_count += 1
 
     except Exception as e:
@@ -171,16 +145,15 @@ def check_cookie_file():
             f"Cookieファイル読み込み失敗: {e}"
         )
 
+    print("==========================================")
     print(
         "Cookieデータ行数:",
         cookie_count
     )
-
     print(
         "YouTube/Google Cookie数:",
         youtube_cookie_count
     )
-
     print("==========================================")
 
     if cookie_count == 0:
@@ -198,11 +171,12 @@ def check_cookie_file():
 
 
 # ==========================================================
-# yt-dlp用Cookieファイル作成
+# yt-dlp用一時Cookie作成
 #
 # /etc/secrets/cookies.txt は読み取り専用。
 #
-# そのため /tmp にコピーして使用する。
+# yt-dlpがCookie Jarを書き戻す可能性があるため、
+# 実際のyt-dlp処理には /tmp のコピーを使用する。
 # ==========================================================
 
 def create_temp_cookie_file():
@@ -232,23 +206,9 @@ def create_temp_cookie_file():
 
         print("==========================================")
         print("yt-dlp用Cookieファイル作成OK")
+        print("一時Cookie:", temp_cookie)
+        print("サイズ:", file_size, "bytes")
         print("==========================================")
-
-        print(
-            "元Cookie:",
-            SOURCE_COOKIE_FILE
-        )
-
-        print(
-            "一時Cookie:",
-            temp_cookie
-        )
-
-        print(
-            "サイズ:",
-            file_size,
-            "bytes"
-        )
 
         return temp_cookie
 
@@ -258,7 +218,6 @@ def create_temp_cookie_file():
             temp_cookie
             and os.path.exists(temp_cookie)
         ):
-
             try:
                 os.remove(temp_cookie)
             except Exception:
@@ -308,12 +267,25 @@ def check_deno():
     print("Deno確認")
     print("==========================================")
 
-    if not os.path.exists(
+    if not os.path.isfile(
         DENO_PATH
     ):
 
         print(
-            "Deno: 見つかりません"
+            "Deno: 見つかりません:",
+            DENO_PATH
+        )
+
+        return False
+
+    if not os.access(
+        DENO_PATH,
+        os.X_OK
+    ):
+
+        print(
+            "Deno: 実行権限がありません:",
+            DENO_PATH
         )
 
         return False
@@ -321,20 +293,27 @@ def check_deno():
     try:
 
         result = subprocess.run(
+
             [
                 DENO_PATH,
                 "--version"
             ],
+
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
             timeout=10
+
         )
 
         if result.returncode == 0:
 
             print(
                 result.stdout.strip()
+            )
+
+            print(
+                "Deno確認OK"
             )
 
             return True
@@ -380,37 +359,53 @@ def get_ydl_base_options():
         # --------------------------------------------------
 
         "noplaylist":
-        True,
-
-        # --------------------------------------------------
-        # ffmpeg
-        # --------------------------------------------------
-
-        "ffmpeg_location":
-        FFMPEG_PATH
+        True
 
     }
 
     # ------------------------------------------------------
     # Deno
+    #
+    # yt-dlp Python APIでは
+    #
+    # {
+    #     "deno": {
+    #         "path": "/path/to/deno"
+    #     }
+    # }
+    #
+    # とする。
     # ------------------------------------------------------
-
-            "deno":
-            DENO_PATH
-
-        }
 
     if deno_available:
 
-       ydl_opts[
-           "js_runtimes"
-       ] = {
+        ydl_opts["js_runtimes"] = {
 
-           "deno": {
-               "path": DENO_PATH
-           }
-       }
-    
+            "deno": {
+
+                "path":
+                DENO_PATH
+
+            }
+
+        }
+
+        # --------------------------------------------------
+        # EJS
+        #
+        # yt-dlp-ejs がrequirements.txtに入っているため、
+        # 基本的にはPython package側を使用する。
+        #
+        # GitHubから取得する場合の設定も有効化。
+        # --------------------------------------------------
+
+        ydl_opts["remote_components"] = {
+
+            "ejs":
+            "github"
+
+        }
+
     print("==========================================")
     print("yt-dlp設定")
     print("==========================================")
@@ -429,7 +424,9 @@ def get_ydl_base_options():
 
     print(
         "EJS:",
-        "yt-dlp-ejs package"
+        "github"
+        if deno_available
+        else "None"
     )
 
     print("==========================================")
@@ -492,9 +489,9 @@ def diagnose_formats(url):
                 "YouTube情報を取得できませんでした"
             )
 
-        # ==================================================
+        # --------------------------------------------------
         # 基本情報
-        # ==================================================
+        # --------------------------------------------------
 
         title = info.get(
             "title"
@@ -505,7 +502,6 @@ def diagnose_formats(url):
         )
 
         print("==========================================")
-
         print(
             "動画タイトル:",
             title
@@ -519,9 +515,9 @@ def diagnose_formats(url):
 
         print("==========================================")
 
-        # ==================================================
+        # --------------------------------------------------
         # Format一覧
-        # ==================================================
+        # --------------------------------------------------
 
         formats = info.get(
             "formats",
@@ -561,9 +557,9 @@ def diagnose_formats(url):
 
             )
 
-        # ==================================================
+        # --------------------------------------------------
         # 音声format
-        # ==================================================
+        # --------------------------------------------------
 
         print("==========================================")
         print("音声format一覧")
@@ -616,12 +612,10 @@ def diagnose_formats(url):
                 )
 
         print("==========================================")
-
         print(
             "音声format数:",
             len(audio_formats)
         )
-
         print("==========================================")
 
         return info
@@ -662,7 +656,6 @@ def download_mp3(
             #
             # 140があれば140
             # なければbestaudio
-            # 最後にbest
             # --------------------------------------------------
 
             "format":
@@ -911,7 +904,7 @@ def cut_mp3(
 
         [
 
-            FFMPEG_PATH,
+            "ffmpeg",
 
             "-y",
 
@@ -1002,7 +995,7 @@ def cut_mp4(
 
         [
 
-            FFMPEG_PATH,
+            "ffmpeg",
 
             "-y",
 
@@ -1111,23 +1104,15 @@ def convert_task(
         except Exception as e:
 
             print(
-                "WARNING: "
-                "cleanup_downloads失敗:",
+                "WARNING: cleanup失敗:",
                 repr(e)
             )
 
         # ==================================================
         # 出力ディレクトリ
-        #
-        # Renderでは /tmp を使用
-        #
-        # Jobごとに分離してファイル名の衝突を防止
         # ==================================================
 
-        output_dir = os.path.join(
-            DOWNLOAD_DIR,
-            job_id
-        )
+        output_dir = DOWNLOAD_DIR
 
         os.makedirs(
             output_dir,
@@ -1147,9 +1132,9 @@ def convert_task(
 
         if "mp3" in outputs:
 
-            # ----------------------------------------------
+            # --------------------------------------------------
             # format診断
-            # ----------------------------------------------
+            # --------------------------------------------------
 
             try:
 
@@ -1165,20 +1150,20 @@ def convert_task(
                 )
 
                 # 診断失敗しても
-                # 実際のダウンロードは試す
+                # 実際のダウンロードは続行
 
-            # ----------------------------------------------
+            # --------------------------------------------------
             # MP3取得
-            # ----------------------------------------------
+            # --------------------------------------------------
 
             mp3_file = download_mp3(
                 url,
                 output_dir
             )
 
-            # ----------------------------------------------
+            # --------------------------------------------------
             # 時間指定
-            # ----------------------------------------------
+            # --------------------------------------------------
 
             if (
                 start_time
@@ -1209,9 +1194,9 @@ def convert_task(
                 output_dir
             )
 
-            # ----------------------------------------------
+            # --------------------------------------------------
             # 時間指定
-            # ----------------------------------------------
+            # --------------------------------------------------
 
             if (
                 start_time
@@ -1402,7 +1387,7 @@ def register_convert(app):
             )
 
             # ==================================================
-            # Jobを先に登録
+            # Job登録
             # ==================================================
 
             jobs[job_id] = {
