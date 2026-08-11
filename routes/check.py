@@ -1,10 +1,8 @@
 from flask import request, jsonify
+import yt_dlp
 import os
 import shutil
 import tempfile
-import yt_dlp
-
-from routes.status import jobs
 
 RENDER_COOKIE_FILE = "/etc/secrets/cookies.txt"
 
@@ -25,8 +23,6 @@ else:
 ORIGINAL_COOKIE_FILE = LOCAL_COOKIE_FILE
 
 print("==========================================")
-print("check.py 起動")
-print("==========================================")
 print("Cookie設定")
 print("RENDER:", os.environ.get("RENDER"))
 print("元Cookieファイル:")
@@ -37,10 +33,11 @@ def remove_cookie_file(cookie_file):
 if not cookie_file:
 return
 
-
+```
 try:
     if os.path.exists(cookie_file):
         os.remove(cookie_file)
+
         print(
             "一時Cookieファイル削除OK:",
             cookie_file
@@ -51,7 +48,7 @@ except Exception as e:
         "一時Cookieファイル削除失敗:",
         repr(e)
     )
-
+```
 
 def prepare_cookie_file():
 if not os.path.exists(
@@ -62,7 +59,7 @@ raise Exception(
 + ORIGINAL_COOKIE_FILE
 )
 
-
+```
 original_size = os.path.getsize(
     ORIGINAL_COOKIE_FILE
 )
@@ -76,7 +73,7 @@ if original_size == 0:
 temp_file = tempfile.NamedTemporaryFile(
     mode="wb",
     suffix=".txt",
-    prefix="y2conv_check_cookies_",
+    prefix="y2conv_cookies_",
     delete=False
 )
 
@@ -163,13 +160,22 @@ except Exception as e:
     )
 
 print("==========================================")
-print("yt-dlp用Cookieファイル作成OK")
-print("一時Cookie:", temp_cookie_file)
-print("サイズ:", file_size, "bytes")
-print("Cookieデータ行数:", cookie_count)
+print(
+    "yt-dlp用Cookieファイル:",
+    temp_cookie_file
+)
+print(
+    "Cookieデータ行数:",
+    cookie_count
+)
 print(
     "YouTube/Google Cookie数:",
     youtube_cookie_count
+)
+print(
+    "Cookieサイズ:",
+    file_size,
+    "bytes"
 )
 print("==========================================")
 
@@ -188,90 +194,31 @@ if youtube_cookie_count == 0:
     )
 
 return temp_cookie_file
-
-
-def get_deno_path():
-render_deno = (
-"/opt/render/project/src/.deno/bin/deno"
-)
-
-
-if os.path.isfile(render_deno):
-    return render_deno
-
-path_deno = shutil.which("deno")
-
-if path_deno:
-    return path_deno
-
-return None
-
+```
 
 def get_ydl_base_options():
 cookie_file = prepare_cookie_file()
 
-
-deno_path = get_deno_path()
-
-if deno_path:
-    js_runtimes = {
-        "deno": {
-            "path": deno_path
-        }
-    }
-
-    print("Deno:", deno_path)
-
-else:
-    js_runtimes = {
-        "deno": {}
-    }
-
-    print(
-        "WARNING: Denoが見つかりません"
-    )
-
-options = {
+```
+return {
     "cookiefile": cookie_file,
     "noplaylist": True,
-    "js_runtimes": js_runtimes,
+    "js_runtimes": {
+        "deno": {}
+    },
     "remote_components": {
-        "ejs:github"
+        "ejs": "github"
     }
 }
+```
 
-print("==========================================")
-print("yt-dlp基本設定")
-print("==========================================")
-print(
-    "Cookie:",
-    cookie_file
-)
-print(
-    "Deno:",
-    deno_path
-)
-print(
-    "js_runtimes:",
-    js_runtimes
-)
-print(
-    "remote_components:",
-    options["remote_components"]
-)
-print("==========================================")
-
-return options
-
-
-def get_video_info(url):
+def diagnose_formats(url):
 temp_cookie = None
 
-
+```
 try:
     print("==========================================")
     print("YouTube情報取得開始")
-    print("==========================================")
     print("URL:", url)
     print("==========================================")
 
@@ -285,37 +232,16 @@ try:
         "quiet": False,
         "no_warnings": False,
         "verbose": True,
-        "skip_download": True,
-        "noplaylist": True,
-        "http_headers": {
-            "User-Agent": (
-                "Mozilla/5.0 "
-                "(Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 "
-                "(KHTML, like Gecko) "
-                "Chrome/146.0.0.0 "
-                "Safari/537.36"
-            ),
-            "Accept": (
-                "text/html,"
-                "application/xhtml+xml,"
-                "application/xml;q=0.9,"
-                "*/*;q=0.8"
-            ),
-            "Accept-Language": (
-                "en-US,en;q=0.5"
-            ),
-            "Sec-Fetch-Mode": "navigate"
-        }
+        "skip_download": True
     })
-
-    print("==========================================")
-    print("extract_info開始")
-    print("==========================================")
 
     with yt_dlp.YoutubeDL(
         ydl_opts
     ) as ydl:
+
+        print(
+            "extract_info開始"
+        )
 
         info = ydl.extract_info(
             url,
@@ -328,29 +254,46 @@ try:
         )
 
     print("==========================================")
-    print("YouTube情報取得成功")
-    print("==========================================")
     print(
         "動画タイトル:",
         info.get("title")
     )
     print(
-        "動画ID:",
-        info.get("id")
-    )
-    print(
         "再生時間:",
-        info.get("duration")
-    )
-    print(
-        "チャンネル:",
-        info.get("uploader")
-    )
-    print(
-        "thumbnail:",
-        info.get("thumbnail")
+        info.get("duration"),
+        "秒"
     )
     print("==========================================")
+
+    formats = info.get(
+        "formats",
+        []
+    )
+
+    print(
+        "利用可能format数:",
+        len(formats)
+    )
+
+    print("==========================================")
+    print("利用可能format一覧")
+    print("==========================================")
+
+    for f in formats:
+        print(
+            "ID=",
+            f.get("format_id"),
+            "EXT=",
+            f.get("ext"),
+            "VCODEC=",
+            f.get("vcodec"),
+            "ACODEC=",
+            f.get("acodec"),
+            "RES=",
+            f.get("resolution"),
+            "ABR=",
+            f.get("abr")
+        )
 
     return info
 
@@ -358,110 +301,72 @@ finally:
     remove_cookie_file(
         temp_cookie
     )
-
+```
 
 def register_check(app):
 
-
+```
 @app.route(
     "/check",
-    methods=["POST"]
+    methods=["GET", "POST"]
 )
 def check():
 
-    print("==========================================")
-    print("/check 呼び出し")
-    print("==========================================")
+    temp_cookie = None
 
     try:
-        data = request.get_json(
-            silent=True
-        )
+        if request.method == "POST":
+            data = request.get_json(
+                silent=True
+            ) or {}
 
-        if not data:
-            return jsonify({
-                "success": False,
-                "message": "JSONデータがありません"
-            })
+            url = data.get(
+                "url"
+            )
 
-        url = data.get(
-            "url"
-        )
+        else:
+            url = request.args.get(
+                "url"
+            )
 
         if not url:
             return jsonify({
                 "success": False,
                 "message": "URLがありません"
-            })
-
-        url = str(url).strip()
+            }), 400
 
         print("==========================================")
-        print("受信URL:", url)
+        print("CHECK開始")
+        print("URL:", url)
         print("==========================================")
 
-        if (
-            "youtube.com/" not in url
-            and "youtu.be/" not in url
-        ):
-            return jsonify({
-                "success": False,
-                "message": "YouTube URLではありません"
-            })
-
-        info = get_video_info(
+        info = diagnose_formats(
             url
         )
 
-        result = {
+        return jsonify({
             "success": True,
-            "url": url,
-            "id": info.get("id"),
             "title": info.get("title"),
             "duration": info.get("duration"),
-            "thumbnail": info.get("thumbnail"),
-            "uploader": info.get("uploader"),
-            "channel": info.get("channel"),
-            "webpage_url": info.get(
-                "webpage_url",
-                url
+            "format_count": len(
+                info.get("formats", [])
             )
-        }
-
-        print("==========================================")
-        print("/check 成功")
-        print("TITLE:", info.get("title"))
-        print("ID:", info.get("id"))
-        print("DURATION:", info.get("duration"))
-        print("==========================================")
-
-        return jsonify(
-            result
-        )
-
-    except yt_dlp.utils.DownloadError as e:
-
-        print("==========================================")
-        print("/check YouTube取得失敗")
-        print("ERROR TYPE: DownloadError")
-        print("ERROR:", repr(e))
-        print("==========================================")
-
-        return jsonify({
-            "success": False,
-            "message": str(e)
         })
 
     except Exception as e:
 
         print("==========================================")
-        print("/check エラー")
-        print("ERROR TYPE:", type(e).__name__)
+        print("CHECKエラー")
         print("ERROR:", repr(e))
         print("==========================================")
 
         return jsonify({
             "success": False,
             "message": str(e)
-        })
+        }), 500
 
+    finally:
+        remove_cookie_file(
+            temp_cookie
+        )
+```
