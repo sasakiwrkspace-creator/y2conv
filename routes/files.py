@@ -3,17 +3,18 @@ from flask import (
     send_from_directory,
     redirect,
     request,
-    abort
+    abort,
+    session
 )
 
 import os
+import shutil
 
 
 # ==========================================================
-# 基本設定
-# ==========================================================
-
 # プロジェクトルート
+# ==========================================================
+
 BASE_DIR = os.path.dirname(
     os.path.dirname(
         os.path.abspath(__file__)
@@ -21,15 +22,28 @@ BASE_DIR = os.path.dirname(
 )
 
 
+# ==========================================================
 # downloads
+# ==========================================================
+
 DOWNLOAD_DIR = os.path.join(
     BASE_DIR,
     "downloads"
 )
 
 
-# 4桁番号
+# ==========================================================
+# 簡易パスワード
+# ==========================================================
+
 FILE_PASSWORD = "1234"
+
+
+# ==========================================================
+# files画面用セッションキー
+# ==========================================================
+
+FILES_SESSION_KEY = "files_authenticated"
 
 
 # ==========================================================
@@ -37,19 +51,27 @@ FILE_PASSWORD = "1234"
 # ==========================================================
 
 def safe_path(relative_path):
+
     """
-    プロジェクトルート以下だけを操作可能にする。
-    ../ などによるプロジェクト外へのアクセスを防止。
+    BASE_DIR 以下だけを操作可能にする。
+
+    ../ などを使って
+    プロジェクト外へ出ることを防止する。
     """
+
+    if not relative_path:
+        return None
+
+    relative_path = str(
+        relative_path
+    )
 
     relative_path = (
         relative_path
         .replace("\\", "/")
         .strip()
+        .lstrip("/")
     )
-
-    # 先頭の / を除去
-    relative_path = relative_path.lstrip("/")
 
     full_path = os.path.abspath(
         os.path.join(
@@ -64,7 +86,7 @@ def safe_path(relative_path):
 
     try:
 
-        common = os.path.commonpath(
+        common_path = os.path.commonpath(
             [
                 base_path,
                 full_path
@@ -75,7 +97,7 @@ def safe_path(relative_path):
 
         return None
 
-    if common != base_path:
+    if common_path != base_path:
 
         return None
 
@@ -83,7 +105,7 @@ def safe_path(relative_path):
 
 
 # ==========================================================
-# ツリー作成
+# ツリービュー作成
 # ==========================================================
 
 def build_file_tree():
@@ -112,7 +134,10 @@ def build_file_tree():
 
             return items
 
-        # 名前順
+        # ----------------------------------------------
+        # フォルダを先、ファイルを後
+        # ----------------------------------------------
+
         names.sort(
             key=lambda name: (
                 not os.path.isdir(
@@ -148,18 +173,31 @@ def build_file_tree():
                 is_dir = False
 
             item = {
-                "name": name,
-                "path": relative_file_path.replace(
+
+                "name":
+                name,
+
+                "path":
+                relative_file_path.replace(
                     os.sep,
                     "/"
                 ),
-                "is_dir": is_dir,
-                "depth": depth
+
+                "is_dir":
+                is_dir,
+
+                "depth":
+                depth
+
             }
 
             items.append(
                 item
             )
+
+            # ------------------------------------------
+            # フォルダの場合は中身も取得
+            # ------------------------------------------
 
             if is_dir:
 
@@ -179,10 +217,31 @@ def build_file_tree():
 
 
 # ==========================================================
-# /files
+# files登録
 # ==========================================================
 
 def register_files(app):
+
+    # ======================================================
+    # セッション用Secret Key
+    #
+    # app.pyを変更しなくても動くように設定。
+    #
+    # 本格的な運用では環境変数
+    # FILES_SECRET_KEY
+    # を設定することを推奨。
+    # ======================================================
+
+    if not app.secret_key:
+
+        app.secret_key = os.environ.get(
+            "FILES_SECRET_KEY",
+            "y2conv-files-secret-key"
+        )
+
+    # ======================================================
+    # /files
+    # ======================================================
 
     @app.route(
         "/files",
@@ -191,11 +250,55 @@ def register_files(app):
     def list_files():
 
         # ==================================================
-        # パス削除処理
+        # 未認証
+        # ==================================================
+
+        if not session.get(
+            FILES_SESSION_KEY,
+            False
+        ):
+
+            error = None
+
+            if request.method == "POST":
+
+                password = request.form.get(
+                    "password",
+                    ""
+                )
+
+                if password == FILE_PASSWORD:
+
+                    session[
+                        FILES_SESSION_KEY
+                    ] = True
+
+                    return redirect(
+                        "/files"
+                    )
+
+                else:
+
+                    error = (
+                        "4桁番号が正しくありません。"
+                    )
+
+            return render_template(
+                "files.html",
+                authenticated=False,
+                error=error
+            )
+
+        # ==================================================
+        # 認証済み
         # ==================================================
 
         delete_message = None
         delete_error = None
+
+        # ==================================================
+        # POST処理
+        # ==================================================
 
         if request.method == "POST":
 
@@ -210,23 +313,12 @@ def register_files(app):
 
             if action == "delete_path":
 
-                password = request.form.get(
-                    "password",
-                    ""
-                )
-
                 target_path = request.form.get(
                     "target_path",
                     ""
                 ).strip()
 
-                if password != FILE_PASSWORD:
-
-                    delete_error = (
-                        "4桁番号が正しくありません。"
-                    )
-
-                elif not target_path:
+                if not target_path:
 
                     delete_error = (
                         "削除するファイルまたはフォルダを指定してください。"
@@ -270,15 +362,13 @@ def register_files(app):
                                 full_path
                             ):
 
-                                import shutil
-
                                 shutil.rmtree(
                                     full_path
                                 )
 
                                 delete_message = (
-                                    f"フォルダを削除しました: "
-                                    f"{target_path}"
+                                    "フォルダを削除しました: "
+                                    + target_path
                                 )
 
                             else:
@@ -288,8 +378,8 @@ def register_files(app):
                                 )
 
                                 delete_message = (
-                                    f"ファイルを削除しました: "
-                                    f"{target_path}"
+                                    "ファイルを削除しました: "
+                                    + target_path
                                 )
 
                         except Exception as e:
@@ -347,7 +437,7 @@ def register_files(app):
                 )
 
         # ==================================================
-        # ファイル構成ツリー
+        # ツリー
         # ==================================================
 
         tree = build_file_tree()
@@ -358,12 +448,37 @@ def register_files(app):
 
         return render_template(
             "files.html",
+
+            authenticated=True,
+
             files=files,
+
             tree=tree,
-            delete_message=delete_message,
-            delete_error=delete_error
+
+            delete_message=
+                delete_message,
+
+            delete_error=
+                delete_error
         )
 
+    # ======================================================
+    # ログアウト
+    # ======================================================
+
+    @app.route(
+        "/files/logout"
+    )
+    def files_logout():
+
+        session.pop(
+            FILES_SESSION_KEY,
+            None
+        )
+
+        return redirect(
+            "/files"
+        )
 
     # ======================================================
     # ダウンロード
@@ -380,7 +495,6 @@ def register_files(app):
             as_attachment=True
         )
 
-
     # ======================================================
     # downloads内ファイル削除
     # ======================================================
@@ -391,19 +505,40 @@ def register_files(app):
     )
     def delete_file(filename):
 
-        filepath = safe_path(
-            os.path.join(
-                "downloads",
-                filename
+        # ----------------------------------------------
+        # files画面と同じ簡易認証
+        # ----------------------------------------------
+
+        if not session.get(
+            FILES_SESSION_KEY,
+            False
+        ):
+
+            return redirect(
+                "/files"
             )
+
+        # ----------------------------------------------
+        # downloads以下に限定
+        # ----------------------------------------------
+
+        relative_path = os.path.join(
+            "downloads",
+            filename
         )
 
-        # downloads外へのアクセス防止
+        filepath = safe_path(
+            relative_path
+        )
+
         if filepath is None:
 
             abort(403)
 
-        # ファイルが存在する場合だけ削除
+        # ----------------------------------------------
+        # ファイルのみ削除
+        # ----------------------------------------------
+
         if os.path.isfile(
             filepath
         ):
@@ -424,3 +559,4 @@ def register_files(app):
         return redirect(
             "/files"
         )
+
