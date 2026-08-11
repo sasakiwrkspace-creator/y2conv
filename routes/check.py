@@ -3,19 +3,32 @@ import yt_dlp
 import os
 import sys
 import subprocess
+import shutil
+import tempfile
 
 
 # ============================================================
 # Cookieファイル
 # ============================================================
 
+# Render Secret File
 RENDER_COOKIE_FILE = "/etc/secrets/cookies.txt"
+
+
+# ============================================================
+# プロジェクトルート
+# ============================================================
 
 BASE_DIR = os.path.dirname(
     os.path.dirname(
         os.path.abspath(__file__)
     )
 )
+
+
+# ============================================================
+# ローカルCookie
+# ============================================================
 
 LOCAL_COOKIE_FILE = os.path.join(
     BASE_DIR,
@@ -24,20 +37,29 @@ LOCAL_COOKIE_FILE = os.path.join(
 
 
 # ============================================================
-# Render / ローカル判定
+# Cookie元ファイル選択
 # ============================================================
 
 if os.environ.get("RENDER") == "true":
-    COOKIE_FILE = RENDER_COOKIE_FILE
+
+    ORIGINAL_COOKIE_FILE = RENDER_COOKIE_FILE
+
 else:
-    COOKIE_FILE = LOCAL_COOKIE_FILE
+
+    ORIGINAL_COOKIE_FILE = LOCAL_COOKIE_FILE
 
 
 print("==========================================")
 print("check.py 起動")
 print("==========================================")
-print("使用するCookieファイル:")
-print(COOKIE_FILE)
+print(
+    "RENDER:",
+    os.environ.get("RENDER")
+)
+print(
+    "元Cookieファイル:",
+    ORIGINAL_COOKIE_FILE
+)
 print("==========================================")
 
 
@@ -55,8 +77,8 @@ def diagnose_environment():
     # Render
     # --------------------------------------------------------
 
-    print("RENDER:")
     print(
+        "RENDER:",
         os.environ.get("RENDER")
     )
 
@@ -70,8 +92,8 @@ def diagnose_environment():
         sys.version
     )
 
-    print("Python executable:")
     print(
+        "Python executable:",
         sys.executable
     )
 
@@ -140,7 +162,10 @@ def diagnose_environment():
     try:
 
         result = subprocess.run(
-            ["deno", "--version"],
+            [
+                "deno",
+                "--version"
+            ],
             capture_output=True,
             text=True,
             timeout=10
@@ -151,9 +176,11 @@ def diagnose_environment():
             result.returncode
         )
 
-        print(
-            result.stdout.strip()
-        )
+        if result.stdout.strip():
+
+            print(
+                result.stdout.strip()
+            )
 
         if result.stderr.strip():
 
@@ -179,7 +206,10 @@ def diagnose_environment():
     try:
 
         result = subprocess.run(
-            ["ffmpeg", "-version"],
+            [
+                "ffmpeg",
+                "-version"
+            ],
             capture_output=True,
             text=True,
             timeout=10
@@ -190,15 +220,15 @@ def diagnose_environment():
             result.returncode
         )
 
-        first_line = (
-            result.stdout.strip().splitlines()[0]
-            if result.stdout.strip()
-            else ""
-        )
+        if result.stdout.strip():
 
-        print(
-            first_line
-        )
+            lines = result.stdout.strip().splitlines()
+
+            if lines:
+
+                print(
+                    lines[0]
+                )
 
     except Exception as e:
 
@@ -225,192 +255,366 @@ def diagnose_environment():
 
 
 # ============================================================
-# Cookie確認
+# 一時Cookieファイル作成
 # ============================================================
 
-def check_cookie_file():
+def prepare_cookie_file():
 
-    if not os.path.exists(COOKIE_FILE):
+    # --------------------------------------------------------
+    # 元Cookie存在確認
+    # --------------------------------------------------------
+
+    if not os.path.exists(
+        ORIGINAL_COOKIE_FILE
+    ):
 
         raise Exception(
-            f"Cookieファイルが見つかりません: {COOKIE_FILE}"
+            "Cookieファイルが見つかりません: "
+            + ORIGINAL_COOKIE_FILE
         )
 
-    file_size = os.path.getsize(
-        COOKIE_FILE
+    # --------------------------------------------------------
+    # 元ファイルサイズ
+    # --------------------------------------------------------
+
+    original_size = os.path.getsize(
+        ORIGINAL_COOKIE_FILE
     )
 
     print("==========================================")
-    print("Cookieファイル確認")
-    print("==========================================")
-
+    print("元Cookieファイル確認OK")
     print(
-        "Cookieファイル:",
-        COOKIE_FILE
+        "ファイル:",
+        ORIGINAL_COOKIE_FILE
     )
-
     print(
-        "Cookieファイルサイズ:",
-        file_size,
+        "サイズ:",
+        original_size,
         "bytes"
     )
+    print("==========================================")
 
-    cookie_count = 0
-    youtube_cookie_count = 0
+    if original_size == 0:
+
+        raise Exception(
+            "Cookieファイルが空です: "
+            + ORIGINAL_COOKIE_FILE
+        )
+
+    # --------------------------------------------------------
+    # /tmpに一時ファイル作成
+    # --------------------------------------------------------
+
+    temp_file = tempfile.NamedTemporaryFile(
+        mode="wb",
+        suffix=".txt",
+        prefix="y2conv_check_cookies_",
+        delete=False
+    )
+
+    temp_cookie_file = temp_file.name
+
+    temp_file.close()
 
     try:
 
-        with open(
-            COOKIE_FILE,
-            "r",
-            encoding="utf-8",
-            errors="replace"
-        ) as f:
+        # ----------------------------------------------------
+        # Cookieコピー
+        # ----------------------------------------------------
 
-            for line in f:
+        shutil.copyfile(
+            ORIGINAL_COOKIE_FILE,
+            temp_cookie_file
+        )
 
-                line = line.strip()
+        # ----------------------------------------------------
+        # コピー確認
+        # ----------------------------------------------------
 
-                if (
-                    not line
-                    or line.startswith("#")
-                ):
-                    continue
+        if not os.path.exists(
+            temp_cookie_file
+        ):
 
-                cookie_count += 1
+            raise Exception(
+                "一時Cookieファイルの作成に失敗しました: "
+                + temp_cookie_file
+            )
 
-                fields = line.split("\t")
+        file_size = os.path.getsize(
+            temp_cookie_file
+        )
 
-                if len(fields) >= 7:
+        print("==========================================")
+        print("yt-dlp用Cookieファイル作成OK")
+        print(
+            "一時Cookie:",
+            temp_cookie_file
+        )
+        print(
+            "サイズ:",
+            file_size,
+            "bytes"
+        )
+        print("==========================================")
 
-                    domain = fields[0].lower()
+        if file_size == 0:
+
+            raise Exception(
+                "一時Cookieファイルが空です"
+            )
+
+        # ====================================================
+        # Cookie数確認
+        # ====================================================
+
+        cookie_count = 0
+        youtube_cookie_count = 0
+
+        try:
+
+            with open(
+                temp_cookie_file,
+                "r",
+                encoding="utf-8",
+                errors="replace"
+            ) as f:
+
+                for line in f:
+
+                    line = line.strip()
 
                     if (
-                        "youtube.com" in domain
-                        or "google.com" in domain
+                        not line
+                        or line.startswith("#")
                     ):
 
-                        youtube_cookie_count += 1
+                        continue
+
+                    fields = line.split("\t")
+
+                    # ----------------------------------------
+                    # Netscape Cookie形式
+                    # ----------------------------------------
+
+                    if len(fields) >= 7:
+
+                        cookie_count += 1
+
+                        domain = fields[0].lower()
+
+                        if (
+                            "youtube.com" in domain
+                            or "google.com" in domain
+                        ):
+
+                            youtube_cookie_count += 1
+
+                    else:
+
+                        cookie_count += 1
+
+        except Exception as e:
+
+            raise Exception(
+                "Cookieファイルの読み込みに失敗しました: "
+                + repr(e)
+            )
+
+        print("==========================================")
+        print(
+            "Cookieデータ行数:",
+            cookie_count
+        )
+        print(
+            "YouTube/Google Cookie数:",
+            youtube_cookie_count
+        )
+        print("==========================================")
+
+        if cookie_count == 0:
+
+            raise Exception(
+                "Cookieデータが0件です"
+            )
+
+        if youtube_cookie_count == 0:
+
+            print(
+                "WARNING: "
+                "YouTube/Google Cookieが見つかりません"
+            )
+
+        return temp_cookie_file
+
+    except Exception:
+
+        # ----------------------------------------------------
+        # 作成途中で失敗した場合も削除
+        # ----------------------------------------------------
+
+        try:
+
+            if os.path.exists(
+                temp_cookie_file
+            ):
+
+                os.remove(
+                    temp_cookie_file
+                )
+
+        except Exception:
+
+            pass
+
+        raise
+
+
+# ============================================================
+# 一時Cookie削除
+# ============================================================
+
+def remove_cookie_file(
+    cookie_file
+):
+
+    if not cookie_file:
+
+        return
+
+    try:
+
+        if os.path.exists(
+            cookie_file
+        ):
+
+            os.remove(
+                cookie_file
+            )
+
+            print(
+                "一時Cookieファイル削除OK:",
+                cookie_file
+            )
 
     except Exception as e:
 
-        raise Exception(
-            f"Cookieファイル読み込み失敗: {e}"
+        print(
+            "一時Cookieファイル削除失敗:",
+            repr(e)
         )
-
-    print(
-        "Cookieデータ行数:",
-        cookie_count
-    )
-
-    print(
-        "YouTube/Google Cookie数:",
-        youtube_cookie_count
-    )
-
-    print("==========================================")
 
 
 # ============================================================
 # YouTube情報取得
 # ============================================================
 
-def get_youtube_info(url):
+def get_youtube_info(
+    url
+):
 
-    print("==========================================")
-    print("YouTube情報取得開始")
-    print("==========================================")
-
-    print(
-        "URL:",
-        url
-    )
-
-    # --------------------------------------------------------
-    # yt-dlp設定
-    # --------------------------------------------------------
-
-    ydl_opts = {
-
-        # Cookie
-        "cookiefile":
-        COOKIE_FILE,
-
-        # EJS challenge solver
-        "remote_components": {
-            "ejs": "github"
-        },
-
-        # JavaScript runtime
-        "js_runtimes": {
-            "deno": {}
-        },
-
-        # Playlist無効
-        "noplaylist":
-        True,
-
-        # ダウンロードしない
-        "skip_download":
-        True,
-
-        # 詳細ログ
-        "quiet":
-        False,
-
-        "no_warnings":
-        False,
-
-        "verbose":
-        True
-    }
-
-    print("==========================================")
-    print("yt-dlp設定")
-    print("==========================================")
-
-    print(
-        "yt-dlp version:",
-        yt_dlp.version.__version__
-    )
-
-    print(
-        "Cookie:",
-        COOKIE_FILE
-    )
-
-    print(
-        "EJS:",
-        "github"
-    )
-
-    print(
-        "JavaScript Runtime:",
-        "deno"
-    )
-
-    print(
-        "noplaylist:",
-        True
-    )
-
-    print(
-        "skip_download:",
-        True
-    )
-
-    print(
-        "format:",
-        "指定なし"
-    )
-
-    print("==========================================")
-
-    # --------------------------------------------------------
-    # extract_info
-    # --------------------------------------------------------
+    temp_cookie = None
 
     try:
+
+        print("==========================================")
+        print("YouTube情報取得開始")
+        print("==========================================")
+
+        print(
+            "URL:",
+            url
+        )
+
+        # ----------------------------------------------------
+        # Cookie準備
+        # ----------------------------------------------------
+
+        temp_cookie = prepare_cookie_file()
+
+        # ----------------------------------------------------
+        # yt-dlp設定
+        # ----------------------------------------------------
+
+        ydl_opts = {
+
+            # Cookie
+            "cookiefile":
+            temp_cookie,
+
+            # EJS challenge solver
+            "remote_components": {
+                "ejs": "github"
+            },
+
+            # JavaScript runtime
+            "js_runtimes": {
+                "deno": {}
+            },
+
+            # Playlist無効
+            "noplaylist":
+            True,
+
+            # ダウンロードしない
+            "skip_download":
+            True,
+
+            # 詳細ログ
+            "quiet":
+            False,
+
+            "no_warnings":
+            False,
+
+            "verbose":
+            True
+
+        }
+
+        print("==========================================")
+        print("yt-dlp設定")
+        print("==========================================")
+
+        print(
+            "yt-dlp version:",
+            yt_dlp.version.__version__
+        )
+
+        print(
+            "Cookie:",
+            temp_cookie
+        )
+
+        print(
+            "EJS:",
+            "github"
+        )
+
+        print(
+            "JavaScript Runtime:",
+            "deno"
+        )
+
+        print(
+            "noplaylist:",
+            True
+        )
+
+        print(
+            "skip_download:",
+            True
+        )
+
+        print(
+            "format:",
+            "指定なし"
+        )
+
+        print("==========================================")
+
+        # ----------------------------------------------------
+        # extract_info
+        # ----------------------------------------------------
 
         print("==========================================")
         print("extract_info開始")
@@ -423,6 +627,16 @@ def get_youtube_info(url):
             info = ydl.extract_info(
                 url,
                 download=False
+            )
+
+        # ----------------------------------------------------
+        # 結果確認
+        # ----------------------------------------------------
+
+        if not info:
+
+            raise Exception(
+                "YouTube情報を取得できませんでした"
             )
 
         print("==========================================")
@@ -451,12 +665,24 @@ def get_youtube_info(url):
 
         raise
 
+    finally:
+
+        # ----------------------------------------------------
+        # 一時Cookie削除
+        # ----------------------------------------------------
+
+        remove_cookie_file(
+            temp_cookie
+        )
+
 
 # ============================================================
 # Format診断
 # ============================================================
 
-def diagnose_formats(info):
+def diagnose_formats(
+    info
+):
 
     print("==========================================")
     print("YouTube基本情報")
@@ -517,6 +743,35 @@ def diagnose_formats(info):
         len(formats)
     )
 
+    print("==========================================")
+    print("利用可能format一覧")
+    print("==========================================")
+
+    for f in formats:
+
+        print(
+            "ID=",
+            f.get("format_id"),
+            "EXT=",
+            f.get("ext"),
+            "VCODEC=",
+            f.get("vcodec"),
+            "ACODEC=",
+            f.get("acodec"),
+            "RES=",
+            f.get("resolution"),
+            "FPS=",
+            f.get("fps"),
+            "ABR=",
+            f.get("abr"),
+            "ASR=",
+            f.get("asr"),
+            "PROTO=",
+            f.get("protocol")
+        )
+
+    print("==========================================")
+
     # ========================================================
     # 音声format
     # ========================================================
@@ -529,32 +784,12 @@ def diagnose_formats(info):
 
     for f in formats:
 
-        format_id = f.get(
-            "format_id"
-        )
-
-        ext = f.get(
-            "ext"
-        )
-
         acodec = f.get(
             "acodec"
         )
 
         vcodec = f.get(
             "vcodec"
-        )
-
-        abr = f.get(
-            "abr"
-        )
-
-        asr = f.get(
-            "asr"
-        )
-
-        protocol = f.get(
-            "protocol"
         )
 
         if (
@@ -573,17 +808,17 @@ def diagnose_formats(info):
             print(
                 "AUDIO",
                 "ID=",
-                format_id,
+                f.get("format_id"),
                 "EXT=",
-                ext,
+                f.get("ext"),
                 "ACODEC=",
-                acodec,
+                f.get("acodec"),
                 "ABR=",
-                abr,
+                f.get("abr"),
                 "ASR=",
-                asr,
+                f.get("asr"),
                 "PROTO=",
-                protocol
+                f.get("protocol")
             )
 
     print("==========================================")
@@ -607,32 +842,8 @@ def diagnose_formats(info):
 
     for f in formats:
 
-        format_id = f.get(
-            "format_id"
-        )
-
-        ext = f.get(
-            "ext"
-        )
-
-        resolution = f.get(
-            "resolution"
-        )
-
         vcodec = f.get(
             "vcodec"
-        )
-
-        acodec = f.get(
-            "acodec"
-        )
-
-        fps = f.get(
-            "fps"
-        )
-
-        protocol = f.get(
-            "protocol"
         )
 
         if (
@@ -647,19 +858,19 @@ def diagnose_formats(info):
             print(
                 "VIDEO",
                 "ID=",
-                format_id,
+                f.get("format_id"),
                 "EXT=",
-                ext,
+                f.get("ext"),
                 "RES=",
-                resolution,
+                f.get("resolution"),
                 "FPS=",
-                fps,
+                f.get("fps"),
                 "VCODEC=",
-                vcodec,
+                f.get("vcodec"),
                 "ACODEC=",
-                acodec,
+                f.get("acodec"),
                 "PROTO=",
-                protocol
+                f.get("protocol")
             )
 
     print("==========================================")
@@ -672,7 +883,7 @@ def diagnose_formats(info):
     print("==========================================")
 
     # ========================================================
-    # 特定format確認
+    # 代表format
     # ========================================================
 
     format_140 = None
@@ -796,7 +1007,9 @@ def diagnose_formats(info):
 # /check
 # ============================================================
 
-def register_check(app):
+def register_check(
+    app
+):
 
     @app.route(
         "/check",
@@ -820,7 +1033,9 @@ def register_check(app):
             # JSON
             # =================================================
 
-            data = request.get_json()
+            data = request.get_json(
+                silent=True
+            )
 
             if not data:
 
@@ -831,6 +1046,7 @@ def register_check(app):
 
                     "message":
                     "JSONデータがありません"
+
                 })
 
             # =================================================
@@ -850,6 +1066,7 @@ def register_check(app):
 
                     "message":
                     "YouTube URLを入力してください"
+
                 })
 
             print(
@@ -861,7 +1078,9 @@ def register_check(app):
             # Cookie確認
             # =================================================
 
-            check_cookie_file()
+            # prepare_cookie_file() は
+            # get_youtube_info() 内で実行するため、
+            # ここでは直接Cookieを開かない
 
             # =================================================
             # YouTube情報取得
@@ -968,6 +1187,7 @@ def register_check(app):
 
                 "has_18":
                 diagnosis["has_18"]
+
             })
 
         except Exception as e:
@@ -995,4 +1215,5 @@ def register_check(app):
 
                 "message":
                 str(e)
+
             })
