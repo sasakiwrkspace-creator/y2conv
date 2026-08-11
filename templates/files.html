@@ -1,68 +1,203 @@
 <!DOCTYPE html>
+
 <html lang="ja">
 
 <head>
 
-<meta charset="utf-8">
-
-<meta name="viewport"
-      content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
 
 <title>ファイル管理</title>
+
 
 <style>
 
 body {
-    font-family: sans-serif;
-    margin: 30px;
+
+    font-family:
+        sans-serif;
+
+    margin:
+        30px;
+
+    background:
+        #ffffff;
+
+    color:
+        #222;
+
 }
+
+
+h1 {
+
+    margin-bottom:
+        30px;
+
+}
+
 
 h2 {
-    margin-top: 30px;
+
+    margin-top:
+        0;
+
 }
 
-.delete-area {
-    padding: 15px;
-    background: #f5f5f5;
-    border: 1px solid #ccc;
-    margin-bottom: 30px;
+
+.section {
+
+    border:
+        1px solid #ccc;
+
+    padding:
+        20px;
+
+    margin-bottom:
+        25px;
+
+    border-radius:
+        6px;
+
 }
 
-.delete-input {
-    width: 70%;
-    max-width: 600px;
-    padding: 10px;
-    font-size: 16px;
+
+.file-row {
+
+    padding:
+        10px 0;
+
+    border-bottom:
+        1px solid #eee;
+
 }
+
+
+.file-name {
+
+    word-break:
+        break-all;
+
+}
+
+
+button {
+
+    padding:
+        7px 14px;
+
+    cursor:
+        pointer;
+
+}
+
+
+.download-button {
+
+    margin-left:
+        15px;
+
+}
+
 
 .delete-button {
-    padding: 10px 18px;
-    font-size: 16px;
-    cursor: pointer;
+
+    margin-left:
+        8px;
+
 }
 
-.file-list {
-    border: 1px solid #ddd;
-    padding: 10px;
-    margin-bottom: 30px;
+
+.tree {
+
+    font-family:
+        monospace;
+
+    white-space:
+        pre-wrap;
+
+    background:
+        #f7f7f7;
+
+    border:
+        1px solid #ddd;
+
+    padding:
+        15px;
+
+    line-height:
+        1.7;
+
+    overflow-x:
+        auto;
+
 }
 
-.file-item {
-    padding: 8px;
-    border-bottom: 1px solid #eee;
-    word-break: break-all;
+
+.tree-directory {
+
+    color:
+        #174ea6;
+
+    font-weight:
+        bold;
+
 }
 
-.tmp-area {
-    background: #fff8e1;
-    border: 1px solid #e0b84c;
-    padding: 15px;
+
+.tree-file {
+
+    color:
+        #333;
+
 }
 
-.tmp-file {
-    padding: 6px;
-    word-break: break-all;
+
+.tree-missing {
+
+    color:
+        #c62828;
+
+    font-weight:
+        bold;
+
 }
+
+
+.delete-form {
+
+    margin-top:
+        15px;
+
+}
+
+
+.delete-form input {
+
+    width:
+        450px;
+
+    max-width:
+        90%;
+
+    padding:
+        9px;
+
+    box-sizing:
+        border-box;
+
+}
+
+
+.example {
+
+    color:
+        #666;
+
+    font-size:
+        14px;
+
+}
+
 
 </style>
 
@@ -77,120 +212,321 @@ h2 {
 </h1>
 
 
-<!-- ================================================== -->
-<!-- ファイル削除 -->
-<!-- ================================================== -->
+<!-- =====================================================
+     ① downloads
+====================================================== -->
 
-<div class="delete-area">
+<div class="section">
 
-<h3>
-ファイル削除
-</h3>
-
-<p>
-downloads/ 内のファイルを指定してください。
-</p>
-
-<form
-    method="post"
-    action="/delete-confirm"
->
-
-<input
-    class="delete-input"
-    type="text"
-    name="filename"
-    placeholder="downloads/動画タイトル.mp3"
-    required
->
-
-<button
-    class="delete-button"
-    type="submit"
->
-削除
-</button>
-
-</form>
-
-<p>
-例：
-<code>
-downloads/動画タイトル.mp3
-</code>
-</p>
-
-</div>
-
-
-<!-- ================================================== -->
-<!-- downloads -->
-<!-- ================================================== -->
 
 <h2>
 downloads
 </h2>
 
-<div class="file-list">
+
+<p>
+ここに作成された mp3 / mp4 / srt ファイル
+</p>
+
 
 {% if files %}
 
+
     {% for file in files %}
 
-        <div class="file-item">
+
+    <div class="file-row">
+
+
+        <span class="file-name">
+
             {{ file }}
-        </div>
+
+        </span>
+
+
+        <!-- -----------------------------------------
+             download
+        ------------------------------------------ -->
+
+        <a
+            href="{{ url_for('download_file', filename=file) }}"
+        >
+
+            <button
+                type="button"
+                class="download-button"
+            >
+
+                download
+
+            </button>
+
+        </a>
+
+
+        <!-- -----------------------------------------
+             削除
+        ------------------------------------------ -->
+
+        <form
+            method="post"
+            action="{{ url_for('delete_file', filename=file) }}"
+            style="display:inline"
+            onsubmit="return confirm('このファイルを削除しますか？');"
+        >
+
+            <button
+                type="submit"
+                class="delete-button"
+            >
+
+                削除
+
+            </button>
+
+        </form>
+
+
+    </div>
+
 
     {% endfor %}
 
+
 {% else %}
+
 
     <p>
     ファイルはありません。
     </p>
 
+
 {% endif %}
+
 
 </div>
 
 
-<!-- ================================================== -->
-<!-- TMP -->
-<!-- ================================================== -->
+
+<!-- =====================================================
+     ② ファイル一覧
+====================================================== -->
+
+<div class="section">
+
 
 <h2>
-/tmp/y2conv_downloads
+ファイル一覧
 </h2>
 
-<div class="tmp-area">
 
-{% if tmp_exists %}
+<p>
+downloads より上の階層から
+y2conv プロジェクト全体をツリービューで表示します。
+</p>
 
-    {% if tmp_files %}
 
-        {% for file in tmp_files %}
+<div class="tree">
 
-            <div class="tmp-file">
-                {{ file }}
-            </div>
 
-        {% endfor %}
+{% if project_tree %}
 
-    {% else %}
 
-        <p>
-        フォルダは存在しますが、中身は空です。
-        </p>
+    {% for item in project_tree %}
 
-    {% endif %}
+
+        {% if item.type == "directory" %}
+
+
+<span class="tree-directory">📁 {{ item.path }}</span>
+
+
+        {% elif item.type == "file" %}
+
+
+<span class="tree-file">　📄 {{ item.path }}</span>
+
+
+        {% endif %}
+
+
+    {% endfor %}
+
 
 {% else %}
 
-    <p>
-    /tmp/y2conv_downloads は存在しません。
-    </p>
+
+ファイルはありません。
+
 
 {% endif %}
+
+
+</div>
+
+
+</div>
+
+
+
+<!-- =====================================================
+     ③ TMPファイル一覧
+====================================================== -->
+
+<div class="section">
+
+
+<h2>
+TMPファイル一覧
+</h2>
+
+
+<p>
+Render の /tmp にある y2conv 関連ファイルを確認します。
+</p>
+
+
+<p class="example">
+
+特に
+<strong>
+/tmp/y2conv_downloads
+</strong>
+が残っているか確認できます。
+
+</p>
+
+
+<div class="tree">
+
+
+{% if tmp_tree %}
+
+
+    {% for item in tmp_tree %}
+
+
+        {% if item.type == "directory" %}
+
+
+<span class="tree-directory">📁 {{ item.path }}</span>
+
+
+        {% elif item.type == "file" %}
+
+
+<span class="tree-file">　📄 {{ item.path }}</span>
+
+
+        {% elif item.type == "missing" %}
+
+
+<span class="tree-missing">❌ {{ item.path }}</span>
+
+
+        {% endif %}
+
+
+    {% endfor %}
+
+
+{% else %}
+
+
+TMPファイルはありません。
+
+
+{% endif %}
+
+
+</div>
+
+
+</div>
+
+
+
+<!-- =====================================================
+     ④ ファイル削除
+====================================================== -->
+
+<div class="section">
+
+
+<h2>
+ファイル削除
+</h2>
+
+
+<p>
+
+<strong>
+y2conv
+</strong>
+フォルダ以下を指定して削除できます。
+
+</p>
+
+
+<p>
+
+downloads 内のファイルも指定できます。
+
+</p>
+
+
+<p class="example">
+
+例：
+
+<br>
+
+<strong>
+downloads/動画タイトル.mp3
+</strong>
+
+<br>
+
+<strong>
+routes/convert.py
+</strong>
+
+<br>
+
+<strong>
+static/converter.js
+</strong>
+
+</p>
+
+
+<form
+    method="post"
+    action="{{ url_for('delete_project') }}"
+    class="delete-form"
+>
+
+
+<input
+    type="text"
+    name="path"
+    placeholder="downloads/動画タイトル.mp3"
+    required
+>
+
+
+<button
+    type="submit"
+>
+
+確認
+
+</button>
+
+
+</form>
+
 
 </div>
 
