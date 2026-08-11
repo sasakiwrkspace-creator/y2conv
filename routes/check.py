@@ -5,17 +5,12 @@ import shutil
 import tempfile
 
 
-# ============================================================
-# Cookieファイル
-# ============================================================
+# ==========================================================
+# Cookieファイル設定
+# ==========================================================
 
-# Render Secret File
 RENDER_COOKIE_FILE = "/etc/secrets/cookies.txt"
 
-
-# ============================================================
-# プロジェクトルート
-# ============================================================
 
 BASE_DIR = os.path.dirname(
     os.path.dirname(
@@ -24,19 +19,15 @@ BASE_DIR = os.path.dirname(
 )
 
 
-# ============================================================
-# ローカルCookie
-# ============================================================
-
 LOCAL_COOKIE_FILE = os.path.join(
     BASE_DIR,
     "cookies.txt"
 )
 
 
-# ============================================================
-# 使用する元Cookieファイル
-# ============================================================
+# ==========================================================
+# Render / ローカル判定
+# ==========================================================
 
 if os.environ.get("RENDER") == "true":
     ORIGINAL_COOKIE_FILE = RENDER_COOKIE_FILE
@@ -46,17 +37,19 @@ else:
 
 print("==========================================")
 print("check.py 起動")
+print("Cookie設定")
 print("RENDER:", os.environ.get("RENDER"))
 print("元Cookieファイル:")
 print(ORIGINAL_COOKIE_FILE)
 print("==========================================")
 
 
-# ============================================================
+# ==========================================================
 # 一時Cookieファイル削除
-# ============================================================
+# ==========================================================
 
 def remove_cookie_file(cookie_file):
+
     if not cookie_file:
         return
 
@@ -76,8 +69,8 @@ def remove_cookie_file(cookie_file):
         )
 
 
-# ============================================================
-# 一時Cookieファイル作成
+# ==========================================================
+# Cookieファイル準備
 #
 # Render:
 # /etc/secrets/cookies.txt
@@ -86,14 +79,10 @@ def remove_cookie_file(cookie_file):
 #
 # /tmp/y2conv_cookies_xxxxx.txt
 #
-# yt-dlpには必ず/tmp側を渡す
-# ============================================================
+# yt-dlpには/tmp側を渡す
+# ==========================================================
 
 def prepare_cookie_file():
-
-    # --------------------------------------------------------
-    # 元Cookie存在確認
-    # --------------------------------------------------------
 
     if not os.path.exists(
         ORIGINAL_COOKIE_FILE
@@ -102,10 +91,6 @@ def prepare_cookie_file():
             "Cookieファイルが見つかりません: "
             + ORIGINAL_COOKIE_FILE
         )
-
-    # --------------------------------------------------------
-    # 元Cookieサイズ確認
-    # --------------------------------------------------------
 
     original_size = os.path.getsize(
         ORIGINAL_COOKIE_FILE
@@ -130,10 +115,6 @@ def prepare_cookie_file():
             + ORIGINAL_COOKIE_FILE
         )
 
-    # --------------------------------------------------------
-    # /tmpに一時ファイル作成
-    # --------------------------------------------------------
-
     temp_file = tempfile.NamedTemporaryFile(
         mode="wb",
         suffix=".txt",
@@ -144,10 +125,6 @@ def prepare_cookie_file():
     temp_cookie_file = temp_file.name
 
     temp_file.close()
-
-    # --------------------------------------------------------
-    # Cookieコピー
-    # --------------------------------------------------------
 
     try:
         shutil.copyfile(
@@ -160,10 +137,6 @@ def prepare_cookie_file():
             temp_cookie_file
         )
         raise
-
-    # --------------------------------------------------------
-    # コピー確認
-    # --------------------------------------------------------
 
     if not os.path.exists(
         temp_cookie_file
@@ -199,10 +172,6 @@ def prepare_cookie_file():
             "一時Cookieファイルが空です"
         )
 
-    # --------------------------------------------------------
-    # Cookie内容確認
-    # --------------------------------------------------------
-
     cookie_count = 0
     youtube_cookie_count = 0
 
@@ -237,6 +206,9 @@ def prepare_cookie_file():
                         or "google.com" in domain
                     ):
                         youtube_cookie_count += 1
+
+                else:
+                    cookie_count += 1
 
     except Exception as e:
 
@@ -280,64 +252,29 @@ def prepare_cookie_file():
     return temp_cookie_file
 
 
-# ============================================================
-# Cookie確認
-#
-# prepare_cookie_file()で/tmpへコピーし、
-# 確認終了後に必ず削除する
-# ============================================================
-
-def check_cookie_file():
-
-    temp_cookie = None
-
-    try:
-
-        temp_cookie = prepare_cookie_file()
-
-        print("==========================================")
-        print("Cookie確認完了")
-        print(
-            "yt-dlp使用Cookie:",
-            temp_cookie
-        )
-        print("==========================================")
-
-    finally:
-
-        remove_cookie_file(
-            temp_cookie
-        )
-
-
-# ============================================================
+# ==========================================================
 # yt-dlp共通設定
-# ============================================================
+# ==========================================================
 
-def get_ydl_base_options(cookie_file):
+def get_ydl_base_options():
+
+    cookie_file = prepare_cookie_file()
 
     return {
-        # Cookie
         "cookiefile": cookie_file,
-
-        # Playlist無効
         "noplaylist": True,
-
-        # JavaScript Runtime
         "js_runtimes": {
             "deno": {}
         },
-
-        # EJS challenge solver
         "remote_components": {
             "ejs": "github"
         }
     }
 
 
-# ============================================================
+# ==========================================================
 # YouTube情報取得
-# ============================================================
+# ==========================================================
 
 def get_youtube_info(url):
 
@@ -350,30 +287,17 @@ def get_youtube_info(url):
         print("URL:", url)
         print("==========================================")
 
-        # ----------------------------------------------------
-        # 一時Cookie作成
-        # ----------------------------------------------------
+        ydl_opts = get_ydl_base_options()
 
-        temp_cookie = prepare_cookie_file()
-
-        # ----------------------------------------------------
-        # yt-dlp設定
-        # ----------------------------------------------------
-
-        ydl_opts = get_ydl_base_options(
-            temp_cookie
+        temp_cookie = ydl_opts.get(
+            "cookiefile"
         )
 
         ydl_opts.update({
-
             "skip_download": True,
-
             "quiet": False,
-
             "no_warnings": False,
-
             "verbose": True
-
         })
 
         print("==========================================")
@@ -386,20 +310,16 @@ def get_youtube_info(url):
         )
 
         print(
-            "EJS:",
-            "github"
-        )
-
-        print(
             "JavaScript Runtime:",
             "deno"
         )
 
-        print("==========================================")
+        print(
+            "EJS:",
+            "github"
+        )
 
-        # ----------------------------------------------------
-        # extract_info
-        # ----------------------------------------------------
+        print("==========================================")
 
         with yt_dlp.YoutubeDL(
             ydl_opts
@@ -424,18 +344,14 @@ def get_youtube_info(url):
 
     finally:
 
-        # ----------------------------------------------------
-        # 一時Cookie削除
-        # ----------------------------------------------------
-
         remove_cookie_file(
             temp_cookie
         )
 
 
-# ============================================================
+# ==========================================================
 # Format診断
-# ============================================================
+# ==========================================================
 
 def diagnose_formats(info):
 
@@ -480,10 +396,6 @@ def diagnose_formats(info):
         "秒"
     )
 
-    # ========================================================
-    # Format一覧
-    # ========================================================
-
     formats = info.get(
         "formats",
         []
@@ -497,10 +409,6 @@ def diagnose_formats(info):
         "利用可能format数:",
         len(formats)
     )
-
-    # ========================================================
-    # 音声format
-    # ========================================================
 
     audio_formats = []
 
@@ -568,17 +476,11 @@ def diagnose_formats(info):
             )
 
     print("==========================================")
-
     print(
         "音声format数:",
         len(audio_formats)
     )
-
     print("==========================================")
-
-    # ========================================================
-    # 動画format
-    # ========================================================
 
     video_formats = []
 
@@ -644,17 +546,11 @@ def diagnose_formats(info):
             )
 
     print("==========================================")
-
     print(
         "動画format数:",
         len(video_formats)
     )
-
     print("==========================================")
-
-    # ========================================================
-    # 特定format確認
-    # ========================================================
 
     format_140 = None
     format_251 = None
@@ -668,19 +564,15 @@ def diagnose_formats(info):
         )
 
         if format_id == "140":
-
             format_140 = f
 
         elif format_id == "251":
-
             format_251 = f
 
         elif format_id == "249":
-
             format_249 = f
 
         elif format_id == "18":
-
             format_18 = f
 
     print("==========================================")
@@ -709,10 +601,6 @@ def diagnose_formats(info):
 
     print("==========================================")
 
-    # ========================================================
-    # 結果
-    # ========================================================
-
     if len(audio_formats) == 0:
 
         print(
@@ -740,33 +628,22 @@ def diagnose_formats(info):
     print("==========================================")
 
     return {
-
         "title": title,
-
         "duration": duration,
-
         "video_id": video_id,
-
         "format_count": len(formats),
-
         "audio_format_count": len(audio_formats),
-
         "video_format_count": len(video_formats),
-
         "has_140": format_140 is not None,
-
         "has_251": format_251 is not None,
-
         "has_249": format_249 is not None,
-
         "has_18": format_18 is not None
-
     }
 
 
-# ============================================================
+# ==========================================================
 # /check
-# ============================================================
+# ==========================================================
 
 def register_check(app):
 
@@ -782,10 +659,6 @@ def register_check(app):
             print("/check 呼び出し")
             print("==========================================")
 
-            # ------------------------------------------------
-            # JSON
-            # ------------------------------------------------
-
             data = request.get_json(
                 silent=True
             )
@@ -793,17 +666,9 @@ def register_check(app):
             if not data:
 
                 return jsonify({
-
                     "success": False,
-
-                    "message":
-                    "JSONデータがありません"
-
+                    "message": "JSONデータがありません"
                 })
-
-            # ------------------------------------------------
-            # URL
-            # ------------------------------------------------
 
             url = data.get(
                 "url"
@@ -812,12 +677,8 @@ def register_check(app):
             if not url:
 
                 return jsonify({
-
                     "success": False,
-
-                    "message":
-                    "YouTube URLを入力してください"
-
+                    "message": "YouTube URLを入力してください"
                 })
 
             print(
@@ -825,40 +686,18 @@ def register_check(app):
                 url
             )
 
-            # ------------------------------------------------
-            # Cookie確認
-            # ------------------------------------------------
-
-            check_cookie_file()
-
-            # ------------------------------------------------
-            # YouTube情報取得
-            # ------------------------------------------------
-
             info = get_youtube_info(
                 url
             )
-
-            # ------------------------------------------------
-            # Format診断
-            # ------------------------------------------------
 
             diagnosis = diagnose_formats(
                 info
             )
 
-            # ------------------------------------------------
-            # タイトル
-            # ------------------------------------------------
-
             title = info.get(
                 "title",
                 "タイトル取得失敗"
             )
-
-            # ------------------------------------------------
-            # 再生時間
-            # ------------------------------------------------
 
             duration_sec = info.get(
                 "duration",
@@ -897,42 +736,18 @@ def register_check(app):
                     f"{seconds:02}"
                 )
 
-            # ------------------------------------------------
-            # 成功レスポンス
-            # ------------------------------------------------
-
             return jsonify({
-
                 "success": True,
-
                 "filename": title,
-
                 "duration": duration,
-
-                "video_id":
-                diagnosis["video_id"],
-
-                "format_count":
-                diagnosis["format_count"],
-
-                "audio_format_count":
-                diagnosis["audio_format_count"],
-
-                "video_format_count":
-                diagnosis["video_format_count"],
-
-                "has_140":
-                diagnosis["has_140"],
-
-                "has_251":
-                diagnosis["has_251"],
-
-                "has_249":
-                diagnosis["has_249"],
-
-                "has_18":
-                diagnosis["has_18"]
-
+                "video_id": diagnosis["video_id"],
+                "format_count": diagnosis["format_count"],
+                "audio_format_count": diagnosis["audio_format_count"],
+                "video_format_count": diagnosis["video_format_count"],
+                "has_140": diagnosis["has_140"],
+                "has_251": diagnosis["has_251"],
+                "has_249": diagnosis["has_249"],
+                "has_18": diagnosis["has_18"]
             })
 
         except Exception as e:
@@ -954,9 +769,6 @@ def register_check(app):
             print("==========================================")
 
             return jsonify({
-
                 "success": False,
-
                 "message": str(e)
-
             })
