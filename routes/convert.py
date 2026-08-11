@@ -52,7 +52,7 @@ DENO_PATH = "/opt/render/project/src/.deno/bin/deno"
 # Renderでは /tmp を使用
 # ==========================================================
 
-DOWNLOAD_DIR = "/tmp/y2conv_downloads"
+DOWNLOAD_DIR = "downloads"
 
 
 # ==========================================================
