@@ -13,35 +13,18 @@ from cleanup import cleanup_downloads
 
 RENDER_COOKIE_FILE = "/etc/secrets/cookies.txt"
 
+
 BASE_DIR = os.path.dirname(
     os.path.dirname(
         os.path.abspath(__file__)
     )
 )
 
+
 LOCAL_COOKIE_FILE = os.path.join(
     BASE_DIR,
     "cookies.txt"
 )
-
-DENO_PATH = "/opt/render/project/src/.deno/bin/deno"
-DENO_DIR = "/opt/render/project/src/.deno/bin"
-
-
-if os.path.exists(DENO_DIR):
-
-    current_path = os.environ.get(
-        "PATH",
-        ""
-    )
-
-    if DENO_DIR not in current_path.split(os.pathsep):
-
-        os.environ["PATH"] = (
-            DENO_DIR
-            + os.pathsep
-            + current_path
-        )
 
 
 if os.environ.get("RENDER") == "true":
@@ -62,26 +45,6 @@ print(
 print(
     "元Cookieファイル:",
     ORIGINAL_COOKIE_FILE
-)
-print("==========================================")
-
-
-print("==========================================")
-print("Deno設定")
-print(
-    "Deno:",
-    DENO_PATH
-)
-print(
-    "Deno exists:",
-    os.path.exists(DENO_PATH)
-)
-print(
-    "Deno executable:",
-    os.access(
-        DENO_PATH,
-        os.X_OK
-    )
 )
 print("==========================================")
 
@@ -112,7 +75,9 @@ def remove_cookie_file(cookie_file):
 
 def prepare_cookie_file():
 
-    if not os.path.exists(ORIGINAL_COOKIE_FILE):
+    if not os.path.exists(
+        ORIGINAL_COOKIE_FILE
+    ):
 
         raise Exception(
             "Cookieファイルが見つかりません: "
@@ -171,7 +136,9 @@ def prepare_cookie_file():
 
         raise
 
-    if not os.path.exists(temp_cookie_file):
+    if not os.path.exists(
+        temp_cookie_file
+    ):
 
         raise Exception(
             "一時Cookieファイルの作成に失敗しました: "
@@ -298,18 +265,7 @@ def get_ydl_base_options():
 
     return {
         "cookiefile": cookie_file,
-
-        "noplaylist": True,
-
-        "js_runtimes": {
-            "deno": {
-                "path": DENO_PATH
-            }
-        },
-
-        "remote_components": {
-            "ejs:github"
-        }
+        "noplaylist": True
     }
 
 
@@ -361,15 +317,6 @@ def diagnose_formats(url):
         print(
             "Cookie:",
             temp_cookie
-        )
-
-        print(
-            "EJS: ejs:github"
-        )
-
-        print(
-            "JavaScript Runtime:",
-            DENO_PATH
         )
 
         print("==========================================")
@@ -465,7 +412,9 @@ def diagnose_formats(url):
                 )
             ):
 
-                audio_formats.append(f)
+                audio_formats.append(
+                    f
+                )
 
                 print(
                     "AUDIO",
@@ -584,7 +533,9 @@ def download_mp3(
             + ".mp3"
         )
 
-        if not os.path.exists(mp3_file):
+        if not os.path.exists(
+            mp3_file
+        ):
 
             raise Exception(
                 "MP3ファイルが作成されませんでした: "
@@ -683,7 +634,9 @@ def download_mp4(
             + ".mp4"
         )
 
-        if not os.path.exists(mp4_file):
+        if not os.path.exists(
+            mp4_file
+        ):
 
             raise Exception(
                 "MP4ファイルが作成されませんでした: "
@@ -770,6 +723,7 @@ def cut_mp3(
         stderr=subprocess.PIPE,
 
         text=True
+
     )
 
     if result.returncode != 0:
@@ -782,15 +736,21 @@ def cut_mp3(
             "ffmpeg処理失敗(mp3)"
         )
 
-    if not os.path.exists(cut_file):
+    if not os.path.exists(
+        cut_file
+    ):
 
         raise Exception(
             "カット後のMP3ファイルが作成されませんでした"
         )
 
-    if os.path.exists(mp3_file):
+    if os.path.exists(
+        mp3_file
+    ):
 
-        os.remove(mp3_file)
+        os.remove(
+            mp3_file
+        )
 
     os.rename(
         cut_file,
@@ -858,6 +818,7 @@ def cut_mp4(
         stderr=subprocess.PIPE,
 
         text=True
+
     )
 
     if result.returncode != 0:
@@ -870,15 +831,21 @@ def cut_mp4(
             "ffmpeg処理失敗(mp4)"
         )
 
-    if not os.path.exists(cut_file):
+    if not os.path.exists(
+        cut_file
+    ):
 
         raise Exception(
             "カット後のMP4ファイルが作成されませんでした"
         )
 
-    if os.path.exists(mp4_file):
+    if os.path.exists(
+        mp4_file
+    ):
 
-        os.remove(mp4_file)
+        os.remove(
+            mp4_file
+        )
 
     os.rename(
         cut_file,
