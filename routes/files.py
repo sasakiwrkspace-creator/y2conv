@@ -2,42 +2,30 @@ from flask import (
     render_template,
     send_from_directory,
     redirect,
-    request
+    request,
+    abort
 )
 
 import os
-import shutil
-
-
-# ==========================================================
-# プロジェクトルート
-# ==========================================================
-
-BASE_DIR = os.path.dirname(
-    os.path.dirname(
-        os.path.abspath(__file__)
-    )
-)
 
 
 # ==========================================================
 # downloads
 # ==========================================================
 
-DOWNLOAD_DIR = os.path.join(
-    BASE_DIR,
-    "downloads"
+BASE_DIR = os.path.dirname(
+    os.path.abspath(__file__)
 )
 
+# routes/files.py の1つ上がプロジェクトルート
+PROJECT_DIR = os.path.dirname(
+    BASE_DIR
+)
 
-# ==========================================================
-# 古いtmpフォルダ
-#
-# 以前使用していたフォルダ
-# /tmp/y2conv_downloads
-# ==========================================================
-
-TMP_DOWNLOAD_DIR = "/tmp/y2conv_downloads"
+DOWNLOAD_DIR = os.path.join(
+    PROJECT_DIR,
+    "downloads"
+)
 
 
 # ==========================================================
@@ -48,15 +36,10 @@ FILE_PASSWORD = "1234"
 
 
 # ==========================================================
-# ファイル管理
+# ファイル一覧
 # ==========================================================
 
 def register_files(app):
-
-
-    # ======================================================
-    # ファイル一覧
-    # ======================================================
 
     @app.route(
         "/files",
@@ -64,159 +47,68 @@ def register_files(app):
     )
     def list_files():
 
-
         # ==================================================
-        # パスワード確認
+        # 4桁チェック
         # ==================================================
 
         if request.method == "POST":
 
-
             password = request.form.get(
-                "password",
-                ""
+                "password"
             )
 
-
             if password == FILE_PASSWORD:
-
-
-                os.makedirs(
-                    DOWNLOAD_DIR,
-                    exist_ok=True
-                )
-
-
-                items = []
-
 
                 # ------------------------------------------
                 # downloads一覧
                 # ------------------------------------------
 
-                for name in sorted(
-                    os.listdir(DOWNLOAD_DIR)
+                files = []
+
+                if os.path.exists(
+                    DOWNLOAD_DIR
                 ):
 
-
-                    path = os.path.join(
-                        DOWNLOAD_DIR,
-                        name
+                    files = sorted(
+                        os.listdir(
+                            DOWNLOAD_DIR
+                        )
                     )
 
-
-                    if os.path.isfile(path):
-
-                        items.append({
-
-                            "name": name,
-
-                            "type": "file",
-
-                            "size":
-                                os.path.getsize(path)
-
-                        })
-
-
-                    elif os.path.isdir(path):
-
-                        items.append({
-
-                            "name": name,
-
-                            "type": "folder",
-
-                            "size": None
-
-                        })
-
-
                 # ------------------------------------------
-                # tmpフォルダの存在確認
+                # /tmp/y2conv_downloads一覧
                 # ------------------------------------------
 
-                tmp_exists = os.path.exists(
-                    TMP_DOWNLOAD_DIR
-                )
+                tmp_dir = "/tmp/y2conv_downloads"
 
+                tmp_files = []
 
-                tmp_items = []
+                if os.path.exists(
+                    tmp_dir
+                ):
 
-
-                if tmp_exists:
-
-                    try:
-
-                        for name in sorted(
-                            os.listdir(
-                                TMP_DOWNLOAD_DIR
-                            )
-                        ):
-
-                            path = os.path.join(
-                                TMP_DOWNLOAD_DIR,
-                                name
-                            )
-
-
-                            if os.path.isfile(path):
-
-                                tmp_items.append({
-
-                                    "name": name,
-
-                                    "type": "file",
-
-                                    "size":
-                                        os.path.getsize(path)
-
-                                })
-
-
-                            elif os.path.isdir(path):
-
-                                tmp_items.append({
-
-                                    "name": name,
-
-                                    "type": "folder",
-
-                                    "size": None
-
-                                })
-
-
-                    except Exception as e:
-
-                        print(
-                            "tmpフォルダ一覧取得失敗:",
-                            repr(e)
+                    tmp_files = sorted(
+                        os.listdir(
+                            tmp_dir
                         )
-
+                    )
 
                 return render_template(
-
                     "files.html",
-
-                    items=items,
-
-                    tmp_exists=tmp_exists,
-
-                    tmp_items=tmp_items
-
+                    files=files,
+                    tmp_files=tmp_files,
+                    tmp_exists=os.path.exists(
+                        tmp_dir
+                    )
                 )
 
-
         # ==================================================
-        # パスワード入力画面
+        # 毎回表示する入力画面
         # ==================================================
 
         return """
         <!DOCTYPE html>
-
         <html>
-
         <head>
 
         <meta charset="utf-8">
@@ -225,43 +117,280 @@ def register_files(app):
 
         </head>
 
-
         <body>
 
         <h3>
         ファイル管理
         </h3>
 
-
         <form method="post">
-
 
         <p>
         4桁番号を入力してください
         </p>
 
-
         <input
-        type="password"
-        name="password"
-        maxlength="4"
-        inputmode="numeric"
-        autofocus
+            type="password"
+            name="password"
+            maxlength="4"
+            autofocus
         >
-
 
         <button type="submit">
         確認
         </button>
 
-
         </form>
 
-
         </body>
-
         </html>
         """
+
+
+    # ======================================================
+    # ファイル削除確認
+    # ======================================================
+
+    @app.route(
+        "/delete-confirm",
+        methods=["POST"]
+    )
+    def delete_confirm():
+
+        filename = request.form.get(
+            "filename",
+            ""
+        ).strip()
+
+        if not filename:
+
+            return redirect(
+                "/files"
+            )
+
+        # ----------------------------------------------
+        # downloads/ を許可
+        # ----------------------------------------------
+
+        if filename.startswith(
+            "downloads/"
+        ):
+
+            filename = filename[
+                len("downloads/"):
+            ]
+
+        # ----------------------------------------------
+        # パスを正規化
+        # ----------------------------------------------
+
+        requested_path = os.path.abspath(
+            os.path.join(
+                DOWNLOAD_DIR,
+                filename
+            )
+        )
+
+        download_root = os.path.abspath(
+            DOWNLOAD_DIR
+        )
+
+        # ----------------------------------------------
+        # downloadsの外を禁止
+        # ----------------------------------------------
+
+        try:
+
+            if os.path.commonpath(
+                [
+                    requested_path,
+                    download_root
+                ]
+            ) != download_root:
+
+                return """
+                <h3>削除できません</h3>
+                <p>
+                downloadsフォルダ内のファイルだけ削除できます。
+                </p>
+                <a href="/files">
+                戻る
+                </a>
+                """
+
+        except ValueError:
+
+            return """
+            <h3>削除できません</h3>
+            <a href="/files">
+            戻る
+            </a>
+            """
+
+        # ----------------------------------------------
+        # ファイル存在確認
+        # ----------------------------------------------
+
+        if not os.path.exists(
+            requested_path
+        ):
+
+            return """
+            <h3>ファイルがありません</h3>
+            <a href="/files">
+            戻る
+            </a>
+            """
+
+        # ----------------------------------------------
+        # フォルダ削除は禁止
+        # ----------------------------------------------
+
+        if not os.path.isfile(
+            requested_path
+        ):
+
+            return """
+            <h3>ファイルではありません</h3>
+            <p>
+            フォルダはこの画面から削除できません。
+            </p>
+            <a href="/files">
+            戻る
+            </a>
+            """
+
+        # ----------------------------------------------
+        # 確認画面
+        # ----------------------------------------------
+
+        display_name = (
+            "downloads/"
+            + os.path.relpath(
+                requested_path,
+                download_root
+            )
+        )
+
+        return render_template(
+            "delete_confirm.html",
+            filename=display_name
+        )
+
+
+    # ======================================================
+    # ファイル削除実行
+    # ======================================================
+
+    @app.route(
+        "/delete",
+        methods=["POST"]
+    )
+    def delete_file():
+
+        filename = request.form.get(
+            "filename",
+            ""
+        ).strip()
+
+        if not filename:
+
+            return redirect(
+                "/files"
+            )
+
+        # ----------------------------------------------
+        # downloads/ を除去
+        # ----------------------------------------------
+
+        if filename.startswith(
+            "downloads/"
+        ):
+
+            filename = filename[
+                len("downloads/"):
+            ]
+
+        # ----------------------------------------------
+        # パス作成
+        # ----------------------------------------------
+
+        filepath = os.path.abspath(
+            os.path.join(
+                DOWNLOAD_DIR,
+                filename
+            )
+        )
+
+        download_root = os.path.abspath(
+            DOWNLOAD_DIR
+        )
+
+        # ----------------------------------------------
+        # downloads外は禁止
+        # ----------------------------------------------
+
+        try:
+
+            if os.path.commonpath(
+                [
+                    filepath,
+                    download_root
+                ]
+            ) != download_root:
+
+                return """
+                <h3>削除できません</h3>
+                <p>
+                downloadsフォルダ外へのアクセスは禁止されています。
+                </p>
+                <a href="/files">
+                戻る
+                </a>
+                """
+
+        except ValueError:
+
+            return """
+            <h3>削除できません</h3>
+            <a href="/files">
+            戻る
+            </a>
+            """
+
+        # ----------------------------------------------
+        # ファイルだけ削除
+        # ----------------------------------------------
+
+        if os.path.isfile(
+            filepath
+        ):
+
+            try:
+
+                os.remove(
+                    filepath
+                )
+
+                print(
+                    "ファイル削除:",
+                    filepath
+                )
+
+            except Exception as e:
+
+                print(
+                    "ファイル削除エラー:",
+                    repr(e)
+                )
+
+        # ----------------------------------------------
+        # filesへ戻る
+        # ----------------------------------------------
+
+        return redirect(
+            "/files"
+        )
 
 
     # ======================================================
@@ -273,183 +402,8 @@ def register_files(app):
     )
     def download_file(filename):
 
-
         return send_from_directory(
-
             DOWNLOAD_DIR,
-
             filename,
-
             as_attachment=True
-
-        )
-
-
-    # ======================================================
-    # downloads
-    #
-    # 選択したファイル・フォルダを削除
-    # ======================================================
-
-    @app.route(
-        "/delete-selected",
-        methods=["POST"]
-    )
-    def delete_selected():
-
-
-        selected_items = request.form.getlist(
-            "selected"
-        )
-
-
-        print(
-            "downloads削除対象:",
-            selected_items
-        )
-
-
-        if not selected_items:
-
-            return redirect(
-                "/files"
-            )
-
-
-        for name in selected_items:
-
-
-            # ------------------------------------------
-            # セキュリティ対策
-            # ------------------------------------------
-
-            safe_name = os.path.basename(
-                name
-            )
-
-
-            path = os.path.join(
-
-                DOWNLOAD_DIR,
-
-                safe_name
-
-            )
-
-
-            # ------------------------------------------
-            # ファイル
-            # ------------------------------------------
-
-            if os.path.isfile(path):
-
-                try:
-
-                    os.remove(path)
-
-                    print(
-                        "ファイル削除:",
-                        path
-                    )
-
-                except Exception as e:
-
-                    print(
-                        "ファイル削除失敗:",
-                        path,
-                        repr(e)
-                    )
-
-
-            # ------------------------------------------
-            # フォルダ
-            # ------------------------------------------
-
-            elif os.path.isdir(path):
-
-                try:
-
-                    shutil.rmtree(path)
-
-                    print(
-                        "フォルダ削除:",
-                        path
-                    )
-
-                except Exception as e:
-
-                    print(
-                        "フォルダ削除失敗:",
-                        path,
-                        repr(e)
-                    )
-
-
-        return redirect(
-            "/files"
-        )
-
-
-    # ======================================================
-    # 古いtmpフォルダを完全削除
-    #
-    # /tmp/y2conv_downloads
-    # ======================================================
-
-    @app.route(
-        "/delete-tmp-downloads",
-        methods=["POST"]
-    )
-    def delete_tmp_downloads():
-
-
-        print(
-            "tmp/y2conv_downloads削除要求"
-        )
-
-
-        # ----------------------------------------------
-        # 存在確認
-        # ----------------------------------------------
-
-        if not os.path.exists(
-            TMP_DOWNLOAD_DIR
-        ):
-
-            print(
-                "tmpフォルダは存在しません"
-            )
-
-            return redirect(
-                "/files"
-            )
-
-
-        # ----------------------------------------------
-        # 完全削除
-        # ----------------------------------------------
-
-        try:
-
-            shutil.rmtree(
-                TMP_DOWNLOAD_DIR
-            )
-
-
-            print(
-                "tmpフォルダ完全削除:",
-                TMP_DOWNLOAD_DIR
-            )
-
-
-        except Exception as e:
-
-            print(
-                "tmpフォルダ削除失敗:",
-                repr(e)
-            )
-
-
-        return redirect(
-            "/files"
         )
