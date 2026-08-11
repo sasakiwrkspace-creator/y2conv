@@ -131,9 +131,11 @@ def prepare_cookie_file():
             + ORIGINAL_COOKIE_FILE
         )
 
+
     original_size = os.path.getsize(
         ORIGINAL_COOKIE_FILE
     )
+
 
     print("==========================================")
     print(
@@ -166,9 +168,11 @@ def prepare_cookie_file():
         delete=False
     )
 
+
     temp_cookie_file = (
         temp_file.name
     )
+
 
     temp_file.close()
 
@@ -339,24 +343,22 @@ def get_ydl_base_options():
         prepare_cookie_file()
     )
 
+
     return {
-        "cookiefile": cookie_file,
 
-        "noplaylist": True,
+        "cookiefile":
+        cookie_file,
 
-        "js_runtimes": {
-            "deno": {}
-        },
+        "noplaylist":
+        True
 
-        "remote_components": {
-            "ejs:github": {}
-        }
     }
 
 
 def diagnose_formats(url):
 
     temp_cookie = None
+
 
     try:
 
@@ -420,13 +422,8 @@ def diagnose_formats(url):
 
 
         print(
-            "EJS: ejs:github"
-        )
-
-
-        print(
             "JavaScript Runtime:",
-            DENO_PATH
+            "DenoはPATHから自動検出"
         )
 
 
@@ -521,6 +518,7 @@ def diagnose_formats(url):
                 "acodec"
             )
 
+
             vcodec = f.get(
                 "vcodec"
             )
@@ -565,6 +563,7 @@ def diagnose_formats(url):
 
         return info
 
+
     finally:
 
         remove_cookie_file(
@@ -578,6 +577,7 @@ def download_mp3(
 ):
 
     temp_cookie = None
+
 
     try:
 
@@ -707,6 +707,7 @@ def download_mp3(
 
         return mp3_file
 
+
     finally:
 
         remove_cookie_file(
@@ -720,6 +721,7 @@ def download_mp4(
 ):
 
     temp_cookie = None
+
 
     try:
 
@@ -828,6 +830,7 @@ def download_mp4(
 
 
         return mp4_file
+
 
     finally:
 
