@@ -10,7 +10,7 @@ import shutil
 
 
 # ==========================================================
-# ダウンロードディレクトリ
+# プロジェクトルート
 # ==========================================================
 
 BASE_DIR = os.path.dirname(
@@ -19,10 +19,25 @@ BASE_DIR = os.path.dirname(
     )
 )
 
+
+# ==========================================================
+# downloads
+# ==========================================================
+
 DOWNLOAD_DIR = os.path.join(
     BASE_DIR,
     "downloads"
 )
+
+
+# ==========================================================
+# 古いtmpフォルダ
+#
+# 以前使用していたフォルダ
+# /tmp/y2conv_downloads
+# ==========================================================
+
+TMP_DOWNLOAD_DIR = "/tmp/y2conv_downloads"
 
 
 # ==========================================================
@@ -76,7 +91,7 @@ def register_files(app):
 
 
                 # ------------------------------------------
-                # ファイル・フォルダ一覧
+                # downloads一覧
                 # ------------------------------------------
 
                 for name in sorted(
@@ -93,24 +108,103 @@ def register_files(app):
                     if os.path.isfile(path):
 
                         items.append({
+
                             "name": name,
+
                             "type": "file",
-                            "size": os.path.getsize(path)
+
+                            "size":
+                                os.path.getsize(path)
+
                         })
 
 
                     elif os.path.isdir(path):
 
                         items.append({
+
                             "name": name,
+
                             "type": "folder",
+
                             "size": None
+
                         })
 
 
+                # ------------------------------------------
+                # tmpフォルダの存在確認
+                # ------------------------------------------
+
+                tmp_exists = os.path.exists(
+                    TMP_DOWNLOAD_DIR
+                )
+
+
+                tmp_items = []
+
+
+                if tmp_exists:
+
+                    try:
+
+                        for name in sorted(
+                            os.listdir(
+                                TMP_DOWNLOAD_DIR
+                            )
+                        ):
+
+                            path = os.path.join(
+                                TMP_DOWNLOAD_DIR,
+                                name
+                            )
+
+
+                            if os.path.isfile(path):
+
+                                tmp_items.append({
+
+                                    "name": name,
+
+                                    "type": "file",
+
+                                    "size":
+                                        os.path.getsize(path)
+
+                                })
+
+
+                            elif os.path.isdir(path):
+
+                                tmp_items.append({
+
+                                    "name": name,
+
+                                    "type": "folder",
+
+                                    "size": None
+
+                                })
+
+
+                    except Exception as e:
+
+                        print(
+                            "tmpフォルダ一覧取得失敗:",
+                            repr(e)
+                        )
+
+
                 return render_template(
+
                     "files.html",
-                    items=items
+
+                    items=items,
+
+                    tmp_exists=tmp_exists,
+
+                    tmp_items=tmp_items
+
                 )
 
 
@@ -120,6 +214,7 @@ def register_files(app):
 
         return """
         <!DOCTYPE html>
+
         <html>
 
         <head>
@@ -180,13 +275,19 @@ def register_files(app):
 
 
         return send_from_directory(
+
             DOWNLOAD_DIR,
+
             filename,
+
             as_attachment=True
+
         )
 
 
     # ======================================================
+    # downloads
+    #
     # 選択したファイル・フォルダを削除
     # ======================================================
 
@@ -203,14 +304,10 @@ def register_files(app):
 
 
         print(
-            "削除対象:",
+            "downloads削除対象:",
             selected_items
         )
 
-
-        # ----------------------------------------------
-        # 選択なし
-        # ----------------------------------------------
 
         if not selected_items:
 
@@ -219,18 +316,11 @@ def register_files(app):
             )
 
 
-        # ----------------------------------------------
-        # downloads内だけを削除対象にする
-        # ----------------------------------------------
-
         for name in selected_items:
 
 
             # ------------------------------------------
             # セキュリティ対策
-            #
-            # ファイル名から ../ などで
-            # downloads外へ出ないようにする
             # ------------------------------------------
 
             safe_name = os.path.basename(
@@ -239,8 +329,11 @@ def register_files(app):
 
 
             path = os.path.join(
+
                 DOWNLOAD_DIR,
+
                 safe_name
+
             )
 
 
@@ -296,3 +389,67 @@ def register_files(app):
             "/files"
         )
 
+
+    # ======================================================
+    # 古いtmpフォルダを完全削除
+    #
+    # /tmp/y2conv_downloads
+    # ======================================================
+
+    @app.route(
+        "/delete-tmp-downloads",
+        methods=["POST"]
+    )
+    def delete_tmp_downloads():
+
+
+        print(
+            "tmp/y2conv_downloads削除要求"
+        )
+
+
+        # ----------------------------------------------
+        # 存在確認
+        # ----------------------------------------------
+
+        if not os.path.exists(
+            TMP_DOWNLOAD_DIR
+        ):
+
+            print(
+                "tmpフォルダは存在しません"
+            )
+
+            return redirect(
+                "/files"
+            )
+
+
+        # ----------------------------------------------
+        # 完全削除
+        # ----------------------------------------------
+
+        try:
+
+            shutil.rmtree(
+                TMP_DOWNLOAD_DIR
+            )
+
+
+            print(
+                "tmpフォルダ完全削除:",
+                TMP_DOWNLOAD_DIR
+            )
+
+
+        except Exception as e:
+
+            print(
+                "tmpフォルダ削除失敗:",
+                repr(e)
+            )
+
+
+        return redirect(
+            "/files"
+        )
