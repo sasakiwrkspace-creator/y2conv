@@ -57,7 +57,7 @@ def remove_cookie_file(cookie_file):
 if not cookie_file:
 return
 
-```
+
 try:
     if os.path.exists(cookie_file):
         os.remove(cookie_file)
@@ -72,14 +72,14 @@ except Exception as e:
         "一時Cookieファイル削除失敗:",
         repr(e)
     )
-```
+
 
 def prepare_cookie_file():
 print("==========================================")
 print("Cookie準備開始")
 print("==========================================")
 
-```
+
 if not os.path.exists(
     ORIGINAL_COOKIE_FILE
 ):
@@ -236,13 +236,13 @@ if youtube_cookie_count == 0:
     )
 
 return temp_cookie_file
-```
+
 
 def get_ydl_options(cookie_file):
 return {
 "cookiefile": cookie_file,
 
-```
+
     "noplaylist": True,
 
     "js_runtimes": {
@@ -261,14 +261,14 @@ return {
 
     "skip_download": True
 }
-```
+
 
 def diagnose_environment():
 print("==========================================")
 print("実行環境診断")
 print("==========================================")
 
-```
+
 print(
     "RENDER:",
     os.environ.get("RENDER")
@@ -390,12 +390,12 @@ print(
 )
 
 print("==========================================")
-```
+
 
 def get_youtube_info(url):
 temp_cookie = None
 
-```
+
 try:
     print("==========================================")
     print("YouTube情報取得開始")
@@ -471,11 +471,11 @@ finally:
     remove_cookie_file(
         temp_cookie
     )
-```
+
 
 def register_check(app):
 
-```
+
 @app.route(
     "/check",
     methods=["POST"]
