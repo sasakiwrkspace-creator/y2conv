@@ -264,13 +264,14 @@ def get_ydl_base_options():
         "cookiefile": cookie_file,
         "noplaylist": True,
         "js_runtimes": {
-            "deno": {}
+            "deno": {
+                "path": "/opt/render/project/src/.deno/bin/deno"
+            }
         },
         "remote_components": {
-            "ejs": "github"
+            "ejs:github"
         }
     }
-
 
 # ==========================================================
 # YouTube情報取得
