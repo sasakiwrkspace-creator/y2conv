@@ -110,7 +110,15 @@ style="display:inline;"
 
 {% endfor %}
 
-
+<form
+    method="post"
+    action="/tmp-cleanup"
+    onsubmit="return confirm('/tmp/y2conv_downloads を削除しますか？');"
+>
+    <button type="submit">
+        /tmp/y2conv_downloads を削除
+    </button>
+</form>
 
 </body>
 
