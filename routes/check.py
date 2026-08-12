@@ -333,15 +333,21 @@ def get_youtube_info(url):
         with yt_dlp.YoutubeDL(
             ydl_opts
         ) as ydl:
-
-            print(
-                "extract_info開始"
-            )
-
+        
+            print("==========================================")
+            print("extract_info開始")
+            print("==========================================")
+        
+            print(">>> extract_info 実行直前")
+        
             info = ydl.extract_info(
                 url,
                 download=False
             )
+        
+            print(">>> extract_info 実行完了")
+        
+        print(">>> YoutubeDL終了")
 
         if not info:
 
