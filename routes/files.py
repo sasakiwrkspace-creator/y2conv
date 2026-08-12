@@ -10,25 +10,9 @@ from flask import (
 import os
 import shutil
 
-
-# ==========================================================
-# プロジェクトルート
-# ==========================================================
-
-BASE_DIR = os.path.dirname(
-    os.path.dirname(
-        os.path.abspath(__file__)
-    )
-)
-
-
-# ==========================================================
-# downloads
-# ==========================================================
-
-DOWNLOAD_DIR = os.path.join(
+from paths import (
     BASE_DIR,
-    "downloads"
+    DOWNLOAD_DIR
 )
 
 
@@ -60,6 +44,7 @@ def safe_path(relative_path):
     """
 
     if not relative_path:
+
         return None
 
     relative_path = str(
@@ -134,9 +119,9 @@ def build_file_tree():
 
             return items
 
-        # ----------------------------------------------
+        # --------------------------------------------------
         # フォルダを先、ファイルを後
-        # ----------------------------------------------
+        # --------------------------------------------------
 
         names.sort(
             key=lambda name: (
@@ -175,19 +160,19 @@ def build_file_tree():
             item = {
 
                 "name":
-                name,
+                    name,
 
                 "path":
-                relative_file_path.replace(
-                    os.sep,
-                    "/"
-                ),
+                    relative_file_path.replace(
+                        os.sep,
+                        "/"
+                    ),
 
                 "is_dir":
-                is_dir,
+                    is_dir,
 
                 "depth":
-                depth
+                    depth
 
             }
 
@@ -195,9 +180,9 @@ def build_file_tree():
                 item
             )
 
-            # ------------------------------------------
+            # --------------------------------------------------
             # フォルダの場合は中身も取得
-            # ------------------------------------------
+            # --------------------------------------------------
 
             if is_dir:
 
@@ -238,6 +223,20 @@ def register_files(app):
             "FILES_SECRET_KEY",
             "y2conv-files-secret-key"
         )
+
+    # ======================================================
+    # パス確認
+    # ======================================================
+
+    print("==========================================")
+    print("files.py PATH設定")
+    print("BASE_DIR:", BASE_DIR)
+    print("DOWNLOAD_DIR:", DOWNLOAD_DIR)
+    print(
+        "DOWNLOAD_DIR exists:",
+        os.path.isdir(DOWNLOAD_DIR)
+    )
+    print("==========================================")
 
     # ======================================================
     # /files
@@ -489,6 +488,23 @@ def register_files(app):
     )
     def download_file(filename):
 
+        # ----------------------------------------------
+        # files画面と同じ簡易認証
+        # ----------------------------------------------
+
+        if not session.get(
+            FILES_SESSION_KEY,
+            False
+        ):
+
+            return redirect(
+                "/files"
+            )
+
+        # ----------------------------------------------
+        # downloadsからのみ取得
+        # ----------------------------------------------
+
         return send_from_directory(
             DOWNLOAD_DIR,
             filename,
@@ -536,6 +552,33 @@ def register_files(app):
             abort(403)
 
         # ----------------------------------------------
+        # DOWNLOAD_DIRより外に出ていないか確認
+        # ----------------------------------------------
+
+        try:
+
+            common_path = os.path.commonpath(
+                [
+                    os.path.abspath(
+                        DOWNLOAD_DIR
+                    ),
+                    os.path.abspath(
+                        filepath
+                    )
+                ]
+            )
+
+        except ValueError:
+
+            abort(403)
+
+        if common_path != os.path.abspath(
+            DOWNLOAD_DIR
+        ):
+
+            abort(403)
+
+        # ----------------------------------------------
         # ファイルのみ削除
         # ----------------------------------------------
 
@@ -559,4 +602,3 @@ def register_files(app):
         return redirect(
             "/files"
         )
-
