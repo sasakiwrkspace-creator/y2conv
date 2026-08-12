@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask
 
 from routes.index import register_index
@@ -8,9 +10,44 @@ from routes.download import register_download
 from routes.gemini import register_gemini
 from routes.files import register_files
 
+
 app = Flask(__name__)
 
 app.secret_key = "y2conv-secret-key"
+
+
+# =====================================
+# downloadsフォルダ
+# =====================================
+
+BASE_DIR = os.path.dirname(
+    os.path.abspath(__file__)
+)
+
+DOWNLOAD_FOLDER = os.path.join(
+    BASE_DIR,
+    "downloads"
+)
+
+os.makedirs(
+    DOWNLOAD_FOLDER,
+    exist_ok=True
+)
+
+
+print("================================")
+print("DOWNLOAD FOLDER")
+print(DOWNLOAD_FOLDER)
+print(
+    "exists:",
+    os.path.isdir(DOWNLOAD_FOLDER)
+)
+print("================================")
+
+
+# =====================================
+# Routes
+# =====================================
 
 register_index(app)
 register_check(app)
@@ -19,6 +56,11 @@ register_status(app)
 register_download(app)
 register_gemini(app)
 register_files(app)
+
+
+# =====================================
+# 起動
+# =====================================
 
 if __name__ == "__main__":
 
@@ -30,5 +72,3 @@ if __name__ == "__main__":
         debug=False,
         use_reloader=False,
     )
-
-
