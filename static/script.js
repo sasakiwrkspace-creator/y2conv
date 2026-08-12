@@ -53,6 +53,17 @@ document.addEventListener(
 
 
         // =================================
+        // MP3作成時の時間を保存
+        //
+        // Gemini実行時に現在の時間と比較する
+        // =================================
+
+        let originalStartTime = "";
+
+        let originalEndTime = "";
+
+
+        // =================================
         // 時間入力
         //
         // 数字0～9だけ
@@ -86,7 +97,9 @@ document.addEventListener(
 
                     // 最大2桁
 
-                    if(this.value.length > 2){
+                    if(
+                        this.value.length > 2
+                    ){
 
                         this.value =
                             this.value.substring(
@@ -214,7 +227,8 @@ document.addEventListener(
                     Number(startMinute.value) > 59
                 ){
 
-                    startMinute.value = "59";
+                    startMinute.value =
+                        "59";
 
                 }
 
@@ -228,7 +242,8 @@ document.addEventListener(
                     Number(startSecond.value) > 59
                 ){
 
-                    startSecond.value = "59";
+                    startSecond.value =
+                        "59";
 
                 }
 
@@ -242,7 +257,8 @@ document.addEventListener(
                     Number(endMinute.value) > 59
                 ){
 
-                    endMinute.value = "59";
+                    endMinute.value =
+                        "59";
 
                 }
 
@@ -256,7 +272,8 @@ document.addEventListener(
                     Number(endSecond.value) > 59
                 ){
 
-                    endSecond.value = "59";
+                    endSecond.value =
+                        "59";
 
                 }
 
@@ -309,42 +326,54 @@ document.addEventListener(
             const sh =
                 startHour &&
                 startHour.value !== ""
-                    ? Number(startHour.value)
+                    ? Number(
+                        startHour.value
+                    )
                     : 0;
 
 
             const sm =
                 startMinute &&
                 startMinute.value !== ""
-                    ? Number(startMinute.value)
+                    ? Number(
+                        startMinute.value
+                    )
                     : 0;
 
 
             const ss =
                 startSecond &&
                 startSecond.value !== ""
-                    ? Number(startSecond.value)
+                    ? Number(
+                        startSecond.value
+                    )
                     : 0;
 
 
             const eh =
                 endHour &&
                 endHour.value !== ""
-                    ? Number(endHour.value)
+                    ? Number(
+                        endHour.value
+                    )
                     : 0;
 
 
             const em =
                 endMinute &&
                 endMinute.value !== ""
-                    ? Number(endMinute.value)
+                    ? Number(
+                        endMinute.value
+                    )
                     : 0;
 
 
             const es =
                 endSecond &&
                 endSecond.value !== ""
-                    ? Number(endSecond.value)
+                    ? Number(
+                        endSecond.value
+                    )
                     : 0;
 
 
@@ -563,9 +592,6 @@ document.addEventListener(
 
             // =================================
             // 左側だけ入力
-            //
-            // これは開始時間だけでは
-            // 終了時間が分からないためエラー
             // =================================
 
             if(
@@ -608,6 +634,19 @@ document.addEventListener(
                     values.endText
 
             };
+
+        }
+
+
+        // =================================
+        // 現在の時間を取得
+        //
+        // Gemini実行時に使用
+        // =================================
+
+        function getCurrentTimeRange(){
+
+            return getTimeRange();
 
         }
 
@@ -796,8 +835,6 @@ document.addEventListener(
 
                 // =================================
                 // /convert
-                //
-                // MP3のみ
                 // =================================
 
                 const response =
@@ -916,6 +953,33 @@ document.addEventListener(
 
                     currentJobId =
                         data.job_id;
+
+
+                    // =================================
+                    // 重要
+                    //
+                    // MP3作成時の時間を保存
+                    //
+                    // この値はGemini実行時に
+                    // 現在の時間と比較する
+                    // =================================
+
+                    originalStartTime =
+                        timeRange.startTime;
+
+                    originalEndTime =
+                        timeRange.endTime;
+
+
+                    console.log(
+                        "MP3作成時 開始:",
+                        originalStartTime
+                    );
+
+                    console.log(
+                        "MP3作成時 終了:",
+                        originalEndTime
+                    );
 
 
                     console.log(
@@ -1294,8 +1358,7 @@ document.addEventListener(
             // =================================
             // 表示
             //
-            // 初期状態では
-            // Gemini部分は非表示
+            // Gemini部分は初期状態非表示
             // =================================
 
             if(downloadArea){
@@ -1355,8 +1418,6 @@ document.addEventListener(
 
             if(srtArea){
 
-                // 初期状態は非表示
-
                 srtArea.style.display =
                     "none";
 
@@ -1391,10 +1452,6 @@ document.addEventListener(
                             "none"
                         ){
 
-                            // =============================
-                            // Gemini部分を表示
-                            // =============================
-
                             srtArea.style.display =
                                 "block";
 
@@ -1404,10 +1461,6 @@ document.addEventListener(
 
                         }
                         else{
-
-                            // =============================
-                            // Gemini部分を非表示
-                            // =============================
 
                             srtArea.style.display =
                                 "none";
@@ -1465,6 +1518,68 @@ document.addEventListener(
                     }
 
 
+                    // =================================
+                    // Gemini実行時の現在時間を取得
+                    // =================================
+
+                    let currentTimeRange;
+
+
+                    try{
+
+                        currentTimeRange =
+                            getCurrentTimeRange();
+
+                    }
+                    catch(error){
+
+                        alert(
+                            error.message
+                        );
+
+                        return;
+
+                    }
+
+
+                    console.log(
+                        "================================"
+                    );
+
+                    console.log(
+                        "Gemini文字起こし開始"
+                    );
+
+                    console.log(
+                        "MP3:",
+                        file
+                    );
+
+                    console.log(
+                        "MP3作成時 開始:",
+                        originalStartTime
+                    );
+
+                    console.log(
+                        "MP3作成時 終了:",
+                        originalEndTime
+                    );
+
+                    console.log(
+                        "Gemini実行時 開始:",
+                        currentTimeRange.startTime
+                    );
+
+                    console.log(
+                        "Gemini実行時 終了:",
+                        currentTimeRange.endTime
+                    );
+
+                    console.log(
+                        "================================"
+                    );
+
+
                     const result =
                         document.getElementById(
                             "gemini-result"
@@ -1520,23 +1635,9 @@ document.addEventListener(
 
                     try{
 
-                        console.log(
-                            "================================"
-                        );
-
-                        console.log(
-                            "Gemini文字起こし開始"
-                        );
-
-                        console.log(
-                            "MP3:",
-                            file
-                        );
-
-                        console.log(
-                            "================================"
-                        );
-
+                        // =================================
+                        // Gemini APIへ送信
+                        // =================================
 
                         const response =
                             await fetch(
@@ -1555,7 +1656,21 @@ document.addEventListener(
                                     JSON.stringify({
 
                                         file:
-                                            file
+                                            file,
+
+                                        // MP3作成時
+                                        original_start_time:
+                                            originalStartTime,
+
+                                        original_end_time:
+                                            originalEndTime,
+
+                                        // Gemini実行時
+                                        start_time:
+                                            currentTimeRange.startTime,
+
+                                        end_time:
+                                            currentTimeRange.endTime
 
                                     })
 
@@ -1704,6 +1819,18 @@ document.addEventListener(
                                 "Gemini文字起こし完了"
                             );
 
+
+                            console.log(
+                                "Gemini使用MP3:",
+                                data.mp3_file
+                            );
+
+
+                            console.log(
+                                "時間変更:",
+                                data.time_changed
+                            );
+
                         }
                         else{
 
@@ -1764,4 +1891,5 @@ document.addEventListener(
         }
 
     }
+
 );
