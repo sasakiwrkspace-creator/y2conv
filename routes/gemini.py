@@ -23,10 +23,10 @@ if not GEMINI_API_KEY:
     )
 
 
-print(
-    "GEMINI KEY:",
-    GEMINI_API_KEY[:10]
-)
+# print(
+#     "GEMINI KEY:",
+#     GEMINI_API_KEY[:10]
+# )
 
 
 client = genai.Client(
