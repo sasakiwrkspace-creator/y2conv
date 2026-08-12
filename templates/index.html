@@ -3,335 +3,574 @@
 
 <head>
 
-<meta charset="UTF-8">
+    <meta charset="UTF-8">
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-<title>y2conv - YouTube Converter</title>
+    <title>YouTube Converter</title>
 
-<link rel="stylesheet" href="/static/style.css">
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 30px 15px;
+            background: #f5f5f5;
+            color: #222;
+            font-family:
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            margin: 0 0 25px 0;
+            font-size: 28px;
+        }
+
+        /* =========================================
+           URL
+        ========================================= */
+
+        .url-row {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .url-input {
+            flex: 1;
+            min-width: 0;
+
+            height: 46px;
+
+            padding: 0 14px;
+
+            border: 1px solid #ccc;
+            border-radius: 6px;
+
+            background: white;
+
+            font-size: 16px;
+        }
+
+        .execute-button {
+            width: 90px;
+            height: 46px;
+
+            border: none;
+            border-radius: 6px;
+
+            background: #1976d2;
+            color: white;
+
+            font-size: 16px;
+            font-weight: bold;
+
+            cursor: pointer;
+        }
+
+        .execute-button:hover {
+            background: #1565c0;
+        }
+
+        .execute-button:disabled {
+            background: #999;
+            cursor: not-allowed;
+        }
+
+        /* =========================================
+           時間入力
+        ========================================= */
+
+        .time-row {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+
+            margin-top: 18px;
+
+            white-space: nowrap;
+        }
+
+        .time-group {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .time-input {
+            width: 42px;
+            height: 40px;
+
+            padding: 0;
+
+            border: 1px solid #ccc;
+            border-radius: 5px;
+
+            background: white;
+
+            text-align: center;
+
+            font-size: 16px;
+        }
+
+        .time-input:focus {
+            outline: none;
+            border-color: #1976d2;
+        }
+
+        .time-label {
+            font-size: 14px;
+            margin-right: 3px;
+        }
+
+        .time-separator {
+            margin: 0 8px;
+
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        /* =========================================
+           ステータス
+        ========================================= */
+
+        .status {
+            margin-top: 18px;
+
+            padding: 12px 14px;
+
+            border-radius: 6px;
+
+            background: #eeeeee;
+
+            display: none;
+
+            white-space: pre-wrap;
+        }
+
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .status.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        /* =========================================
+           MP3 / Gemini エリア
+        ========================================= */
+
+        #result-area {
+            display: none;
+
+            margin-top: 22px;
+        }
+
+        .download-row {
+            display: flex;
+
+            width: 100%;
+        }
+
+        .mp3-download-button {
+            flex: 1;
+
+            height: 48px;
+
+            border: none;
+            border-radius: 6px 0 0 6px;
+
+            background: #2e7d32;
+            color: white;
+
+            font-size: 16px;
+            font-weight: bold;
+
+            cursor: pointer;
+        }
+
+        .mp3-download-button:hover {
+            background: #256628;
+        }
+
+        .toggle-button {
+            width: 55px;
+
+            height: 48px;
+
+            border: none;
+            border-left: 1px solid rgba(255,255,255,0.35);
+
+            border-radius: 0 6px 6px 0;
+
+            background: #2e7d32;
+            color: white;
+
+            font-size: 20px;
+            font-weight: bold;
+
+            cursor: pointer;
+        }
+
+        .toggle-button:hover {
+            background: #256628;
+        }
+
+        /* =========================================
+           Gemini
+        ========================================= */
+
+        #gemini-area {
+            display: none;
+
+            margin-top: 10px;
+
+            padding: 15px;
+
+            border: 1px solid #ddd;
+            border-radius: 6px;
+
+            background: white;
+        }
+
+        .gemini-button {
+            width: 100%;
+            height: 46px;
+
+            border: none;
+            border-radius: 6px;
+
+            background: #7b1fa2;
+            color: white;
+
+            font-size: 16px;
+            font-weight: bold;
+
+            cursor: pointer;
+        }
+
+        .gemini-button:hover {
+            background: #6a1b9a;
+        }
+
+        .gemini-button:disabled {
+            background: #999;
+            cursor: not-allowed;
+        }
+
+        /* =========================================
+           SRT
+        ========================================= */
+
+        #srt-area {
+            display: none;
+
+            margin-top: 12px;
+        }
+
+        .srt-download-button {
+            width: 100%;
+            height: 46px;
+
+            border: none;
+            border-radius: 6px;
+
+            background: #ef6c00;
+            color: white;
+
+            font-size: 16px;
+            font-weight: bold;
+
+            cursor: pointer;
+        }
+
+        .srt-download-button:hover {
+            background: #e65100;
+        }
+
+        /* =========================================
+           レスポンシブ
+        ========================================= */
+
+        @media (max-width: 600px) {
+
+            body {
+                padding: 20px 10px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .url-row {
+                gap: 6px;
+            }
+
+            .execute-button {
+                width: 75px;
+            }
+
+            .time-row {
+                gap: 3px;
+            }
+
+            .time-separator {
+                margin: 0 3px;
+            }
+
+            .time-input {
+                width: 36px;
+            }
+
+            .time-label {
+                font-size: 12px;
+            }
+
+        }
+
+    </style>
 
 </head>
 
 
 <body>
 
+<div class="container">
 
-<header>
-
-<h1>Youtube変換</h1>
-
-<p>
-<a href="/files" class="converter-link">
-YouTube Converter
-</a>
-</p>
-
-</header>
+    <h1>YouTube Converter</h1>
 
 
+    <!-- =========================================
+         URL + 実行
+    ========================================== -->
 
-<main>
+    <div class="url-row">
 
+        <input
+            id="youtube-url"
+            class="url-input"
+            type="url"
+            placeholder="YouTube URL"
+            autocomplete="off"
+        >
 
-<section class="card">
+        <button
+            id="execute-button"
+            class="execute-button"
+            type="button"
+        >
+            実行
+        </button>
 
-
-<h2>動画変換</h2>
-
-
-
-<!-- =========================
-     YouTube URL
-========================= -->
-
-
-<label class="normal-label">
-YouTube URL
-</label>
-
-
-
-<div class="url-area">
-
-
-<input
-id="youtube-url"
-type="text"
-placeholder="https://www.youtube.com/watch?v=..."
-value="https://www.youtube.com/watch?v=Wb11ihveUCk"
->
+    </div>
 
 
+    <!-- =========================================
+         時間指定
+    ========================================== -->
 
-<button
-type="button"
-class="check-button"
-id="check-button"
->
-確認
-</button>
+    <div class="time-row">
 
+        <!-- 開始 -->
+
+        <div class="time-group">
+
+            <input
+                id="start-hour"
+                class="time-input"
+                type="text"
+                inputmode="numeric"
+                maxlength="2"
+                pattern="[0-9]*"
+                aria-label="開始 時"
+            >
+
+            <span class="time-label">時</span>
+
+
+            <input
+                id="start-minute"
+                class="time-input"
+                type="text"
+                inputmode="numeric"
+                maxlength="2"
+                pattern="[0-9]*"
+                aria-label="開始 分"
+            >
+
+            <span class="time-label">分</span>
+
+
+            <input
+                id="start-second"
+                class="time-input"
+                type="text"
+                inputmode="numeric"
+                maxlength="2"
+                pattern="[0-9]*"
+                aria-label="開始 秒"
+            >
+
+            <span class="time-label">秒</span>
+
+        </div>
+
+
+        <span class="time-separator">～</span>
+
+
+        <!-- 終了 -->
+
+        <div class="time-group">
+
+            <input
+                id="end-hour"
+                class="time-input"
+                type="text"
+                inputmode="numeric"
+                maxlength="2"
+                pattern="[0-9]*"
+                aria-label="終了 時"
+            >
+
+            <span class="time-label">時</span>
+
+
+            <input
+                id="end-minute"
+                class="time-input"
+                type="text"
+                inputmode="numeric"
+                maxlength="2"
+                pattern="[0-9]*"
+                aria-label="終了 分"
+            >
+
+            <span class="time-label">分</span>
+
+
+            <input
+                id="end-second"
+                class="time-input"
+                type="text"
+                inputmode="numeric"
+                maxlength="2"
+                pattern="[0-9]*"
+                aria-label="終了 秒"
+            >
+
+            <span class="time-label">秒</span>
+
+        </div>
+
+    </div>
+
+
+    <!-- =========================================
+         ステータス
+    ========================================== -->
+
+    <div
+        id="status"
+        class="status"
+    ></div>
+
+
+    <!-- =========================================
+         実行後に表示
+    ========================================== -->
+
+    <div id="result-area">
+
+
+        <!-- =====================================
+             MP3ダウンロード + 開閉
+        ====================================== -->
+
+        <div class="download-row">
+
+            <button
+                id="mp3-download-button"
+                class="mp3-download-button"
+                type="button"
+            >
+                MP3のダウンロード
+            </button>
+
+
+            <button
+                id="toggle-button"
+                class="toggle-button"
+                type="button"
+                aria-label="Gemini文字変換を表示"
+            >
+                ▲
+            </button>
+
+        </div>
+
+
+        <!-- =====================================
+             Gemini
+        ====================================== -->
+
+        <div id="gemini-area">
+
+            <button
+                id="gemini-button"
+                class="gemini-button"
+                type="button"
+            >
+                Geminiで文字変換
+            </button>
+
+
+            <!-- =================================
+                 SRT
+            ================================== -->
+
+            <div id="srt-area">
+
+                <button
+                    id="srt-download-button"
+                    class="srt-download-button"
+                    type="button"
+                >
+                    SRTのダウンロード
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
 
 </div>
 
 
-
-
-<div
-id="error-message"
-class="error-message"
-style="display:none;"
->
-</div>
-
-
-
-
-
-<!-- =========================
-     変換設定
-========================= -->
-
-
-<div
-id="convert-area"
-style="display:none;"
->
-
-
-
-<!-- タイトル -->
-
-<input
-id="filename"
-class="filename-display"
-type="text"
-readonly
->
-
-
-
-
-
-<!-- 作成ファイル -->
-
-
-<div class="output-option">
-
-
-<label>
-
-<input
-type="checkbox"
-name="output"
-value="mp3"
-id="mp3-check"
-checked
->
-
-mp3（音声）
-
-</label>
-
-
-
-<label>
-
-<input
-type="checkbox"
-name="output"
-value="mp4"
-id="mp4-check"
->
-
-mp4（動画）
-
-</label>
-
-
-</div>
-
-
-
-
-
-
-<!-- 時間指定 -->
-
-
-<div class="convert-option">
-
-
-<label>
-開始時間
-</label>
-
-
-
-<input
-id="start-time"
-type="text"
-value="0:00"
->
-
-
-
-<span class="symbol">
-～
-</span>
-
-
-
-
-<label>
-終了時間
-</label>
-
-
-
-<input
-id="end-time"
-type="text"
-placeholder="終了時間"
->
-
-
-</div>
-
-
-
-
-
-
-<div
-id="convert-error"
-class="error-message"
-style="display:none;"
->
-</div>
-
-
-
-
-
-<!-- =========================
-     変換開始
-========================= -->
-
-
-<button
-id="convertBtn"
-class="convert-button"
-type="button"
->
-変換開始
-</button>
-
-
-
-
-<div id="convertStatus"></div>
-
-
-
-
-
-
-<!-- =========================
-     ダウンロード表示
-========================= -->
-
-
-<div id="downloadArea"></div>
-
-
-
-
-
-
-<!-- =========================
-     Gemini SRT作成
-========================= -->
-
-<div
-id="srtArea"
-class="gemini-test-area"
-style="display:none;"
->
-
-
-<div
-id="srt-content"
-style="display:none;"
->
-
-
-<div class="url-area">
-
-
-<input
-id="gemini-file"
-type="text"
-readonly
->
-
-
-<button
-type="button"
-class="check-button"
-id="gemini-button"
->
-文字ファイル
-</button>
-
-
-</div>
-
-
-<div
-id="gemini-result"
-class="gemini-result"
->
-</div>
-
-
-</div>
-
-
-</div>
-
-
-</div>
-
-
-</section>
-
-
-</main>
-
-
-
-
-
-
-<footer>
-
-© 2026 y2conv
-
-</footer>
-
-
-
-
-
-<script src="/static/script.js"></script>
+<!-- =========================================
+     converter.js
+========================================== -->
 
 <script src="/static/converter.js"></script>
 
-
-
 </body>
-
 
 </html>
