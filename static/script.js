@@ -6,6 +6,19 @@ document.addEventListener(
     "DOMContentLoaded",
     function(){
 
+        console.log(
+            "================================"
+        );
+
+        console.log(
+            "YouTube Converter JavaScript 起動"
+        );
+
+        console.log(
+            "================================"
+        );
+
+
         // =================================
         // DOM
         // =================================
@@ -25,15 +38,25 @@ document.addEventListener(
                 "downloadArea"
             );
 
-        const startTimeElement =
-            document.getElementById(
-                "start-time"
-            );
 
-        const endTimeElement =
-            document.getElementById(
-                "end-time"
-            );
+        // =================================
+        // DOM確認
+        // =================================
+
+        console.log(
+            "youtube-url:",
+            urlInput
+        );
+
+        console.log(
+            "convertBtn:",
+            convertButton
+        );
+
+        console.log(
+            "downloadArea:",
+            downloadArea
+        );
 
 
         // =================================
@@ -44,7 +67,7 @@ document.addEventListener(
 
 
         // =================================
-        // 変換タイマー
+        // MP3変換タイマー
         // =================================
 
         let convertSeconds = 0;
@@ -53,9 +76,9 @@ document.addEventListener(
 
 
         // =================================
-        // MP3作成時の時間を保存
+        // Gemini用
         //
-        // Gemini実行時に現在の時間と比較する
+        // MP3作成時の時間を保存
         // =================================
 
         let originalStartTime = "";
@@ -64,12 +87,90 @@ document.addEventListener(
 
 
         // =================================
-        // 時間入力
-        //
-        // 数字0～9だけ
+        // 画面上の処理状況表示
         // =================================
 
-        function setupTimeInput(element){
+        let convertStatus = null;
+
+
+        function createConvertStatus(){
+
+            if(convertStatus){
+
+                return;
+
+            }
+
+
+            convertStatus =
+                document.createElement(
+                    "div"
+                );
+
+
+            convertStatus.id =
+                "convert-status";
+
+
+            convertStatus.style.marginTop =
+                "10px";
+
+
+            convertStatus.style.padding =
+                "8px";
+
+
+            convertStatus.style.fontSize =
+                "14px";
+
+
+            convertStatus.style.color =
+                "#555";
+
+
+            if(convertButton){
+
+                convertButton.parentNode
+                    .insertBefore(
+                        convertStatus,
+                        convertButton.nextSibling
+                    );
+
+            }
+
+        }
+
+
+        function setConvertStatus(
+            message
+        ){
+
+            createConvertStatus();
+
+
+            if(convertStatus){
+
+                convertStatus.textContent =
+                    message;
+
+            }
+
+
+            console.log(
+                "[STATUS]",
+                message
+            );
+
+        }
+
+
+        // =================================
+        // 時間入力
+        // =================================
+
+        function setupTimeInput(
+            element
+        ){
 
             if(!element){
 
@@ -78,15 +179,9 @@ document.addEventListener(
             }
 
 
-            // ---------------------------------
-            // 入力時
-            // ---------------------------------
-
             element.addEventListener(
                 "input",
                 function(){
-
-                    // 数字以外を削除
 
                     this.value =
                         this.value.replace(
@@ -94,8 +189,6 @@ document.addEventListener(
                             ""
                         );
 
-
-                    // 最大2桁
 
                     if(
                         this.value.length > 2
@@ -112,10 +205,6 @@ document.addEventListener(
                 }
             );
 
-
-            // ---------------------------------
-            // ペースト対策
-            // ---------------------------------
 
             element.addEventListener(
                 "paste",
@@ -190,11 +279,7 @@ document.addEventListener(
 
 
         // =================================
-        // 数字入力欄の最大値
-        //
-        // 時   0～99
-        // 分   0～59
-        // 秒   0～59
+        // 時間入力値を正規化
         // =================================
 
         function normalizeTimeInputs(){
@@ -220,62 +305,50 @@ document.addEventListener(
                 );
 
 
-            if(startMinute){
+            if(
+                startMinute &&
+                startMinute.value !== "" &&
+                Number(startMinute.value) > 59
+            ){
 
-                if(
-                    startMinute.value !== "" &&
-                    Number(startMinute.value) > 59
-                ){
-
-                    startMinute.value =
-                        "59";
-
-                }
+                startMinute.value =
+                    "59";
 
             }
 
 
-            if(startSecond){
+            if(
+                startSecond &&
+                startSecond.value !== "" &&
+                Number(startSecond.value) > 59
+            ){
 
-                if(
-                    startSecond.value !== "" &&
-                    Number(startSecond.value) > 59
-                ){
-
-                    startSecond.value =
-                        "59";
-
-                }
+                startSecond.value =
+                    "59";
 
             }
 
 
-            if(endMinute){
+            if(
+                endMinute &&
+                endMinute.value !== "" &&
+                Number(endMinute.value) > 59
+            ){
 
-                if(
-                    endMinute.value !== "" &&
-                    Number(endMinute.value) > 59
-                ){
-
-                    endMinute.value =
-                        "59";
-
-                }
+                endMinute.value =
+                    "59";
 
             }
 
 
-            if(endSecond){
+            if(
+                endSecond &&
+                endSecond.value !== "" &&
+                Number(endSecond.value) > 59
+            ){
 
-                if(
-                    endSecond.value !== "" &&
-                    Number(endSecond.value) > 59
-                ){
-
-                    endSecond.value =
-                        "59";
-
-                }
+                endSecond.value =
+                    "59";
 
             }
 
@@ -283,7 +356,7 @@ document.addEventListener(
 
 
         // =================================
-        // 時間を秒へ変換
+        // 時間取得
         // =================================
 
         function getTimeValues(){
@@ -459,7 +532,7 @@ document.addEventListener(
 
 
         // =================================
-        // 時間指定の確認
+        // 時間範囲
         // =================================
 
         function getTimeRange(){
@@ -531,7 +604,7 @@ document.addEventListener(
 
 
             // =================================
-            // 何も入力なし
+            // 時間指定なし
             // =================================
 
             if(
@@ -555,24 +628,29 @@ document.addEventListener(
             }
 
 
-            // =================================
-            // 時間取得
-            // =================================
-
             const values =
                 getTimeValues();
 
 
             // =================================
-            // 右側だけ入力
-            //
-            // 00:00:00 ～ 入力時間
+            // 終了時間だけ
             // =================================
 
             if(
                 !hasStart &&
                 hasEnd
             ){
+
+                if(
+                    values.endTotal <= 0
+                ){
+
+                    throw new Error(
+                        "終了時間を入力してください"
+                    );
+
+                }
+
 
                 return {
 
@@ -591,7 +669,7 @@ document.addEventListener(
 
 
             // =================================
-            // 左側だけ入力
+            // 開始時間だけ
             // =================================
 
             if(
@@ -607,7 +685,7 @@ document.addEventListener(
 
 
             // =================================
-            // 両方入力
+            // 開始 >= 終了
             // =================================
 
             if(
@@ -639,19 +717,6 @@ document.addEventListener(
 
 
         // =================================
-        // 現在の時間を取得
-        //
-        // Gemini実行時に使用
-        // =================================
-
-        function getCurrentTimeRange(){
-
-            return getTimeRange();
-
-        }
-
-
-        // =================================
         // URL Enter
         // =================================
 
@@ -666,6 +731,10 @@ document.addEventListener(
                     ){
 
                         event.preventDefault();
+
+                        console.log(
+                            "URL Enter検知"
+                        );
 
                         startConvert();
 
@@ -685,22 +754,59 @@ document.addEventListener(
 
             convertButton.addEventListener(
                 "click",
-                startConvert
+                function(event){
+
+                    event.preventDefault();
+
+                    console.log(
+                        "================================"
+                    );
+
+                    console.log(
+                        "実行ボタン CLICK"
+                    );
+
+                    console.log(
+                        "================================"
+                    );
+
+
+                    startConvert();
+
+                }
+            );
+
+        }
+        else{
+
+            console.error(
+                "convertBtn が見つかりません"
             );
 
         }
 
 
         // =================================
-        // MP3作成開始
+        // MP3変換開始
         // =================================
 
         async function startConvert(){
+
+            console.log(
+                "startConvert() 開始"
+            );
+
 
             const url =
                 urlInput
                 ? urlInput.value.trim()
                 : "";
+
+
+            console.log(
+                "入力URL:",
+                url
+            );
 
 
             if(!url){
@@ -738,20 +844,33 @@ document.addEventListener(
             }
 
 
+            console.log(
+                "時間範囲:",
+                timeRange
+            );
+
+
             // =================================
             // ボタン
             // =================================
 
-            convertButton.disabled =
-                true;
+            if(convertButton){
 
+                convertButton.disabled =
+                    true;
+
+                convertButton.textContent =
+                    "実行中 0秒";
+
+            }
+
+
+            // =================================
+            // タイマー開始
+            // =================================
 
             convertSeconds =
                 0;
-
-
-            convertButton.textContent =
-                "実行中 0秒";
 
 
             if(convertTimer){
@@ -770,20 +889,39 @@ document.addEventListener(
                         convertSeconds++;
 
 
-                        convertButton.textContent =
-                            "実行中 "
+                        if(convertButton){
+
+                            convertButton.textContent =
+                                "実行中 "
+                                +
+                                convertSeconds
+                                +
+                                "秒";
+
+                        }
+
+
+                        setConvertStatus(
+                            "MP3変換中... "
                             +
                             convertSeconds
                             +
-                            "秒";
+                            "秒"
+                        );
+
 
                     },
                     1000
                 );
 
 
+            setConvertStatus(
+                "MP3変換を開始しています... 0秒"
+            );
+
+
             // =================================
-            // 前回表示を削除
+            // 前回表示削除
             // =================================
 
             if(downloadArea){
@@ -833,6 +971,11 @@ document.addEventListener(
                 );
 
 
+                setConvertStatus(
+                    "MP3変換リクエスト送信中..."
+                );
+
+
                 // =================================
                 // /convert
                 // =================================
@@ -847,30 +990,36 @@ document.addEventListener(
 
                             headers:{
                                 "Content-Type":
-                                "application/json"
+                                    "application/json"
                             },
 
                             body:
-                            JSON.stringify({
+                                JSON.stringify({
 
-                                url:
-                                    url,
+                                    url:
+                                        url,
 
-                                outputs:
-                                    [
-                                        "mp3"
-                                    ],
+                                    outputs:
+                                        [
+                                            "mp3"
+                                        ],
 
-                                start_time:
-                                    timeRange.startTime,
+                                    start_time:
+                                        timeRange.startTime,
 
-                                end_time:
-                                    timeRange.endTime
+                                    end_time:
+                                        timeRange.endTime
 
-                            })
+                                })
 
                         }
                     );
+
+
+                console.log(
+                    "/convert response:",
+                    response.status
+                );
 
 
                 // =================================
@@ -899,12 +1048,23 @@ document.addEventListener(
                 }
 
 
+                setConvertStatus(
+                    "MP3変換ジョブを確認しています..."
+                );
+
+
                 // =================================
                 // JSON
                 // =================================
 
                 const text =
                     await response.text();
+
+
+                console.log(
+                    "/convert response text:",
+                    text
+                );
 
 
                 if(!text){
@@ -932,6 +1092,7 @@ document.addEventListener(
                         error
                     );
 
+
                     console.error(
                         "レスポンス:",
                         text
@@ -945,6 +1106,12 @@ document.addEventListener(
                 }
 
 
+                console.log(
+                    "/convert JSON:",
+                    data
+                );
+
+
                 // =================================
                 // Job開始
                 // =================================
@@ -955,13 +1122,17 @@ document.addEventListener(
                         data.job_id;
 
 
+                    if(!currentJobId){
+
+                        throw new Error(
+                            "JOB IDが返されませんでした"
+                        );
+
+                    }
+
+
                     // =================================
-                    // 重要
-                    //
                     // MP3作成時の時間を保存
-                    //
-                    // この値はGemini実行時に
-                    // 現在の時間と比較する
                     // =================================
 
                     originalStartTime =
@@ -988,6 +1159,19 @@ document.addEventListener(
                     );
 
 
+                    setConvertStatus(
+                        "MP3変換中... JOB: "
+                        +
+                        currentJobId
+                        +
+                        " / "
+                        +
+                        convertSeconds
+                        +
+                        "秒"
+                    );
+
+
                     checkStatus();
 
                 }
@@ -1006,12 +1190,20 @@ document.addEventListener(
                 stopConvertTimer();
 
 
-                convertButton.disabled =
-                    false;
+                if(convertButton){
+
+                    convertButton.disabled =
+                        false;
+
+                    convertButton.textContent =
+                        "実行";
+
+                }
 
 
-                convertButton.textContent =
-                    "実行";
+                setConvertStatus(
+                    "MP3変換エラー"
+                );
 
 
                 console.error(
@@ -1066,6 +1258,12 @@ document.addEventListener(
             }
 
 
+            console.log(
+                "JOB状態確認:",
+                currentJobId
+            );
+
+
             try{
 
                 const response =
@@ -1087,6 +1285,12 @@ document.addEventListener(
                     );
 
 
+                console.log(
+                    "STATUS HTTP:",
+                    response.status
+                );
+
+
                 // =================================
                 // HTTPエラー
                 // =================================
@@ -1097,7 +1301,12 @@ document.addEventListener(
                         await response.text();
 
 
-                    // Render一時エラー
+                    console.warn(
+                        "STATUS ERROR:",
+                        response.status,
+                        text
+                    );
+
 
                     if(
                         response.status === 502 ||
@@ -1105,8 +1314,12 @@ document.addEventListener(
                         response.status === 504
                     ){
 
-                        console.warn(
-                            "一時的なサーバーエラー"
+                        setConvertStatus(
+                            "サーバー一時エラー。再確認中... "
+                            +
+                            convertSeconds
+                            +
+                            "秒"
                         );
 
 
@@ -1147,6 +1360,15 @@ document.addEventListener(
 
                 if(!text){
 
+                    setConvertStatus(
+                        "状態確認の応答が空です。再確認中... "
+                        +
+                        convertSeconds
+                        +
+                        "秒"
+                    );
+
+
                     setTimeout(
                         checkStatus,
                         3000
@@ -1175,6 +1397,11 @@ document.addEventListener(
                     );
 
 
+                    setConvertStatus(
+                        "状態確認データを解析できません。再確認中..."
+                    );
+
+
                     setTimeout(
                         checkStatus,
                         3000
@@ -1193,6 +1420,24 @@ document.addEventListener(
 
 
                 // =================================
+                // 画面表示
+                // =================================
+
+                setConvertStatus(
+                    "MP3変換中... "
+                    +
+                    convertSeconds
+                    +
+                    "秒 / 状態: "
+                    +
+                    (
+                        data.status ||
+                        "unknown"
+                    )
+                );
+
+
+                // =================================
                 // 完了
                 // =================================
 
@@ -1204,8 +1449,21 @@ document.addEventListener(
                     stopConvertTimer();
 
 
-                    convertButton.style.display =
-                        "none";
+                    setConvertStatus(
+                        "MP3変換完了！ "
+                        +
+                        convertSeconds
+                        +
+                        "秒"
+                    );
+
+
+                    if(convertButton){
+
+                        convertButton.style.display =
+                            "none";
+
+                    }
 
 
                     showFiles(
@@ -1234,12 +1492,20 @@ document.addEventListener(
                     stopConvertTimer();
 
 
-                    convertButton.disabled =
-                        false;
+                    if(convertButton){
+
+                        convertButton.disabled =
+                            false;
+
+                        convertButton.textContent =
+                            "実行";
+
+                    }
 
 
-                    convertButton.textContent =
-                        "実行";
+                    setConvertStatus(
+                        "MP3変換エラー"
+                    );
 
 
                     alert(
@@ -1271,6 +1537,15 @@ document.addEventListener(
                 );
 
 
+                setConvertStatus(
+                    "状態確認エラー。再確認中... "
+                    +
+                    convertSeconds
+                    +
+                    "秒"
+                );
+
+
                 setTimeout(
                     checkStatus,
                     3000
@@ -1285,7 +1560,9 @@ document.addEventListener(
         // 完成ファイル表示
         // =================================
 
-        function showFiles(files){
+        function showFiles(
+            files
+        ){
 
             console.log(
                 "完成ファイル:",
@@ -1301,9 +1578,10 @@ document.addEventListener(
                 function(file){
 
                     if(
+                        file &&
                         file
-                        .toLowerCase()
-                        .endsWith(".mp3")
+                            .toLowerCase()
+                            .endsWith(".mp3")
                     ){
 
                         mp3File =
@@ -1316,7 +1594,7 @@ document.addEventListener(
 
 
             // =================================
-            // MP3がない
+            // MP3なし
             // =================================
 
             if(!mp3File){
@@ -1331,6 +1609,7 @@ document.addEventListener(
                         `;
 
                 }
+
 
                 return;
 
@@ -1356,9 +1635,7 @@ document.addEventListener(
 
 
             // =================================
-            // 表示
-            //
-            // Gemini部分は初期状態非表示
+            // MP3表示
             // =================================
 
             if(downloadArea){
@@ -1495,6 +1772,11 @@ document.addEventListener(
                 "click",
                 async function(){
 
+                    console.log(
+                        "Geminiボタン CLICK"
+                    );
+
+
                     const geminiFileElement =
                         document.getElementById(
                             "gemini-file"
@@ -1519,7 +1801,7 @@ document.addEventListener(
 
 
                     // =================================
-                    // Gemini実行時の現在時間を取得
+                    // 現在の時間
                     // =================================
 
                     let currentTimeRange;
@@ -1528,7 +1810,7 @@ document.addEventListener(
                     try{
 
                         currentTimeRange =
-                            getCurrentTimeRange();
+                            getTimeRange();
 
                     }
                     catch(error){
@@ -1595,7 +1877,6 @@ document.addEventListener(
                         result.style.display =
                             "block";
 
-
                         result.textContent =
                             "文字起こし中... 0秒";
 
@@ -1636,7 +1917,7 @@ document.addEventListener(
                     try{
 
                         // =================================
-                        // Gemini APIへ送信
+                        // Gemini API
                         // =================================
 
                         const response =
@@ -1649,38 +1930,38 @@ document.addEventListener(
 
                                     headers:{
                                         "Content-Type":
-                                        "application/json"
+                                            "application/json"
                                     },
 
                                     body:
-                                    JSON.stringify({
+                                        JSON.stringify({
 
-                                        file:
-                                            file,
+                                            file:
+                                                file,
 
-                                        // MP3作成時
-                                        original_start_time:
-                                            originalStartTime,
+                                            original_start_time:
+                                                originalStartTime,
 
-                                        original_end_time:
-                                            originalEndTime,
+                                            original_end_time:
+                                                originalEndTime,
 
-                                        // Gemini実行時
-                                        start_time:
-                                            currentTimeRange.startTime,
+                                            start_time:
+                                                currentTimeRange.startTime,
 
-                                        end_time:
-                                            currentTimeRange.endTime
+                                            end_time:
+                                                currentTimeRange.endTime
 
-                                    })
+                                        })
 
                                 }
                             );
 
 
-                        // =================================
-                        // HTTP
-                        // =================================
+                        console.log(
+                            "Gemini HTTP:",
+                            response.status
+                        );
+
 
                         if(!response.ok){
 
@@ -1733,7 +2014,6 @@ document.addEventListener(
                                 error
                             );
 
-
                             console.error(
                                 "Geminiレスポンス:",
                                 text
@@ -1769,10 +2049,6 @@ document.addEventListener(
                             geminiButton.style.display =
                                 "none";
 
-
-                            // =================================
-                            // SRTダウンロードボタン
-                            // =================================
 
                             const srtButton =
                                 document.createElement(
@@ -1819,12 +2095,10 @@ document.addEventListener(
                                 "Gemini文字起こし完了"
                             );
 
-
                             console.log(
                                 "Gemini使用MP3:",
                                 data.mp3_file
                             );
-
 
                             console.log(
                                 "時間変更:",
@@ -1889,7 +2163,14 @@ document.addEventListener(
             );
 
         }
+        else{
+
+            console.warn(
+                "gemini-button が見つかりません"
+            );
+
+        }
+
 
     }
-
 );
