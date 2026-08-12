@@ -629,54 +629,50 @@ def diagnose_formats(url):
 # MP3変換
 # ==========================================================
 
-def download_mp3(
-    url,
-    output_dir
-):
+def download_mp3(url, output_dir):
 
     print("==========================================")
-    print("MP3ダウンロード開始")
+    print("MP3直接ダウンロードテスト開始")
+    print("URL:", url)
     print("==========================================")
 
-    ydl_opts = None
     temp_cookie = None
 
     try:
 
-        ydl_opts, temp_cookie = (
-            get_ydl_base_options()
+        # Cookie作成
+        temp_cookie = create_temp_cookie_file()
+
+        # 出力先
+        os.makedirs(
+            output_dir,
+            exist_ok=True
         )
 
-        ydl_opts.update({
+        ydl_opts = {
 
-            # --------------------------------------------------
-            # 音声
-            #
-            # 140があれば140
-            # なければbestaudio
-            # --------------------------------------------------
+            # Cookie
+            "cookiefile":
+            temp_cookie,
 
+            # Playlist無効
+            "noplaylist":
+            True,
+
+            # 音声だけ取得
             "format":
-            "140/bestaudio/best",
+            "bestaudio/best",
 
-            # --------------------------------------------------
-            # 出力
-            # --------------------------------------------------
-
+            # 完成ファイル
             "outtmpl":
             os.path.join(
                 output_dir,
                 "%(title)s.%(ext)s"
             ),
 
-            # --------------------------------------------------
             # MP3変換
-            # --------------------------------------------------
-
             "postprocessors": [
-
                 {
-
                     "key":
                     "FFmpegExtractAudio",
 
@@ -685,72 +681,135 @@ def download_mp3(
 
                     "preferredquality":
                     "192"
-
                 }
+            ],
 
-            ]
+            # Deno
+            "js_runtimes": {
+                "deno": {
+                    "path":
+                    DENO_PATH
+                }
+            },
 
-        })
+            # EJS
+            "remote_components": {
+                "ejs": "github"
+            },
+
+            # ログ
+            "quiet":
+            False,
+
+            "no_warnings":
+            False,
+
+            "verbose":
+            True
+        }
+
+        print("==========================================")
+        print("yt-dlp直接MP3設定")
+        print("==========================================")
 
         print(
-            "MP3 format:",
-            "140/bestaudio/best"
+            "Cookie:",
+            temp_cookie
         )
 
         print(
-            "MP3品質:",
-            "192kbps"
+            "Format:",
+            "bestaudio/best"
         )
+
+        print(
+            "Output:",
+            output_dir
+        )
+
+        print(
+            "Deno:",
+            DENO_PATH
+        )
+
+        print("==========================================")
 
         with yt_dlp.YoutubeDL(
             ydl_opts
         ) as ydl:
 
-            info = ydl.extract_info(
-                url,
-                download=True
+            print(
+                ">>> yt-dlp.download()開始"
             )
 
-            if not info:
-
-                raise Exception(
-                    "YouTube情報を取得できませんでした"
-                )
-
-            filename = ydl.prepare_filename(
-                info
+            result = ydl.download(
+                [url]
             )
 
-        mp3_file = (
-            os.path.splitext(
-                filename
-            )[0]
-            + ".mp3"
-        )
+            print(
+                ">>> yt-dlp.download()完了"
+            )
 
-        if not os.path.exists(
-            mp3_file
-        ):
+        if result != 0:
 
             raise Exception(
-                "MP3ファイルが作成されませんでした: "
-                + mp3_file
+                f"yt-dlpダウンロード失敗: {result}"
             )
+
+        # --------------------------------------------------
+        # 作成されたMP3を探す
+        # --------------------------------------------------
+
+        mp3_files = []
+
+        for filename in os.listdir(
+            output_dir
+        ):
+
+            if filename.lower().endswith(
+                ".mp3"
+            ):
+
+                full_path = os.path.join(
+                    output_dir,
+                    filename
+                )
+
+                if os.path.isfile(
+                    full_path
+                ):
+
+                    mp3_files.append(
+                        full_path
+                    )
+
+        if not mp3_files:
+
+            raise Exception(
+                "MP3ファイルが作成されませんでした"
+            )
+
+        # 最新のファイル
+        mp3_file = max(
+            mp3_files,
+            key=os.path.getmtime
+        )
 
         file_size = os.path.getsize(
             mp3_file
         )
 
-        print(
-            "MP3完成:",
-            mp3_file
-        )
+        print("==========================================")
+        print("MP3作成成功")
+        print("ファイル:", mp3_file)
+        print("サイズ:", file_size, "bytes")
+        print("==========================================")
 
-        print(
-            "MP3サイズ:",
-            file_size,
-            "bytes"
-        )
+        if file_size == 0:
+
+            raise Exception(
+                "MP3ファイルが0 bytesです"
+            )
 
         return mp3_file
 
@@ -759,7 +818,6 @@ def download_mp3(
         remove_temp_cookie_file(
             temp_cookie
         )
-
 
 # ==========================================================
 # MP4変換
