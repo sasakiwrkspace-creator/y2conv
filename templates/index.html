@@ -41,6 +41,7 @@
             font-size: 28px;
         }
 
+
         /* =========================================
            URL
         ========================================= */
@@ -91,6 +92,7 @@
             background: #999;
             cursor: not-allowed;
         }
+
 
         /* =========================================
            時間入力
@@ -145,6 +147,7 @@
             font-weight: bold;
         }
 
+
         /* =========================================
            ステータス
         ========================================= */
@@ -173,29 +176,49 @@
             color: #2e7d32;
         }
 
+
         /* =========================================
            MP3 / Gemini エリア
         ========================================= */
 
-        #result-area {
-            display: none;
-
+        #downloadArea {
             margin-top: 22px;
         }
 
-        .download-row {
+        .download-buttons {
             display: flex;
+            align-items: center;
 
             width: 100%;
         }
 
-        .mp3-download-button {
+        .download-buttons > span {
             flex: 1;
 
             height: 48px;
 
-            border: none;
+            display: flex;
+            align-items: center;
+
+            padding-left: 16px;
+
             border-radius: 6px 0 0 6px;
+
+            background: #2e7d32;
+            color: white;
+
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .download-button {
+            height: 48px;
+            min-width: 80px;
+
+            padding: 0 18px;
+
+            border: none;
+            border-radius: 6px;
 
             background: #2e7d32;
             color: white;
@@ -206,13 +229,20 @@
             cursor: pointer;
         }
 
-        .mp3-download-button:hover {
+        .download-button:hover {
             background: #256628;
         }
 
-        .toggle-button {
-            width: 55px;
+        .download-buttons > a {
+            display: block;
+        }
 
+        .download-buttons > a .download-button {
+            border-radius: 0;
+        }
+
+        .srt-toggle-button {
+            width: 55px;
             height: 48px;
 
             border: none;
@@ -229,15 +259,16 @@
             cursor: pointer;
         }
 
-        .toggle-button:hover {
+        .srt-toggle-button:hover {
             background: #256628;
         }
+
 
         /* =========================================
            Gemini
         ========================================= */
 
-        #gemini-area {
+        #srtArea {
             display: none;
 
             margin-top: 10px;
@@ -275,35 +306,36 @@
             cursor: not-allowed;
         }
 
+
         /* =========================================
-           SRT
+           Gemini結果
         ========================================= */
 
-        #srt-area {
+        #gemini-result {
             display: none;
 
-            margin-top: 12px;
-        }
+            margin-top: 10px;
 
-        .srt-download-button {
-            width: 100%;
-            height: 46px;
+            padding: 10px;
 
-            border: none;
             border-radius: 6px;
 
-            background: #ef6c00;
-            color: white;
+            background: #f3e5f5;
 
-            font-size: 16px;
-            font-weight: bold;
+            color: #6a1b9a;
 
-            cursor: pointer;
+            white-space: pre-wrap;
         }
 
-        .srt-download-button:hover {
-            background: #e65100;
+
+        /* =========================================
+           非表示用
+        ========================================= */
+
+        #gemini-file {
+            display: none;
         }
+
 
         /* =========================================
            レスポンシブ
@@ -343,6 +375,16 @@
                 font-size: 12px;
             }
 
+            .download-buttons > span {
+                font-size: 14px;
+                padding-left: 10px;
+            }
+
+            .download-button {
+                min-width: 65px;
+                padding: 0 12px;
+            }
+
         }
 
     </style>
@@ -366,14 +408,14 @@
         <input
             id="youtube-url"
             class="url-input"
-            type="url"
+            type="text"
             placeholder="https://www.youtube.com/watch?v=..."
             autocomplete="off"
             value="https://www.youtube.com/watch?v=Wb11ihveUCk"
         >
-        
+
         <button
-            id="execute-button"
+            id="convertBtn"
             class="execute-button"
             type="button"
         >
@@ -495,73 +537,54 @@
 
 
     <!-- =========================================
-         実行後に表示
+         Gemini用ファイル名
+         
+         converter.jsから使用するため必要
     ========================================== -->
 
-    <div id="result-area">
+    <input
+        id="gemini-file"
+        type="hidden"
+        value=""
+    >
 
 
-        <!-- =====================================
-             MP3ダウンロード + 開閉
-        ====================================== -->
+    <!-- =========================================
+         MP3ダウンロード表示エリア
 
-        <div class="download-row">
+         converter.js がここに
+         MP3ボタンを生成する
+    ========================================== -->
 
-            <button
-                id="mp3-download-button"
-                class="mp3-download-button"
-                type="button"
-            >
-                MP3のダウンロード
-            </button>
+    <div id="downloadArea"></div>
 
 
-            <button
-                id="toggle-button"
-                class="toggle-button"
-                type="button"
-                aria-label="Gemini文字変換を表示"
-            >
-                ▲
-            </button>
+    <!-- =========================================
+         Gemini文字起こしエリア
+         
+         converter.js の srtArea と一致
+    ========================================== -->
 
-        </div>
+    <div
+        id="srtArea"
+        style="display: none;"
+    >
 
-
-        <!-- =====================================
-             Gemini
-        ====================================== -->
-
-        <div id="gemini-area">
-
-            <button
-                id="gemini-button"
-                class="gemini-button"
-                type="button"
-            >
-                Geminiで文字変換
-            </button>
+        <button
+            id="gemini-button"
+            class="gemini-button"
+            type="button"
+        >
+            Geminiで文字起こし
+        </button>
 
 
-            <!-- =================================
-                 SRT
-            ================================== -->
-
-            <div id="srt-area">
-
-                <button
-                    id="srt-download-button"
-                    class="srt-download-button"
-                    type="button"
-                >
-                    SRTのダウンロード
-                </button>
-
-            </div>
-
-        </div>
+        <div
+            id="gemini-result"
+        ></div>
 
     </div>
+
 
 </div>
 
@@ -571,6 +594,7 @@
 ========================================== -->
 
 <script src="/static/converter.js"></script>
+
 
 </body>
 
