@@ -471,21 +471,21 @@ def diagnose_formats(url):
         print("==========================================")
         print("extract_info開始")
         print("==========================================")
-
+        
         with yt_dlp.YoutubeDL(
             ydl_opts
         ) as ydl:
-
+        
+            print(">>> extract_info 実行直前")
+        
             info = ydl.extract_info(
                 url,
                 download=False
             )
-
-        if not info:
-
-            raise Exception(
-                "YouTube情報を取得できませんでした"
-            )
+        
+            print(">>> extract_info 実行完了")
+        
+        print(">>> YoutubeDL終了")
 
         # --------------------------------------------------
         # 基本情報
