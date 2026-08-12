@@ -1,7 +1,3 @@
-# =====================================
-# routes/download.py
-# =====================================
-
 import os
 
 from flask import send_from_directory
@@ -14,15 +10,9 @@ def register_download(app):
 
         # =================================
         # プロジェクトルート
-        #
-        # routes/download.py
-        #        ↓
-        # routes/
-        #        ↓
-        # プロジェクト/
         # =================================
 
-        project_root = os.path.dirname(
+        base_dir = os.path.dirname(
             os.path.dirname(
                 os.path.abspath(__file__)
             )
@@ -30,11 +20,11 @@ def register_download(app):
 
 
         # =================================
-        # downloadsフォルダ
+        # downloads
         # =================================
 
         download_folder = os.path.join(
-            project_root,
+            base_dir,
             "downloads"
         )
 
@@ -42,15 +32,24 @@ def register_download(app):
         print("================================")
         print("DOWNLOAD")
         print("filename:", filename)
-        print("download_folder:", download_folder)
         print(
-            "folder exists:",
-            os.path.isdir(download_folder)
+            "download_folder:",
+            download_folder
         )
 
 
         # =================================
-        # 実ファイル確認
+        # フォルダ作成
+        # =================================
+
+        os.makedirs(
+            download_folder,
+            exist_ok=True
+        )
+
+
+        # =================================
+        # ファイル確認
         # =================================
 
         file_path = os.path.join(
@@ -73,15 +72,10 @@ def register_download(app):
 
 
         # =================================
-        # ファイルが存在しない
+        # ファイルなし
         # =================================
 
         if not os.path.isfile(file_path):
-
-            print(
-                "DOWNLOAD ERROR: "
-                "ファイルがありません"
-            )
 
             return {
                 "success": False,
