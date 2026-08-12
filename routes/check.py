@@ -263,14 +263,16 @@ def get_ydl_base_options():
     return {
         "cookiefile": cookie_file,
         "noplaylist": True,
+
         "js_runtimes": {
             "deno": {
                 "path": "/opt/render/project/src/.deno/bin/deno"
             }
         },
-        "remote_components": {
+
+        "remote_components": [
             "ejs:github"
-        }
+        ]
     }
 
 # ==========================================================
