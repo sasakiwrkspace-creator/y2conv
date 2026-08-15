@@ -157,7 +157,34 @@ h1 {
 
 }
 
+/* ==============================
+   変換中 2段表示
+   ============================== */
 
+.converting-text {
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    justify-content: center;
+
+    width: 100%;
+
+    line-height: 1.2;
+
+}
+
+
+.converting-text span {
+
+    display: block;
+
+    white-space: nowrap;
+
+}
 
 .execute-button:hover {
 
