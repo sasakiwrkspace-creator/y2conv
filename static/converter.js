@@ -555,7 +555,7 @@ document.addEventListener(
                 convertButton.disabled =
                     true;
 
-                convertButton.textContent =
+                convertButton.innerHTML =
                     "変換中<br>0秒";
 
             }
@@ -582,7 +582,7 @@ document.addEventListener(
 
                         if (convertButton) {
 
-                            convertButton.textContent =
+                            convertButton.innerHTML =
                                 "変換中<br>"
                                 +
                                 convertSeconds
