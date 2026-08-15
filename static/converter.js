@@ -583,7 +583,7 @@ document.addEventListener(
                         if (convertButton) {
 
                             convertButton.textContent =
-                                "変換中 "
+                                "変換中<br>"
                                 +
                                 convertSeconds
                                 +
