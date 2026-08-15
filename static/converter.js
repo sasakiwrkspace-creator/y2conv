@@ -556,7 +556,7 @@ document.addEventListener(
                     true;
 
                 convertButton.textContent =
-                    "変換中 0秒";
+                    "変換中<br>0秒";
 
             }
 
