@@ -215,49 +215,98 @@ select {
    横並びを明示する。
 */
 
+/* =========================================
+   時間指定
+========================================= */
+
 .time-row {
+
     display: flex;
 
     align-items: center;
 
-    gap: 5px;
+    justify-content: flex-start;
 
-    margin-top: 15px;
+    gap: 4px;
+
+    width: 100%;
+
+    margin-top: 18px;
 
     white-space: nowrap;
+
 }
+
 
 .time-group {
+
     display: flex;
 
     align-items: center;
 
-    gap: 5px;
+    gap: 2px;
 
-    white-space: nowrap;
+    min-width: 0;
+
+    flex-shrink: 1;
+
 }
 
-.time-group .time-input {
-    width: 90px;
 
-    padding: 8px;
+.time-input {
+
+    width: 38px;
+
+    height: 40px;
+
+    flex-shrink: 1;
+
+    padding: 0;
+
+    border: 1px solid #ccc;
+
+    border-radius: 5px;
+
+    background: white;
+
+    text-align: center;
+
+    font-size: 16px;
+
 }
+
+
+.time-input:focus {
+
+    outline: none;
+
+    border-color: #e60023;
+
+}
+
 
 .time-label {
-    margin: 0;
 
-    font-weight: normal;
+    font-size: 13px;
 
-    white-space: nowrap;
-}
-
-.time-separator {
-    font-size: 20px;
+    margin-right: 1px;
 
     flex-shrink: 0;
+
 }
 
 
+.time-separator {
+
+    margin: 0 3px;
+
+    font-size: 18px;
+
+    font-weight: bold;
+
+    flex-shrink: 0;
+
+}
 /*
    旧classとの互換
 */
