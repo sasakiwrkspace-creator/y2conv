@@ -1,6 +1,6 @@
 * {
 
-    box-sizing:border-box;
+    box-sizing: border-box;
 
 }
 
@@ -9,9 +9,9 @@
 html,
 body {
 
-    width:100%;
+    width: 100%;
 
-    overflow-x:hidden;
+    overflow-x: hidden;
 
 }
 
@@ -19,18 +19,18 @@ body {
 
 body {
 
-    margin:0;
+    margin: 0;
 
-    padding:30px 15px;
+    padding: 30px 15px;
 
     font-family:
         "Segoe UI",
         "メイリオ",
         sans-serif;
 
-    background:#f3f4f6;
+    background: #f3f4f6;
 
-    color:#333;
+    color: #333;
 
 }
 
@@ -38,11 +38,11 @@ body {
 
 .container {
 
-    width:100%;
+    width: 100%;
 
-    max-width:600px;
+    max-width: 600px;
 
-    margin:0 auto;
+    margin: 0 auto;
 
 }
 
@@ -54,9 +54,9 @@ body {
 
 h1 {
 
-    margin:0 0 25px 0;
+    margin: 0 0 25px 0;
 
-    font-size:28px;
+    font-size: 28px;
 
 }
 
@@ -67,9 +67,9 @@ h1 {
 .converter-link:hover,
 .converter-link:active {
 
-    color:#000;
+    color: #000;
 
-    text-decoration:none;
+    text-decoration: none;
 
 }
 
@@ -81,11 +81,11 @@ h1 {
 
 .url-row {
 
-    display:flex;
+    display: flex;
 
-    gap:10px;
+    gap: 10px;
 
-    width:100%;
+    width: 100%;
 
 }
 
@@ -93,21 +93,21 @@ h1 {
 
 .url-input {
 
-    flex:1;
+    flex: 1;
 
-    min-width:0;
+    min-width: 0;
 
-    height:46px;
+    height: 46px;
 
-    padding:0 14px;
+    padding: 0 14px;
 
-    border:1px solid #ccc;
+    border: 1px solid #ccc;
 
-    border-radius:6px;
+    border-radius: 6px;
 
-    background:white;
+    background: white;
 
-    font-size:16px;
+    font-size: 16px;
 
 }
 
@@ -115,9 +115,9 @@ h1 {
 
 .url-input:focus {
 
-    outline:none;
+    outline: none;
 
-    border-color:#1976d2;
+    border-color: #1976d2;
 
 }
 
@@ -125,25 +125,25 @@ h1 {
 
 .execute-button {
 
-    width:90px;
+    width: 90px;
 
-    height:46px;
+    height: 46px;
 
-    flex-shrink:0;
+    flex-shrink: 0;
 
-    border:none;
+    border: none;
 
-    border-radius:6px;
+    border-radius: 6px;
 
-    background:#1976d2;
+    background: #1976d2;
 
-    color:white;
+    color: white;
 
-    font-size:16px;
+    font-size: 16px;
 
-    font-weight:bold;
+    font-weight: bold;
 
-    cursor:pointer;
+    cursor: pointer;
 
 }
 
@@ -151,7 +151,7 @@ h1 {
 
 .execute-button:hover {
 
-    background:#1565c0;
+    background: #1565c0;
 
 }
 
@@ -159,9 +159,9 @@ h1 {
 
 .execute-button:disabled {
 
-    background:#999;
+    background: #999;
 
-    cursor:not-allowed;
+    cursor: not-allowed;
 
 }
 
@@ -173,9 +173,9 @@ h1 {
 
 .time-area {
 
-    width:100%;
+    width: 100%;
 
-    margin-top:18px;
+    margin-top: 18px;
 
 }
 
@@ -185,17 +185,15 @@ h1 {
 
 .time-label-row {
 
-    display:grid;
+    display: grid;
 
-    grid-template-columns:
-        1fr
-        1fr;
+    grid-template-columns: 1fr 1fr;
 
-    column-gap:20px;
+    column-gap: 20px;
 
-    width:100%;
+    width: 100%;
 
-    margin-bottom:6px;
+    margin-bottom: 6px;
 
 }
 
@@ -203,11 +201,11 @@ h1 {
 
 .time-title {
 
-    font-size:14px;
+    font-size: 14px;
 
-    font-weight:normal;
+    font-weight: normal;
 
-    text-align:left;
+    text-align: center;
 
 }
 
@@ -217,15 +215,15 @@ h1 {
 
 .time-input-row {
 
-    display:flex;
+    display: flex;
 
-    align-items:center;
+    align-items: center;
 
-    justify-content:center;
+    justify-content: center;
 
-    width:100%;
+    width: 100%;
 
-    min-width:0;
+    min-width: 0;
 
 }
 
@@ -235,13 +233,15 @@ h1 {
 
 .time-group {
 
-    display:flex;
+    display: flex;
 
-    align-items:center;
+    align-items: center;
 
-    min-width:0;
+    justify-content: center;
 
-    white-space:nowrap;
+    min-width: 0;
+
+    white-space: nowrap;
 
 }
 
@@ -251,21 +251,23 @@ h1 {
 
 .time-input {
 
-    width:42px;
+    width: 42px;
 
-    height:40px;
+    height: 40px;
 
-    padding:0;
+    flex-shrink: 0;
 
-    border:1px solid #ccc;
+    padding: 0;
 
-    border-radius:5px;
+    border: 1px solid #ccc;
 
-    background:white;
+    border-radius: 5px;
 
-    text-align:center;
+    background: white;
 
-    font-size:16px;
+    text-align: center;
+
+    font-size: 16px;
 
 }
 
@@ -273,9 +275,9 @@ h1 {
 
 .time-input:focus {
 
-    outline:none;
+    outline: none;
 
-    border-color:#1976d2;
+    border-color: #1976d2;
 
 }
 
@@ -285,13 +287,23 @@ h1 {
 
 .time-unit {
 
-    margin-left:3px;
+    margin-left: 2px;
 
-    margin-right:6px;
+    margin-right: 5px;
 
-    font-size:14px;
+    font-size: 14px;
 
-    white-space:nowrap;
+    white-space: nowrap;
+
+}
+
+
+
+/* 最後の「秒」の後ろには余計な余白を作らない */
+
+.time-group .time-unit:last-child {
+
+    margin-right: 0;
 
 }
 
@@ -301,13 +313,13 @@ h1 {
 
 .time-separator {
 
-    flex-shrink:0;
+    flex-shrink: 0;
 
-    margin:0 8px;
+    margin: 0 8px;
 
-    font-size:18px;
+    font-size: 18px;
 
-    font-weight:bold;
+    font-weight: bold;
 
 }
 
@@ -319,17 +331,17 @@ h1 {
 
 .status {
 
-    display:none;
+    display: none;
 
-    margin-top:18px;
+    margin-top: 18px;
 
-    padding:12px 14px;
+    padding: 12px 14px;
 
-    border-radius:6px;
+    border-radius: 6px;
 
-    background:#eeeeee;
+    background: #eeeeee;
 
-    white-space:pre-wrap;
+    white-space: pre-wrap;
 
 }
 
@@ -337,9 +349,9 @@ h1 {
 
 .status.error {
 
-    background:#ffebee;
+    background: #ffebee;
 
-    color:#c62828;
+    color: #c62828;
 
 }
 
@@ -347,9 +359,9 @@ h1 {
 
 .status.success {
 
-    background:#e8f5e9;
+    background: #e8f5e9;
 
-    color:#2e7d32;
+    color: #2e7d32;
 
 }
 
@@ -361,9 +373,9 @@ h1 {
 
 #downloadArea {
 
-    width:100%;
+    width: 100%;
 
-    margin-top:22px;
+    margin-top: 22px;
 
 }
 
@@ -371,11 +383,11 @@ h1 {
 
 .download-buttons {
 
-    display:flex;
+    display: flex;
 
-    align-items:center;
+    align-items: center;
 
-    width:100%;
+    width: 100%;
 
 }
 
@@ -383,11 +395,11 @@ h1 {
 
 .mp3-download-row {
 
-    display:flex;
+    display: flex;
 
-    align-items:center;
+    align-items: center;
 
-    width:100%;
+    width: 100%;
 
 }
 
@@ -395,27 +407,27 @@ h1 {
 
 .download-label {
 
-    flex:1;
+    flex: 1;
 
-    min-width:0;
+    min-width: 0;
 
-    height:48px;
+    height: 48px;
 
-    display:flex;
+    display: flex;
 
-    align-items:center;
+    align-items: center;
 
-    padding-left:16px;
+    padding-left: 16px;
 
-    border-radius:6px 0 0 6px;
+    border-radius: 6px 0 0 6px;
 
-    background:#2e7d32;
+    background: #2e7d32;
 
-    color:white;
+    color: white;
 
-    font-size:16px;
+    font-size: 16px;
 
-    font-weight:bold;
+    font-weight: bold;
 
 }
 
@@ -423,9 +435,11 @@ h1 {
 
 .download-buttons a {
 
-    display:block;
+    display: block;
 
-    text-decoration:none;
+    text-decoration: none;
+
+    line-height: 0;
 
 }
 
@@ -433,25 +447,25 @@ h1 {
 
 .download-button {
 
-    height:48px;
+    height: 48px;
 
-    min-width:80px;
+    min-width: 80px;
 
-    padding:0 18px;
+    padding: 0 18px;
 
-    border:none;
+    border: none;
 
-    border-radius:0;
+    border-radius: 0;
 
-    background:#2e7d32;
+    background: #2e7d32;
 
-    color:white;
+    color: white;
 
-    font-size:16px;
+    font-size: 16px;
 
-    font-weight:bold;
+    font-weight: bold;
 
-    cursor:pointer;
+    cursor: pointer;
 
 }
 
@@ -459,7 +473,7 @@ h1 {
 
 .download-button:hover {
 
-    background:#256628;
+    background: #256628;
 
 }
 
@@ -467,7 +481,7 @@ h1 {
 
 .download-button:active {
 
-    background:#1b4d20;
+    background: #1b4d20;
 
 }
 
@@ -479,29 +493,29 @@ h1 {
 
 .srt-toggle-button {
 
-    width:55px;
+    width: 55px;
 
-    height:48px;
+    height: 48px;
 
-    flex-shrink:0;
+    flex-shrink: 0;
 
-    padding:0;
+    padding: 0;
 
-    border:none;
+    border: none;
 
-    border-left:1px solid #ddd;
+    border-left: 1px solid #ddd;
 
-    border-radius:0 6px 6px 0;
+    border-radius: 0 6px 6px 0;
 
-    background:white;
+    background: white;
 
-    color:#333;
+    color: #333;
 
-    font-size:20px;
+    font-size: 20px;
 
-    font-weight:bold;
+    font-weight: bold;
 
-    cursor:pointer;
+    cursor: pointer;
 
 }
 
@@ -509,9 +523,9 @@ h1 {
 
 .srt-toggle-button:hover {
 
-    background:#f5f5f5;
+    background: #f5f5f5;
 
-    color:#1d4ed8;
+    color: #1d4ed8;
 
 }
 
@@ -523,19 +537,19 @@ h1 {
 
 #srtArea {
 
-    display:none;
+    display: none;
 
-    width:100%;
+    width: 100%;
 
-    margin-top:10px;
+    margin-top: 10px;
 
-    padding:15px;
+    padding: 15px;
 
-    border:1px solid #ddd;
+    border: 1px solid #ddd;
 
-    border-radius:6px;
+    border-radius: 6px;
 
-    background:white;
+    background: white;
 
 }
 
@@ -543,23 +557,23 @@ h1 {
 
 .gemini-button {
 
-    width:100%;
+    width: 100%;
 
-    height:46px;
+    height: 46px;
 
-    border:none;
+    border: none;
 
-    border-radius:6px;
+    border-radius: 6px;
 
-    background:#7b1fa2;
+    background: #7b1fa2;
 
-    color:white;
+    color: white;
 
-    font-size:16px;
+    font-size: 16px;
 
-    font-weight:bold;
+    font-weight: bold;
 
-    cursor:pointer;
+    cursor: pointer;
 
 }
 
@@ -567,7 +581,7 @@ h1 {
 
 .gemini-button:hover {
 
-    background:#6a1b9a;
+    background: #6a1b9a;
 
 }
 
@@ -575,9 +589,9 @@ h1 {
 
 .gemini-button:disabled {
 
-    background:#999;
+    background: #999;
 
-    cursor:not-allowed;
+    cursor: not-allowed;
 
 }
 
@@ -589,19 +603,19 @@ h1 {
 
 #gemini-result {
 
-    display:none;
+    display: none;
 
-    margin-top:10px;
+    margin-top: 10px;
 
-    padding:10px;
+    padding: 10px;
 
-    border-radius:6px;
+    border-radius: 6px;
 
-    background:#f3e5f5;
+    background: #f3e5f5;
 
-    color:#6a1b9a;
+    color: #6a1b9a;
 
-    white-space:pre-wrap;
+    white-space: pre-wrap;
 
 }
 
@@ -613,13 +627,13 @@ h1 {
 
 .srt-download-row {
 
-    display:flex;
+    display: flex;
 
-    align-items:center;
+    align-items: center;
 
-    width:100%;
+    width: 100%;
 
-    margin-top:10px;
+    margin-top: 10px;
 
 }
 
@@ -627,25 +641,25 @@ h1 {
 
 .srt-download-row > span {
 
-    flex:1;
+    flex: 1;
 
-    height:48px;
+    height: 48px;
 
-    display:flex;
+    display: flex;
 
-    align-items:center;
+    align-items: center;
 
-    padding-left:16px;
+    padding-left: 16px;
 
-    border-radius:6px 0 0 6px;
+    border-radius: 6px 0 0 6px;
 
-    background:#2e7d32;
+    background: #2e7d32;
 
-    color:white;
+    color: white;
 
-    font-size:16px;
+    font-size: 16px;
 
-    font-weight:bold;
+    font-weight: bold;
 
 }
 
@@ -653,7 +667,7 @@ h1 {
 
 .srt-download-row .download-button {
 
-    border-radius:0 6px 6px 0;
+    border-radius: 0 6px 6px 0;
 
 }
 
@@ -665,7 +679,7 @@ h1 {
 
 #gemini-file {
 
-    display:none;
+    display: none;
 
 }
 
@@ -675,12 +689,11 @@ h1 {
    スマホ対応
    ============================== */
 
-@media screen and (max-width:600px) {
-
+@media screen and (max-width: 600px) {
 
     body {
 
-        padding:20px 10px;
+        padding: 20px 10px;
 
     }
 
@@ -688,9 +701,9 @@ h1 {
 
     h1 {
 
-        font-size:24px;
+        font-size: 24px;
 
-        margin-bottom:20px;
+        margin-bottom: 20px;
 
     }
 
@@ -698,7 +711,7 @@ h1 {
 
     .url-row {
 
-        gap:6px;
+        gap: 6px;
 
     }
 
@@ -706,19 +719,46 @@ h1 {
 
     .execute-button {
 
-        width:75px;
+        width: 75px;
 
     }
 
 
 
     /* ==========================
-       時間
+       時間指定
        ========================== */
+
+    .time-area {
+
+        width: 100%;
+
+    }
+
+
+
+    /*
+       開始              終了
+       [00]時[00]分[00]秒 ～ [00]時[00]分[00]秒
+    */
 
     .time-label-row {
 
-        column-gap:10px;
+        grid-template-columns: 1fr 1fr;
+
+        column-gap: 0;
+
+        margin-bottom: 5px;
+
+    }
+
+
+
+    .time-title {
+
+        font-size: 13px;
+
+        text-align: center;
 
     }
 
@@ -726,7 +766,17 @@ h1 {
 
     .time-input-row {
 
-        justify-content:center;
+        justify-content: center;
+
+        width: 100%;
+
+    }
+
+
+
+    .time-group {
+
+        flex-shrink: 0;
 
     }
 
@@ -734,9 +784,11 @@ h1 {
 
     .time-input {
 
-        width:36px;
+        width: 34px;
 
-        height:40px;
+        height: 38px;
+
+        font-size: 14px;
 
     }
 
@@ -744,11 +796,19 @@ h1 {
 
     .time-unit {
 
-        margin-left:2px;
+        margin-left: 1px;
 
-        margin-right:3px;
+        margin-right: 3px;
 
-        font-size:12px;
+        font-size: 12px;
+
+    }
+
+
+
+    .time-group .time-unit:last-child {
+
+        margin-right: 0;
 
     }
 
@@ -756,9 +816,9 @@ h1 {
 
     .time-separator {
 
-        margin:0 4px;
+        margin: 0 4px;
 
-        font-size:16px;
+        font-size: 16px;
 
     }
 
@@ -770,9 +830,9 @@ h1 {
 
     .download-label {
 
-        font-size:14px;
+        font-size: 14px;
 
-        padding-left:10px;
+        padding-left: 10px;
 
     }
 
@@ -780,9 +840,17 @@ h1 {
 
     .download-button {
 
-        min-width:65px;
+        min-width: 65px;
 
-        padding:0 12px;
+        padding: 0 12px;
+
+    }
+
+
+
+    .srt-toggle-button {
+
+        width: 50px;
 
     }
 
@@ -794,7 +862,7 @@ h1 {
 
     #srtArea {
 
-        padding:12px;
+        padding: 12px;
 
     }
 
