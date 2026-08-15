@@ -663,17 +663,21 @@ def transcribe_mp3(
         # Gemini Files API
         # ==================================================
 
-        uploaded_file = client.files.upload(
-
-            file=temp_mp3
-
-        )
-
-
-        print(
-            "Gemini upload完了"
-        )
-
+        print(">>> Gemini Files API upload開始")
+        
+        try:
+            uploaded_file = client.files.upload(
+                file=temp_mp3
+            )
+        
+            print(">>> Gemini Files API upload成功")
+            print(">>> uploaded_file:", uploaded_file)
+        
+        except Exception as e:
+            print(">>> Gemini Files API upload失敗")
+            print(">>> TYPE:", type(e).__name__)
+            print(">>> ERROR:", repr(e))
+            raise
 
         # ==================================================
         # プロンプト
