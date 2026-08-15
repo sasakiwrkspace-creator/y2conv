@@ -393,12 +393,29 @@ h1 {
 
 /* MP3全体 */
 
-.download-buttons {
+.download-button {
 
-    width: 100%;
+    height:48px;
+
+    min-width:80px;
+
+    padding:0 18px;
+
+    border:none;
+
+    border-radius:0;
+
+    background:#2e7d32;
+
+    color:white;
+
+    font-size:16px;
+
+    font-weight:bold;
+
+    cursor:pointer;
 
 }
-
 
 
 /* MP3のタイトル＋ボタン */
