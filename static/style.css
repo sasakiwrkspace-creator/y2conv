@@ -1,630 +1,882 @@
+/* =========================================================
+   基本
+========================================================= */
+
 * {
-
-    box-sizing:border-box;
-
+    box-sizing: border-box;
 }
 
 
-
 body {
-
-    margin:0;
+    margin: 0;
 
     font-family:
         "Segoe UI",
         "メイリオ",
         sans-serif;
 
-    background:#f3f4f6;
+    background: #f3f4f6;
 
-    color:#333;
-
+    color: #333;
 }
 
 
-
-
+/* =========================================================
+   ヘッダー
+========================================================= */
 
 header {
+    background: #e60023;
 
-    background:#e60023;
+    color: white;
 
-    color:white;
+    text-align: center;
 
-    text-align:center;
-
-    padding:30px;
-
+    padding: 30px;
 }
-
 
 
 header h1 {
+    margin: 0;
 
-    margin:0;
-
-    font-size:42px;
-
+    font-size: 42px;
 }
-
 
 
 header p {
-
-    margin:8px 0 0;
-
+    margin: 8px 0 0;
 }
 
 
-
-
-
-
+/* =========================================================
+   メイン
+========================================================= */
 
 main {
+    width: 600px;
 
-    width:600px;
-
-    margin:40px auto;
-
+    margin: 40px auto;
 }
-
-
-
-
-
 
 
 .card {
+    background: white;
 
-    background:white;
+    padding: 35px;
 
-    padding:35px;
-
-    border-radius:12px;
+    border-radius: 12px;
 
     box-shadow:
-    0 5px 15px rgba(0,0,0,0.1);
-
+        0 5px 15px rgba(0,0,0,0.1);
 }
 
 
-
-
-
+/* =========================================================
+   見出し
+========================================================= */
 
 h2 {
+    text-align: center;
 
-    text-align:center;
-
-    margin:0 0 25px;
-
+    margin: 0 0 25px;
 }
 
 
-
-
-
-
-
-/* 通常ラベル */
+/* =========================================================
+   通常ラベル
+========================================================= */
 
 .normal-label {
+    display: block;
 
-    display:block;
+    margin-bottom: 8px;
 
-    margin-bottom:8px;
-
-    font-weight:bold;
-
+    font-weight: bold;
 }
 
 
-
-
-
+/* =========================================================
+   入力
+========================================================= */
 
 input,
 select {
+    width: 100%;
 
-    width:100%;
+    padding: 12px;
 
-    padding:12px;
-
-    font-size:16px;
+    font-size: 16px;
 
     border:
-    1px solid #ccc;
+        1px solid #ccc;
 
-    border-radius:6px;
-
+    border-radius: 6px;
 }
 
 
-
-
-
+/* =========================================================
+   URL
+========================================================= */
 
 .url-area {
+    display: flex;
 
-    display:flex;
-
-    gap:10px;
-
+    gap: 10px;
 }
 
 
 .url-area input {
-
-    flex:1;
-
+    flex: 1;
 }
 
 
-
-
-
 .check-button {
+    width: 100px;
 
-    width:100px;
-
-    background:#16a34a;
-
+    background: #16a34a;
 }
 
 
 .loading-message {
+    color: #16a34a;
 
-    color:#16a34a;
+    margin-top: 10px;
 
-    margin-top:10px;
-
-    font-weight:bold;
-
+    font-weight: bold;
 }
 
 
-/* ファイル名 */
+/* =========================================================
+   ファイル名
+========================================================= */
 
 .filename-display {
-
-    margin-top:15px;
-
+    margin-top: 15px;
 }
 
 
-
-
-
-
-
-
-/* チェック */
+/* =========================================================
+   出力形式
+========================================================= */
 
 .output-option {
+    display: flex;
 
-    display:flex;
+    gap: 15px;
 
-    gap:15px;
-
-    margin-top:8px;
-
+    margin-top: 8px;
 }
-
 
 
 .output-option label {
+    display: flex;
 
-    display:flex;
+    align-items: center;
 
-    align-items:center;
+    gap: 4px;
 
-    gap:4px;
+    margin: 0;
 
-    margin:0;
-
-    font-weight:normal;
-
+    font-weight: normal;
 }
-
 
 
 .output-option input {
+    width: auto;
 
-    width:auto;
+    padding: 0;
 
-    padding:0;
-
-    margin:0;
-
+    margin: 0;
 }
 
 
-
-
-
-
-
-
-/* 時間 */
+/* =========================================================
+   時間
+========================================================= */
 
 .convert-option {
+    display: flex;
 
-    display:flex;
+    align-items: center;
 
-    align-items:center;
+    gap: 5px;
 
-    gap:5px;
-
-    margin-top:15px;
-
+    margin-top: 15px;
 }
-
 
 
 .convert-option label {
+    margin: 0;
 
-    margin:0;
+    font-weight: normal;
 
-    font-weight:normal;
-
-    white-space:nowrap;
-
+    white-space: nowrap;
 }
-
 
 
 .convert-option input {
+    width: 90px;
 
-    width:90px;
-
-    padding:8px;
-
+    padding: 8px;
 }
-
 
 
 .symbol {
-
-    font-size:20px;
-
+    font-size: 20px;
 }
 
 
-
-
-
-
+/* =========================================================
+   ボタン共通
+========================================================= */
 
 button {
+    border: none;
 
-    border:none;
+    border-radius: 8px;
 
-    border-radius:8px;
+    padding: 14px;
 
-    padding:14px;
+    color: white;
 
-    color:white;
+    cursor: pointer;
 
-    cursor:pointer;
-
-    font-size:16px;
-
+    font-size: 16px;
 }
-
 
 
 button:hover {
-
-    opacity:0.85;
-
+    opacity: 0.85;
 }
 
 
-
-
-
-
+/* =========================================================
+   変換ボタン
+========================================================= */
 
 .convert-button {
+    width: 100%;
 
-    width:100%;
+    margin-top: 20px;
 
-    margin-top:20px;
-
-    background:#e60023;
-
+    background: #e60023;
 }
 
 
-
-
-
-
+/* =========================================================
+   エラー
+========================================================= */
 
 .error-message {
+    color: red;
 
-    color:red;
-
-    margin-top:10px;
-
+    margin-top: 10px;
 }
 
 
-
-
-
-
+/* =========================================================
+   フッター
+========================================================= */
 
 footer {
+    text-align: center;
 
-    text-align:center;
+    color: #777;
 
-    color:#777;
-
-    padding:25px;
-
+    padding: 25px;
 }
+
 
 #convertStatus {
+    text-align: center;
 
-    text-align:center;
+    font-size: 24px;
 
-    font-size:24px;
+    font-weight: bold;
 
-    font-weight:bold;
+    margin-top: 20px;
 
-    margin-top:20px;
-
-    color:#e60023;
-
+    color: #e60023;
 }
 
-/* ==============================
+
+/* =========================================================
    ダウンロードボタン
-   ============================== */
+========================================================= */
 
 .download-buttons {
+    display: flex;
 
-    display:flex;
+    flex-direction: row;
 
-    flex-direction:row;
+    justify-content: flex-start;
 
-    justify-content:flex-start;
+    align-items: center;
 
-    align-items:center;
+    gap: 10px;
 
-    gap:10px;
+    width: 100%;
 
-    width:100%;
-
-    margin-top:15px;
-
+    margin-top: 15px;
 }
-
 
 
 .download-buttons a {
-
-    text-decoration:none;
-
+    text-decoration: none;
 }
-
 
 
 .download-button {
+    background: #2563eb;
 
-    background:#2563eb;
+    color: white;
 
-    color:white;
+    border: none;
 
-    border:none;
+    border-radius: 6px;
 
-    border-radius:6px;
+    padding: 10px 25px;
 
-    padding:10px 25px;
+    font-size: 16px;
 
-    font-size:16px;
+    cursor: pointer;
 
-    cursor:pointer;
-
-    min-width:80px;
-
+    min-width: 80px;
 }
-
 
 
 .download-button:hover {
-
-    background:#1d4ed8;
-
+    background: #1d4ed8;
 }
-
 
 
 .download-button:active {
-
-    background:#1e40af;
-
+    background: #1e40af;
 }
 
 
-
-
-
-/* ==============================
+/* =========================================================
    SRT 展開・折り畳み
-   ============================== */
-
+========================================================= */
 
 .srt-button-area {
+    display: flex;
 
-    display:flex;
+    flex-direction: row;
 
-    flex-direction:row;
+    align-items: center;
 
-    align-items:center;
+    justify-content: flex-start;
 
-    justify-content:flex-start;
+    gap: 5px;
 
-    gap:5px;
+    margin-top: 15px;
 
-    margin-top:15px;
-
-    white-space:nowrap;
-
+    white-space: nowrap;
 }
-
-
-
 
 
 /* SRT用 mp3 ボタン */
 
 .srt-button-area .download-button {
+    display: inline-flex;
 
-    display:inline-flex;
-
-    align-items:center;
-
+    align-items: center;
 }
 
 
-
-
-
-/* ▼ ▲ ボタン */
+/* =========================================================
+   ▼ ▲ ボタン
+========================================================= */
 
 .srt-toggle-button {
     width: 55px;
+
     height: 48px;
 
     border: none;
+
     border-left: 1px solid #ddd;
 
     border-radius: 0 6px 6px 0;
 
     background: white;
+
     color: #333;
 
     font-size: 20px;
+
     font-weight: bold;
 
     cursor: pointer;
 }
 
+
 .srt-toggle-button:hover {
     background: #f5f5f5;
-}
-.srt-toggle-button:hover {
 
-    color:#1d4ed8;
-
+    color: #1d4ed8;
 }
 
-/* ==============================
+
+/* =========================================================
+   YouTube Converter用
+========================================================= */
+
+.url-row {
+    display: flex;
+
+    gap: 10px;
+
+    width: 100%;
+}
+
+
+.url-input {
+    flex: 1;
+
+    min-width: 0;
+
+    height: 46px;
+
+    padding: 0 14px;
+
+    border: 1px solid #ccc;
+
+    border-radius: 6px;
+
+    background: white;
+
+    font-size: 16px;
+}
+
+
+.execute-button {
+    width: 90px;
+
+    height: 46px;
+
+    border: none;
+
+    border-radius: 6px;
+
+    background: #1976d2;
+
+    color: white;
+
+    font-size: 16px;
+
+    font-weight: bold;
+
+    cursor: pointer;
+}
+
+
+.execute-button:hover {
+    background: #1565c0;
+}
+
+
+.execute-button:disabled {
+    background: #999;
+
+    cursor: not-allowed;
+}
+
+
+/* =========================================================
+   時間入力
+========================================================= */
+
+.time-row {
+    display: flex;
+
+    align-items: center;
+
+    gap: 7px;
+
+    margin-top: 18px;
+
+    white-space: nowrap;
+}
+
+
+.time-group {
+    display: flex;
+
+    align-items: center;
+
+    gap: 3px;
+}
+
+
+.time-input {
+    width: 42px;
+
+    height: 40px;
+
+    padding: 0;
+
+    border: 1px solid #ccc;
+
+    border-radius: 5px;
+
+    background: white;
+
+    text-align: center;
+
+    font-size: 16px;
+}
+
+
+.time-input:focus {
+    outline: none;
+
+    border-color: #1976d2;
+}
+
+
+.time-label {
+    font-size: 14px;
+
+    margin-right: 3px;
+}
+
+
+.time-separator {
+    margin: 0 8px;
+
+    font-size: 18px;
+
+    font-weight: bold;
+}
+
+
+/* =========================================================
+   ステータス
+========================================================= */
+
+.status {
+    margin-top: 18px;
+
+    padding: 12px 14px;
+
+    border-radius: 6px;
+
+    background: #eeeeee;
+
+    display: none;
+
+    white-space: pre-wrap;
+}
+
+
+.status.error {
+    background: #ffebee;
+
+    color: #c62828;
+}
+
+
+.status.success {
+    background: #e8f5e9;
+
+    color: #2e7d32;
+}
+
+
+/* =========================================================
+   MP3 / Gemini エリア
+========================================================= */
+
+#downloadArea {
+    margin-top: 22px;
+}
+
+
+.download-buttons {
+    display: flex;
+
+    align-items: center;
+
+    width: 100%;
+}
+
+
+.download-buttons > span {
+    flex: 1;
+
+    height: 48px;
+
+    display: flex;
+
+    align-items: center;
+
+    padding-left: 16px;
+
+    border-radius: 6px 0 0 6px;
+
+    background: #2e7d32;
+
+    color: white;
+
+    font-size: 16px;
+
+    font-weight: bold;
+}
+
+
+.download-button {
+    height: 48px;
+
+    min-width: 80px;
+
+    padding: 0 18px;
+
+    border: none;
+
+    border-radius: 6px;
+
+    background: #2e7d32;
+
+    color: white;
+
+    font-size: 16px;
+
+    font-weight: bold;
+
+    cursor: pointer;
+}
+
+
+.download-button:hover {
+    background: #256628;
+}
+
+
+.download-buttons > a {
+    display: block;
+}
+
+
+.download-buttons > a .download-button {
+    border-radius: 0;
+}
+
+
+/* =========================================================
+   Gemini
+========================================================= */
+
+#srtArea {
+    display: none;
+
+    margin-top: 10px;
+
+    padding: 15px;
+
+    border: 1px solid #ddd;
+
+    border-radius: 6px;
+
+    background: white;
+}
+
+
+.gemini-button {
+    width: 100%;
+
+    height: 46px;
+
+    border: none;
+
+    border-radius: 6px;
+
+    background: #7b1fa2;
+
+    color: white;
+
+    font-size: 16px;
+
+    font-weight: bold;
+
+    cursor: pointer;
+}
+
+
+.gemini-button:hover {
+    background: #6a1b9a;
+}
+
+
+.gemini-button:disabled {
+    background: #999;
+
+    cursor: not-allowed;
+}
+
+
+/* =========================================================
+   Gemini結果
+========================================================= */
+
+#gemini-result {
+    display: none;
+
+    margin-top: 10px;
+
+    padding: 10px;
+
+    border-radius: 6px;
+
+    background: #f3e5f5;
+
+    color: #6a1b9a;
+
+    white-space: pre-wrap;
+}
+
+
+/* =========================================================
+   非表示用
+========================================================= */
+
+#gemini-file {
+    display: none;
+}
+
+
+/* =========================================================
    スマホ対応
-   ============================== */
-
+========================================================= */
 
 html,
 body {
+    width: 100%;
 
-    width:100%;
-    overflow-x:hidden;
-
+    overflow-x: hidden;
 }
 
-
-
-/* メイン幅を可変化 */
 
 main {
+    width: 100%;
 
-    width:100%;
-    max-width:600px;
-    padding:0 15px;
-    margin:40px auto;
+    max-width: 600px;
 
+    padding: 0 15px;
+
+    margin: 40px auto;
 }
 
-
-
-/* URL入力 */
 
 .url-area {
-
-    width:100%;
-
+    width: 100%;
 }
-
 
 
 .url-area input {
-
-    min-width:0;
-
+    min-width: 0;
 }
-
 
 
 .check-button {
-
-    flex-shrink:0;
-
+    flex-shrink: 0;
 }
 
-
-
-
-/* ダウンロードボタン */
 
 .download-buttons {
+    flex-wrap: wrap;
+}
 
-    flex-wrap:wrap;
+
+/* =========================================================
+   YouTube Converter スマホ
+========================================================= */
+
+@media (max-width: 600px) {
+
+    body {
+        padding: 20px 10px;
+    }
+
+
+    h1 {
+        font-size: 24px;
+    }
+
+
+    .url-row {
+        gap: 6px;
+    }
+
+
+    .execute-button {
+        width: 75px;
+    }
+
+
+    .time-row {
+        gap: 3px;
+    }
+
+
+    .time-separator {
+        margin: 0 3px;
+    }
+
+
+    .time-input {
+        width: 36px;
+    }
+
+
+    .time-label {
+        font-size: 12px;
+    }
+
+
+    .download-buttons > span {
+        font-size: 14px;
+
+        padding-left: 10px;
+    }
+
+
+    .download-button {
+        min-width: 65px;
+
+        padding: 0 12px;
+    }
 
 }
 
 
+/* =========================================================
+   既存サイト スマホ
+========================================================= */
 
-
-/* スマホ */
-
-@media screen and (max-width:600px){
-
-
+@media screen and (max-width: 600px) {
 
     header {
-
-        padding:20px 10px;
-
+        padding: 20px 10px;
     }
-
 
 
     header h1 {
-
-        font-size:28px;
-
+        font-size: 28px;
     }
-
 
 
     main {
+        margin: 20px auto;
 
-        margin:20px auto;
-        padding:0 10px;
-
+        padding: 0 10px;
     }
-
 
 
     .card {
-
-        padding:20px;
-
+        padding: 20px;
     }
-
 
 
     /*
@@ -632,20 +884,13 @@ main {
     */
 
     .url-area {
-
-        flex-direction:column;
-
+        flex-direction: column;
     }
-
 
 
     .check-button {
-
-        width:100%;
-
+        width: 100%;
     }
-
-
 
 
     /*
@@ -653,15 +898,10 @@ main {
     */
 
     .output-option {
+        flex-direction: column;
 
-        flex-direction:column;
-
-        gap:10px;
-
+        gap: 10px;
     }
-
-
-
 
 
     /*
@@ -669,31 +909,20 @@ main {
     */
 
     .convert-option {
+        flex-direction: column;
 
-        flex-direction:column;
-
-        align-items:stretch;
-
+        align-items: stretch;
     }
-
 
 
     .convert-option input {
-
-        width:100%;
-
+        width: 100%;
     }
-
 
 
     .symbol {
-
-        text-align:center;
-
+        text-align: center;
     }
-
-
-
 
 
     /*
@@ -701,37 +930,33 @@ main {
     */
 
     .download-buttons {
+        flex-direction: column;
 
-        flex-direction:column;
-
-        align-items:stretch;
-
+        align-items: stretch;
     }
-
 
 
     .download-buttons a {
-
-        width:100%;
-
+        width: 100%;
     }
-
 
 
     .download-button {
-
-        width:100%;
-
+        width: 100%;
     }
 
-
-
 }
+
+
+/* =========================================================
+   Converter専用リンク
+========================================================= */
 
 .converter-link,
 .converter-link:visited,
 .converter-link:hover,
 .converter-link:active {
     color: black;
+
     text-decoration: none;
 }
