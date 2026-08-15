@@ -391,78 +391,67 @@ h1 {
 
 
 
-/* MP3全体 */
+.download-buttons {
 
-.download-button {
-
-    height:48px;
-
-    min-width:80px;
-
-    padding:0 18px;
-
-    border:none;
-
-    border-radius:0;
-
-    background:#2e7d32;
-
-    color:white;
-
-    font-size:16px;
-
-    font-weight:bold;
-
-    cursor:pointer;
+    width: 100%;
 
 }
 
 
-/* MP3のタイトル＋ボタン */
 
 .mp3-download-row {
 
-    display:flex;
-
-    align-items:center;
-
-    justify-content:flex-start;
-
-    width:100%;
+    width: 100%;
 
 }
 
 
-/* MP3のダウンロード */
+
+/* ==============================
+   MP3タイトル
+   ============================== */
+
+.download-content {
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: flex-start;
+
+}
+
+
 
 .download-label {
 
-    height:48px;
+    display: block;
 
-    display:flex;
+    height: auto;
 
-    align-items:center;
+    margin: 0 0 8px 0;
 
-    padding:0 16px;
+    padding: 0;
 
-    border-radius:6px 0 0 6px;
+    background: none;
 
-    background:#2e7d32;
+    color: #333;
 
-    color:white;
+    font-size: 16px;
 
-    font-size:16px;
+    font-weight: bold;
 
-    font-weight:bold;
-
-    white-space:nowrap;
+    white-space: nowrap;
 
 }
 
 
-/* mp3ボタン＋▼ボタン */
 
-.mp3-button-row {
+/* ==============================
+   MP3ボタン + ▼ボタン
+   ============================== */
+
+.download-controls {
 
     display: flex;
 
@@ -474,7 +463,23 @@ h1 {
 
 
 
-/* ダウンロードボタン */
+/* ダウンロードリンク */
+
+.download-buttons a {
+
+    display: block;
+
+    text-decoration: none;
+
+    line-height: 0;
+
+}
+
+
+
+/* ==============================
+   MP3ボタン
+   ============================== */
 
 .download-button {
 
@@ -534,29 +539,33 @@ h1 {
 
 .srt-toggle-button {
 
-    width:55px;
+    display: flex;
 
-    height:48px;
+    align-items: center;
 
-    flex-shrink:0;
+    justify-content: center;
 
-    padding:0;
+    width: 55px;
 
-    border:none;
+    height: 48px;
 
-    border-left:1px solid #ddd;
+    flex-shrink: 0;
 
-    border-radius:0 6px 6px 0;
+    padding: 0;
 
-    background:white;
+    border: 1px solid #ddd;
 
-    color:#333;
+    border-radius: 6px;
 
-    font-size:20px;
+    background: white;
 
-    font-weight:bold;
+    color: #333;
 
-    cursor:pointer;
+    font-size: 20px;
+
+    font-weight: bold;
+
+    cursor: pointer;
 
 }
 
@@ -779,12 +788,6 @@ h1 {
 
 
 
-    /*
-       開始              終了
-
-       [00]時[00]分[00]秒 ～ [00]時[00]分[00]秒
-    */
-
     .time-label-row {
 
         grid-template-columns: 1fr 1fr;
@@ -875,15 +878,15 @@ h1 {
 
         margin-bottom: 8px;
 
-        font-size: 14px;
+        padding: 0;
 
-        padding-left: 0;
+        font-size: 14px;
 
     }
 
 
 
-    .mp3-button-row {
+    .download-controls {
 
         gap: 6px;
 
