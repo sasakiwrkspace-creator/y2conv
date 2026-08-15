@@ -125,29 +125,37 @@ h1 {
 
 .execute-button {
 
-    width: 90px;
+    width:90px;
 
-    height: 46px;
+    height:46px;
 
-    flex-shrink: 0;
+    flex-shrink:0;
 
-    border: none;
+    border:none;
 
-    border-radius: 6px;
+    border-radius:6px;
 
-    background: #1976d2;
+    background:#1976d2;
 
-    color: white;
+    color:white;
 
-    font-size: 16px;
+    font-size:16px;
 
-    font-weight: bold;
+    font-weight:bold;
 
-    cursor: pointer;
+    cursor:pointer;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    text-align:center;
+
+    line-height:1.2;
 
 }
-
-
 
 .execute-button:hover {
 
