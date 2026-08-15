@@ -12,206 +12,223 @@
 
     <title>YouTube Converter</title>
 
-    <link rel="stylesheet" href="/static/style.css">
+    <link
+        rel="stylesheet"
+        href="/static/style.css"
+    >
 
 </head>
 
 
 <body>
 
-<div class="container">
+
+<header>
 
     <h1>YouTube Converter</h1>
 
+    <p>YouTube動画をMP3に変換します</p>
 
-    <!-- =========================================
-         URL + 実行
-    ========================================== -->
-
-    <div class="url-row">
-
-        <input
-            id="youtube-url"
-            class="url-input"
-            type="text"
-            placeholder="https://www.youtube.com/watch?v=..."
-            autocomplete="off"
-            value="https://www.youtube.com/watch?v=Wb11ihveUCk"
-        >
-
-        <button
-            id="convertBtn"
-            class="execute-button"
-            type="button"
-        >
-            実行
-        </button>
-
-    </div>
+</header>
 
 
-    <!-- =========================================
-         時間指定
-    ========================================== -->
+<main>
 
-    <div class="time-row">
+    <div class="card">
 
-        <!-- 開始 -->
 
-        <div class="time-group">
+        <!-- =========================================
+             URL + 実行
+        ========================================== -->
+
+        <div class="url-area">
+
+            <input
+                id="youtube-url"
+                type="text"
+                placeholder="https://www.youtube.com/watch?v=..."
+                autocomplete="off"
+                value="https://www.youtube.com/watch?v=Wb11ihveUCk"
+            >
+
+            <button
+                id="convertBtn"
+                class="check-button"
+                type="button"
+            >
+                実行
+            </button>
+
+        </div>
+
+
+        <!-- =========================================
+             時間指定
+        ========================================== -->
+
+        <div class="convert-option">
+
+
+            <!-- 開始 -->
+
+            <label>
+                開始
+            </label>
+
 
             <input
                 id="start-hour"
-                class="time-input"
                 type="text"
                 inputmode="numeric"
                 maxlength="2"
                 pattern="[0-9]*"
                 aria-label="開始 時"
+                placeholder="00"
             >
 
-            <span class="time-label">時</span>
+            <span class="symbol">時</span>
 
 
             <input
                 id="start-minute"
-                class="time-input"
                 type="text"
                 inputmode="numeric"
                 maxlength="2"
                 pattern="[0-9]*"
                 aria-label="開始 分"
+                placeholder="00"
             >
 
-            <span class="time-label">分</span>
+            <span class="symbol">分</span>
 
 
             <input
                 id="start-second"
-                class="time-input"
                 type="text"
                 inputmode="numeric"
                 maxlength="2"
                 pattern="[0-9]*"
                 aria-label="開始 秒"
+                placeholder="00"
             >
 
-            <span class="time-label">秒</span>
-
-        </div>
+            <span class="symbol">秒</span>
 
 
-        <span class="time-separator">～</span>
+            <span class="symbol">
+                ～
+            </span>
 
 
-        <!-- 終了 -->
+            <!-- 終了 -->
 
-        <div class="time-group">
+            <label>
+                終了
+            </label>
+
 
             <input
                 id="end-hour"
-                class="time-input"
                 type="text"
                 inputmode="numeric"
                 maxlength="2"
                 pattern="[0-9]*"
                 aria-label="終了 時"
+                placeholder="00"
             >
 
-            <span class="time-label">時</span>
+            <span class="symbol">時</span>
 
 
             <input
                 id="end-minute"
-                class="time-input"
                 type="text"
                 inputmode="numeric"
                 maxlength="2"
                 pattern="[0-9]*"
                 aria-label="終了 分"
+                placeholder="00"
             >
 
-            <span class="time-label">分</span>
+            <span class="symbol">分</span>
 
 
             <input
                 id="end-second"
-                class="time-input"
                 type="text"
                 inputmode="numeric"
                 maxlength="2"
                 pattern="[0-9]*"
                 aria-label="終了 秒"
+                placeholder="00"
             >
 
-            <span class="time-label">秒</span>
+            <span class="symbol">秒</span>
+
 
         </div>
 
-    </div>
 
-
-    <!-- =========================================
-         ステータス
-    ========================================== -->
-
-    <div
-        id="status"
-        class="status"
-    ></div>
-
-
-    <!-- =========================================
-         Gemini用ファイル名
-
-         converter.jsから使用するため必要
-    ========================================== -->
-
-    <input
-        id="gemini-file"
-        type="hidden"
-        value=""
-    >
-
-
-    <!-- =========================================
-         MP3ダウンロード表示エリア
-
-         converter.js がここに
-         MP3ボタンを生成する
-    ========================================== -->
-
-    <div id="downloadArea"></div>
-
-
-    <!-- =========================================
-         Gemini文字起こしエリア
-
-         converter.js の srtArea と一致
-    ========================================== -->
-
-    <div
-        id="srtArea"
-        style="display: none;"
-    >
-
-        <button
-            id="gemini-button"
-            class="gemini-button"
-            type="button"
-        >
-            Geminiで文字起こし
-        </button>
-
+        <!-- =========================================
+             ステータス
+        ========================================== -->
 
         <div
-            id="gemini-result"
+            id="status"
+            class="status"
         ></div>
+
+
+        <!-- =========================================
+             Gemini用ファイル名
+
+             converter.jsから使用するため必要
+        ========================================== -->
+
+        <input
+            id="gemini-file"
+            type="hidden"
+            value=""
+        >
+
+
+        <!-- =========================================
+             MP3ダウンロード表示エリア
+
+             converter.js がここに
+             MP3ボタンを生成する
+        ========================================== -->
+
+        <div id="downloadArea"></div>
+
+
+        <!-- =========================================
+             Gemini文字起こしエリア
+        ========================================== -->
+
+        <div id="srtArea">
+
+
+            <button
+                id="gemini-button"
+                class="gemini-button"
+                type="button"
+            >
+                Geminiで文字起こし
+            </button>
+
+
+            <div
+                id="gemini-result"
+            ></div>
+
+
+        </div>
+
 
     </div>
 
-
-</div>
+</main>
 
 
 <!-- =========================================
