@@ -716,21 +716,34 @@ SRT字幕ファイルとして使用します。
         # ==================================================
         # Gemini
         # ==================================================
-
-        response = client.models.generate_content(
-
-            model=GEMINI_MODEL,
-
-            contents=[
-
-                uploaded_file,
-
-                prompt
-
-            ]
-
-        )
-
+        
+        print(">>> Gemini generate_content開始")
+        
+        try:
+        
+            response = client.models.generate_content(
+        
+                model=GEMINI_MODEL,
+        
+                contents=[
+        
+                    uploaded_file,
+        
+                    prompt
+        
+                ]
+        
+            )
+        
+            print(">>> Gemini generate_content成功")
+        
+        except Exception as e:
+        
+            print(">>> Gemini generate_content失敗")
+            print(">>> TYPE:", type(e).__name__)
+            print(">>> ERROR:", repr(e))
+        
+            raise
 
         if not response:
 
