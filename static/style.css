@@ -378,7 +378,55 @@ h1 {
 
 
 /* ==============================
-   MP3ダウンロード
+   MP3 / SRT 変換情報
+   ============================== */
+
+.convert-info {
+
+    width: 100%;
+
+    margin-top: 18px;
+
+    margin-bottom: 12px;
+
+    line-height: 1.8;
+
+    font-size: 14px;
+
+}
+
+
+
+.convert-info-title {
+
+    font-size: 16px;
+
+    font-weight: bold;
+
+    margin-bottom: 5px;
+
+}
+
+
+
+.convert-info-row {
+
+    margin: 2px 0;
+
+}
+
+
+
+.convert-info-label {
+
+    font-weight: bold;
+
+}
+
+
+
+/* ==============================
+   MP3 / SRT ダウンロード全体
    ============================== */
 
 #downloadArea {
@@ -391,37 +439,19 @@ h1 {
 
 
 
-.download-buttons {
+.download-section {
 
     width: 100%;
 
-}
-
-
-
-.mp3-download-row {
-
-    width: 100%;
+    margin-top: 18px;
 
 }
 
 
 
 /* ==============================
-   MP3タイトル
+   ダウンロードラベル
    ============================== */
-
-.download-content {
-
-    display: flex;
-
-    flex-direction: column;
-
-    align-items: flex-start;
-
-}
-
-
 
 .download-label {
 
@@ -429,7 +459,7 @@ h1 {
 
     height: auto;
 
-    margin: 0 0 8px 0;
+    margin-bottom: 8px;
 
     padding: 0;
 
@@ -448,37 +478,28 @@ h1 {
 
 
 /* ==============================
-   MP3ボタン + ▼ボタン
+   MP3 / SRT ボタン行
    ============================== */
 
-.download-controls {
+.mp3-button-row,
+.srt-button-row {
 
     display: flex;
 
     align-items: center;
 
+    justify-content: flex-start;
+
     gap: 6px;
 
-}
-
-
-
-/* ダウンロードリンク */
-
-.download-buttons a {
-
-    display: block;
-
-    text-decoration: none;
-
-    line-height: 0;
+    width: auto;
 
 }
 
 
 
 /* ==============================
-   MP3ボタン
+   ダウンロードボタン
    ============================== */
 
 .download-button {
@@ -539,13 +560,7 @@ h1 {
 
 .srt-toggle-button {
 
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    width: 55px;
+    width: 50px;
 
     height: 48px;
 
@@ -553,7 +568,7 @@ h1 {
 
     padding: 0;
 
-    border: 1px solid #ddd;
+    border: none;
 
     border-radius: 6px;
 
@@ -576,6 +591,20 @@ h1 {
     background: #f5f5f5;
 
     color: #1d4ed8;
+
+}
+
+
+
+/* ==============================
+   SRTエリア
+   ============================== */
+
+.srt-section {
+
+    width: 100%;
+
+    margin-top: 25px;
 
 }
 
@@ -717,7 +746,7 @@ h1 {
 
 .srt-download-row .download-button {
 
-    border-radius: 0 6px 6px 0;
+    border-radius: 6px;
 
 }
 
@@ -787,6 +816,12 @@ h1 {
     }
 
 
+
+    /*
+       開始              終了
+
+       [00]時[00]分[00]秒 ～ [00]時[00]分[00]秒
+    */
 
     .time-label-row {
 
@@ -871,22 +906,43 @@ h1 {
 
 
     /* ==========================
-       MP3
+       変換情報
        ========================== */
 
-    .download-label {
+    .convert-info {
 
-        margin-bottom: 8px;
+        font-size: 13px;
 
-        padding: 0;
-
-        font-size: 14px;
+        line-height: 1.7;
 
     }
 
 
 
-    .download-controls {
+    .convert-info-title {
+
+        font-size: 15px;
+
+    }
+
+
+
+    /* ==========================
+       MP3 / SRT
+       ========================== */
+
+    .download-label {
+
+        font-size: 14px;
+
+        margin-bottom: 7px;
+
+    }
+
+
+
+    .mp3-button-row,
+    .srt-button-row {
 
         gap: 6px;
 
