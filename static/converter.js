@@ -1191,40 +1191,48 @@ document.addEventListener(
             // =================================
 
             downloadArea.innerHTML = `
-
+            
                 <div class="download-buttons">
-
+            
                     <div class="mp3-download-row">
-
-                        <span class="download-label">
-                            MP3のダウンロード
-                        </span>
-
-                        <a
-                            href="/download/${encodeURIComponent(mp3File)}"
-                            download
-                        >
-                            <button
-                                type="button"
-                                class="download-button"
-                            >
-                                mp3
-                            </button>
-                        </a>
-
-                        <button
-                            type="button"
-                            id="srt-toggle-button"
-                            class="srt-toggle-button"
-                            aria-expanded="false"
-                        >
-                            ▼
-                        </button>
-
+            
+                        <div class="download-content">
+            
+                            <div class="download-label">
+                                MP3のダウンロード
+                            </div>
+            
+                            <div class="download-controls">
+            
+                                <a
+                                    href="/download/${encodeURIComponent(mp3File)}"
+                                    download
+                                >
+                                    <button
+                                        type="button"
+                                        class="download-button"
+                                    >
+                                        mp3
+                                    </button>
+                                </a>
+            
+                                <button
+                                    type="button"
+                                    id="srt-toggle-button"
+                                    class="srt-toggle-button"
+                                    aria-expanded="false"
+                                >
+                                    ▼
+                                </button>
+            
+                            </div>
+            
+                        </div>
+            
                     </div>
-
+            
                 </div>
-
+            
             `;
 
 
