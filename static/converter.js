@@ -680,11 +680,28 @@ function formatDuration(duration) {
         // =====================================
 
         async function startConvert() {
-
+        
+            const selectedFormat =
+                document.querySelector(
+                    'input[name="output-format"]:checked'
+                );
+        
+            const outputFormat =
+                selectedFormat
+                    ? selectedFormat.value
+                    : "";
+        
+            // 現在はMP3処理のみ実装
+            if (outputFormat !== "mp3") {
+                return;
+            }
+        
+        
             const url =
                 urlInput
                     ? urlInput.value.trim()
                     : "";
+    
 
 
             if (!url) {
