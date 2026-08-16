@@ -1,8 +1,6 @@
 from flask import request, jsonify
 
 import yt_dlp
-from yt_dlp.utils import download_range_func
-
 import uuid
 import threading
 import os
@@ -220,94 +218,16 @@ def check_deno():
 
 
 # ==========================================================
-# 時間を秒へ変換
-# ==========================================================
-
-def time_to_seconds(
-    value
-):
-
-    if not value:
-
-        return 0
-
-    value = str(
-        value
-    ).strip()
-
-    if not value:
-
-        return 0
-
-    parts = value.split(":")
-
-    try:
-
-        if len(parts) == 1:
-
-            return float(
-                parts[0]
-            )
-
-        if len(parts) == 2:
-
-            minutes = float(
-                parts[0]
-            )
-
-            seconds = float(
-                parts[1]
-            )
-
-            return (
-                minutes * 60
-                + seconds
-            )
-
-        if len(parts) == 3:
-
-            hours = float(
-                parts[0]
-            )
-
-            minutes = float(
-                parts[1]
-            )
-
-            seconds = float(
-                parts[2]
-            )
-
-            return (
-                hours * 3600
-                + minutes * 60
-                + seconds
-            )
-
-        raise ValueError(
-            "時間形式が正しくありません"
-        )
-
-    except Exception:
-
-        raise ValueError(
-            "時間形式が正しくありません: "
-            + value
-        )
-
-
-# ==========================================================
 # yt-dlp設定
 #
-# 時間範囲指定がある場合は
-# yt-dlpのdownload_rangesを使用する。
+# 512MB環境を考慮して必要最小限
 # ==========================================================
 
 def get_ydl_options(
     temp_cookie,
     output_template,
-    start_time=None,
-    end_time=None
+    start_seconds=None,
+    end_seconds=None
 ):
 
     options = {
@@ -356,79 +276,45 @@ def get_ydl_options(
 
         "noprogress":
             True
-
     }
 
 
     # ======================================================
-    # 時間範囲指定
+    # 時間範囲
+    #
+    # yt-dlp側で指定範囲だけダウンロードする。
+    #
+    # download_ranges:
+    #   start_seconds ～ end_seconds
+    #
     # ======================================================
 
     if (
-        start_time is not None
-        and end_time is not None
+        start_seconds is not None
+        and end_seconds is not None
     ):
 
-        start_seconds = time_to_seconds(
-            start_time
-        )
-
-        end_seconds = time_to_seconds(
-            end_time
-        )
-
-
-        if end_seconds <= start_seconds:
-
-            raise Exception(
-                "終了時間は開始時間より後にしてください"
-            )
-
-
-        print("==========================================")
-        print("yt-dlp時間範囲指定")
-        print("開始:", start_time)
-        print("終了:", end_time)
-        print("開始秒:", start_seconds)
-        print("終了秒:", end_seconds)
-        print("==========================================")
-
-
         options["download_ranges"] = (
-            download_range_func(
-                None,
+            yt_dlp.utils.download_range_func(
+                [],
                 [
-                    (
+                    [
                         start_seconds,
                         end_seconds
-                    )
+                    ]
                 ]
             )
         )
 
-
-        # --------------------------------------------------
-        # 時間範囲ダウンロード時の精度向上
-        # --------------------------------------------------
-
-        options["force_keyframes_at_cuts"] = True
-
-
-        # --------------------------------------------------
-        # HLS等での範囲取得を安定させるため
-        # HTTPSを優先
-        # --------------------------------------------------
-
-        options["format_sort"] = [
-            "proto:https"
-        ]
-
-
-    else:
-
         print("==========================================")
-        print("yt-dlp時間範囲指定なし")
-        print("動画全体を取得")
+        print("yt-dlp時間範囲指定")
+        print("開始秒:", start_seconds)
+        print("終了秒:", end_seconds)
+        print(
+            "長さ:",
+            end_seconds - start_seconds,
+            "秒"
+        )
         print("==========================================")
 
 
@@ -456,7 +342,6 @@ def get_ydl_options(
 
         }
 
-
     return options
 
 
@@ -465,19 +350,18 @@ def get_ydl_options(
 #
 # 時間指定なし
 #   YouTube
-#       ↓
-#   音声全体
-#       ↓
+#   ↓
+#   音声
+#   ↓
 #   MP3
 #
 # 時間指定あり
 #   YouTube
-#       ↓
-#   yt-dlpで指定範囲
-#       ↓
+#   ↓
+#   yt-dlpで指定範囲だけ取得
+#   ↓
 #   MP3
 #
-# ※後からcut_mp3()でカットする方式ではない。
 # ==========================================================
 
 def download_mp3(
@@ -491,13 +375,11 @@ def download_mp3(
     print("MP3作成開始")
     print("URL:", url)
     print("出力:", output_dir)
-    print("開始時間:", start_time)
-    print("終了時間:", end_time)
+    print("開始:", start_time)
+    print("終了:", end_time)
     print("==========================================")
 
-
     temp_cookie = None
-
 
     try:
 
@@ -521,6 +403,45 @@ def download_mp3(
 
 
         # ==================================================
+        # 時間を秒へ変換
+        # ==================================================
+
+        start_seconds = None
+
+        end_seconds = None
+
+
+        if start_time:
+
+            start_seconds = time_to_seconds(
+                start_time
+            )
+
+
+        if end_time:
+
+            end_seconds = time_to_seconds(
+                end_time
+            )
+
+
+        # ==================================================
+        # 時間チェック
+        # ==================================================
+
+        if (
+            start_seconds is not None
+            and end_seconds is not None
+        ):
+
+            if end_seconds <= start_seconds:
+
+                raise Exception(
+                    "終了時間は開始時間より後にしてください"
+                )
+
+
+        # ==================================================
         # 出力ファイル
         # ==================================================
 
@@ -534,7 +455,7 @@ def download_mp3(
 
 
         # ==================================================
-        # yt-dlp設定
+        # yt-dlp
         # ==================================================
 
         ydl_opts = get_ydl_options(
@@ -543,9 +464,9 @@ def download_mp3(
 
             output_template,
 
-            start_time,
+            start_seconds,
 
-            end_time
+            end_seconds
 
         )
 
@@ -579,27 +500,22 @@ def download_mp3(
 
 
         if (
-            start_time is not None
-            and end_time is not None
+            start_seconds is not None
+            and end_seconds is not None
         ):
 
             print(
-                "download_ranges: ON"
-            )
-
-            print(
-                "range:",
-                start_time,
-                "->",
-                end_time
+                "download range:",
+                start_seconds,
+                "-",
+                end_seconds
             )
 
         else:
 
             print(
-                "download_ranges: OFF"
+                "download range: FULL"
             )
-
 
         print("==========================================")
 
@@ -616,12 +532,10 @@ def download_mp3(
                 ">>> yt-dlp開始"
             )
 
-
             info = ydl.extract_info(
                 url,
                 download=True
             )
-
 
             print(
                 ">>> yt-dlp完了"
@@ -633,6 +547,15 @@ def download_mp3(
             raise Exception(
                 "YouTube情報を取得できませんでした"
             )
+
+
+        # ==================================================
+        # 元動画の再生時間
+        # ==================================================
+
+        full_duration = info.get(
+            "duration"
+        )
 
 
         # ==================================================
@@ -654,7 +577,6 @@ def download_mp3(
                     output_dir,
                     filename
                 )
-
 
                 if os.path.isfile(
                     full_path
@@ -685,10 +607,6 @@ def download_mp3(
         )
 
 
-        # ==================================================
-        # ファイルサイズ
-        # ==================================================
-
         file_size = os.path.getsize(
             mp3_file
         )
@@ -711,19 +629,43 @@ def download_mp3(
         )
 
 
-        duration = info.get(
-            "duration"
-        )
+        # ==================================================
+        # 切り出し後の表示時間
+        # ==================================================
 
+        clip_duration = full_duration
+
+
+        if (
+            start_seconds is not None
+            and end_seconds is not None
+        ):
+
+            clip_duration = (
+                end_seconds
+                - start_seconds
+            )
+
+
+        elif (
+            start_seconds is None
+            and end_seconds is not None
+        ):
+
+            clip_duration = end_seconds
+
+
+        # ==================================================
+        # 結果表示
+        # ==================================================
 
         print("==========================================")
         print("MP3作成成功")
         print("タイトル:", title)
-        print("再生時間:", duration)
+        print("切り出し後再生時間:", clip_duration)
+        print("Full再生時間:", full_duration)
         print("MP3:", mp3_file)
         print("サイズ:", file_size, "bytes")
-        print("開始時間:", start_time)
-        print("終了時間:", end_time)
         print("==========================================")
 
 
@@ -735,8 +677,13 @@ def download_mp3(
             "title":
                 title,
 
+            # 切り出したMP3の長さ
             "duration":
-                duration
+                clip_duration,
+
+            # 元YouTube動画の長さ
+            "full_duration":
+                full_duration
 
         }
 
@@ -745,6 +692,91 @@ def download_mp3(
 
         remove_temp_cookie_file(
             temp_cookie
+        )
+
+
+# ==========================================================
+# 時間を秒へ変換
+# ==========================================================
+
+def time_to_seconds(
+    value
+):
+
+    if not value:
+
+        return 0
+
+
+    value = str(
+        value
+    ).strip()
+
+
+    if not value:
+
+        return 0
+
+
+    parts = value.split(":")
+
+
+    try:
+
+        if len(parts) == 1:
+
+            return float(
+                parts[0]
+            )
+
+
+        if len(parts) == 2:
+
+            minutes = float(
+                parts[0]
+            )
+
+            seconds = float(
+                parts[1]
+            )
+
+            return (
+                minutes * 60
+                + seconds
+            )
+
+
+        if len(parts) == 3:
+
+            hours = float(
+                parts[0]
+            )
+
+            minutes = float(
+                parts[1]
+            )
+
+            seconds = float(
+                parts[2]
+            )
+
+            return (
+                hours * 3600
+                + minutes * 60
+                + seconds
+            )
+
+
+        raise ValueError(
+            "時間形式が正しくありません"
+        )
+
+
+    except Exception:
+
+        raise ValueError(
+            "時間形式が正しくありません: "
+            + value
         )
 
 
@@ -832,9 +864,6 @@ def convert_task(
 
         # ==================================================
         # MP3作成
-        #
-        # 時間指定があれば
-        # yt-dlp側で直接範囲指定する。
         # ==================================================
 
         result = download_mp3(
@@ -856,30 +885,7 @@ def convert_task(
 
         duration = result["duration"]
 
-
-        # ==================================================
-        # 時間指定のログ
-        # ==================================================
-
-        if (
-            start_time is not None
-            and end_time is not None
-        ):
-
-            print("==========================================")
-            print("時間範囲MP3作成")
-            print("yt-dlp側で範囲指定済み")
-            print("開始:", start_time)
-            print("終了:", end_time)
-            print("==========================================")
-
-
-        else:
-
-            print("==========================================")
-            print("時間指定なし")
-            print("MP3全体を使用")
-            print("==========================================")
+        full_duration = result["full_duration"]
 
 
         # ==================================================
@@ -935,8 +941,13 @@ def convert_task(
             "title":
                 title,
 
+            # 切り出し後の再生時間
             "duration":
                 duration,
+
+            # 元動画の再生時間
+            "full_duration":
+                full_duration,
 
             "start_time":
                 start_time or "",
@@ -951,6 +962,8 @@ def convert_task(
         print("MP3変換完了")
         print("JOB:", job_id)
         print("TITLE:", title)
+        print("DURATION:", duration)
+        print("FULL DURATION:", full_duration)
         print("START:", start_time)
         print("END:", end_time)
         print("MP3:", mp3_file)
@@ -1114,95 +1127,7 @@ def register_convert(app):
 
 
             # ==================================================
-            # 時間形式チェック
-            # ==================================================
-
-            if start_time:
-
-                try:
-
-                    start_seconds = time_to_seconds(
-                        start_time
-                    )
-
-                    if start_seconds < 0:
-
-                        raise ValueError
-
-                except Exception:
-
-                    return jsonify({
-
-                        "success":
-                            False,
-
-                        "message":
-                            "開始時間の形式が正しくありません"
-
-                    }), 400
-
-
-            if end_time:
-
-                try:
-
-                    end_seconds = time_to_seconds(
-                        end_time
-                    )
-
-                    if end_seconds < 0:
-
-                        raise ValueError
-
-                except Exception:
-
-                    return jsonify({
-
-                        "success":
-                            False,
-
-                        "message":
-                            "終了時間の形式が正しくありません"
-
-                    }), 400
-
-
-            # ==================================================
-            # 終了時間だけ指定
-            #
-            # 00:00:00から開始
-            # ==================================================
-
-            if (
-                not start_time
-                and end_time
-            ):
-
-                start_time = "00:00:00"
-
-
-            # ==================================================
-            # 開始だけ入力
-            # ==================================================
-
-            if (
-                start_time
-                and not end_time
-            ):
-
-                return jsonify({
-
-                    "success":
-                        False,
-
-                    "message":
-                        "終了時間を入力してください"
-
-                }), 400
-
-
-            # ==================================================
-            # 時間チェック
+            # サーバー側時間チェック
             # ==================================================
 
             if (
@@ -1231,6 +1156,26 @@ def register_convert(app):
                             "終了時間は開始時間より後にしてください"
 
                     }), 400
+
+
+            # ==================================================
+            # 開始だけ入力
+            # ==================================================
+
+            if (
+                start_time
+                and not end_time
+            ):
+
+                return jsonify({
+
+                    "success":
+                        False,
+
+                    "message":
+                        "終了時間を入力してください"
+
+                }), 400
 
 
             # ==================================================
