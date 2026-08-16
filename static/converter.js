@@ -406,14 +406,20 @@ document.addEventListener(
 
         function formatElapsed(seconds) {
 
+            const totalSeconds =
+                Math.floor(
+                    Number(seconds) || 0
+                );
+
+
             const minutes =
                 Math.floor(
-                    seconds / 60
+                    totalSeconds / 60
                 );
 
 
             const remainSeconds =
-                seconds % 60;
+                totalSeconds % 60;
 
 
             if (minutes === 0) {
@@ -425,120 +431,155 @@ document.addEventListener(
 
             }
 
-// =====================================
-// 再生時間を HH:MM:SS にする
-// =====================================
-
-function formatDuration(duration) {
-
-    if (
-        duration === null ||
-        duration === undefined ||
-        duration === ""
-    ) {
-        return "不明";
-    }
-
-
-    // ---------------------------------
-    // すでに HH:MM:SS 形式ならそのまま
-    // ---------------------------------
-
-    if (
-        typeof duration === "string" &&
-        duration.includes(":")
-    ) {
-
-        const parts =
-            duration.split(":");
-
-
-        if (parts.length === 3) {
-
-            const hours =
-                parseInt(parts[0], 10) || 0;
-
-            const minutes =
-                parseInt(parts[1], 10) || 0;
-
-            const seconds =
-                parseInt(parts[2], 10) || 0;
-
-
-            return (
-                String(hours).padStart(2, "0")
-                +
-                ":"
-                +
-                String(minutes).padStart(2, "0")
-                +
-                ":"
-                +
-                String(seconds).padStart(2, "0")
-            );
-
-        }
-
-    }
-
-
-    // ---------------------------------
-    // 秒数の場合
-    // 例:
-    // 396 → 00:06:36
-    // 59  → 00:00:59
-    // ---------------------------------
-
-    const totalSeconds =
-        parseInt(duration, 10);
-
-
-    if (
-        isNaN(totalSeconds) ||
-        totalSeconds < 0
-    ) {
-
-        return "不明";
-
-    }
-
-
-    const hours =
-        Math.floor(
-            totalSeconds / 3600
-        );
-
-
-    const minutes =
-        Math.floor(
-            (totalSeconds % 3600) / 60
-        );
-
-
-    const seconds =
-        totalSeconds % 60;
-
-
-    return (
-        String(hours).padStart(2, "0")
-        +
-        ":"
-        +
-        String(minutes).padStart(2, "0")
-        +
-        ":"
-        +
-        String(seconds).padStart(2, "0")
-    );
-
-}
-            
 
             return (
                 minutes +
                 "分" +
                 remainSeconds +
                 "秒"
+            );
+
+        }
+
+
+
+        // =====================================
+        // 再生時間を HH:MM:SS にする
+        // =====================================
+
+        function formatDuration(duration) {
+
+            if (
+                duration === null ||
+                duration === undefined ||
+                duration === ""
+            ) {
+
+                return "不明";
+
+            }
+
+
+            // ---------------------------------
+            // すでに HH:MM:SS 形式ならそのまま
+            // ---------------------------------
+
+            if (
+                typeof duration === "string" &&
+                duration.includes(":")
+            ) {
+
+                const parts =
+                    duration.split(":");
+
+
+                if (parts.length === 3) {
+
+                    const hours =
+                        parseInt(
+                            parts[0],
+                            10
+                        ) || 0;
+
+
+                    const minutes =
+                        parseInt(
+                            parts[1],
+                            10
+                        ) || 0;
+
+
+                    const seconds =
+                        parseInt(
+                            parts[2],
+                            10
+                        ) || 0;
+
+
+                    return (
+                        String(hours).padStart(
+                            2,
+                            "0"
+                        )
+                        +
+                        ":"
+                        +
+                        String(minutes).padStart(
+                            2,
+                            "0"
+                        )
+                        +
+                        ":"
+                        +
+                        String(seconds).padStart(
+                            2,
+                            "0"
+                        )
+                    );
+
+                }
+
+            }
+
+
+            // ---------------------------------
+            // 秒数の場合
+            // 396 → 00:06:36
+            // 59  → 00:00:59
+            // ---------------------------------
+
+            const totalSeconds =
+                parseInt(
+                    duration,
+                    10
+                );
+
+
+            if (
+                isNaN(totalSeconds) ||
+                totalSeconds < 0
+            ) {
+
+                return "不明";
+
+            }
+
+
+            const hours =
+                Math.floor(
+                    totalSeconds / 3600
+                );
+
+
+            const minutes =
+                Math.floor(
+                    (totalSeconds % 3600) / 60
+                );
+
+
+            const seconds =
+                totalSeconds % 60;
+
+
+            return (
+                String(hours).padStart(
+                    2,
+                    "0"
+                )
+                +
+                ":"
+                +
+                String(minutes).padStart(
+                    2,
+                    "0"
+                )
+                +
+                ":"
+                +
+                String(seconds).padStart(
+                    2,
+                    "0"
+                )
             );
 
         }
@@ -680,28 +721,29 @@ function formatDuration(duration) {
         // =====================================
 
         async function startConvert() {
-        
+
             const selectedFormat =
                 document.querySelector(
                     'input[name="output-format"]:checked'
                 );
-        
+
+
             const outputFormat =
                 selectedFormat
                     ? selectedFormat.value
                     : "";
-        
+
+
             // 現在はMP3処理のみ実装
             if (outputFormat !== "mp3") {
                 return;
             }
-        
-        
+
+
             const url =
                 urlInput
                     ? urlInput.value.trim()
                     : "";
-    
 
 
             if (!url) {
