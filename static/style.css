@@ -157,6 +157,8 @@ h1 {
 
 }
 
+
+
 /* ==============================
    変換中 2段表示
    ============================== */
@@ -178,6 +180,7 @@ h1 {
 }
 
 
+
 .converting-text span {
 
     display: block;
@@ -185,6 +188,8 @@ h1 {
     white-space: nowrap;
 
 }
+
+
 
 .execute-button:hover {
 
@@ -357,6 +362,64 @@ h1 {
     font-size: 18px;
 
     font-weight: bold;
+
+}
+
+
+
+/* ==============================
+   作業区分ラジオボタン
+   ============================== */
+
+.output-format-group {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 28px;
+
+    width: 100%;
+
+    margin-top: 18px;
+
+    margin-bottom: 4px;
+
+}
+
+
+
+.output-format-option {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 5px;
+
+    font-size: 15px;
+
+    white-space: nowrap;
+
+    cursor: pointer;
+
+}
+
+
+
+.output-format-option input[type="radio"] {
+
+    margin: 0;
+
+    width: 16px;
+
+    height: 16px;
+
+    cursor: pointer;
 
 }
 
@@ -933,6 +996,40 @@ h1 {
 
 
     /* ==========================
+       作業区分ラジオボタン
+       ========================== */
+
+    .output-format-group {
+
+        gap: 16px;
+
+        margin-top: 16px;
+
+    }
+
+
+
+    .output-format-option {
+
+        font-size: 14px;
+
+        gap: 4px;
+
+    }
+
+
+
+    .output-format-option input[type="radio"] {
+
+        width: 15px;
+
+        height: 15px;
+
+    }
+
+
+
+    /* ==========================
        変換情報
        ========================== */
 
@@ -1012,34 +1109,3 @@ h1 {
     }
 
 }
-
-
-    /* ==========================
-       作業区分ラジオボタン
-       ========================== */
-
-    .output-format-group {
-
-        gap: 16px;
-
-        margin-top: 16px;
-
-    }
-
-
-    .output-format-option {
-
-        font-size: 14px;
-
-        gap: 4px;
-
-    }
-
-
-    .output-format-option input[type="radio"] {
-
-        width: 15px;
-
-        height: 15px;
-
-    }
