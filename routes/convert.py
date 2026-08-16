@@ -2,10 +2,10 @@ from flask import request, jsonify
 
 import yt_dlp
 from yt_dlp.utils import download_range_func
+
 import uuid
 import threading
 import os
-import subprocess
 import shutil
 import tempfile
 
@@ -220,493 +220,6 @@ def check_deno():
 
 
 # ==========================================================
-# yt-dlp設定
-#
-# 512MB環境を考慮して必要最小限
-# ==========================================================
-
-def get_ydl_options(
-    temp_cookie,
-    output_template
-):
-
-    options = {
-
-        # --------------------------------------------------
-        # Cookie
-        # --------------------------------------------------
-
-        "cookiefile":
-            temp_cookie,
-
-        # --------------------------------------------------
-        # Playlist無効
-        # --------------------------------------------------
-
-        "noplaylist":
-            True,
-
-        # --------------------------------------------------
-        # 音声のみ
-        # --------------------------------------------------
-
-        "format":
-            "bestaudio/best",
-
-        # --------------------------------------------------
-        # 出力
-        # --------------------------------------------------
-
-        "outtmpl":
-            output_template,
-
-        # --------------------------------------------------
-        # ログ
-        # --------------------------------------------------
-
-        "quiet":
-            False,
-
-        "no_warnings":
-            False,
-
-        # --------------------------------------------------
-        # プログレス表示を抑制
-        # --------------------------------------------------
-
-        "noprogress":
-            True
-
-    }
-
-    # ======================================================
-    # Deno
-    # ======================================================
-
-    if check_deno():
-
-        options["js_runtimes"] = {
-
-            "deno": {
-
-                "path":
-                    DENO_PATH
-
-            }
-
-        }
-
-        options["remote_components"] = {
-
-            "ejs":
-                "github"
-
-        }
-
-    return options
-
-
-# ==========================================================
-# MP3ダウンロード
-#
-# YouTube
-# ↓
-# 指定時間範囲だけ取得
-# ↓
-# ffmpeg
-# ↓
-# MP3
-# ==========================================================
-
-def download_mp3(
-    url,
-    output_dir,
-    start_time=None,
-    end_time=None
-):
-
-    print("==========================================")
-    print("MP3作成開始")
-    print("URL:", url)
-    print("出力:", output_dir)
-    print("開始:", start_time)
-    print("終了:", end_time)
-    print("==========================================")
-
-    temp_cookie = None
-
-    try:
-
-        # ==================================================
-        # Cookie
-        # ==================================================
-
-        temp_cookie = (
-            create_temp_cookie_file()
-        )
-
-        # ==================================================
-        # 出力ディレクトリ
-        # ==================================================
-
-        os.makedirs(
-            output_dir,
-            exist_ok=True
-        )
-
-        # ==================================================
-        # 出力ファイル
-        # ==================================================
-
-        output_template = os.path.join(
-
-            output_dir,
-
-            "%(title)s.%(ext)s"
-
-        )
-
-        # ==================================================
-        # yt-dlp
-        # ==================================================
-
-        ydl_opts = get_ydl_options(
-
-            temp_cookie,
-
-            output_template
-
-        )
-
-        # ==================================================
-        # MP3変換
-        # ==================================================
-
-        ydl_opts["postprocessors"] = [
-
-            {
-
-                "key":
-                    "FFmpegExtractAudio",
-
-                "preferredcodec":
-                    "mp3",
-
-                "preferredquality":
-                    "128"
-
-            }
-
-        ]
-
-        # ==================================================
-        # 時間範囲
-        #
-        # start_time / end_time がある場合は
-        # 指定範囲だけダウンロードする。
-        # ==================================================
-
-        if start_time or end_time:
-
-            start_seconds = time_to_seconds(
-                start_time or "00:00:00"
-            )
-
-            end_seconds = time_to_seconds(
-                end_time
-            )
-
-            if end_seconds <= start_seconds:
-
-                raise Exception(
-                    "終了時間は開始時間より後にしてください"
-                )
-
-            ydl_opts["download_ranges"] = (
-                download_range_func(
-                    None,
-                    [
-                        (
-                            start_seconds,
-                            end_seconds
-                        )
-                    ]
-                )
-            )
-
-            print("==========================================")
-            print("yt-dlp 時間範囲ダウンロード")
-            print("開始秒:", start_seconds)
-            print("終了秒:", end_seconds)
-            print(
-                "取得時間:",
-                end_seconds - start_seconds,
-                "秒"
-            )
-            print("==========================================")
-
-        else:
-
-            print("==========================================")
-            print("時間指定なし")
-            print("動画全体をMP3化")
-            print("==========================================")
-
-        print("==========================================")
-        print("yt-dlp MP3設定")
-        print("format: bestaudio/best")
-        print("MP3 quality: 128kbps")
-        print("時間範囲:", bool(
-            start_time or end_time
-        ))
-        print("==========================================")
-
-        # ==================================================
-        # ダウンロード
-        # ==================================================
-
-        with yt_dlp.YoutubeDL(
-            ydl_opts
-        ) as ydl:
-
-            print(
-                ">>> yt-dlp開始"
-            )
-
-            info = ydl.extract_info(
-                url,
-                download=True
-            )
-
-            print(
-                ">>> yt-dlp完了"
-            )
-
-        if not info:
-
-            raise Exception(
-                "YouTube情報を取得できませんでした"
-            )
-
-        # ==================================================
-        # 作成されたMP3を探す
-        # ==================================================
-
-        mp3_files = []
-
-        for filename in os.listdir(
-            output_dir
-        ):
-
-            if filename.lower().endswith(
-                ".mp3"
-            ):
-
-                full_path = os.path.join(
-                    output_dir,
-                    filename
-                )
-
-                if os.path.isfile(
-                    full_path
-                ):
-
-                    mp3_files.append(
-                        full_path
-                    )
-
-        if not mp3_files:
-
-            raise Exception(
-                "MP3ファイルが作成されませんでした"
-            )
-
-        # ==================================================
-        # 最新ファイル
-        # ==================================================
-
-        mp3_file = max(
-
-            mp3_files,
-
-            key=os.path.getmtime
-
-        )
-
-        file_size = os.path.getsize(
-            mp3_file
-        )
-
-        if file_size <= 0:
-
-            raise Exception(
-                "MP3ファイルが0 bytesです"
-            )
-
-        # ==================================================
-        # タイトル
-        # ==================================================
-
-        title = info.get(
-            "title",
-            ""
-        )
-
-        duration = info.get(
-            "duration"
-        )
-
-        print("==========================================")
-        print("MP3作成成功")
-        print("タイトル:", title)
-        print("再生時間:", duration)
-        print("MP3:", mp3_file)
-        print("サイズ:", file_size, "bytes")
-        print("==========================================")
-
-        return {
-
-            "file":
-                mp3_file,
-
-            "title":
-                title,
-
-            "duration":
-                duration
-
-        }
-
-    finally:
-
-        remove_temp_cookie_file(
-            temp_cookie
-        )
-
-        # ==================================================
-        # ダウンロード
-        # ==================================================
-
-        with yt_dlp.YoutubeDL(
-            ydl_opts
-        ) as ydl:
-
-            print(
-                ">>> yt-dlp開始"
-            )
-
-            info = ydl.extract_info(
-                url,
-                download=True
-            )
-
-            print(
-                ">>> yt-dlp完了"
-            )
-
-        if not info:
-
-            raise Exception(
-                "YouTube情報を取得できませんでした"
-            )
-
-        # ==================================================
-        # 作成されたMP3を探す
-        # ==================================================
-
-        mp3_files = []
-
-        for filename in os.listdir(
-            output_dir
-        ):
-
-            if filename.lower().endswith(
-                ".mp3"
-            ):
-
-                full_path = os.path.join(
-                    output_dir,
-                    filename
-                )
-
-                if os.path.isfile(
-                    full_path
-                ):
-
-                    mp3_files.append(
-                        full_path
-                    )
-
-        if not mp3_files:
-
-            raise Exception(
-                "MP3ファイルが作成されませんでした"
-            )
-
-        # ==================================================
-        # 最新ファイル
-        # ==================================================
-
-        mp3_file = max(
-
-            mp3_files,
-
-            key=os.path.getmtime
-
-        )
-
-        file_size = os.path.getsize(
-            mp3_file
-        )
-
-        if file_size <= 0:
-
-            raise Exception(
-                "MP3ファイルが0 bytesです"
-            )
-
-        # ==================================================
-        # タイトル
-        # ==================================================
-
-        title = info.get(
-            "title",
-            ""
-        )
-
-        duration = info.get(
-            "duration"
-        )
-
-        print("==========================================")
-        print("MP3作成成功")
-        print("タイトル:", title)
-        print("再生時間:", duration)
-        print("MP3:", mp3_file)
-        print("サイズ:", file_size, "bytes")
-        print("==========================================")
-
-        return {
-
-            "file":
-                mp3_file,
-
-            "title":
-                title,
-
-            "duration":
-                duration
-
-        }
-
-    finally:
-
-        remove_temp_cookie_file(
-            temp_cookie
-        )
-
-
-# ==========================================================
 # 時間を秒へ変換
 # ==========================================================
 
@@ -784,185 +297,455 @@ def time_to_seconds(
 
 
 # ==========================================================
-# MP3カット
+# yt-dlp設定
 #
-# 元MP3を削除し、
-# 元と同じファイル名へ戻す。
+# 時間範囲指定がある場合は
+# yt-dlpのdownload_rangesを使用する。
 # ==========================================================
 
-def cut_mp3(
-    mp3_file,
-    start_time,
-    end_time
+def get_ydl_options(
+    temp_cookie,
+    output_template,
+    start_time=None,
+    end_time=None
+):
+
+    options = {
+
+        # --------------------------------------------------
+        # Cookie
+        # --------------------------------------------------
+
+        "cookiefile":
+            temp_cookie,
+
+        # --------------------------------------------------
+        # Playlist無効
+        # --------------------------------------------------
+
+        "noplaylist":
+            True,
+
+        # --------------------------------------------------
+        # 音声のみ
+        # --------------------------------------------------
+
+        "format":
+            "bestaudio/best",
+
+        # --------------------------------------------------
+        # 出力
+        # --------------------------------------------------
+
+        "outtmpl":
+            output_template,
+
+        # --------------------------------------------------
+        # ログ
+        # --------------------------------------------------
+
+        "quiet":
+            False,
+
+        "no_warnings":
+            False,
+
+        # --------------------------------------------------
+        # プログレス表示を抑制
+        # --------------------------------------------------
+
+        "noprogress":
+            True
+
+    }
+
+
+    # ======================================================
+    # 時間範囲指定
+    # ======================================================
+
+    if (
+        start_time is not None
+        and end_time is not None
+    ):
+
+        start_seconds = time_to_seconds(
+            start_time
+        )
+
+        end_seconds = time_to_seconds(
+            end_time
+        )
+
+
+        if end_seconds <= start_seconds:
+
+            raise Exception(
+                "終了時間は開始時間より後にしてください"
+            )
+
+
+        print("==========================================")
+        print("yt-dlp時間範囲指定")
+        print("開始:", start_time)
+        print("終了:", end_time)
+        print("開始秒:", start_seconds)
+        print("終了秒:", end_seconds)
+        print("==========================================")
+
+
+        options["download_ranges"] = (
+            download_range_func(
+                None,
+                [
+                    (
+                        start_seconds,
+                        end_seconds
+                    )
+                ]
+            )
+        )
+
+
+        # --------------------------------------------------
+        # 時間範囲ダウンロード時の精度向上
+        # --------------------------------------------------
+
+        options["force_keyframes_at_cuts"] = True
+
+
+        # --------------------------------------------------
+        # HLS等での範囲取得を安定させるため
+        # HTTPSを優先
+        # --------------------------------------------------
+
+        options["format_sort"] = [
+            "proto:https"
+        ]
+
+
+    else:
+
+        print("==========================================")
+        print("yt-dlp時間範囲指定なし")
+        print("動画全体を取得")
+        print("==========================================")
+
+
+    # ======================================================
+    # Deno
+    # ======================================================
+
+    if check_deno():
+
+        options["js_runtimes"] = {
+
+            "deno": {
+
+                "path":
+                    DENO_PATH
+
+            }
+
+        }
+
+        options["remote_components"] = {
+
+            "ejs":
+                "github"
+
+        }
+
+
+    return options
+
+
+# ==========================================================
+# MP3ダウンロード
+#
+# 時間指定なし
+#   YouTube
+#       ↓
+#   音声全体
+#       ↓
+#   MP3
+#
+# 時間指定あり
+#   YouTube
+#       ↓
+#   yt-dlpで指定範囲
+#       ↓
+#   MP3
+#
+# ※後からcut_mp3()でカットする方式ではない。
+# ==========================================================
+
+def download_mp3(
+    url,
+    output_dir,
+    start_time=None,
+    end_time=None
 ):
 
     print("==========================================")
-    print("MP3カット開始")
-    print("ファイル:", mp3_file)
-    print("開始:", start_time)
-    print("終了:", end_time)
+    print("MP3作成開始")
+    print("URL:", url)
+    print("出力:", output_dir)
+    print("開始時間:", start_time)
+    print("終了時間:", end_time)
     print("==========================================")
 
-    start_seconds = time_to_seconds(
-        start_time
-    )
 
-    end_seconds = time_to_seconds(
-        end_time
-    )
+    temp_cookie = None
 
-    if end_seconds <= start_seconds:
-
-        raise Exception(
-            "終了時間は開始時間より後にしてください"
-        )
-
-    # ======================================================
-    # 一時ファイル
-    # ======================================================
-
-    base, ext = os.path.splitext(
-        mp3_file
-    )
-
-    cut_file = (
-        base
-        + "_cut"
-        + ext
-    )
-
-    # ======================================================
-    # ffmpeg
-    # ======================================================
-
-    command = [
-
-        "ffmpeg",
-
-        "-y",
-
-        "-ss",
-        str(start_seconds),
-
-        "-i",
-        mp3_file,
-
-        "-t",
-        str(
-            end_seconds
-            - start_seconds
-        ),
-
-        "-vn",
-
-        "-codec:a",
-        "libmp3lame",
-
-        "-b:a",
-        "128k",
-
-        cut_file
-
-    ]
-
-    print(
-        "ffmpeg command:",
-        command
-    )
-
-    result = subprocess.run(
-
-        command,
-
-        stdout=subprocess.DEVNULL,
-
-        stderr=subprocess.PIPE,
-
-        text=True
-
-    )
-
-    if result.returncode != 0:
-
-        print(
-            result.stderr
-        )
-
-        if os.path.exists(
-            cut_file
-        ):
-
-            try:
-
-                os.remove(
-                    cut_file
-                )
-
-            except Exception:
-
-                pass
-
-        raise Exception(
-            "ffmpeg MP3カット失敗"
-        )
-
-    # ======================================================
-    # 完成確認
-    # ======================================================
-
-    if not os.path.exists(
-        cut_file
-    ):
-
-        raise Exception(
-            "カット後MP3が作成されませんでした"
-        )
-
-    cut_size = os.path.getsize(
-        cut_file
-    )
-
-    if cut_size <= 0:
-
-        raise Exception(
-            "カット後MP3が0 bytesです"
-        )
-
-    # ======================================================
-    # 元MP3削除
-    # ======================================================
 
     try:
 
-        os.remove(
+        # ==================================================
+        # Cookie
+        # ==================================================
+
+        temp_cookie = (
+            create_temp_cookie_file()
+        )
+
+
+        # ==================================================
+        # 出力ディレクトリ
+        # ==================================================
+
+        os.makedirs(
+            output_dir,
+            exist_ok=True
+        )
+
+
+        # ==================================================
+        # 出力ファイル
+        # ==================================================
+
+        output_template = os.path.join(
+
+            output_dir,
+
+            "%(title)s.%(ext)s"
+
+        )
+
+
+        # ==================================================
+        # yt-dlp設定
+        # ==================================================
+
+        ydl_opts = get_ydl_options(
+
+            temp_cookie,
+
+            output_template,
+
+            start_time,
+
+            end_time
+
+        )
+
+
+        # ==================================================
+        # MP3変換
+        # ==================================================
+
+        ydl_opts["postprocessors"] = [
+
+            {
+
+                "key":
+                    "FFmpegExtractAudio",
+
+                "preferredcodec":
+                    "mp3",
+
+                "preferredquality":
+                    "128"
+
+            }
+
+        ]
+
+
+        print("==========================================")
+        print("yt-dlp MP3設定")
+        print("format: bestaudio/best")
+        print("MP3 quality: 128kbps")
+
+
+        if (
+            start_time is not None
+            and end_time is not None
+        ):
+
+            print(
+                "download_ranges: ON"
+            )
+
+            print(
+                "range:",
+                start_time,
+                "->",
+                end_time
+            )
+
+        else:
+
+            print(
+                "download_ranges: OFF"
+            )
+
+
+        print("==========================================")
+
+
+        # ==================================================
+        # ダウンロード
+        # ==================================================
+
+        with yt_dlp.YoutubeDL(
+            ydl_opts
+        ) as ydl:
+
+            print(
+                ">>> yt-dlp開始"
+            )
+
+
+            info = ydl.extract_info(
+                url,
+                download=True
+            )
+
+
+            print(
+                ">>> yt-dlp完了"
+            )
+
+
+        if not info:
+
+            raise Exception(
+                "YouTube情報を取得できませんでした"
+            )
+
+
+        # ==================================================
+        # 作成されたMP3を探す
+        # ==================================================
+
+        mp3_files = []
+
+
+        for filename in os.listdir(
+            output_dir
+        ):
+
+            if filename.lower().endswith(
+                ".mp3"
+            ):
+
+                full_path = os.path.join(
+                    output_dir,
+                    filename
+                )
+
+
+                if os.path.isfile(
+                    full_path
+                ):
+
+                    mp3_files.append(
+                        full_path
+                    )
+
+
+        if not mp3_files:
+
+            raise Exception(
+                "MP3ファイルが作成されませんでした"
+            )
+
+
+        # ==================================================
+        # 最新ファイル
+        # ==================================================
+
+        mp3_file = max(
+
+            mp3_files,
+
+            key=os.path.getmtime
+
+        )
+
+
+        # ==================================================
+        # ファイルサイズ
+        # ==================================================
+
+        file_size = os.path.getsize(
             mp3_file
         )
 
-    except Exception as e:
 
-        print(
-            "WARNING: 元MP3削除失敗:",
-            repr(e)
+        if file_size <= 0:
+
+            raise Exception(
+                "MP3ファイルが0 bytesです"
+            )
+
+
+        # ==================================================
+        # タイトル
+        # ==================================================
+
+        title = info.get(
+            "title",
+            ""
         )
 
-    # ======================================================
-    # 元と同じ名前へ変更
-    # ======================================================
 
-    os.rename(
-        cut_file,
-        mp3_file
-    )
+        duration = info.get(
+            "duration"
+        )
 
-    print("==========================================")
-    print("MP3カット完了")
-    print("開始:", start_time)
-    print("終了:", end_time)
-    print("MP3:", mp3_file)
-    print("サイズ:", cut_size, "bytes")
-    print("==========================================")
 
-    return mp3_file
+        print("==========================================")
+        print("MP3作成成功")
+        print("タイトル:", title)
+        print("再生時間:", duration)
+        print("MP3:", mp3_file)
+        print("サイズ:", file_size, "bytes")
+        print("開始時間:", start_time)
+        print("終了時間:", end_time)
+        print("==========================================")
+
+
+        return {
+
+            "file":
+                mp3_file,
+
+            "title":
+                title,
+
+            "duration":
+                duration
+
+        }
+
+
+    finally:
+
+        remove_temp_cookie_file(
+            temp_cookie
+        )
 
 
 # ==========================================================
@@ -986,6 +769,7 @@ def convert_task(
 
         }
 
+
         print("==========================================")
         print("変換開始")
         print("JOB:", job_id)
@@ -995,11 +779,13 @@ def convert_task(
         print("END:", end_time)
         print("==========================================")
 
+
         # ==================================================
         # Cookie確認
         # ==================================================
 
         check_cookie_file()
+
 
         # ==================================================
         # 古いファイル削除
@@ -1016,18 +802,22 @@ def convert_task(
                 repr(e)
             )
 
+
         # ==================================================
         # 出力ディレクトリ
         # ==================================================
 
         output_dir = DOWNLOAD_DIR
 
+
         os.makedirs(
             output_dir,
             exist_ok=True
         )
 
+
         files = []
+
 
         # ==================================================
         # MP3
@@ -1039,17 +829,26 @@ def convert_task(
                 "MP3出力が指定されていません"
             )
 
+
         # ==================================================
         # MP3作成
+        #
+        # 時間指定があれば
+        # yt-dlp側で直接範囲指定する。
         # ==================================================
 
         result = download_mp3(
 
             url,
 
-            output_dir
+            output_dir,
+
+            start_time,
+
+            end_time
 
         )
+
 
         mp3_file = result["file"]
 
@@ -1057,82 +856,31 @@ def convert_task(
 
         duration = result["duration"]
 
-        # ==================================================
-        # 時間指定判定
-        # ==================================================
-
-        has_start = bool(
-            start_time
-        )
-
-        has_end = bool(
-            end_time
-        )
 
         # ==================================================
-        # 時間指定なし
+        # 時間指定のログ
         # ==================================================
 
-        if not has_start and not has_end:
+        if (
+            start_time is not None
+            and end_time is not None
+        ):
 
             print("==========================================")
-            print("時間指定なし")
-            print("MP3をそのまま使用")
-            print("==========================================")
-
-        # ==================================================
-        # 開始なし・終了あり
-        # ==================================================
-
-        elif not has_start and has_end:
-
-            print("==========================================")
-            print("開始時間なし")
-            print("00:00:00から終了時間までカット")
-            print("終了:", end_time)
-            print("==========================================")
-
-            mp3_file = cut_mp3(
-
-                mp3_file,
-
-                "00:00:00",
-
-                end_time
-
-            )
-
-        # ==================================================
-        # 開始あり・終了なし
-        # ==================================================
-
-        elif has_start and not has_end:
-
-            raise Exception(
-                "終了時間を入力してください"
-            )
-
-        # ==================================================
-        # 開始・終了あり
-        # ==================================================
-
-        else:
-
-            print("==========================================")
-            print("時間指定あり")
+            print("時間範囲MP3作成")
+            print("yt-dlp側で範囲指定済み")
             print("開始:", start_time)
             print("終了:", end_time)
             print("==========================================")
 
-            mp3_file = cut_mp3(
 
-                mp3_file,
+        else:
 
-                start_time,
+            print("==========================================")
+            print("時間指定なし")
+            print("MP3全体を使用")
+            print("==========================================")
 
-                end_time
-
-            )
 
         # ==================================================
         # 最終MP3確認
@@ -1146,15 +894,18 @@ def convert_task(
                 "最終MP3ファイルが存在しません"
             )
 
+
         final_size = os.path.getsize(
             mp3_file
         )
+
 
         if final_size <= 0:
 
             raise Exception(
                 "最終MP3ファイルが0 bytesです"
             )
+
 
         # ==================================================
         # 完成ファイル
@@ -1167,6 +918,7 @@ def convert_task(
             )
 
         )
+
 
         # ==================================================
         # Job complete
@@ -1194,6 +946,7 @@ def convert_task(
 
         }
 
+
         print("==========================================")
         print("MP3変換完了")
         print("JOB:", job_id)
@@ -1205,6 +958,7 @@ def convert_task(
         print("FILES:", files)
         print("==========================================")
 
+
     except Exception as e:
 
         print("==========================================")
@@ -1213,6 +967,7 @@ def convert_task(
         print("ERROR TYPE:", type(e).__name__)
         print("ERROR:", repr(e))
         print("==========================================")
+
 
         jobs[job_id] = {
 
@@ -1247,6 +1002,7 @@ def register_convert(app):
                 silent=True
             )
 
+
             if not data:
 
                 return jsonify({
@@ -1259,6 +1015,7 @@ def register_convert(app):
 
                 }), 400
 
+
             # ==================================================
             # URL
             # ==================================================
@@ -1266,6 +1023,7 @@ def register_convert(app):
             url = data.get(
                 "url"
             )
+
 
             if not url:
 
@@ -1279,6 +1037,7 @@ def register_convert(app):
 
                 }), 400
 
+
             # ==================================================
             # outputs
             # ==================================================
@@ -1288,13 +1047,16 @@ def register_convert(app):
                 []
             )
 
+
             valid_outputs = []
+
 
             if "mp3" in outputs:
 
                 valid_outputs.append(
                     "mp3"
                 )
+
 
             if not valid_outputs:
 
@@ -1308,6 +1070,7 @@ def register_convert(app):
 
                 }), 400
 
+
             # ==================================================
             # 時間
             # ==================================================
@@ -1316,9 +1079,11 @@ def register_convert(app):
                 "start_time"
             )
 
+
             end_time = data.get(
                 "end_time"
             )
+
 
             # ==================================================
             # 空文字をNone化
@@ -1330,38 +1095,41 @@ def register_convert(app):
                     start_time
                 ).strip()
 
+
             if end_time is not None:
 
                 end_time = str(
                     end_time
                 ).strip()
 
+
             if not start_time:
 
                 start_time = None
+
 
             if not end_time:
 
                 end_time = None
 
+
             # ==================================================
-            # サーバー側時間チェック
+            # 時間形式チェック
             # ==================================================
 
-            if (
-                start_time
-                and end_time
-            ):
+            if start_time:
 
-                start_seconds = time_to_seconds(
-                    start_time
-                )
+                try:
 
-                end_seconds = time_to_seconds(
-                    end_time
-                )
+                    start_seconds = time_to_seconds(
+                        start_time
+                    )
 
-                if end_seconds <= start_seconds:
+                    if start_seconds < 0:
+
+                        raise ValueError
+
+                except Exception:
 
                     return jsonify({
 
@@ -1369,9 +1137,49 @@ def register_convert(app):
                             False,
 
                         "message":
-                            "終了時間は開始時間より後にしてください"
+                            "開始時間の形式が正しくありません"
 
                     }), 400
+
+
+            if end_time:
+
+                try:
+
+                    end_seconds = time_to_seconds(
+                        end_time
+                    )
+
+                    if end_seconds < 0:
+
+                        raise ValueError
+
+                except Exception:
+
+                    return jsonify({
+
+                        "success":
+                            False,
+
+                        "message":
+                            "終了時間の形式が正しくありません"
+
+                    }), 400
+
+
+            # ==================================================
+            # 終了時間だけ指定
+            #
+            # 00:00:00から開始
+            # ==================================================
+
+            if (
+                not start_time
+                and end_time
+            ):
+
+                start_time = "00:00:00"
+
 
             # ==================================================
             # 開始だけ入力
@@ -1392,6 +1200,39 @@ def register_convert(app):
 
                 }), 400
 
+
+            # ==================================================
+            # 時間チェック
+            # ==================================================
+
+            if (
+                start_time
+                and end_time
+            ):
+
+                start_seconds = time_to_seconds(
+                    start_time
+                )
+
+
+                end_seconds = time_to_seconds(
+                    end_time
+                )
+
+
+                if end_seconds <= start_seconds:
+
+                    return jsonify({
+
+                        "success":
+                            False,
+
+                        "message":
+                            "終了時間は開始時間より後にしてください"
+
+                    }), 400
+
+
             # ==================================================
             # Job ID
             # ==================================================
@@ -1399,6 +1240,7 @@ def register_convert(app):
             job_id = str(
                 uuid.uuid4()
             )
+
 
             # ==================================================
             # Job登録
@@ -1411,6 +1253,7 @@ def register_convert(app):
 
             }
 
+
             print("==========================================")
             print("JOB登録")
             print("JOB:", job_id)
@@ -1419,6 +1262,7 @@ def register_convert(app):
             print("START:", start_time)
             print("END:", end_time)
             print("==========================================")
+
 
             # ==================================================
             # Thread
@@ -1444,9 +1288,12 @@ def register_convert(app):
 
             )
 
+
             thread.daemon = True
 
+
             thread.start()
+
 
             # ==================================================
             # Job ID返却
@@ -1462,12 +1309,14 @@ def register_convert(app):
 
             })
 
+
         except Exception as e:
 
             print(
                 "convertエラー:",
                 repr(e)
             )
+
 
             return jsonify({
 
