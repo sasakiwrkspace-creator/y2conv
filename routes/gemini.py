@@ -3,6 +3,7 @@ import uuid
 import shutil
 import tempfile
 import subprocess
+import time
 
 from dotenv import load_dotenv
 from flask import request, jsonify
@@ -38,6 +39,62 @@ client = genai.Client(
 # ==========================================================
 
 GEMINI_MODEL = "gemini-3.5-flash"
+
+
+# ==========================================================
+# Gemini APIリトライ設定
+#
+# 502 / 503 / 504 / 429
+# などの一時的なエラーが発生した場合、
+# 少し待ってから再試行する。
+#
+# 最大3回
+# ==========================================================
+
+GEMINI_MAX_RETRIES = 3
+
+
+# ==========================================================
+# リトライ対象エラー判定
+# ==========================================================
+
+def is_retryable_gemini_error(
+    error
+):
+
+    error_text = str(
+        error
+    ).lower()
+
+
+    retryable_codes = [
+
+        "429",
+        "500",
+        "502",
+        "503",
+        "504",
+
+        "too many requests",
+        "rate limit",
+        "temporarily unavailable",
+        "service unavailable",
+        "bad gateway",
+        "gateway timeout",
+        "internal server error",
+        "timeout"
+
+    ]
+
+
+    for code in retryable_codes:
+
+        if code in error_text:
+
+            return True
+
+
+    return False
 
 
 # ==========================================================
@@ -663,21 +720,48 @@ def transcribe_mp3(
         # Gemini Files API
         # ==================================================
 
-        print(">>> Gemini Files API upload開始")
-        
+        print(
+            ">>> Gemini Files API upload開始"
+        )
+
+
         try:
+
             uploaded_file = client.files.upload(
+
                 file=temp_mp3
+
             )
-        
-            print(">>> Gemini Files API upload成功")
-            print(">>> uploaded_file:", uploaded_file)
-        
+
+
+            print(
+                ">>> Gemini Files API upload成功"
+            )
+
+            print(
+                ">>> uploaded_file:",
+                uploaded_file
+            )
+
+
         except Exception as e:
-            print(">>> Gemini Files API upload失敗")
-            print(">>> TYPE:", type(e).__name__)
-            print(">>> ERROR:", repr(e))
+
+            print(
+                ">>> Gemini Files API upload失敗"
+            )
+
+            print(
+                ">>> TYPE:",
+                type(e).__name__
+            )
+
+            print(
+                ">>> ERROR:",
+                repr(e)
+            )
+
             raise
+
 
         # ==================================================
         # プロンプト
@@ -715,35 +799,159 @@ SRT字幕ファイルとして使用します。
 
         # ==================================================
         # Gemini
+        #
+        # 502 / 503 / 504 / 429
+        # などの場合は自動リトライ
         # ==================================================
-        
-        print(">>> Gemini generate_content開始")
-        
-        try:
-        
-            response = client.models.generate_content(
-        
-                model=GEMINI_MODEL,
-        
-                contents=[
-        
-                    uploaded_file,
-        
-                    prompt
-        
-                ]
-        
-            )
-        
-            print(">>> Gemini generate_content成功")
-        
-        except Exception as e:
-        
-            print(">>> Gemini generate_content失敗")
-            print(">>> TYPE:", type(e).__name__)
-            print(">>> ERROR:", repr(e))
-        
-            raise
+
+        print(
+            ">>> Gemini generate_content開始"
+        )
+
+
+        response = None
+
+
+        for attempt in range(
+            1,
+            GEMINI_MAX_RETRIES + 1
+        ):
+
+            try:
+
+                print(
+                    "------------------------------------------"
+                )
+
+                print(
+                    "Gemini generate_content"
+                )
+
+                print(
+                    "試行:",
+                    f"{attempt}/{GEMINI_MAX_RETRIES}"
+                )
+
+                print(
+                    "------------------------------------------"
+                )
+
+
+                response = client.models.generate_content(
+
+                    model=GEMINI_MODEL,
+
+                    contents=[
+
+                        uploaded_file,
+
+                        prompt
+
+                    ]
+
+                )
+
+
+                print(
+                    ">>> Gemini generate_content成功"
+                )
+
+
+                break
+
+
+            except Exception as e:
+
+                print(
+                    ">>> Gemini generate_content失敗"
+                )
+
+                print(
+                    ">>> TYPE:",
+                    type(e).__name__
+                )
+
+                print(
+                    ">>> ERROR:",
+                    repr(e)
+                )
+
+
+                # ------------------------------------------
+                # リトライ可能か確認
+                # ------------------------------------------
+
+                retryable = (
+                    is_retryable_gemini_error(
+                        e
+                    )
+                )
+
+
+                print(
+                    ">>> リトライ対象:",
+                    retryable
+                )
+
+
+                # ------------------------------------------
+                # 最終試行なら終了
+                # ------------------------------------------
+
+                if (
+                    attempt
+                    >=
+                    GEMINI_MAX_RETRIES
+                ):
+
+                    print(
+                        ">>> 最大リトライ回数に到達しました"
+                    )
+
+                    raise
+
+
+                # ------------------------------------------
+                # リトライ対象外
+                # ------------------------------------------
+
+                if not retryable:
+
+                    print(
+                        ">>> 一時的エラーではないため"
+                        "リトライしません"
+                    )
+
+                    raise
+
+
+                # ------------------------------------------
+                # 待機
+                #
+                # 1回目: 3秒
+                # 2回目: 6秒
+                # ------------------------------------------
+
+                wait_seconds = (
+                    attempt * 3
+                )
+
+
+                print(
+                    ">>>",
+                    wait_seconds,
+                    "秒待って再試行します"
+                )
+
+
+                time.sleep(
+                    wait_seconds
+                )
+
+
+        # ==================================================
+        # レスポンス確認
+        # ==================================================
 
         if not response:
 
