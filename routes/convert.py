@@ -1,6 +1,7 @@
 from flask import request, jsonify
 
 import yt_dlp
+from yt_dlp.utils import download_range_func
 import uuid
 import threading
 import os
