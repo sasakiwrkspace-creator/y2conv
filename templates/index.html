@@ -24,13 +24,20 @@
 
 <div class="container">
 
+
+    <!-- =========================================
+         タイトル
+    ========================================== -->
+
     <h1>
+
         <a
             href="/files"
             class="converter-link"
         >
             YouTube Converter
         </a>
+
     </h1>
 
 
@@ -47,8 +54,7 @@
             placeholder="https://www.youtube.com/watch?v=..."
             autocomplete="off"
         >
-<!--        value="https://www.youtube.com/watch?v=b6zE9knuXIQ" -->
-        
+
         <button
             id="convertBtn"
             class="execute-button"
@@ -65,6 +71,7 @@
     ========================================== -->
 
     <div class="time-area">
+
 
         <!-- 開始・終了ラベル -->
 
@@ -86,7 +93,9 @@
         <div class="time-input-row">
 
 
-            <!-- 開始 -->
+            <!-- =====================================
+                 開始
+            ====================================== -->
 
             <div class="time-group">
 
@@ -140,14 +149,18 @@
             </div>
 
 
-            <!-- ～ -->
+            <!-- =====================================
+                 区切り
+            ====================================== -->
 
             <span class="time-separator">
                 ～
             </span>
 
 
-            <!-- 終了 -->
+            <!-- =====================================
+                 終了
+            ====================================== -->
 
             <div class="time-group">
 
@@ -204,42 +217,67 @@
 
     </div>
 
+
     <!-- =========================================
-         作業区分（mp3、mp4、mp3／mp4）
+         出力形式
+         
+         mp3
+         mp4
+         mp3/mp4
     ========================================== -->
-    
+
     <div class="output-format-group">
-    
+
+
         <label class="output-format-option">
+
             <input
                 type="radio"
                 name="output-format"
                 value="mp3"
                 checked
             >
-            <span>mp3</span>
+
+            <span>
+                mp3
+            </span>
+
         </label>
-    
+
+
         <label class="output-format-option">
+
             <input
                 type="radio"
                 name="output-format"
                 value="mp4"
             >
-            <span>mp4</span>
+
+            <span>
+                mp4
+            </span>
+
         </label>
-    
+
+
         <label class="output-format-option">
+
             <input
                 type="radio"
                 name="output-format"
                 value="mp3mp4"
             >
-            <span>mp3/mp4</span>
+
+            <span>
+                mp3/mp4
+            </span>
+
         </label>
-    
+
+
     </div>
-    
+
+
     <!-- =========================================
          ステータス
     ========================================== -->
@@ -262,17 +300,33 @@
 
 
     <!-- =========================================
-         MP3ダウンロード表示エリア
-
+         ダウンロード結果
+         
          converter.js がここに
-         MP3ボタンを生成する
+         結果表示を生成する
+         
+         例：
+         
+         タイトル：【比較】...
+         再生時間：00:01:00（Full：00:06:36）
+         実行開始：17:05:47
+         実行終了：17:06:44（49秒）
+         
+         MP3のダウンロード    MP4のダウンロード
+         [mp3] ▲              [mp4]
     ========================================== -->
 
-    <div id="downloadArea"></div>
+    <div
+        id="downloadArea"
+        class="download-area"
+    ></div>
 
 
     <!-- =========================================
          Gemini文字起こしエリア
+         
+         MP3が生成された場合のみ
+         converter.js 側で表示する
     ========================================== -->
 
     <div
