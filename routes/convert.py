@@ -8,6 +8,8 @@ import shutil
 import tempfile
 import subprocess
 import re
+import time
+from datetime import datetime
 
 from routes.status import jobs
 from cleanup import cleanup_downloads
@@ -429,6 +431,22 @@ def seconds_to_time(
 
 
 # ==========================================================
+# 現在時刻
+#
+# 例:
+#
+# 17:05:47
+#
+# ==========================================================
+
+def get_current_time_text():
+
+    return datetime.now().strftime(
+        "%H:%M:%S"
+    )
+
+
+# ==========================================================
 # FFmpeg確認
 # ==========================================================
 
@@ -604,10 +622,6 @@ def get_ydl_base_options(
         "noprogress":
             True,
 
-        # --------------------------------------------------
-        # ファイル名に使用できない文字対策
-        # --------------------------------------------------
-
         "restrictfilenames":
             False
 
@@ -722,7 +736,6 @@ def get_video_info(
 # ここでは時間判定・カットをしない。
 #
 # 最終的な時間カットはFFmpegで行う。
-#
 # ==========================================================
 
 def download_source(
@@ -913,7 +926,6 @@ def safe_filename(
     ).strip()
 
 
-    # Windows / Linux / macOSで問題になりやすい文字
     title = re.sub(
 
         r'[\\/:*?"<>|]+',
@@ -924,8 +936,6 @@ def safe_filename(
 
     )
 
-
-    # 改行削除
 
     title = title.replace(
         "\r",
@@ -963,7 +973,6 @@ def safe_filename(
 # 指定時間なし:
 #
 # Full
-#
 # ==========================================================
 
 def create_mp3(
@@ -1000,15 +1009,6 @@ def create_mp3(
 
     # ======================================================
     # 時間指定
-    #
-    # -ss / -to ではなく
-    # -ss + -t を使用。
-    #
-    # これにより
-    #
-    # end - start
-    #
-    # の長さを明確に指定する。
     # ======================================================
 
     if (
@@ -1162,7 +1162,6 @@ def create_mp3(
 # 指定時間なし:
 #
 # Full
-#
 # ==========================================================
 
 def create_mp4(
@@ -1381,6 +1380,16 @@ def convert_task(
 
     temp_source_dir = None
 
+    # ======================================================
+    # 実行開始時刻
+    # ======================================================
+
+    execution_start_timestamp = time.time()
+
+    execution_start_text = (
+        get_current_time_text()
+    )
+
 
     try:
 
@@ -1403,7 +1412,10 @@ def convert_task(
                 start_time or "",
 
             "end_time":
-                end_time or ""
+                end_time or "",
+
+            "execution_start":
+                execution_start_text
 
         }
 
@@ -1415,6 +1427,10 @@ def convert_task(
         print("OUTPUTS:", outputs)
         print("START:", start_time)
         print("END:", end_time)
+        print(
+            "実行開始:",
+            execution_start_text
+        )
         print("==========================================")
 
 
@@ -1514,8 +1530,9 @@ def convert_task(
             and end_seconds is not None
         ):
 
-            # 終了時間だけなら0秒から
             start_seconds = 0
+
+            start_time = "00:00:00"
 
 
         if (
@@ -1649,7 +1666,18 @@ def convert_task(
 
 
         # ==================================================
-        # 指定時間から期待再生時間を計算
+        # 選択時間から再生時間を計算
+        #
+        # 例:
+        #
+        # 開始 00:05:00
+        # 終了 00:06:00
+        #
+        # ↓
+        #
+        # 再生時間 00:01:00
+        #
+        # 時間指定なしならFull
         # ==================================================
 
         if (
@@ -1707,10 +1735,6 @@ def convert_task(
 
         # ==================================================
         # MP4が必要か
-        #
-        # MP4を作る場合は映像＋音声を取得。
-        #
-        # MP3だけなら音声だけ。
         # ==================================================
 
         need_video = (
@@ -1762,7 +1786,17 @@ def convert_task(
         files = []
 
 
+        # ==================================================
+        # 実際に作成されたファイルの再生時間
+        #
+        # MP3 / MP4の実測値
+        # ==================================================
+
         actual_duration = None
+
+        actual_mp3_duration = None
+
+        actual_mp4_duration = None
 
 
         # ==================================================
@@ -1771,7 +1805,7 @@ def convert_task(
 
         if "mp3" in valid_outputs:
 
-            mp3_duration = create_mp3(
+            actual_mp3_duration = create_mp3(
 
                 source_file,
 
@@ -1792,7 +1826,7 @@ def convert_task(
 
 
             actual_duration = (
-                mp3_duration
+                actual_mp3_duration
             )
 
 
@@ -1802,7 +1836,7 @@ def convert_task(
 
         if "mp4" in valid_outputs:
 
-            mp4_duration = create_mp4(
+            actual_mp4_duration = create_mp4(
 
                 source_file,
 
@@ -1823,37 +1857,48 @@ def convert_task(
 
 
             # ------------------------------------------------
-            # MP3がない場合はMP4の再生時間を使用
+            # MP3がない場合はMP4の実測時間を使用
             # ------------------------------------------------
 
             if actual_duration is None:
 
                 actual_duration = (
-                    mp4_duration
+                    actual_mp4_duration
                 )
 
 
         # ==================================================
-        # 指定時間ありの場合
-        #
-        # MP3 / MP4の実測値を使用。
-        #
-        # 画面表示用には
-        #
-        # 00:01:00
-        #
-        # のように返す。
+        # 実行終了時刻
         # ==================================================
 
-        if actual_duration is None:
+        execution_end_timestamp = time.time()
 
-            actual_duration = (
-                requested_duration
+        execution_end_text = (
+            get_current_time_text()
+        )
+
+
+        execution_seconds = int(
+            round(
+                execution_end_timestamp
+                - execution_start_timestamp
             )
+        )
 
 
         # ==================================================
         # Job complete
+        #
+        # 重要:
+        #
+        # duration
+        #     → 選択時間から計算した再生時間
+        #
+        # actual_duration
+        #     → FFmpegで作成した実ファイルの実測時間
+        #
+        # full_duration
+        #     → 元動画Full
         # ==================================================
 
         jobs[job_id] = {
@@ -1871,15 +1916,51 @@ def convert_task(
                 title,
 
             # ------------------------------------------------
-            # 実際に作成されたファイルの再生時間
+            # 選択時間から計算した再生時間
             # ------------------------------------------------
 
             "duration":
-                actual_duration,
+                requested_duration,
 
             "duration_text":
                 seconds_to_time(
+                    requested_duration
+                ),
+
+            # ------------------------------------------------
+            # 実ファイルの実測時間
+            # ------------------------------------------------
+
+            "actual_duration":
+                actual_duration,
+
+            "actual_duration_text":
+                seconds_to_time(
                     actual_duration
+                ),
+
+            # ------------------------------------------------
+            # MP3実測時間
+            # ------------------------------------------------
+
+            "mp3_duration":
+                actual_mp3_duration,
+
+            "mp3_duration_text":
+                seconds_to_time(
+                    actual_mp3_duration
+                ),
+
+            # ------------------------------------------------
+            # MP4実測時間
+            # ------------------------------------------------
+
+            "mp4_duration":
+                actual_mp4_duration,
+
+            "mp4_duration_text":
+                seconds_to_time(
+                    actual_mp4_duration
                 ),
 
             # ------------------------------------------------
@@ -1908,7 +1989,23 @@ def convert_task(
                 start_seconds,
 
             "end_seconds":
-                end_seconds
+                end_seconds,
+
+            # ------------------------------------------------
+            # 実行時間
+            # ------------------------------------------------
+
+            "execution_start":
+                execution_start_text,
+
+            "execution_end":
+                execution_end_text,
+
+            "execution_seconds":
+                execution_seconds,
+
+            "execution_seconds_text":
+                f"{execution_seconds}秒"
 
         }
 
@@ -1917,40 +2014,99 @@ def convert_task(
         print("変換完了")
         print("JOB:", job_id)
         print("TITLE:", title)
+
         print(
-            "DURATION:",
-            actual_duration
+            "選択再生時間:",
+            requested_duration
         )
+
         print(
-            "DURATION TEXT:",
+            "選択再生時間 TEXT:",
             seconds_to_time(
-                actual_duration
+                requested_duration
             )
         )
+
         print(
-            "FULL DURATION:",
+            "実ファイル再生時間:",
+            actual_duration
+        )
+
+        print(
+            "Full再生時間:",
             full_duration
         )
+
         print(
-            "FULL DURATION TEXT:",
+            "Full再生時間 TEXT:",
             seconds_to_time(
                 full_duration
             )
         )
+
+        print(
+            "実行開始:",
+            execution_start_text
+        )
+
+        print(
+            "実行終了:",
+            execution_end_text
+        )
+
+        print(
+            "実行時間:",
+            execution_seconds,
+            "秒"
+        )
+
         print(
             "FILES:",
             files
         )
+
         print("==========================================")
 
 
     except Exception as e:
+
+        # ==================================================
+        # エラー時も実行時間を保存
+        # ==================================================
+
+        execution_end_timestamp = time.time()
+
+        execution_end_text = (
+            get_current_time_text()
+        )
+
+
+        execution_seconds = int(
+            round(
+                execution_end_timestamp
+                - execution_start_timestamp
+            )
+        )
+
 
         print("==========================================")
         print("変換エラー")
         print("JOB:", job_id)
         print("ERROR TYPE:", type(e).__name__)
         print("ERROR:", repr(e))
+        print(
+            "実行開始:",
+            execution_start_text
+        )
+        print(
+            "実行終了:",
+            execution_end_text
+        )
+        print(
+            "実行時間:",
+            execution_seconds,
+            "秒"
+        )
         print("==========================================")
 
 
@@ -1960,7 +2116,28 @@ def convert_task(
                 "error",
 
             "message":
-                str(e)
+                str(e),
+
+            "outputs":
+                outputs,
+
+            "start_time":
+                start_time or "",
+
+            "end_time":
+                end_time or "",
+
+            "execution_start":
+                execution_start_text,
+
+            "execution_end":
+                execution_end_text,
+
+            "execution_seconds":
+                execution_seconds,
+
+            "execution_seconds_text":
+                f"{execution_seconds}秒"
 
         }
 
@@ -2221,8 +2398,6 @@ def register_convert(
             # 終了時間だけの場合
             #
             # 00:00 ～ 終了時間
-            #
-            # として扱う。
             # ==================================================
 
             if (
