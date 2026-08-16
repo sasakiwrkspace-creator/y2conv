@@ -311,7 +311,7 @@ def get_ydl_options(
 #
 # YouTube
 # ↓
-# 音声
+# 指定時間範囲だけ取得
 # ↓
 # ffmpeg
 # ↓
@@ -320,13 +320,17 @@ def get_ydl_options(
 
 def download_mp3(
     url,
-    output_dir
+    output_dir,
+    start_time=None,
+    end_time=None
 ):
 
     print("==========================================")
     print("MP3作成開始")
     print("URL:", url)
     print("出力:", output_dir)
+    print("開始:", start_time)
+    print("終了:", end_time)
     print("==========================================")
 
     temp_cookie = None
@@ -395,11 +399,189 @@ def download_mp3(
 
         ]
 
+        # ==================================================
+        # 時間範囲
+        #
+        # start_time / end_time がある場合は
+        # 指定範囲だけダウンロードする。
+        # ==================================================
+
+        if start_time or end_time:
+
+            start_seconds = time_to_seconds(
+                start_time or "00:00:00"
+            )
+
+            end_seconds = time_to_seconds(
+                end_time
+            )
+
+            if end_seconds <= start_seconds:
+
+                raise Exception(
+                    "終了時間は開始時間より後にしてください"
+                )
+
+            ydl_opts["download_ranges"] = (
+                download_range_func(
+                    None,
+                    [
+                        (
+                            start_seconds,
+                            end_seconds
+                        )
+                    ]
+                )
+            )
+
+            print("==========================================")
+            print("yt-dlp 時間範囲ダウンロード")
+            print("開始秒:", start_seconds)
+            print("終了秒:", end_seconds)
+            print(
+                "取得時間:",
+                end_seconds - start_seconds,
+                "秒"
+            )
+            print("==========================================")
+
+        else:
+
+            print("==========================================")
+            print("時間指定なし")
+            print("動画全体をMP3化")
+            print("==========================================")
+
         print("==========================================")
         print("yt-dlp MP3設定")
         print("format: bestaudio/best")
         print("MP3 quality: 128kbps")
+        print("時間範囲:", bool(
+            start_time or end_time
+        ))
         print("==========================================")
+
+        # ==================================================
+        # ダウンロード
+        # ==================================================
+
+        with yt_dlp.YoutubeDL(
+            ydl_opts
+        ) as ydl:
+
+            print(
+                ">>> yt-dlp開始"
+            )
+
+            info = ydl.extract_info(
+                url,
+                download=True
+            )
+
+            print(
+                ">>> yt-dlp完了"
+            )
+
+        if not info:
+
+            raise Exception(
+                "YouTube情報を取得できませんでした"
+            )
+
+        # ==================================================
+        # 作成されたMP3を探す
+        # ==================================================
+
+        mp3_files = []
+
+        for filename in os.listdir(
+            output_dir
+        ):
+
+            if filename.lower().endswith(
+                ".mp3"
+            ):
+
+                full_path = os.path.join(
+                    output_dir,
+                    filename
+                )
+
+                if os.path.isfile(
+                    full_path
+                ):
+
+                    mp3_files.append(
+                        full_path
+                    )
+
+        if not mp3_files:
+
+            raise Exception(
+                "MP3ファイルが作成されませんでした"
+            )
+
+        # ==================================================
+        # 最新ファイル
+        # ==================================================
+
+        mp3_file = max(
+
+            mp3_files,
+
+            key=os.path.getmtime
+
+        )
+
+        file_size = os.path.getsize(
+            mp3_file
+        )
+
+        if file_size <= 0:
+
+            raise Exception(
+                "MP3ファイルが0 bytesです"
+            )
+
+        # ==================================================
+        # タイトル
+        # ==================================================
+
+        title = info.get(
+            "title",
+            ""
+        )
+
+        duration = info.get(
+            "duration"
+        )
+
+        print("==========================================")
+        print("MP3作成成功")
+        print("タイトル:", title)
+        print("再生時間:", duration)
+        print("MP3:", mp3_file)
+        print("サイズ:", file_size, "bytes")
+        print("==========================================")
+
+        return {
+
+            "file":
+                mp3_file,
+
+            "title":
+                title,
+
+            "duration":
+                duration
+
+        }
+
+    finally:
+
+        remove_temp_cookie_file(
+            temp_cookie
+        )
 
         # ==================================================
         # ダウンロード
