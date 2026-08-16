@@ -6,6 +6,7 @@ import threading
 import os
 import shutil
 import tempfile
+import subprocess
 
 from routes.status import jobs
 from cleanup import cleanup_downloads
@@ -75,15 +76,18 @@ def check_cookie_file():
             + SOURCE_COOKIE_FILE
         )
 
+
     file_size = os.path.getsize(
         SOURCE_COOKIE_FILE
     )
+
 
     print("==========================================")
     print("Cookieファイル確認")
     print("ファイル:", SOURCE_COOKIE_FILE)
     print("サイズ:", file_size, "bytes")
     print("==========================================")
+
 
     if file_size == 0:
 
@@ -105,35 +109,49 @@ def create_temp_cookie_file():
 
     temp_cookie = None
 
+
     try:
 
         fd, temp_cookie = tempfile.mkstemp(
+
             prefix="y2conv_cookies_",
+
             suffix=".txt",
+
             dir="/tmp"
+
         )
+
 
         os.close(
             fd
         )
 
+
         shutil.copyfile(
+
             SOURCE_COOKIE_FILE,
+
             temp_cookie
+
         )
+
 
         print(
             "一時Cookie作成:",
             temp_cookie
         )
 
+
         return temp_cookie
+
 
     except Exception:
 
         if (
             temp_cookie
-            and os.path.exists(
+            and
+            os.path.exists(
                 temp_cookie
             )
         ):
@@ -148,6 +166,7 @@ def create_temp_cookie_file():
 
                 pass
 
+
         raise
 
 
@@ -161,7 +180,8 @@ def remove_temp_cookie_file(
 
     if (
         cookie_file
-        and os.path.exists(
+        and
+        os.path.exists(
             cookie_file
         )
     ):
@@ -172,10 +192,12 @@ def remove_temp_cookie_file(
                 cookie_file
             )
 
+
             print(
                 "一時Cookie削除:",
                 cookie_file
             )
+
 
         except Exception as e:
 
@@ -202,6 +224,7 @@ def check_deno():
 
         return False
 
+
     if not os.access(
         DENO_PATH,
         os.X_OK
@@ -214,20 +237,25 @@ def check_deno():
 
         return False
 
+
     return True
 
 
 # ==========================================================
 # yt-dlp設定
 #
-# 512MB環境を考慮して必要最小限
+# 重要:
+#
+# 時間指定はここでは行わない。
+#
+# YouTubeから音声を取得した後、
+# FFmpegで開始～終了を正確に切り出す。
+#
 # ==========================================================
 
 def get_ydl_options(
     temp_cookie,
-    output_template,
-    start_seconds=None,
-    end_seconds=None
+    output_template
 ):
 
     options = {
@@ -239,6 +267,7 @@ def get_ydl_options(
         "cookiefile":
             temp_cookie,
 
+
         # --------------------------------------------------
         # Playlist無効
         # --------------------------------------------------
@@ -246,12 +275,14 @@ def get_ydl_options(
         "noplaylist":
             True,
 
+
         # --------------------------------------------------
-        # 音声のみ
+        # 音声
         # --------------------------------------------------
 
         "format":
             "bestaudio/best",
+
 
         # --------------------------------------------------
         # 出力
@@ -260,6 +291,7 @@ def get_ydl_options(
         "outtmpl":
             output_template,
 
+
         # --------------------------------------------------
         # ログ
         # --------------------------------------------------
@@ -267,8 +299,10 @@ def get_ydl_options(
         "quiet":
             False,
 
+
         "no_warnings":
             False,
+
 
         # --------------------------------------------------
         # プログレス表示を抑制
@@ -276,46 +310,8 @@ def get_ydl_options(
 
         "noprogress":
             True
+
     }
-
-
-    # ======================================================
-    # 時間範囲
-    #
-    # yt-dlp側で指定範囲だけダウンロードする。
-    #
-    # download_ranges:
-    #   start_seconds ～ end_seconds
-    #
-    # ======================================================
-
-    if (
-        start_seconds is not None
-        and end_seconds is not None
-    ):
-
-        options["download_ranges"] = (
-            yt_dlp.utils.download_range_func(
-                [],
-                [
-                    [
-                        start_seconds,
-                        end_seconds
-                    ]
-                ]
-            )
-        )
-
-        print("==========================================")
-        print("yt-dlp時間範囲指定")
-        print("開始秒:", start_seconds)
-        print("終了秒:", end_seconds)
-        print(
-            "長さ:",
-            end_seconds - start_seconds,
-            "秒"
-        )
-        print("==========================================")
 
 
     # ======================================================
@@ -335,6 +331,7 @@ def get_ydl_options(
 
         }
 
+
         options["remote_components"] = {
 
             "ejs":
@@ -342,25 +339,39 @@ def get_ydl_options(
 
         }
 
+
     return options
 
 
 # ==========================================================
 # MP3ダウンロード
 #
-# 時間指定なし
-#   YouTube
-#   ↓
-#   音声
-#   ↓
-#   MP3
+# 時間指定なし:
 #
-# 時間指定あり
-#   YouTube
+# YouTube
 #   ↓
-#   yt-dlpで指定範囲だけ取得
+# yt-dlp
 #   ↓
-#   MP3
+# 音声
+#   ↓
+# FFmpeg
+#   ↓
+# FULL MP3
+#
+#
+# 時間指定あり:
+#
+# YouTube
+#   ↓
+# yt-dlp
+#   ↓
+# 音声
+#   ↓
+# FFmpeg
+#   ↓
+# 開始～終了だけ
+#   ↓
+# MP3
 #
 # ==========================================================
 
@@ -379,7 +390,11 @@ def download_mp3(
     print("終了:", end_time)
     print("==========================================")
 
+
     temp_cookie = None
+
+    temp_audio_dir = None
+
 
     try:
 
@@ -397,8 +412,11 @@ def download_mp3(
         # ==================================================
 
         os.makedirs(
+
             output_dir,
+
             exist_ok=True
+
         )
 
 
@@ -431,7 +449,8 @@ def download_mp3(
 
         if (
             start_seconds is not None
-            and end_seconds is not None
+            and
+            end_seconds is not None
         ):
 
             if end_seconds <= start_seconds:
@@ -442,86 +461,74 @@ def download_mp3(
 
 
         # ==================================================
-        # 出力ファイル
+        # 開始だけ指定は禁止
         # ==================================================
 
-        output_template = os.path.join(
+        if (
+            start_seconds is not None
+            and
+            end_seconds is None
+        ):
 
-            output_dir,
+            raise Exception(
+                "終了時間を入力してください"
+            )
 
-            "%(title)s.%(ext)s"
+
+        # ==================================================
+        # 一時音声ディレクトリ
+        #
+        # 最終MP3とは別の場所に作る。
+        # ==================================================
+
+        temp_audio_dir = tempfile.mkdtemp(
+
+            prefix="y2conv_audio_",
+
+            dir="/tmp"
 
         )
 
 
         # ==================================================
-        # yt-dlp
+        # yt-dlp一時出力
+        #
+        # 日本語タイトルの影響を避けるため、
+        # IDベースの英数字ファイル名にする。
+        # ==================================================
+
+        temp_output_template = os.path.join(
+
+            temp_audio_dir,
+
+            "%(id)s.%(ext)s"
+
+        )
+
+
+        # ==================================================
+        # yt-dlp設定
+        #
+        # ここでは時間範囲を指定しない。
         # ==================================================
 
         ydl_opts = get_ydl_options(
 
             temp_cookie,
 
-            output_template,
-
-            start_seconds,
-
-            end_seconds
+            temp_output_template
 
         )
 
 
-        # ==================================================
-        # MP3変換
-        # ==================================================
-
-        ydl_opts["postprocessors"] = [
-
-            {
-
-                "key":
-                    "FFmpegExtractAudio",
-
-                "preferredcodec":
-                    "mp3",
-
-                "preferredquality":
-                    "128"
-
-            }
-
-        ]
-
-
         print("==========================================")
-        print("yt-dlp MP3設定")
-        print("format: bestaudio/best")
-        print("MP3 quality: 128kbps")
-
-
-        if (
-            start_seconds is not None
-            and end_seconds is not None
-        ):
-
-            print(
-                "download range:",
-                start_seconds,
-                "-",
-                end_seconds
-            )
-
-        else:
-
-            print(
-                "download range: FULL"
-            )
-
+        print("YouTube音声取得開始")
+        print("時間範囲: FULL取得")
         print("==========================================")
 
 
         # ==================================================
-        # ダウンロード
+        # yt-dlp
         # ==================================================
 
         with yt_dlp.YoutubeDL(
@@ -532,15 +539,24 @@ def download_mp3(
                 ">>> yt-dlp開始"
             )
 
+
             info = ydl.extract_info(
+
                 url,
+
                 download=True
+
             )
+
 
             print(
                 ">>> yt-dlp完了"
             )
 
+
+        # ==================================================
+        # 情報確認
+        # ==================================================
 
         if not info:
 
@@ -559,56 +575,320 @@ def download_mp3(
 
 
         # ==================================================
-        # 作成されたMP3を探す
+        # タイトル
         # ==================================================
 
-        mp3_files = []
+        title = info.get(
+
+            "title",
+
+            ""
+
+        )
+
+
+        if not title:
+
+            title = "audio"
+
+
+        # ==================================================
+        # yt-dlpが作成した音声を探す
+        # ==================================================
+
+        audio_files = []
 
 
         for filename in os.listdir(
-            output_dir
+
+            temp_audio_dir
+
         ):
 
-            if filename.lower().endswith(
-                ".mp3"
+            full_path = os.path.join(
+
+                temp_audio_dir,
+
+                filename
+
+            )
+
+
+            if os.path.isfile(
+                full_path
             ):
 
-                full_path = os.path.join(
-                    output_dir,
-                    filename
+                audio_files.append(
+                    full_path
                 )
 
-                if os.path.isfile(
-                    full_path
-                ):
 
-                    mp3_files.append(
-                        full_path
-                    )
+        # ==================================================
+        # 音声ファイル確認
+        # ==================================================
 
-
-        if not mp3_files:
+        if not audio_files:
 
             raise Exception(
-                "MP3ファイルが作成されませんでした"
+                "YouTube音声ファイルが作成されませんでした"
             )
 
 
         # ==================================================
-        # 最新ファイル
+        # 最新の音声ファイル
         # ==================================================
 
-        mp3_file = max(
+        source_audio = max(
 
-            mp3_files,
+            audio_files,
 
             key=os.path.getmtime
 
         )
 
 
+        print(
+            "取得音声:",
+            source_audio
+        )
+
+
+        # ==================================================
+        # 最終MP3ファイル
+        #
+        # 日本語タイトルもそのまま使用する。
+        # ==================================================
+
+        output_mp3 = os.path.join(
+
+            output_dir,
+
+            title + ".mp3"
+
+        )
+
+
+        # ==================================================
+        # 同名ファイル削除
+        # ==================================================
+
+        if os.path.exists(
+            output_mp3
+        ):
+
+            try:
+
+                os.remove(
+                    output_mp3
+                )
+
+            except Exception as e:
+
+                raise Exception(
+
+                    "既存MP3を削除できませんでした: "
+
+                    + str(e)
+
+                )
+
+
+        # ==================================================
+        # 時間指定あり
+        # ==================================================
+
+        if (
+            start_seconds is not None
+            and
+            end_seconds is not None
+        ):
+
+            clip_duration = (
+
+                end_seconds
+                -
+                start_seconds
+
+            )
+
+
+            print("==========================================")
+            print("FFmpeg時間切り出し")
+            print("開始秒:", start_seconds)
+            print("終了秒:", end_seconds)
+            print("切り出し時間:", clip_duration)
+            print("==========================================")
+
+
+            # ==================================================
+            # FFmpeg
+            #
+            # -ss = 開始位置
+            # -t  = 切り出す長さ
+            #
+            # 例:
+            #
+            # 60秒 ～ 109秒
+            #
+            # -ss 60
+            # -t 49
+            #
+            # → 49秒
+            # ==================================================
+
+            command = [
+
+                "ffmpeg",
+
+                "-y",
+
+                "-ss",
+                str(start_seconds),
+
+                "-i",
+                source_audio,
+
+                "-t",
+                str(clip_duration),
+
+                "-vn",
+
+                "-codec:a",
+                "libmp3lame",
+
+                "-b:a",
+                "128k",
+
+                output_mp3
+
+            ]
+
+
+            print(
+                "FFmpeg command:",
+                command
+            )
+
+
+            result = subprocess.run(
+
+                command,
+
+                stdout=subprocess.DEVNULL,
+
+                stderr=subprocess.PIPE,
+
+                text=True
+
+            )
+
+
+            if result.returncode != 0:
+
+                print(
+                    "FFmpeg ERROR:"
+                )
+
+                print(
+                    result.stderr
+                )
+
+
+                raise Exception(
+                    "FFmpegによる時間切り出しに失敗しました"
+                )
+
+
+        # ==================================================
+        # 時間指定なし
+        # ==================================================
+
+        else:
+
+            clip_duration = full_duration
+
+
+            print("==========================================")
+            print("FULL MP3作成")
+            print("==========================================")
+
+
+            # ==================================================
+            # FFmpeg
+            # ==================================================
+
+            command = [
+
+                "ffmpeg",
+
+                "-y",
+
+                "-i",
+                source_audio,
+
+                "-vn",
+
+                "-codec:a",
+                "libmp3lame",
+
+                "-b:a",
+                "128k",
+
+                output_mp3
+
+            ]
+
+
+            print(
+                "FFmpeg command:",
+                command
+            )
+
+
+            result = subprocess.run(
+
+                command,
+
+                stdout=subprocess.DEVNULL,
+
+                stderr=subprocess.PIPE,
+
+                text=True
+
+            )
+
+
+            if result.returncode != 0:
+
+                print(
+                    "FFmpeg ERROR:"
+                )
+
+                print(
+                    result.stderr
+                )
+
+
+                raise Exception(
+                    "MP3変換に失敗しました"
+                )
+
+
+        # ==================================================
+        # 完成MP3確認
+        # ==================================================
+
+        if not os.path.exists(
+            output_mp3
+        ):
+
+            raise Exception(
+                "MP3ファイルが作成されませんでした"
+            )
+
+
         file_size = os.path.getsize(
-            mp3_file
+            output_mp3
         )
 
 
@@ -620,42 +900,6 @@ def download_mp3(
 
 
         # ==================================================
-        # タイトル
-        # ==================================================
-
-        title = info.get(
-            "title",
-            ""
-        )
-
-
-        # ==================================================
-        # 切り出し後の表示時間
-        # ==================================================
-
-        clip_duration = full_duration
-
-
-        if (
-            start_seconds is not None
-            and end_seconds is not None
-        ):
-
-            clip_duration = (
-                end_seconds
-                - start_seconds
-            )
-
-
-        elif (
-            start_seconds is None
-            and end_seconds is not None
-        ):
-
-            clip_duration = end_seconds
-
-
-        # ==================================================
         # 結果表示
         # ==================================================
 
@@ -664,7 +908,7 @@ def download_mp3(
         print("タイトル:", title)
         print("切り出し後再生時間:", clip_duration)
         print("Full再生時間:", full_duration)
-        print("MP3:", mp3_file)
+        print("MP3:", output_mp3)
         print("サイズ:", file_size, "bytes")
         print("==========================================")
 
@@ -672,16 +916,22 @@ def download_mp3(
         return {
 
             "file":
-                mp3_file,
+                output_mp3,
 
             "title":
                 title,
 
-            # 切り出したMP3の長さ
+            # ----------------------------------------------
+            # 実際に作成したMP3の長さ
+            # ----------------------------------------------
+
             "duration":
                 clip_duration,
 
+            # ----------------------------------------------
             # 元YouTube動画の長さ
+            # ----------------------------------------------
+
             "full_duration":
                 full_duration
 
@@ -690,13 +940,62 @@ def download_mp3(
 
     finally:
 
+        # ==================================================
+        # 一時Cookie削除
+        # ==================================================
+
         remove_temp_cookie_file(
+
             temp_cookie
+
         )
+
+
+        # ==================================================
+        # 一時音声ディレクトリ削除
+        # ==================================================
+
+        if (
+            temp_audio_dir
+            and
+            os.path.exists(
+                temp_audio_dir
+            )
+        ):
+
+            try:
+
+                shutil.rmtree(
+
+                    temp_audio_dir
+
+                )
+
+
+                print(
+                    "一時音声ディレクトリ削除:",
+                    temp_audio_dir
+                )
+
+
+            except Exception as e:
+
+                print(
+                    "WARNING: "
+                    "一時音声ディレクトリ削除失敗:",
+                    repr(e)
+                )
 
 
 # ==========================================================
 # 時間を秒へ変換
+#
+# 対応:
+#
+# 59
+# 1:30
+# 00:01:30
+#
 # ==========================================================
 
 def time_to_seconds(
@@ -723,12 +1022,28 @@ def time_to_seconds(
 
     try:
 
+        # ==================================================
+        # 秒
+        # ==================================================
+
         if len(parts) == 1:
 
-            return float(
+            seconds = float(
                 parts[0]
             )
 
+
+            if seconds < 0:
+
+                raise ValueError
+
+
+            return seconds
+
+
+        # ==================================================
+        # 分:秒
+        # ==================================================
 
         if len(parts) == 2:
 
@@ -740,11 +1055,30 @@ def time_to_seconds(
                 parts[1]
             )
 
+
+            if (
+                minutes < 0
+                or
+                seconds < 0
+                or
+                seconds >= 60
+            ):
+
+                raise ValueError
+
+
             return (
+
                 minutes * 60
-                + seconds
+                +
+                seconds
+
             )
 
+
+        # ==================================================
+        # 時:分:秒
+        # ==================================================
 
         if len(parts) == 3:
 
@@ -760,10 +1094,30 @@ def time_to_seconds(
                 parts[2]
             )
 
+
+            if (
+                hours < 0
+                or
+                minutes < 0
+                or
+                seconds < 0
+                or
+                minutes >= 60
+                or
+                seconds >= 60
+            ):
+
+                raise ValueError
+
+
             return (
+
                 hours * 3600
-                + minutes * 60
-                + seconds
+                +
+                minutes * 60
+                +
+                seconds
+
             )
 
 
@@ -775,8 +1129,11 @@ def time_to_seconds(
     except Exception:
 
         raise ValueError(
+
             "時間形式が正しくありません: "
-            + value
+            +
+            value
+
         )
 
 
@@ -827,6 +1184,7 @@ def convert_task(
 
             cleanup_downloads()
 
+
         except Exception as e:
 
             print(
@@ -843,8 +1201,11 @@ def convert_task(
 
 
         os.makedirs(
+
             output_dir,
+
             exist_ok=True
+
         )
 
 
@@ -852,7 +1213,7 @@ def convert_task(
 
 
         # ==================================================
-        # MP3
+        # MP3確認
         # ==================================================
 
         if "mp3" not in outputs:
@@ -935,22 +1296,38 @@ def convert_task(
             "status":
                 "complete",
 
+
             "files":
                 files,
+
 
             "title":
                 title,
 
-            # 切り出し後の再生時間
+
+            # ------------------------------------------------
+            # 実際に作成したMP3の再生時間
+            # ------------------------------------------------
+
             "duration":
                 duration,
 
-            # 元動画の再生時間
+
+            # ------------------------------------------------
+            # 元YouTube動画の再生時間
+            # ------------------------------------------------
+
             "full_duration":
                 full_duration,
 
+
+            # ------------------------------------------------
+            # 指定時間
+            # ------------------------------------------------
+
             "start_time":
                 start_time or "",
+
 
             "end_time":
                 end_time or ""
@@ -1000,9 +1377,13 @@ def convert_task(
 def register_convert(app):
 
     @app.route(
+
         "/convert",
+
         methods=["POST"]
+
     )
+
     def convert():
 
         try:
@@ -1056,8 +1437,11 @@ def register_convert(app):
             # ==================================================
 
             outputs = data.get(
+
                 "outputs",
+
                 []
+
             )
 
 
@@ -1127,23 +1511,113 @@ def register_convert(app):
 
 
             # ==================================================
-            # サーバー側時間チェック
+            # 時間を秒へ変換
+            # ==================================================
+
+            start_seconds = None
+
+            end_seconds = None
+
+
+            if start_time:
+
+                try:
+
+                    start_seconds = time_to_seconds(
+                        start_time
+                    )
+
+                except Exception as e:
+
+                    return jsonify({
+
+                        "success":
+                            False,
+
+                        "message":
+                            str(e)
+
+                    }), 400
+
+
+            if end_time:
+
+                try:
+
+                    end_seconds = time_to_seconds(
+                        end_time
+                    )
+
+                except Exception as e:
+
+                    return jsonify({
+
+                        "success":
+                            False,
+
+                        "message":
+                            str(e)
+
+                    }), 400
+
+
+            # ==================================================
+            # 開始だけ
             # ==================================================
 
             if (
-                start_time
-                and end_time
+                start_seconds is not None
+                and
+                end_seconds is None
             ):
 
-                start_seconds = time_to_seconds(
-                    start_time
-                )
+                return jsonify({
+
+                    "success":
+                        False,
+
+                    "message":
+                        "終了時間を入力してください"
+
+                }), 400
 
 
-                end_seconds = time_to_seconds(
-                    end_time
-                )
+            # ==================================================
+            # 終了だけ
+            #
+            # 例:
+            #
+            # 開始:
+            # 空欄
+            #
+            # 終了:
+            # 01:00
+            #
+            # ↓
+            #
+            # 00:00 ～ 01:00
+            # ==================================================
 
+            if (
+                start_seconds is None
+                and
+                end_seconds is not None
+            ):
+
+                start_time = "00:00:00"
+
+                start_seconds = 0
+
+
+            # ==================================================
+            # 開始・終了チェック
+            # ==================================================
+
+            if (
+                start_seconds is not None
+                and
+                end_seconds is not None
+            ):
 
                 if end_seconds <= start_seconds:
 
@@ -1156,26 +1630,6 @@ def register_convert(app):
                             "終了時間は開始時間より後にしてください"
 
                     }), 400
-
-
-            # ==================================================
-            # 開始だけ入力
-            # ==================================================
-
-            if (
-                start_time
-                and not end_time
-            ):
-
-                return jsonify({
-
-                    "success":
-                        False,
-
-                    "message":
-                        "終了時間を入力してください"
-
-                }), 400
 
 
             # ==================================================
