@@ -38,9 +38,9 @@ const MAX_JOB_NOT_FOUND_RETRY = 12;
 // 次回確認時間
 // =====================================
 
-const STATUS_INTERVAL = 5000;
+const STATUS_INTERVAL = 5;
 
-const RATE_LIMIT_INTERVAL = 15000;
+const RATE_LIMIT_INTERVAL = 15;
 
 
 // =====================================
