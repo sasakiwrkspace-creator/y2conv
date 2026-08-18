@@ -1278,11 +1278,11 @@ def create_mp3(
     )
     print("==========================================")
     
-    print("DEBUG: MP3作成後60秒停止します")
+    print("DEBUG: MP3作成後5秒停止します")
     
-    time.sleep(60)
+    time.sleep(5)
     
-    print("DEBUG: 60秒停止終了")
+    print("DEBUG: 5秒停止終了")
     
     
     return actual_duration
