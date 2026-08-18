@@ -1,6 +1,8 @@
 from flask import request, jsonify
 
 import yt_dlp
+from yt_dlp.utils import download_range_func
+
 import uuid
 import threading
 import os
@@ -9,6 +11,7 @@ import tempfile
 import subprocess
 import re
 import time
+
 from datetime import datetime
 
 from routes.status import jobs
@@ -375,14 +378,6 @@ def time_to_seconds(
 #
 # 画面表示用
 #
-# 60
-# ↓
-# 00:01:00
-#
-# 396
-# ↓
-# 00:06:36
-#
 # ==========================================================
 
 def seconds_to_time(
@@ -432,11 +427,6 @@ def seconds_to_time(
 
 # ==========================================================
 # 現在時刻
-#
-# 例:
-#
-# 17:05:47
-#
 # ==========================================================
 
 def get_current_time_text():
@@ -730,19 +720,36 @@ def get_video_info(
 # ==========================================================
 # ソース動画ダウンロード
 #
-# MP3 / MP4の元データとして使用する。
+# 重要:
 #
-# 指定時間がある場合も、
-# ここでは時間判定・カットをしない。
+# 指定時間がある場合は yt-dlp にも
+# download_ranges を渡す。
 #
-# 最終的な時間カットはFFmpegで行う。
+# これにより、
+#
+# 20秒指定
+#
+# ↓
+#
+# 元動画Fullを丸ごと取得
+#
+# ではなく、
+#
+# 指定範囲を取得
+#
+# する。
+#
+# 最終的な出力ファイルについては、
+# 後段のFFmpegでも時間範囲を適用する。
 # ==========================================================
 
 def download_source(
     url,
     temp_cookie,
     source_dir,
-    need_video
+    need_video,
+    start_seconds=None,
+    end_seconds=None
 ):
 
     os.makedirs(
@@ -802,10 +809,88 @@ def download_source(
         )
 
 
+    # ======================================================
+    # 時間指定
+    #
+    # yt-dlp側にも指定する
+    # ======================================================
+
+    if (
+        start_seconds is not None
+        and end_seconds is not None
+    ):
+
+        if end_seconds <= start_seconds:
+
+            raise Exception(
+                "ダウンロード範囲が正しくありません"
+            )
+
+
+        options["download_ranges"] = (
+            download_range_func(
+                None,
+                [
+                    (
+                        start_seconds,
+                        end_seconds
+                    )
+                ]
+            )
+        )
+
+
+        # --------------------------------------------------
+        # カット位置を正確にする
+        # --------------------------------------------------
+
+        options["force_keyframes_at_cuts"] = True
+
+
+        print("==========================================")
+        print("yt-dlp時間範囲指定")
+        print(
+            "開始:",
+            start_seconds,
+            "(",
+            seconds_to_time(start_seconds),
+            ")"
+        )
+        print(
+            "終了:",
+            end_seconds,
+            "(",
+            seconds_to_time(end_seconds),
+            ")"
+        )
+        print(
+            "範囲:",
+            end_seconds - start_seconds,
+            "秒"
+        )
+        print("==========================================")
+
+
+    else:
+
+        print("==========================================")
+        print("yt-dlp時間範囲指定なし")
+        print("Fullダウンロード")
+        print("==========================================")
+
+
     print("==========================================")
     print("YouTube元データダウンロード開始")
     print("URL:", url)
     print("need_video:", need_video)
+    print(
+        "start_seconds:",
+        start_seconds
+    )
+    print(
+        "end_seconds:",
+        end_seconds
+    )
     print("==========================================")
 
 
@@ -902,6 +987,25 @@ def download_source(
         os.path.getsize(source_file),
         "bytes"
     )
+
+    if (
+        start_seconds is not None
+        and end_seconds is not None
+    ):
+
+        print(
+            "取得予定範囲:",
+            seconds_to_time(start_seconds),
+            "～",
+            seconds_to_time(end_seconds)
+        )
+
+    else:
+
+        print(
+            "取得範囲: Full"
+        )
+
     print("==========================================")
 
 
@@ -970,9 +1074,6 @@ def safe_filename(
 #
 # のみを実際に出力。
 #
-# 指定時間なし:
-#
-# Full
 # ==========================================================
 
 def create_mp3(
@@ -1158,10 +1259,6 @@ def create_mp3(
 # start ～ end
 #
 # のみを実際に出力。
-#
-# 指定時間なし:
-#
-# Full
 # ==========================================================
 
 def create_mp4(
@@ -1240,8 +1337,6 @@ def create_mp4(
     #
     # 映像は再エンコード。
     # 音声もAACに統一。
-    #
-    # 互換性を優先。
     # ======================================================
 
     command.extend([
@@ -1379,6 +1474,7 @@ def convert_task(
     temp_cookie = None
 
     temp_source_dir = None
+
 
     # ======================================================
     # 実行開始時刻
@@ -1525,6 +1621,12 @@ def convert_task(
             )
 
 
+        # ==================================================
+        # 終了時間だけ指定
+        #
+        # 00:00:00 ～ end
+        # ==================================================
+
         if (
             start_seconds is None
             and end_seconds is not None
@@ -1534,6 +1636,10 @@ def convert_task(
 
             start_time = "00:00:00"
 
+
+        # ==================================================
+        # 開始・終了両方指定
+        # ==================================================
 
         if (
             start_seconds is not None
@@ -1667,17 +1773,6 @@ def convert_task(
 
         # ==================================================
         # 選択時間から再生時間を計算
-        #
-        # 例:
-        #
-        # 開始 00:05:00
-        # 終了 00:06:00
-        #
-        # ↓
-        #
-        # 再生時間 00:01:00
-        #
-        # 時間指定なしならFull
         # ==================================================
 
         if (
@@ -1744,6 +1839,8 @@ def convert_task(
 
         # ==================================================
         # YouTube元データ取得
+        #
+        # ★ここで時間指定をyt-dlpへ渡す
         # ==================================================
 
         source_file, downloaded_info = (
@@ -1755,7 +1852,11 @@ def convert_task(
 
                 temp_source_dir,
 
-                need_video
+                need_video,
+
+                start_seconds,
+
+                end_seconds
 
             )
         )
@@ -1788,8 +1889,6 @@ def convert_task(
 
         # ==================================================
         # 実際に作成されたファイルの再生時間
-        #
-        # MP3 / MP4の実測値
         # ==================================================
 
         actual_duration = None
@@ -1888,17 +1987,6 @@ def convert_task(
 
         # ==================================================
         # Job complete
-        #
-        # 重要:
-        #
-        # duration
-        #     → 選択時間から計算した再生時間
-        #
-        # actual_duration
-        #     → FFmpegで作成した実ファイルの実測時間
-        #
-        # full_duration
-        #     → 元動画Full
         # ==================================================
 
         jobs[job_id] = {
@@ -1915,10 +2003,6 @@ def convert_task(
             "title":
                 title,
 
-            # ------------------------------------------------
-            # 選択時間から計算した再生時間
-            # ------------------------------------------------
-
             "duration":
                 requested_duration,
 
@@ -1926,10 +2010,6 @@ def convert_task(
                 seconds_to_time(
                     requested_duration
                 ),
-
-            # ------------------------------------------------
-            # 実ファイルの実測時間
-            # ------------------------------------------------
 
             "actual_duration":
                 actual_duration,
@@ -1939,10 +2019,6 @@ def convert_task(
                     actual_duration
                 ),
 
-            # ------------------------------------------------
-            # MP3実測時間
-            # ------------------------------------------------
-
             "mp3_duration":
                 actual_mp3_duration,
 
@@ -1950,10 +2026,6 @@ def convert_task(
                 seconds_to_time(
                     actual_mp3_duration
                 ),
-
-            # ------------------------------------------------
-            # MP4実測時間
-            # ------------------------------------------------
 
             "mp4_duration":
                 actual_mp4_duration,
@@ -1963,10 +2035,6 @@ def convert_task(
                     actual_mp4_duration
                 ),
 
-            # ------------------------------------------------
-            # 元動画Full
-            # ------------------------------------------------
-
             "full_duration":
                 full_duration,
 
@@ -1974,10 +2042,6 @@ def convert_task(
                 seconds_to_time(
                     full_duration
                 ),
-
-            # ------------------------------------------------
-            # 指定時間
-            # ------------------------------------------------
 
             "start_time":
                 start_time or "",
@@ -1990,10 +2054,6 @@ def convert_task(
 
             "end_seconds":
                 end_seconds,
-
-            # ------------------------------------------------
-            # 実行時間
-            # ------------------------------------------------
 
             "execution_start":
                 execution_start_text,
