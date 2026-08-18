@@ -388,69 +388,95 @@ document.addEventListener(
         // =====================================
         // 時間範囲
         // =====================================
-
+        
         function getTimeRange() {
-
-            let startTime =
+        
+            // =================================
+            // HTMLのID
+            //
+            // start-hour
+            // start-minute
+            // start-second
+            //
+            // end-hour
+            // end-minute
+            // end-second
+            // =================================
+        
+            const startTime =
                 getTimeValue(
-                    "start-time"
+                    "start"
                 );
-
-
-            let endTime =
+        
+        
+            const endTime =
                 getTimeValue(
-                    "end-time"
+                    "end"
                 );
-
-
+        
+        
+            // =================================
+            // 開始だけ指定
+            // =================================
+        
             if (
                 startTime &&
                 !endTime
             ) {
-
+        
                 return {
-
+        
                     start_time:
                         startTime,
-
+        
                     end_time:
                         ""
-
+        
                 };
-
+        
             }
-
-
+        
+        
+            // =================================
+            // 終了だけ指定
+            //
+            // 「最初から～20秒」
+            // の場合
+            // =================================
+        
             if (
                 !startTime &&
                 endTime
             ) {
-
+        
                 return {
-
+        
                     start_time:
                         "00:00:00",
-
+        
                     end_time:
                         endTime
-
+        
                 };
-
+        
             }
-
-
+        
+        
+            // =================================
+            // 開始・終了とも指定
+            // =================================
+        
             return {
-
+        
                 start_time:
                     startTime,
-
+        
                 end_time:
                     endTime
-
+        
             };
-
+        
         }
-
 
 
         // =====================================
