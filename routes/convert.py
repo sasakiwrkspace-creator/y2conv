@@ -1232,6 +1232,33 @@ def create_mp3(
         )
 
 
+
+    print("==========================================")
+    print("DEBUG: MP3保存先確認")
+    print("output_file:", output_file)
+    print("絶対パス:", os.path.abspath(output_file))
+    print("exists:", os.path.exists(output_file))
+    
+    if os.path.exists(output_file):
+        print("size:", os.path.getsize(output_file))
+    
+    print("DOWNLOAD_DIR:", DOWNLOAD_DIR)
+    
+    try:
+        print(
+            "downloads内容:",
+            os.listdir(DOWNLOAD_DIR)
+        )
+    except Exception as e:
+        print(
+            "downloads読み込み失敗:",
+            repr(e)
+        )
+    
+    print("==========================================")
+
+    
+
     actual_duration = get_media_duration(
         output_file
     )
