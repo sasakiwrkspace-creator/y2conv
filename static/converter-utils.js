@@ -720,38 +720,90 @@ window.ConverterUtils = {
 };
 
 
-// =====================================
-// converter.jsでは
-// window.converterUtils
-// を使用しているため
-// 同じオブジェクトを別名でも公開する
-// =====================================
+        // =====================================
+        // グローバル公開
+        //
+        // converter.js
+        // converter-status.js
+        // converter-gemini.js
+        // から使用する
+        // =====================================
 
-window.converterUtils =
-    window.ConverterUtils;
+        window.ConverterUtils = {
+
+            setupNumericInput:
+                setupNumericInput,
+
+            makeTime:
+                makeTime,
+
+            getTimeValue:
+                getTimeValue,
+
+            getTimeRange:
+                getTimeRange,
+
+            formatClock:
+                formatClock,
+
+            formatElapsed:
+                formatElapsed,
+
+            formatDuration:
+                formatDuration,
+
+            escapeHtml:
+                escapeHtml,
+
+            makeDownloadUrl:
+                makeDownloadUrl,
+
+            getSelectedOutputs:
+                getSelectedOutputs
+
+        };
 
 
-// =====================================
-// 確認ログ
-// =====================================
+        // =====================================
+        // converter.js互換
+        //
+        // converter.jsでは
+        // window.converterUtils
+        // を使用しているため
+        // 同じオブジェクトを別名でも公開する
+        // =====================================
 
-console.log(
-    "converter-utils.js loaded"
+        window.converterUtils =
+            window.ConverterUtils;
+
+
+        // =====================================
+        // 確認ログ
+        // =====================================
+
+        console.log(
+            "converter-utils.js loaded"
+        );
+
+
+        console.log(
+            "[UTILS] ConverterUtils:",
+            window.ConverterUtils
+        );
+
+
+        console.log(
+            "[UTILS] converterUtils:",
+            window.converterUtils
+        );
+
+
+        console.log(
+            "[UTILS] makeTime:",
+            typeof window.converterUtils.makeTime
+        );
+
+
+    }
 );
 
-console.log(
-    "[UTILS] ConverterUtils:",
-    window.ConverterUtils
-);
-
-console.log(
-    "[UTILS] converterUtils:",
-    window.converterUtils
-);
-
-console.log(
-    "[UTILS] makeTime:",
-    typeof window.converterUtils.makeTime
-);
-
-    
