@@ -1,11 +1,19 @@
 // =====================================
 // YouTube Converter - Gemini
 // static/converter-gemini.js
+//
+// ・Gemini文字起こし
+// ・SRTダウンロード
+// ・SRT変換情報表示
+// ・タイトル / 再生時間は converterState から取得
+// ・SRT実行時間を正しく計測
 // =====================================
+
 
 document.addEventListener(
     "DOMContentLoaded",
     function () {
+
 
         // =====================================
         // DOM
@@ -15,6 +23,7 @@ document.addEventListener(
             document.getElementById(
                 "gemini-button"
             );
+
 
 
         // =====================================
@@ -62,6 +71,7 @@ document.addEventListener(
         }
 
 
+
         function formatClock(date) {
 
             if (
@@ -94,6 +104,7 @@ document.addEventListener(
             );
 
         }
+
 
 
         function formatElapsed(seconds) {
@@ -144,6 +155,7 @@ document.addEventListener(
             );
 
         }
+
 
 
         function formatDuration(duration) {
@@ -288,6 +300,7 @@ document.addEventListener(
         }
 
 
+
         function makeDownloadUrl(filename) {
 
             if (
@@ -315,25 +328,47 @@ document.addEventListener(
 
         // =====================================
         // 共通状態
-        // converter.js が保存した状態を取得
+        //
+        // converter.js が
+        // window.converterState に保存している
+        // 情報を取得する
         // =====================================
 
         function getCurrentVideoTitle() {
 
-            return (
-                window.currentVideoTitle ||
-                ""
-            );
+            if (
+                window.converterState
+            ) {
+
+                return (
+                    window.converterState.currentVideoTitle ||
+                    ""
+                );
+
+            }
+
+
+            return "";
 
         }
 
 
+
         function getCurrentVideoDuration() {
 
-            return (
-                window.currentVideoDuration ||
-                ""
-            );
+            if (
+                window.converterState
+            ) {
+
+                return (
+                    window.converterState.currentVideoDuration ||
+                    ""
+                );
+
+            }
+
+
+            return "";
 
         }
 
@@ -344,6 +379,22 @@ document.addEventListener(
         // =====================================
 
         async function startGemini() {
+
+
+            // =================================
+            // SRT / Gemini 実行開始時刻
+            //
+            // ここで取得する
+            // =================================
+
+            const srtStart =
+                new Date();
+
+
+
+            // =================================
+            // DOM
+            // =================================
 
             const geminiFileElement =
                 document.getElementById(
@@ -361,6 +412,7 @@ document.addEventListener(
                 geminiFileElement
                     ? geminiFileElement.value.trim()
                     : "";
+
 
 
             // =================================
@@ -383,6 +435,46 @@ document.addEventListener(
                 return;
 
             }
+
+
+
+            // =================================
+            // 開始ログ
+            // =================================
+
+            console.log(
+                "=========================================="
+            );
+
+            console.log(
+                "[GEMINI] 文字起こし開始"
+            );
+
+            console.log(
+                "[GEMINI] 開始時刻:",
+                formatClock(
+                    srtStart
+                )
+            );
+
+            console.log(
+                "[GEMINI] ファイル:",
+                file
+            );
+
+            console.log(
+                "[GEMINI] タイトル:",
+                getCurrentVideoTitle()
+            );
+
+            console.log(
+                "[GEMINI] 再生時間:",
+                getCurrentVideoDuration()
+            );
+
+            console.log(
+                "=========================================="
+            );
 
 
 
@@ -444,6 +536,7 @@ document.addEventListener(
 
             try {
 
+
                 // =================================
                 // Gemini API
                 // =================================
@@ -457,8 +550,10 @@ document.addEventListener(
                                 "POST",
 
                             headers: {
+
                                 "Content-Type":
                                     "application/json"
+
                             },
 
                             body:
@@ -471,6 +566,7 @@ document.addEventListener(
 
                         }
                     );
+
 
 
                 // =================================
@@ -566,6 +662,112 @@ document.addEventListener(
 
                 if (data.success) {
 
+
+                    // ---------------------------------
+                    // 完了時刻
+                    // ---------------------------------
+
+                    const srtEnd =
+                        new Date();
+
+
+                    // ---------------------------------
+                    // 実際の経過時間
+                    //
+                    // Gemini APIが秒数を返していない場合は
+                    // start → end から計算
+                    // ---------------------------------
+
+                    const actualElapsedSeconds =
+                        Math.max(
+                            0,
+                            Math.floor(
+                                (
+                                    srtEnd.getTime() -
+                                    srtStart.getTime()
+                                ) / 1000
+                            )
+                        );
+
+
+                    // ---------------------------------
+                    // Gemini側から秒数が返っていれば使用
+                    // ---------------------------------
+
+                    const responseSeconds =
+                        Number(
+                            data.seconds ??
+                            data.elapsed_seconds
+                        );
+
+
+                    const finalSeconds =
+                        Number.isFinite(
+                            responseSeconds
+                        ) &&
+                        responseSeconds >= 0
+                            ? responseSeconds
+                            : actualElapsedSeconds;
+
+
+
+                    // ---------------------------------
+                    // 完了ログ
+                    // ---------------------------------
+
+                    console.log(
+                        "=========================================="
+                    );
+
+                    console.log(
+                        "[GEMINI] 文字起こし完了"
+                    );
+
+                    console.log(
+                        "[GEMINI] 開始:",
+                        formatClock(
+                            srtStart
+                        )
+                    );
+
+                    console.log(
+                        "[GEMINI] 終了:",
+                        formatClock(
+                            srtEnd
+                        )
+                    );
+
+                    console.log(
+                        "[GEMINI] 実行時間:",
+                        finalSeconds,
+                        "秒"
+                    );
+
+                    console.log(
+                        "[GEMINI] タイトル:",
+                        data.title ||
+                        data.video_title ||
+                        getCurrentVideoTitle()
+                    );
+
+                    console.log(
+                        "[GEMINI] 再生時間:",
+                        data.duration ||
+                        data.video_duration ||
+                        getCurrentVideoDuration()
+                    );
+
+                    console.log(
+                        "[GEMINI] SRT:",
+                        data.srt_file
+                    );
+
+                    console.log(
+                        "=========================================="
+                    );
+
+
+
                     if (result) {
 
                         result.style.display =
@@ -578,9 +780,18 @@ document.addEventListener(
                         "none";
 
 
+
+                    // =================================
+                    // SRT表示
+                    // =================================
+
                     showSrtDownload(
-                        data
+                        data,
+                        srtStart,
+                        srtEnd,
+                        finalSeconds
                     );
+
 
                     return;
 
@@ -614,6 +825,11 @@ document.addEventListener(
 
             }
             catch (error) {
+
+
+                // =================================
+                // タイマー停止
+                // =================================
 
                 clearInterval(
                     timer
@@ -658,12 +874,21 @@ document.addEventListener(
         // =====================================
 
         function showSrtDownload(
-            data
+            data,
+            srtStart,
+            srtEnd,
+            srtSeconds
         ) {
+
+
+            // =================================
+            // SRTファイル
+            // =================================
 
             const srtFile =
                 data.srt_file ||
                 "";
+
 
 
             // =================================
@@ -695,6 +920,10 @@ document.addEventListener(
 
             if (!srtArea) {
 
+                console.error(
+                    "srtArea がありません"
+                );
+
                 return;
 
             }
@@ -702,28 +931,65 @@ document.addEventListener(
 
 
             // =================================
-            // SRT変換時間
+            // 開始時刻保険
             // =================================
 
-            const srtStart =
-                new Date();
+            if (!srtStart) {
+
+                srtStart =
+                    new Date();
+
+            }
 
 
-            const srtEnd =
-                new Date();
+
+            // =================================
+            // 終了時刻保険
+            // =================================
+
+            if (!srtEnd) {
+
+                srtEnd =
+                    new Date();
+
+            }
 
 
-            const srtSeconds =
-                Number(
-                    data.seconds ||
-                    data.elapsed_seconds ||
-                    0
-                );
+
+            // =================================
+            // 実行時間保険
+            // =================================
+
+            if (
+                srtSeconds ===
+                undefined ||
+                srtSeconds ===
+                null
+            ) {
+
+                srtSeconds =
+                    Math.max(
+                        0,
+                        Math.floor(
+                            (
+                                srtEnd.getTime() -
+                                srtStart.getTime()
+                            ) / 1000
+                        )
+                    );
+
+            }
 
 
 
             // =================================
             // タイトル
+            //
+            // 優先順位
+            //
+            // 1. Geminiレスポンス
+            // 2. converterState
+            // 3. 不明
             // =================================
 
             const title =
@@ -736,6 +1002,12 @@ document.addEventListener(
 
             // =================================
             // 再生時間
+            //
+            // 優先順位
+            //
+            // 1. Geminiレスポンス
+            // 2. converterState
+            // 3. 不明
             // =================================
 
             const duration =
@@ -743,6 +1015,41 @@ document.addEventListener(
                 data.video_duration ||
                 getCurrentVideoDuration() ||
                 "不明";
+
+
+
+            // =================================
+            // 確認ログ
+            // =================================
+
+            console.log(
+                "[SRT DISPLAY]"
+            );
+
+            console.log(
+                "title:",
+                title
+            );
+
+            console.log(
+                "duration:",
+                duration
+            );
+
+            console.log(
+                "srtStart:",
+                srtStart
+            );
+
+            console.log(
+                "srtEnd:",
+                srtEnd
+            );
+
+            console.log(
+                "srtSeconds:",
+                srtSeconds
+            );
 
 
 
@@ -760,7 +1067,9 @@ document.addEventListener(
 
                     <div>
                         タイトル：
-                        ${escapeHtml(title)}
+                        ${escapeHtml(
+                            title
+                        )}
                     </div>
 
                     <div>
@@ -864,6 +1173,11 @@ document.addEventListener(
             }
 
 
+
+            // =================================
+            // HTML反映
+            // =================================
+
             srtDownloadArea.innerHTML =
                 downloadHtml;
 
@@ -949,6 +1263,16 @@ document.addEventListener(
 
         window.showSrtDownload =
             showSrtDownload;
+
+
+
+        // =====================================
+        // 読み込み確認
+        // =====================================
+
+        console.log(
+            "converter-gemini.js loaded"
+        );
 
     }
 );
