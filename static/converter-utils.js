@@ -681,46 +681,77 @@ document.addEventListener(
 
         // =====================================
         // グローバル公開
-        //
-        // converter.js
-        // converter-status.js
-        // converter-gemini.js
-        // から使用する
-        // =====================================
+// =====================================
+// グローバル公開
+// =====================================
 
-        window.ConverterUtils = {
+window.ConverterUtils = {
 
-            setupNumericInput:
-                setupNumericInput,
+    setupNumericInput:
+        setupNumericInput,
 
-            makeTime:
-                makeTime,
+    makeTime:
+        makeTime,
 
-            getTimeValue:
-                getTimeValue,
+    getTimeValue:
+        getTimeValue,
 
-            getTimeRange:
-                getTimeRange,
+    getTimeRange:
+        getTimeRange,
 
-            formatClock:
-                formatClock,
+    formatClock:
+        formatClock,
 
-            formatElapsed:
-                formatElapsed,
+    formatElapsed:
+        formatElapsed,
 
-            formatDuration:
-                formatDuration,
+    formatDuration:
+        formatDuration,
 
-            escapeHtml:
-                escapeHtml,
+    escapeHtml:
+        escapeHtml,
 
-            makeDownloadUrl:
-                makeDownloadUrl,
+    makeDownloadUrl:
+        makeDownloadUrl,
 
-            getSelectedOutputs:
-                getSelectedOutputs
+    getSelectedOutputs:
+        getSelectedOutputs
 
-        };
+};
 
-    }
+
+// =====================================
+// converter.jsでは
+// window.converterUtils
+// を使用しているため
+// 同じオブジェクトを別名でも公開する
+// =====================================
+
+window.converterUtils =
+    window.ConverterUtils;
+
+
+// =====================================
+// 確認ログ
+// =====================================
+
+console.log(
+    "converter-utils.js loaded"
 );
+
+console.log(
+    "[UTILS] ConverterUtils:",
+    window.ConverterUtils
+);
+
+console.log(
+    "[UTILS] converterUtils:",
+    window.converterUtils
+);
+
+console.log(
+    "[UTILS] makeTime:",
+    typeof window.converterUtils.makeTime
+);
+
+    
