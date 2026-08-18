@@ -1,5 +1,17 @@
 // =====================================
-// YouTube Converter - Status Manager
+// YouTube Converter
+// converter-status.js
+//
+// STATUS監視専用
+//
+// ・/status/{job_id}
+// ・queued
+// ・running
+// ・complete
+// ・error
+// ・429
+// ・502 / 503 / 504
+// ・jobなし
 // =====================================
 
 (function () {
@@ -8,115 +20,56 @@
 
 
     // =====================================
-    // グローバル名前空間
+    // 設定
     // =====================================
 
-    window.ConverterStatus =
-        window.ConverterStatus || {};
+    const STATUS_INTERVAL =
+        5000;
 
+
+    const RATE_LIMIT_INTERVAL =
+        15000;
+
+
+    const SERVER_ERROR_INTERVAL =
+        5000;
 
 
     // =====================================
-    // 内部状態
+    // 監視中かどうか
     // =====================================
 
-    let currentJobId = null;
+    let monitoring = false;
+
+
+    // =====================================
+    // 現在監視しているJOB
+    // =====================================
+
+    let monitoringJobId = null;
+
+
+    // =====================================
+    // タイマー
+    // =====================================
 
     let statusTimer = null;
 
-    let stopped = false;
-
 
     // =====================================
-    // 再試行状態
+    // jobなし対策
     //
-    // 429 / jobなしの場合
+    // 1回だけなら一時的な可能性があるので
+    // すぐ終了しない。
     //
-    // 15秒
-    // ↓
-    // 30秒
-    // ↓
-    // 60秒
-    // ↓
-    // 120秒
-    //
-    // 以降は120秒
+    // ただし連続するとJOB消失と判断する。
     // =====================================
 
-    const retryDelays = [
-        15000,
-        30000,
-        60000,
-        120000
-    ];
+    let jobNotFoundCount = 0;
 
 
-    let retryIndex = 0;
-
-
-
-    // =====================================
-    // コールバック
-    // =====================================
-
-    let callbacks = {
-
-        onRunning: null,
-
-        onComplete: null,
-
-        onError: null,
-
-        onStatus: null,
-
-        onRetry: null
-
-    };
-
-
-
-    // =====================================
-    // ログ
-    // =====================================
-
-    function log() {
-
-        console.log(
-            "[ConverterStatus]",
-            ...arguments
-        );
-
-    }
-
-
-
-    // =====================================
-    // 警告ログ
-    // =====================================
-
-    function warn() {
-
-        console.warn(
-            "[ConverterStatus]",
-            ...arguments
-        );
-
-    }
-
-
-
-    // =====================================
-    // エラーログ
-    // =====================================
-
-    function errorLog() {
-
-        console.error(
-            "[ConverterStatus]",
-            ...arguments
-        );
-
-    }
+    const MAX_JOB_NOT_FOUND =
+        3;
 
 
 
@@ -142,197 +95,24 @@
 
 
     // =====================================
-    // 完全停止
+    // 次回STATUS確認
     // =====================================
 
-    function stop() {
-
-        stopped =
-            true;
-
-
-        clearStatusTimer();
-
-
-        currentJobId =
-            null;
-
-
-        retryIndex =
-            0;
-
-
-        log(
-            "STATUS監視停止"
-        );
-
-    }
-
-
-
-    // =====================================
-    // 再試行時間取得
-    // =====================================
-
-    function getRetryDelay() {
-
-        if (
-            retryIndex < 0
-        ) {
-
-            retryIndex =
-                0;
-
-        }
-
-
-        if (
-            retryIndex >=
-            retryDelays.length
-        ) {
-
-            return (
-                retryDelays[
-                    retryDelays.length - 1
-                ]
-            );
-
-        }
-
-
-        return (
-            retryDelays[
-                retryIndex
-            ]
-        );
-
-    }
-
-
-
-    // =====================================
-    // 再試行時間を次へ進める
-    // =====================================
-
-    function increaseRetryIndex() {
-
-        if (
-            retryIndex <
-            retryDelays.length - 1
-        ) {
-
-            retryIndex++;
-
-        }
-
-    }
-
-
-
-    // =====================================
-    // 正常通信ができたら
-    // 再試行状態をリセット
-    // =====================================
-
-    function resetRetryIndex() {
-
-        retryIndex =
-            0;
-
-    }
-
-
-
-    // =====================================
-    // 再試行予約
-    // =====================================
-
-    function scheduleRetry(
-        reason
+    function scheduleStatus(
+        delay
     ) {
 
-        if (stopped) {
-
-            return;
-
-        }
-
-
-        if (!currentJobId) {
-
-            return;
-
-        }
-
-
         clearStatusTimer();
 
 
-        const delay =
-            getRetryDelay();
-
-
-        const seconds =
-            Math.floor(
-                delay / 1000
-            );
-
-
-        warn(
-            reason,
-            "→",
-            seconds + "秒後にSTATUS再確認"
-        );
-
-
-        if (
-            typeof callbacks.onRetry ===
-            "function"
-        ) {
-
-            try {
-
-                callbacks.onRetry(
-                    {
-                        reason:
-                            reason,
-
-                        delay:
-                            delay,
-
-                        seconds:
-                            seconds,
-
-                        retryIndex:
-                            retryIndex
-                    }
-                );
-
-            }
-            catch (
-                callbackError
-            ) {
-
-                errorLog(
-                    "onRetry callback error:",
-                    callbackError
-                );
-
-            }
-
+        if (!monitoring) {
+            return;
         }
 
 
         statusTimer =
             setTimeout(
                 function () {
-
-                    if (stopped) {
-
-                        return;
-
-                    }
-
 
                     checkStatus();
 
@@ -340,104 +120,96 @@
                 delay
             );
 
+    }
 
-        increaseRetryIndex();
+
+
+    // =====================================
+    // STATUS監視開始
+    // =====================================
+
+    function start(
+        jobId
+    ) {
+
+        // ---------------------------------
+        // JOB ID確認
+        // ---------------------------------
+
+        if (!jobId) {
+
+            console.error(
+                "STATUS監視開始失敗: job_idがありません"
+            );
+
+            return;
+
+        }
+
+
+        // ---------------------------------
+        // 以前の監視停止
+        // ---------------------------------
+
+        clearStatusTimer();
+
+
+        // ---------------------------------
+        // 初期化
+        // ---------------------------------
+
+        monitoring =
+            true;
+
+
+        monitoringJobId =
+            jobId;
+
+
+        jobNotFoundCount =
+            0;
+
+
+        console.log(
+            "STATUS監視開始:",
+            jobId
+        );
+
+
+        // ---------------------------------
+        // すぐ1回確認
+        // ---------------------------------
+
+        checkStatus();
 
     }
 
 
 
     // =====================================
-    // 通常監視
-    //
-    // queued / running
+    // STATUS監視停止
     // =====================================
 
-    function scheduleNormalCheck() {
+    function stop() {
 
-        if (stopped) {
-
-            return;
-
-        }
+        monitoring =
+            false;
 
 
-        if (!currentJobId) {
+        monitoringJobId =
+            null;
 
-            return;
 
-        }
+        jobNotFoundCount =
+            0;
 
 
         clearStatusTimer();
 
 
-        statusTimer =
-            setTimeout(
-                function () {
-
-                    if (stopped) {
-
-                        return;
-
-                    }
-
-
-                    checkStatus();
-
-                },
-                5000
-            );
-
-    }
-
-
-
-    // =====================================
-    // JSONレスポンス取得
-    // =====================================
-
-    async function readJsonResponse(
-        response
-    ) {
-
-        const text =
-            await response.text();
-
-
-        if (!text) {
-
-            return null;
-
-        }
-
-
-        try {
-
-            return JSON.parse(
-                text
-            );
-
-        }
-        catch (
-            parseError
-        ) {
-
-            errorLog(
-                "STATUS JSON解析エラー:",
-                parseError
-            );
-
-
-            errorLog(
-                "STATUSレスポンス:",
-                text
-            );
-
-
-            return null;
-
-        }
+        console.log(
+            "STATUS監視停止"
+        );
 
     }
 
@@ -449,14 +221,22 @@
 
     async function checkStatus() {
 
-        if (stopped) {
+        // ---------------------------------
+        // 監視状態確認
+        // ---------------------------------
 
+        if (!monitoring) {
             return;
-
         }
 
 
-        if (!currentJobId) {
+        if (!monitoringJobId) {
+
+            console.warn(
+                "STATUS監視: job_idがありません"
+            );
+
+            stop();
 
             return;
 
@@ -464,20 +244,25 @@
 
 
         const jobId =
-            currentJobId;
+            monitoringJobId;
+
 
 
         try {
 
-            log(
-                "STATUS確認:",
-                jobId
-            );
-
+            // =================================
+            // STATUS API
+            // =================================
 
             const response =
                 await fetch(
-                    `/status/${encodeURIComponent(jobId)}`,
+
+                    "/status/"
+                    +
+                    encodeURIComponent(
+                        jobId
+                    ),
+
                     {
 
                         method:
@@ -497,26 +282,26 @@
                         }
 
                     }
+
                 );
 
 
 
             // =================================
-            // 429 Rate Limit
+            // 429
             // =================================
 
             if (
-                response.status ===
-                429
+                response.status === 429
             ) {
 
-                warn(
-                    "STATUS HTTP 429"
+                console.warn(
+                    "STATUS 429: Rate Limit"
                 );
 
 
-                scheduleRetry(
-                    "HTTP 429 Rate Limit / Cloudflare"
+                scheduleStatus(
+                    RATE_LIMIT_INTERVAL
                 );
 
 
@@ -528,24 +313,29 @@
 
             // =================================
             // Render一時エラー
+            //
+            // 502
+            // 503
+            // 504
             // =================================
 
             if (
+
                 response.status === 502 ||
                 response.status === 503 ||
                 response.status === 504
+
             ) {
 
-                warn(
-                    "一時的なRenderエラー:",
+                console.warn(
+                    "一時的なサーバーエラー:",
                     response.status
                 );
 
 
-                // Render系は通常5秒後
-                // ただし連続429の待機状態とは
-                // 別扱いにする
-                scheduleNormalCheck();
+                scheduleStatus(
+                    SERVER_ERROR_INTERVAL
+                );
 
 
                 return;
@@ -565,6 +355,7 @@
 
 
                 throw new Error(
+
                     "HTTP "
                     +
                     response.status
@@ -575,6 +366,7 @@
                         text ||
                         "STATUS取得に失敗しました"
                     )
+
                 );
 
             }
@@ -582,23 +374,27 @@
 
 
             // =================================
-            // JSON取得
+            // レスポンス取得
             // =================================
 
-            const data =
-                await readJsonResponse(
-                    response
+            const text =
+                await response.text();
+
+
+            // ---------------------------------
+            // 空レスポンス
+            // ---------------------------------
+
+            if (!text) {
+
+                console.warn(
+                    "STATUS: 空レスポンス"
                 );
 
 
-            if (!data) {
-
-                warn(
-                    "STATUSが空、またはJSONではありません"
+                scheduleStatus(
+                    STATUS_INTERVAL
                 );
-
-
-                scheduleNormalCheck();
 
 
                 return;
@@ -608,10 +404,53 @@
 
 
             // =================================
-            // STATUSログ
+            // JSON
             // =================================
 
-            log(
+            let data;
+
+
+            try {
+
+                data =
+                    JSON.parse(
+                        text
+                    );
+
+            }
+            catch (error) {
+
+                console.error(
+                    "STATUS JSON解析エラー:",
+                    error
+                );
+
+
+                console.error(
+                    "STATUSレスポンス:",
+                    text
+                );
+
+
+                // 一時的なレスポンス異常として
+                // 監視を継続
+
+                scheduleStatus(
+                    STATUS_INTERVAL
+                );
+
+
+                return;
+
+            }
+
+
+
+            // =================================
+            // ログ
+            // =================================
+
+            console.log(
                 "STATUS:",
                 data
             );
@@ -619,164 +458,55 @@
 
 
             // =================================
-            // 正常なSTATUSを取得できた
-            //
-            // 429 / jobなし等で進んでいた
-            // 再試行カウンタをリセット
+            // jobなし
             // =================================
 
             if (
-                data.status !==
-                "error"
-            ) {
 
-                resetRetryIndex();
-
-            }
-
-
-
-            // =================================
-            // 外部通知
-            // =================================
-
-            if (
-                typeof callbacks.onStatus ===
-                "function"
-            ) {
-
-                try {
-
-                    callbacks.onStatus(
-                        data
-                    );
-
-                }
-                catch (
-                    callbackError
-                ) {
-
-                    errorLog(
-                        "onStatus callback error:",
-                        callbackError
-                    );
-
-                }
-
-            }
-
-
-
-            // =================================
-            // 完了
-            // =================================
-
-            if (
                 data.status ===
-                "complete"
+                    "error" &&
+
+                (
+                    data.message ===
+                        "jobなし" ||
+
+                    data.message ===
+                        "Job not found" ||
+
+                    data.message ===
+                        "job not found"
+
+                )
+
             ) {
 
-                clearStatusTimer();
+                jobNotFoundCount++;
 
 
-                const completedJobId =
-                    currentJobId;
+                console.warn(
 
+                    "STATUS: jobなし",
 
-                currentJobId =
-                    null;
+                    jobNotFoundCount
+                    +
+                    "/"
+                    +
+                    MAX_JOB_NOT_FOUND
 
-
-                retryIndex =
-                    0;
-
-
-                log(
-                    "STATUS complete:",
-                    completedJobId
                 );
 
 
-                if (
-                    typeof callbacks.onComplete ===
-                    "function"
-                ) {
-
-                    try {
-
-                        callbacks.onComplete(
-                            data
-                        );
-
-                    }
-                    catch (
-                        callbackError
-                    ) {
-
-                        errorLog(
-                            "onComplete callback error:",
-                            callbackError
-                        );
-
-                    }
-
-                }
-
-
-                return;
-
-            }
-
-
-
-            // =====================================
-            // エラー
-            // =====================================
-
-            if (
-                data.status ===
-                "error"
-            ) {
-
-                const message =
-                    String(
-                        data.message ||
-                        ""
-                    );
-
-
-                // =================================
-                // 「jobなし」は即失敗にしない
-                //
-                // Render上で一時的に
-                // ジョブ情報が見えなくなる場合が
-                // あるため再確認する
-                // =================================
+                // ---------------------------------
+                // まだJOB消失と確定しない
+                // ---------------------------------
 
                 if (
-                    message.includes(
-                        "jobなし"
-                    ) ||
-                    message.includes(
-                        "job がありません"
-                    ) ||
-                    message.includes(
-                        "Job not found"
-                    ) ||
-                    message.includes(
-                        "job not found"
-                    )
+                    jobNotFoundCount <
+                    MAX_JOB_NOT_FOUND
                 ) {
 
-                    warn(
-                        "STATUS: jobなし",
-                        "job_id:",
-                        jobId
-                    );
-
-
-                    scheduleRetry(
-                        "jobなし"
+                    scheduleStatus(
+                        STATUS_INTERVAL
                     );
 
 
@@ -786,53 +516,183 @@
 
 
 
-                // =================================
-                // その他のエラー
-                // =================================
+                // ---------------------------------
+                // JOB消失確定
+                // ---------------------------------
 
-                clearStatusTimer();
-
-
-                const errorData =
-                    data;
-
-
-                currentJobId =
-                    null;
-
-
-                retryIndex =
-                    0;
-
-
-                errorLog(
-                    "STATUS error:",
-                    errorData
+                console.error(
+                    "STATUS: JOBが見つからない状態が続いています"
                 );
 
 
+                stop();
+
+
                 if (
-                    typeof callbacks.onError ===
-                    "function"
+                    window.converterMain &&
+                    typeof
+                        window.converterMain.stopTimer ===
+                        "function"
                 ) {
 
-                    try {
+                    window.converterMain.stopTimer();
 
-                        callbacks.onError(
-                            errorData
-                        );
+                }
 
-                    }
-                    catch (
-                        callbackError
+
+                resetConvertButton();
+
+
+                alert(
+                    "変換JOBが見つからなくなりました。"
+                    +
+                    "\n"
+                    +
+                    "もう一度「実行」してください。"
+                );
+
+
+                return;
+
+            }
+
+
+
+            // =====================================
+            // jobなし以外の正常レスポンス
+            //
+            // ここまで来たらカウントをリセット
+            // =====================================
+
+            jobNotFoundCount =
+                0;
+
+
+
+            // =================================
+            // complete
+            // =================================
+
+            if (
+
+                data.status ===
+                    "complete"
+
+            ) {
+
+                console.log(
+                    "STATUS: 変換完了"
+                );
+
+
+                stop();
+
+
+                // ---------------------------------
+                // メイン側のタイマー停止
+                // ---------------------------------
+
+                if (
+                    window.converterMain &&
+                    typeof
+                        window.converterMain.stopTimer ===
+                        "function"
+                ) {
+
+                    window.converterMain.stopTimer();
+
+                }
+
+
+
+                // ---------------------------------
+                // 動画情報更新
+                // ---------------------------------
+
+                if (
+                    window.converterState
+                ) {
+
+                    if (
+                        data.title ||
+                        data.video_title
                     ) {
 
-                        errorLog(
-                            "onError callback error:",
-                            callbackError
-                        );
+                        window.converterState.currentVideoTitle =
+
+                            data.title ||
+                            data.video_title ||
+                            window.converterState.currentVideoTitle;
 
                     }
+
+
+                    if (
+                        data.duration ||
+                        data.video_duration
+                    ) {
+
+                        window.converterState.currentVideoDuration =
+
+                            data.duration ||
+                            data.video_duration ||
+                            window.converterState.currentVideoDuration;
+
+                    }
+
+                }
+
+
+
+                // ---------------------------------
+                // ボタン非表示
+                // ---------------------------------
+
+                const convertButton =
+                    document.getElementById(
+                        "convertBtn"
+                    );
+
+
+                if (convertButton) {
+
+                    convertButton.style.display =
+                        "none";
+
+                }
+
+
+
+                // ---------------------------------
+                // ファイル表示
+                // ---------------------------------
+
+                const files =
+                    Array.isArray(
+                        data.files
+                    )
+                        ? data.files
+                        : [];
+
+
+                if (
+                    window.converterMain &&
+                    typeof
+                        window.converterMain.showFiles ===
+                        "function"
+                ) {
+
+                    window.converterMain.showFiles(
+                        files,
+                        data
+                    );
+
+                }
+                else {
+
+                    console.error(
+                        "converterMain.showFiles がありません"
+                    );
 
                 }
 
@@ -844,41 +704,48 @@
 
 
             // =================================
-            // running
+            // error
             // =================================
 
             if (
+
                 data.status ===
-                "running"
+                    "error"
+
             ) {
 
+                stop();
+
+
                 if (
-                    typeof callbacks.onRunning ===
-                    "function"
+                    window.converterMain &&
+                    typeof
+                        window.converterMain.stopTimer ===
+                        "function"
                 ) {
 
-                    try {
-
-                        callbacks.onRunning(
-                            data
-                        );
-
-                    }
-                    catch (
-                        callbackError
-                    ) {
-
-                        errorLog(
-                            "onRunning callback error:",
-                            callbackError
-                        );
-
-                    }
+                    window.converterMain.stopTimer();
 
                 }
 
 
-                scheduleNormalCheck();
+                resetConvertButton();
+
+
+                const message =
+                    data.message ||
+                    "変換中にエラーが発生しました";
+
+
+                console.error(
+                    "STATUS ERROR:",
+                    message
+                );
+
+
+                alert(
+                    message
+                );
 
 
                 return;
@@ -892,37 +759,20 @@
             // =================================
 
             if (
+
                 data.status ===
-                "queued"
+                    "queued"
+
             ) {
 
-                if (
-                    typeof callbacks.onRunning ===
-                    "function"
-                ) {
-
-                    try {
-
-                        callbacks.onRunning(
-                            data
-                        );
-
-                    }
-                    catch (
-                        callbackError
-                    ) {
-
-                        errorLog(
-                            "onRunning callback error:",
-                            callbackError
-                        );
-
-                    }
-
-                }
+                console.log(
+                    "STATUS: queued"
+                );
 
 
-                scheduleNormalCheck();
+                scheduleStatus(
+                    STATUS_INTERVAL
+                );
 
 
                 return;
@@ -932,172 +782,109 @@
 
 
             // =================================
-            // 不明なSTATUS
+            // running
             // =================================
 
-            warn(
-                "未知のSTATUS:",
+            if (
+
+                data.status ===
+                    "running"
+
+            ) {
+
+                console.log(
+                    "STATUS: running"
+                );
+
+
+                scheduleStatus(
+                    STATUS_INTERVAL
+                );
+
+
+                return;
+
+            }
+
+
+
+            // =================================
+            // status不明
+            // =================================
+
+            console.warn(
+                "STATUS: 未知のstatus:",
                 data.status
             );
 
 
-            scheduleNormalCheck();
+            // ---------------------------------
+            // statusが不明でも
+            // すぐエラーにはしない
+            // ---------------------------------
 
-        }
-        catch (
-            fetchError
-        ) {
-
-            errorLog(
-                "変換状態確認エラー:",
-                fetchError
+            scheduleStatus(
+                STATUS_INTERVAL
             );
 
+        }
+        catch (error) {
 
             // =================================
             // ネットワークエラー
             // =================================
-            //
-            // ここでは即エラーにせず
-            // 5秒後に再確認
-            // =================================
 
-            scheduleNormalCheck();
-
-        }
-
-    }
-
-
-
-    // =====================================
-    // 監視開始
-    // =====================================
-
-    function start(
-        jobId,
-        options
-    ) {
-
-        // =================================
-        // 既存監視を停止
-        // =================================
-
-        clearStatusTimer();
-
-
-        currentJobId =
-            jobId;
-
-
-        stopped =
-            false;
-
-
-        retryIndex =
-            0;
-
-
-
-        // =================================
-        // コールバック設定
-        // =================================
-
-        options =
-            options || {};
-
-
-        callbacks = {
-
-            onRunning:
-                typeof options.onRunning ===
-                "function"
-                    ? options.onRunning
-                    : null,
-
-            onComplete:
-                typeof options.onComplete ===
-                "function"
-                    ? options.onComplete
-                    : null,
-
-            onError:
-                typeof options.onError ===
-                "function"
-                    ? options.onError
-                    : null,
-
-            onStatus:
-                typeof options.onStatus ===
-                "function"
-                    ? options.onStatus
-                    : null,
-
-            onRetry:
-                typeof options.onRetry ===
-                "function"
-                    ? options.onRetry
-                    : null
-
-        };
-
-
-        if (!currentJobId) {
-
-            errorLog(
-                "JOB IDがありません"
+            console.error(
+                "変換状態確認エラー:",
+                error
             );
 
 
-            return;
+            // ---------------------------------
+            // 監視は継続
+            // ---------------------------------
+
+            if (monitoring) {
+
+                scheduleStatus(
+                    STATUS_INTERVAL
+                );
+
+            }
 
         }
 
-
-        log(
-            "STATUS監視開始:",
-            currentJobId
-        );
-
-
-        checkStatus();
-
     }
 
 
 
     // =====================================
-    // 現在のJOB ID
+    // 実行ボタンを初期状態へ
     // =====================================
 
-    function getJobId() {
+    function resetConvertButton() {
 
-        return currentJobId;
+        const convertButton =
+            document.getElementById(
+                "convertBtn"
+            );
 
-    }
+
+        if (!convertButton) {
+            return;
+        }
 
 
+        convertButton.style.display =
+            "";
 
-    // =====================================
-    // 再試行状態
-    // =====================================
 
-    function getRetryInfo() {
+        convertButton.disabled =
+            false;
 
-        return {
 
-            retryIndex:
-                retryIndex,
-
-            nextDelay:
-                getRetryDelay(),
-
-            nextDelaySeconds:
-                Math.floor(
-                    getRetryDelay() / 1000
-                )
-
-        };
+        convertButton.innerHTML =
+            "実行";
 
     }
 
@@ -1107,21 +894,18 @@
     // 外部公開
     // =====================================
 
-    ConverterStatus.start =
-        start;
+    window.converterStatus = {
 
+        start:
+            start,
 
-    ConverterStatus.stop =
-        stop;
+        stop:
+            stop,
 
+        check:
+            checkStatus
 
-    ConverterStatus.getJobId =
-        getJobId;
-
-
-    ConverterStatus.getRetryInfo =
-        getRetryInfo;
-
+    };
 
 
     // =====================================
