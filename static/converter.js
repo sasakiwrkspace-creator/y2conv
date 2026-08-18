@@ -21,6 +21,9 @@ document.addEventListener(
 
         let currentJobId = null;
 
+        // 429リトライ回数
+        let statusRetryCount = 0;
+
         let convertSeconds = 0;
 
         let convertTimer = null;
@@ -862,6 +865,9 @@ document.addEventListener(
             currentJobId =
                 null;
 
+            statusRetryCount =
+                0;
+
             currentVideoTitle =
                 "";
 
@@ -1117,30 +1123,100 @@ document.addEventListener(
                     );
 
 
+                // =================================
+                // 429 Rate Limit / Cloudflare
+                //
+                // 15 → 30 → 60 → 120 → 120...
+                // =================================
+
+                if (
+                    response.status ===
+                    429
+                ) {
+
+                    statusRetryCount++;
+
+
+                    const retryDelays = [
+                        15,
+                        30,
+                        60,
+                        120
+                    ];
+
+
+                    const retryIndex =
+                        Math.min(
+                            statusRetryCount - 1,
+                            retryDelays.length - 1
+                        );
+
+
+                    const waitSeconds =
+                        retryDelays[
+                            retryIndex
+                        ];
+
+
+                    console.warn(
+                        "STATUS 429: Rate Limit / Cloudflare"
+                    );
+
+
+                    console.warn(
+                        waitSeconds +
+                        "秒後に再試行します"
+                    );
+
+
+                    setTimeout(
+                        checkStatus,
+                        waitSeconds * 1000
+                    );
+
+
+                    return;
+
+                }
+
+
+
+                // =================================
+                // 一時的なRenderエラー
+                // =================================
+
+                if (
+                    response.status === 502 ||
+                    response.status === 503 ||
+                    response.status === 504
+                ) {
+
+                    console.warn(
+                        "一時的なRenderエラー:",
+                        response.status
+                    );
+
+
+                    setTimeout(
+                        checkStatus,
+                        5000
+                    );
+
+
+                    return;
+
+                }
+
+
+
+                // =================================
+                // その他のHTTPエラー
+                // =================================
+
                 if (!response.ok) {
 
                     const text =
                         await response.text();
-
-
-                    // ---------------------------------
-                    // 一時的なRenderエラー
-                    // ---------------------------------
-
-                    if (
-                        response.status === 502 ||
-                        response.status === 503 ||
-                        response.status === 504
-                    ) {
-
-                        setTimeout(
-                            checkStatus,
-                            3000
-                        );
-
-                        return;
-
-                    }
 
 
                     throw new Error(
@@ -1156,6 +1232,7 @@ document.addEventListener(
                 }
 
 
+
                 const text =
                     await response.text();
 
@@ -1164,12 +1241,14 @@ document.addEventListener(
 
                     setTimeout(
                         checkStatus,
-                        3000
+                        5000
                     );
+
 
                     return;
 
                 }
+
 
 
                 let data;
@@ -1193,12 +1272,22 @@ document.addEventListener(
 
                     setTimeout(
                         checkStatus,
-                        3000
+                        5000
                     );
+
 
                     return;
 
                 }
+
+
+
+                // =================================
+                // 正常応答したので429回数をリセット
+                // =================================
+
+                statusRetryCount =
+                    0;
 
 
                 console.log(
@@ -1309,7 +1398,7 @@ document.addEventListener(
 
                 setTimeout(
                     checkStatus,
-                    3000
+                    5000
                 );
 
             }
@@ -1323,7 +1412,7 @@ document.addEventListener(
 
                 setTimeout(
                     checkStatus,
-                    3000
+                    5000
                 );
 
             }
