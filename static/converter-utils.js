@@ -54,7 +54,9 @@ document.addEventListener(
                             event.key
                         )
                     ) {
+
                         return;
+
                     }
 
 
@@ -62,7 +64,9 @@ document.addEventListener(
                         event.ctrlKey ||
                         event.metaKey
                     ) {
+
                         return;
+
                     }
 
 
@@ -116,6 +120,7 @@ document.addEventListener(
                 "start-second"
             )
         );
+
 
         setupNumericInput(
             document.getElementById(
@@ -204,10 +209,12 @@ document.addEventListener(
                     prefix + "-hour"
                 );
 
+
             const minute =
                 document.getElementById(
                     prefix + "-minute"
                 );
+
 
             const second =
                 document.getElementById(
@@ -226,16 +233,37 @@ document.addEventListener(
                         ? hour.value.trim()
                         : "";
 
+
                 const m =
                     minute
                         ? minute.value.trim()
                         : "";
+
 
                 const s =
                     second
                         ? second.value.trim()
                         : "";
 
+
+                // =================================
+                // 確認ログ
+                // =================================
+
+                console.log(
+                    "[UTILS] TIME INPUT:",
+                    prefix,
+                    {
+                        hour: h,
+                        minute: m,
+                        second: s
+                    }
+                );
+
+
+                // =================================
+                // 全部空欄
+                // =================================
 
                 if (
                     !h &&
@@ -248,18 +276,30 @@ document.addEventListener(
                 }
 
 
-                return makeTime(
-                    h,
-                    m,
-                    s
+                const result =
+                    makeTime(
+                        h,
+                        m,
+                        s
+                    );
+
+
+                console.log(
+                    "[UTILS] TIME RESULT:",
+                    prefix,
+                    result
                 );
+
+
+                return result;
 
             }
 
 
-            // ---------------------------------
+
+            // =================================
             // 旧UIにも対応
-            // ---------------------------------
+            // =================================
 
             const element =
                 document.getElementById(
@@ -268,7 +308,9 @@ document.addEventListener(
 
 
             if (!element) {
+
                 return "";
+
             }
 
 
@@ -284,24 +326,28 @@ document.addEventListener(
 
         function getTimeRange() {
 
-            let startTime =
+            const startTime =
                 getTimeValue(
-                    "start-time"
+                    "start"
                 );
 
 
-            let endTime =
+            const endTime =
                 getTimeValue(
-                    "end-time"
+                    "end"
                 );
 
+
+            // =================================
+            // 開始だけ指定
+            // =================================
 
             if (
                 startTime &&
                 !endTime
             ) {
 
-                return {
+                const result = {
 
                     start_time:
                         startTime,
@@ -311,15 +357,31 @@ document.addEventListener(
 
                 };
 
+
+                console.log(
+                    "[UTILS] TIME RANGE:",
+                    result
+                );
+
+
+                return result;
+
             }
 
+
+
+            // =================================
+            // 終了だけ指定
+            //
+            // 最初から ～ 20秒
+            // =================================
 
             if (
                 !startTime &&
                 endTime
             ) {
 
-                return {
+                const result = {
 
                     start_time:
                         "00:00:00",
@@ -329,10 +391,24 @@ document.addEventListener(
 
                 };
 
+
+                console.log(
+                    "[UTILS] TIME RANGE:",
+                    result
+                );
+
+
+                return result;
+
             }
 
 
-            return {
+
+            // =================================
+            // 開始・終了とも指定
+            // =================================
+
+            const result = {
 
                 start_time:
                     startTime,
@@ -341,6 +417,15 @@ document.addEventListener(
                     endTime
 
             };
+
+
+            console.log(
+                "[UTILS] TIME RANGE:",
+                result
+            );
+
+
+            return result;
 
         }
 
@@ -353,17 +438,26 @@ document.addEventListener(
         function formatClock(date) {
 
             if (!date) {
+
                 return "";
+
             }
 
 
             return date.toLocaleTimeString(
                 "ja-JP",
                 {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    second: "2-digit",
-                    hour12: false
+                    hour:
+                        "2-digit",
+
+                    minute:
+                        "2-digit",
+
+                    second:
+                        "2-digit",
+
+                    hour12:
+                        false
                 }
             );
 
@@ -393,7 +487,9 @@ document.addEventListener(
                 totalSeconds % 60;
 
 
-            if (minutes === 0) {
+            if (
+                minutes === 0
+            ) {
 
                 return (
                     remainSeconds +
@@ -431,9 +527,10 @@ document.addEventListener(
             }
 
 
-            // ---------------------------------
-            // すでに HH:MM:SS 形式ならそのまま
-            // ---------------------------------
+
+            // =================================
+            // すでに HH:MM:SS 形式
+            // =================================
 
             if (
                 typeof duration === "string" &&
@@ -444,7 +541,9 @@ document.addEventListener(
                     duration.split(":");
 
 
-                if (parts.length === 3) {
+                if (
+                    parts.length === 3
+                ) {
 
                     const hours =
                         parseInt(
@@ -493,9 +592,10 @@ document.addEventListener(
             }
 
 
-            // ---------------------------------
+
+            // =================================
             // 秒数の場合
-            // ---------------------------------
+            // =================================
 
             const totalSeconds =
                 parseInt(
@@ -625,9 +725,10 @@ document.addEventListener(
                     : "mp3";
 
 
-            // ---------------------------------
+
+            // =================================
             // MP3
-            // ---------------------------------
+            // =================================
 
             if (
                 outputFormat === "mp3"
@@ -640,9 +741,10 @@ document.addEventListener(
             }
 
 
-            // ---------------------------------
+
+            // =================================
             // MP4
-            // ---------------------------------
+            // =================================
 
             if (
                 outputFormat === "mp4"
@@ -655,9 +757,10 @@ document.addEventListener(
             }
 
 
-            // ---------------------------------
+
+            // =================================
             // MP3 + MP4
-            // ---------------------------------
+            // =================================
 
             if (
                 outputFormat === "mp3mp4"
@@ -677,47 +780,6 @@ document.addEventListener(
 
         }
 
-
-
-        // =====================================
-        // グローバル公開
-// =====================================
-// グローバル公開
-// =====================================
-
-window.ConverterUtils = {
-
-    setupNumericInput:
-        setupNumericInput,
-
-    makeTime:
-        makeTime,
-
-    getTimeValue:
-        getTimeValue,
-
-    getTimeRange:
-        getTimeRange,
-
-    formatClock:
-        formatClock,
-
-    formatElapsed:
-        formatElapsed,
-
-    formatDuration:
-        formatDuration,
-
-    escapeHtml:
-        escapeHtml,
-
-    makeDownloadUrl:
-        makeDownloadUrl,
-
-    getSelectedOutputs:
-        getSelectedOutputs
-
-};
 
 
         // =====================================
@@ -764,6 +826,7 @@ window.ConverterUtils = {
         };
 
 
+
         // =====================================
         // converter.js互換
         //
@@ -775,6 +838,7 @@ window.ConverterUtils = {
 
         window.converterUtils =
             window.ConverterUtils;
+
 
 
         // =====================================
@@ -804,6 +868,11 @@ window.ConverterUtils = {
         );
 
 
+        console.log(
+            "[UTILS] getTimeRange:",
+            typeof window.converterUtils.getTimeRange
+        );
+
+
     }
 );
-
