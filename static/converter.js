@@ -1,603 +1,288 @@
 // =====================================
-// YouTube Converter JavaScript
+// YouTube Converter
+// converter.js
+//
+// メイン処理
+//
+// 構成
+// -------------------------------------
+// converter.js
+// converter-gemini.js
+// converter-status.js
+// converter-utils.js
+// =====================================
+
+
+import {
+    getSelectedOutputs,
+    getTimeRange,
+    setupNumericInputs,
+    hideGeminiArea,
+    resetGeminiButton,
+    resetGeminiState
+} from "./converter-utils.js";
+
+
+import {
+    startGemini
+} from "./converter-gemini.js";
+
+
+import {
+    startStatusCheck,
+    stopStatusCheck
+} from "./converter-status.js";
+
+
+
+// =====================================
+// DOMContentLoaded
 // =====================================
 
 document.addEventListener(
     "DOMContentLoaded",
     function () {
 
+
         // =====================================
         // DOM
         // =====================================
 
         const urlInput =
-            document.getElementById("youtube-url");
+            document.getElementById(
+                "youtube-url"
+            );
+
 
         const convertButton =
-            document.getElementById("convertBtn");
+            document.getElementById(
+                "convertBtn"
+            );
+
 
         const downloadArea =
-            document.getElementById("downloadArea");
+            document.getElementById(
+                "downloadArea"
+            );
 
-        let currentJobId = null;
 
-        // 429リトライ回数
-        let statusRetryCount = 0;
-
-        let convertSeconds = 0;
-
-        let convertTimer = null;
-
-        let convertStartTime = null;
-
-        let convertEndTime = null;
-
-        let currentVideoTitle = "";
-
-        let currentVideoDuration = "";
-
-        let currentMp3File = "";
-
-        let currentMp4File = "";
+        const geminiButton =
+            document.getElementById(
+                "gemini-button"
+            );
 
 
 
         // =====================================
-        // 数字入力
+        // JOB
         // =====================================
 
-        function setupNumericInput(element) {
-
-            if (!element) {
-                return;
-            }
+        let currentJobId =
+            null;
 
 
-            element.addEventListener(
-                "input",
+
+        // =====================================
+        // 変換時間
+        // =====================================
+
+        let convertSeconds =
+            0;
+
+
+        let convertTimer =
+            null;
+
+
+        let convertStartTime =
+            null;
+
+
+        let convertEndTime =
+            null;
+
+
+
+        // =====================================
+        // 動画情報
+        // =====================================
+
+        let currentVideoTitle =
+            "";
+
+
+        let currentVideoDuration =
+            "";
+
+
+
+        // =====================================
+        // ファイル
+        // =====================================
+
+        let currentMp3File =
+            "";
+
+
+        let currentMp4File =
+            "";
+
+
+
+        // =====================================
+        // Numeric Input
+        // =====================================
+
+        setupNumericInputs();
+
+
+
+        // =====================================
+        // 状態取得
+        //
+        // 他ファイルから参照できるようにする
+        // =====================================
+
+        window.converterState = {
+
+            getJobId:
                 function () {
 
-                    this.value =
-                        this.value.replace(
-                            /[^0-9]/g,
-                            ""
-                        );
+                    return currentJobId;
 
-                }
-            );
+                },
 
 
-            element.addEventListener(
-                "keydown",
-                function (event) {
+            getVideoTitle:
+                function () {
 
-                    const allowedKeys = [
-                        "Backspace",
-                        "Delete",
-                        "ArrowLeft",
-                        "ArrowRight",
-                        "ArrowUp",
-                        "ArrowDown",
-                        "Tab",
-                        "Home",
-                        "End"
-                    ];
+                    return currentVideoTitle;
+
+                },
 
 
-                    if (
-                        allowedKeys.includes(
-                            event.key
-                        )
-                    ) {
-                        return;
-                    }
+            getVideoDuration:
+                function () {
+
+                    return currentVideoDuration;
+
+                },
 
 
-                    if (
-                        event.ctrlKey ||
-                        event.metaKey
-                    ) {
-                        return;
-                    }
+            getConvertSeconds:
+                function () {
+
+                    return convertSeconds;
+
+                },
 
 
-                    if (
-                        !/^[0-9]$/.test(
-                            event.key
-                        )
-                    ) {
+            getConvertStartTime:
+                function () {
 
-                        event.preventDefault();
+                    return convertStartTime;
 
-                    }
-
-                }
-            );
+                },
 
 
-            element.setAttribute(
-                "inputmode",
-                "numeric"
-            );
+            getConvertEndTime:
+                function () {
+
+                    return convertEndTime;
+
+                },
 
 
-            element.setAttribute(
-                "pattern",
-                "[0-9]*"
-            );
+            getMp3File:
+                function () {
 
-        }
+                    return currentMp3File;
 
-
-
-        // =====================================
-        // 時間入力設定
-        // =====================================
-
-        setupNumericInput(
-            document.getElementById(
-                "start-hour"
-            )
-        );
-
-        setupNumericInput(
-            document.getElementById(
-                "start-minute"
-            )
-        );
-
-        setupNumericInput(
-            document.getElementById(
-                "start-second"
-            )
-        );
-
-        setupNumericInput(
-            document.getElementById(
-                "end-hour"
-            )
-        );
-
-        setupNumericInput(
-            document.getElementById(
-                "end-minute"
-            )
-        );
-
-        setupNumericInput(
-            document.getElementById(
-                "end-second"
-            )
-        );
+                },
 
 
+            getMp4File:
+                function () {
 
-        // =====================================
-        // 時間を HH:MM:SS にする
-        // =====================================
+                    return currentMp4File;
 
-        function makeTime(
-            hour,
-            minute,
-            second
-        ) {
-
-            hour =
-                parseInt(
-                    hour || "0",
-                    10
-                ) || 0;
+                },
 
 
-            minute =
-                parseInt(
-                    minute || "0",
-                    10
-                ) || 0;
+            setJobId:
+                function (value) {
+
+                    currentJobId =
+                        value || null;
+
+                },
 
 
-            second =
-                parseInt(
-                    second || "0",
-                    10
-                ) || 0;
+            setVideoTitle:
+                function (value) {
+
+                    currentVideoTitle =
+                        value || "";
+
+                },
 
 
-            return (
-                String(hour).padStart(
-                    2,
-                    "0"
-                )
-                +
-                ":"
-                +
-                String(minute).padStart(
-                    2,
-                    "0"
-                )
-                +
-                ":"
-                +
-                String(second).padStart(
-                    2,
-                    "0"
-                )
-            );
+            setVideoDuration:
+                function (value) {
 
-        }
+                    currentVideoDuration =
+                        value || "";
+
+                },
 
 
+            setMp3File:
+                function (value) {
 
-        // =====================================
-        // 時間取得
-        // =====================================
+                    currentMp3File =
+                        value || "";
 
-        function getTimeValue(prefix) {
-
-            const hour =
-                document.getElementById(
-                    prefix + "-hour"
-                );
-
-            const minute =
-                document.getElementById(
-                    prefix + "-minute"
-                );
-
-            const second =
-                document.getElementById(
-                    prefix + "-second"
-                );
+                },
 
 
-            if (
-                hour ||
-                minute ||
-                second
-            ) {
+            setMp4File:
+                function (value) {
 
-                const h =
-                    hour
-                        ? hour.value.trim()
-                        : "";
+                    currentMp4File =
+                        value || "";
 
-                const m =
-                    minute
-                        ? minute.value.trim()
-                        : "";
-
-                const s =
-                    second
-                        ? second.value.trim()
-                        : "";
+                },
 
 
-                if (
-                    !h &&
-                    !m &&
-                    !s
-                ) {
+            getDownloadArea:
+                function () {
 
-                    return "";
+                    return downloadArea;
+
+                },
+
+
+            getConvertButton:
+                function () {
+
+                    return convertButton;
 
                 }
 
-
-                return makeTime(
-                    h,
-                    m,
-                    s
-                );
-
-            }
-
-
-            // ---------------------------------
-            // 旧UIにも対応
-            // ---------------------------------
-
-            const element =
-                document.getElementById(
-                    prefix
-                );
-
-
-            if (!element) {
-                return "";
-            }
-
-
-            return element.value.trim();
-
-        }
+        };
 
 
 
         // =====================================
-        // 時間範囲
-        // =====================================
-
-        function getTimeRange() {
-
-            let startTime =
-                getTimeValue(
-                    "start-time"
-                );
-
-
-            let endTime =
-                getTimeValue(
-                    "end-time"
-                );
-
-
-            if (
-                startTime &&
-                !endTime
-            ) {
-
-                return {
-
-                    start_time:
-                        startTime,
-
-                    end_time:
-                        ""
-
-                };
-
-            }
-
-
-            if (
-                !startTime &&
-                endTime
-            ) {
-
-                return {
-
-                    start_time:
-                        "00:00:00",
-
-                    end_time:
-                        endTime
-
-                };
-
-            }
-
-
-            return {
-
-                start_time:
-                    startTime,
-
-                end_time:
-                    endTime
-
-            };
-
-        }
-
-
-
-        // =====================================
-        // 時刻表示
-        // =====================================
-
-        function formatClock(date) {
-
-            if (!date) {
-                return "";
-            }
-
-
-            return date.toLocaleTimeString(
-                "ja-JP",
-                {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    second: "2-digit",
-                    hour12: false
-                }
-            );
-
-        }
-
-
-
-        // =====================================
-        // 経過時間表示
-        // =====================================
-
-        function formatElapsed(seconds) {
-
-            const totalSeconds =
-                Math.floor(
-                    Number(seconds) || 0
-                );
-
-
-            const minutes =
-                Math.floor(
-                    totalSeconds / 60
-                );
-
-
-            const remainSeconds =
-                totalSeconds % 60;
-
-
-            if (minutes === 0) {
-
-                return (
-                    remainSeconds +
-                    "秒"
-                );
-
-            }
-
-
-            return (
-                minutes +
-                "分" +
-                remainSeconds +
-                "秒"
-            );
-
-        }
-
-
-
-        // =====================================
-        // 再生時間を HH:MM:SS にする
-        // =====================================
-
-        function formatDuration(duration) {
-
-            if (
-                duration === null ||
-                duration === undefined ||
-                duration === ""
-            ) {
-
-                return "不明";
-
-            }
-
-
-            // ---------------------------------
-            // すでに HH:MM:SS 形式ならそのまま
-            // ---------------------------------
-
-            if (
-                typeof duration === "string" &&
-                duration.includes(":")
-            ) {
-
-                const parts =
-                    duration.split(":");
-
-
-                if (parts.length === 3) {
-
-                    const hours =
-                        parseInt(
-                            parts[0],
-                            10
-                        ) || 0;
-
-
-                    const minutes =
-                        parseInt(
-                            parts[1],
-                            10
-                        ) || 0;
-
-
-                    const seconds =
-                        parseInt(
-                            parts[2],
-                            10
-                        ) || 0;
-
-
-                    return (
-                        String(hours).padStart(
-                            2,
-                            "0"
-                        )
-                        +
-                        ":"
-                        +
-                        String(minutes).padStart(
-                            2,
-                            "0"
-                        )
-                        +
-                        ":"
-                        +
-                        String(seconds).padStart(
-                            2,
-                            "0"
-                        )
-                    );
-
-                }
-
-            }
-
-
-            // ---------------------------------
-            // 秒数の場合
-            // ---------------------------------
-
-            const totalSeconds =
-                parseInt(
-                    duration,
-                    10
-                );
-
-
-            if (
-                isNaN(totalSeconds) ||
-                totalSeconds < 0
-            ) {
-
-                return "不明";
-
-            }
-
-
-            const hours =
-                Math.floor(
-                    totalSeconds / 3600
-                );
-
-
-            const minutes =
-                Math.floor(
-                    (totalSeconds % 3600) / 60
-                );
-
-
-            const seconds =
-                totalSeconds % 60;
-
-
-            return (
-                String(hours).padStart(
-                    2,
-                    "0"
-                )
-                +
-                ":"
-                +
-                String(minutes).padStart(
-                    2,
-                    "0"
-                )
-                +
-                ":"
-                +
-                String(seconds).padStart(
-                    2,
-                    "0"
-                )
-            );
-
-        }
-
-
-
-        // =====================================
-        // 変換ボタン表示
+        // 変換中表示
         // =====================================
 
         function showConvertingState() {
 
             if (!convertButton) {
+
                 return;
+
             }
 
 
@@ -613,12 +298,14 @@ document.addEventListener(
 
 
         // =====================================
-        // 変換タイマー
+        // タイマー開始
         // =====================================
 
         function startConvertTimer() {
 
-            convertSeconds = 0;
+            convertSeconds =
+                0;
+
 
             convertStartTime =
                 new Date();
@@ -633,6 +320,9 @@ document.addEventListener(
                 clearInterval(
                     convertTimer
                 );
+
+                convertTimer =
+                    null;
 
             }
 
@@ -682,79 +372,401 @@ document.addEventListener(
 
 
         // =====================================
-        // 選択されている出力形式
+        // 変換開始
         // =====================================
 
-        function getSelectedOutputs() {
+        async function startConvert() {
 
-            const selectedFormat =
-                document.querySelector(
-                    'input[name="output-format"]:checked'
+            // ---------------------------------
+            // 出力形式
+            // ---------------------------------
+
+            const outputs =
+                getSelectedOutputs();
+
+
+
+            // ---------------------------------
+            // URL
+            // ---------------------------------
+
+            const url =
+                urlInput
+                    ? urlInput.value.trim()
+                    : "";
+
+
+
+            // ---------------------------------
+            // URLチェック
+            // ---------------------------------
+
+            if (!url) {
+
+                alert(
+                    "YouTube URLを入力してください"
+                );
+
+                return;
+
+            }
+
+
+
+            // ---------------------------------
+            // 出力チェック
+            // ---------------------------------
+
+            if (
+                !outputs ||
+                outputs.length === 0
+            ) {
+
+                alert(
+                    "出力形式を選択してください"
+                );
+
+                return;
+
+            }
+
+
+
+            // ---------------------------------
+            // 時間範囲
+            // ---------------------------------
+
+            const timeRange =
+                getTimeRange();
+
+
+
+            console.log(
+                "開始時間:",
+                timeRange.start_time
+            );
+
+
+            console.log(
+                "終了時間:",
+                timeRange.end_time
+            );
+
+
+            console.log(
+                "出力:",
+                outputs
+            );
+
+
+
+            // =================================
+            // 既存STATUS監視停止
+            // =================================
+
+            stopStatusCheck();
+
+
+
+            // =================================
+            // 初期化
+            // =================================
+
+            currentJobId =
+                null;
+
+
+            currentVideoTitle =
+                "";
+
+
+            currentVideoDuration =
+                "";
+
+
+            currentMp3File =
+                "";
+
+
+            currentMp4File =
+                "";
+
+
+
+            // =================================
+            // downloadArea
+            // =================================
+
+            if (downloadArea) {
+
+                downloadArea.innerHTML =
+                    "";
+
+            }
+
+
+
+            // =================================
+            // Gemini領域
+            // =================================
+
+            hideGeminiArea();
+
+
+            resetGeminiButton();
+
+
+            resetGeminiState();
+
+
+
+            // =================================
+            // ボタン
+            // =================================
+
+            if (convertButton) {
+
+                convertButton.disabled =
+                    true;
+
+
+                convertButton.style.display =
+                    "";
+
+
+                convertButton.innerHTML =
+                    "実行";
+
+            }
+
+
+
+            // =================================
+            // タイマー開始
+            // =================================
+
+            startConvertTimer();
+
+
+
+            try {
+
+                // =================================
+                // /convert
+                // =================================
+
+                const response =
+                    await fetch(
+                        "/convert",
+                        {
+
+                            method:
+                                "POST",
+
+                            headers: {
+
+                                "Content-Type":
+                                    "application/json"
+
+                            },
+
+                            body:
+                                JSON.stringify({
+
+                                    url:
+                                        url,
+
+                                    outputs:
+                                        outputs,
+
+                                    start_time:
+                                        timeRange.start_time,
+
+                                    end_time:
+                                        timeRange.end_time
+
+                                })
+
+                        }
+                    );
+
+
+
+                // =================================
+                // HTTPエラー
+                // =================================
+
+                if (!response.ok) {
+
+                    const text =
+                        await response.text();
+
+
+                    throw new Error(
+                        "HTTP "
+                        +
+                        response.status
+                        +
+                        " : "
+                        +
+                        (
+                            text ||
+                            "サーバーから空のレスポンスが返されました"
+                        )
+                    );
+
+                }
+
+
+
+                // =================================
+                // レスポンス
+                // =================================
+
+                const text =
+                    await response.text();
+
+
+                if (!text) {
+
+                    throw new Error(
+                        "サーバーから空のレスポンスが返されました"
+                    );
+
+                }
+
+
+
+                // =================================
+                // JSON解析
+                // =================================
+
+                let data;
+
+
+                try {
+
+                    data =
+                        JSON.parse(
+                            text
+                        );
+
+                }
+                catch (error) {
+
+                    console.error(
+                        "JSON解析エラー:",
+                        error
+                    );
+
+
+                    console.error(
+                        "レスポンス:",
+                        text
+                    );
+
+
+                    throw new Error(
+                        "サーバーから正しいJSONが返されませんでした"
+                    );
+
+                }
+
+
+
+                // =================================
+                // JOB開始成功
+                // =================================
+
+                if (
+                    data.success
+                ) {
+
+                    currentJobId =
+                        data.job_id;
+
+
+                    currentVideoTitle =
+                        data.title ||
+                        data.video_title ||
+                        "";
+
+
+                    currentVideoDuration =
+                        data.duration ||
+                        data.video_duration ||
+                        "";
+
+
+
+                    console.log(
+                        "変換JOB:",
+                        currentJobId
+                    );
+
+
+
+                    // ---------------------------------
+                    // STATUS監視
+                    // ---------------------------------
+
+                    startStatusCheck();
+
+                }
+                else {
+
+                    throw new Error(
+                        data.message ||
+                        "変換開始に失敗しました"
+                    );
+
+                }
+
+            }
+            catch (error) {
+
+                stopConvertTimer();
+
+
+                stopStatusCheck();
+
+
+
+                if (convertButton) {
+
+                    convertButton.disabled =
+                        false;
+
+
+                    convertButton.style.display =
+                        "";
+
+
+                    convertButton.innerHTML =
+                        "実行";
+
+                }
+
+
+
+                console.error(
+                    "変換開始エラー:",
+                    error
                 );
 
 
-            const outputFormat =
-                selectedFormat
-                    ? selectedFormat.value
-                    : "mp3";
-
-
-            // ---------------------------------
-            // MP3
-            // ---------------------------------
-
-            if (
-                outputFormat === "mp3"
-            ) {
-
-                return [
-                    "mp3"
-                ];
+                alert(
+                    error.message
+                );
 
             }
-
-
-            // ---------------------------------
-            // MP4
-            // ---------------------------------
-
-            if (
-                outputFormat === "mp4"
-            ) {
-
-                return [
-                    "mp4"
-                ];
-
-            }
-
-
-            // ---------------------------------
-            // MP3 + MP4
-            // ---------------------------------
-
-            if (
-                outputFormat === "mp3mp4"
-            ) {
-
-                return [
-                    "mp3",
-                    "mp4"
-                ];
-
-            }
-
-
-            return [
-                "mp3"
-            ];
 
         }
 
 
 
         // =====================================
-        // URL + 実行
+        // 変換ボタン
         // =====================================
 
         if (convertButton) {
@@ -796,861 +808,170 @@ document.addEventListener(
 
 
         // =====================================
-        // 変換開始
+        // Gemini
         // =====================================
 
-        async function startConvert() {
+        if (geminiButton) {
 
-            const outputs =
-                getSelectedOutputs();
+            geminiButton.addEventListener(
+                "click",
+                function () {
 
+                    startGemini();
 
-            const url =
-                urlInput
-                    ? urlInput.value.trim()
-                    : "";
-
-
-            if (!url) {
-
-                alert(
-                    "YouTube URLを入力してください"
-                );
-
-                return;
-
-            }
-
-
-            if (
-                !outputs ||
-                outputs.length === 0
-            ) {
-
-                alert(
-                    "出力形式を選択してください"
-                );
-
-                return;
-
-            }
-
-
-            const timeRange =
-                getTimeRange();
-
-
-            console.log(
-                "開始時間:",
-                timeRange.start_time
+                }
             );
-
-
-            console.log(
-                "終了時間:",
-                timeRange.end_time
-            );
-
-
-            console.log(
-                "出力:",
-                outputs
-            );
-
-
-            // ---------------------------------
-            // 初期化
-            // ---------------------------------
-
-            currentJobId =
-                null;
-
-            statusRetryCount =
-                0;
-
-            currentVideoTitle =
-                "";
-
-            currentVideoDuration =
-                "";
-
-            currentMp3File =
-                "";
-
-            currentMp4File =
-                "";
-
-
-            if (downloadArea) {
-
-                downloadArea.innerHTML =
-                    "";
-
-            }
-
-
-            hideGeminiArea();
-
-
-            // ---------------------------------
-            // Geminiボタン状態リセット
-            // ---------------------------------
-
-            resetGeminiButton();
-
-
-            // ---------------------------------
-            // ボタン
-            // ---------------------------------
-
-            if (convertButton) {
-
-                convertButton.disabled =
-                    true;
-
-            }
-
-
-            startConvertTimer();
-
-
-
-            try {
-
-                // =================================
-                // /convert
-                // =================================
-
-                const response =
-                    await fetch(
-                        "/convert",
-                        {
-
-                            method:
-                                "POST",
-
-                            headers: {
-                                "Content-Type":
-                                    "application/json"
-                            },
-
-                            body:
-                                JSON.stringify({
-
-                                    url:
-                                        url,
-
-                                    outputs:
-                                        outputs,
-
-                                    start_time:
-                                        timeRange.start_time,
-
-                                    end_time:
-                                        timeRange.end_time
-
-                                })
-
-                        }
-                    );
-
-
-                if (!response.ok) {
-
-                    const text =
-                        await response.text();
-
-
-                    throw new Error(
-                        "HTTP "
-                        +
-                        response.status
-                        +
-                        " : "
-                        +
-                        (
-                            text ||
-                            "サーバーから空のレスポンスが返されました"
-                        )
-                    );
-
-                }
-
-
-                const text =
-                    await response.text();
-
-
-                if (!text) {
-
-                    throw new Error(
-                        "サーバーから空のレスポンスが返されました"
-                    );
-
-                }
-
-
-                let data;
-
-
-                try {
-
-                    data =
-                        JSON.parse(
-                            text
-                        );
-
-                }
-                catch (error) {
-
-                    console.error(
-                        "JSON解析エラー:",
-                        error
-                    );
-
-
-                    console.error(
-                        "レスポンス:",
-                        text
-                    );
-
-
-                    throw new Error(
-                        "サーバーから正しいJSONが返されませんでした"
-                    );
-
-                }
-
-
-                // =================================
-                // JOB開始
-                // =================================
-
-                if (data.success) {
-
-                    currentJobId =
-                        data.job_id;
-
-
-                    currentVideoTitle =
-                        data.title ||
-                        data.video_title ||
-                        "";
-
-
-                    currentVideoDuration =
-                        data.duration ||
-                        data.video_duration ||
-                        "";
-
-
-                    console.log(
-                        "変換JOB:",
-                        currentJobId
-                    );
-
-
-                    checkStatus();
-
-                }
-                else {
-
-                    throw new Error(
-                        data.message ||
-                        "変換開始に失敗しました"
-                    );
-
-                }
-
-            }
-            catch (error) {
-
-                stopConvertTimer();
-
-
-                if (convertButton) {
-
-                    convertButton.disabled =
-                        false;
-
-                    convertButton.innerHTML =
-                        "実行";
-
-                }
-
-
-                console.error(
-                    "変換開始エラー:",
-                    error
-                );
-
-
-                alert(
-                    error.message
-                );
-
-            }
 
         }
 
 
 
         // =====================================
-        // STATUS確認
+        // STATUSから呼び出す関数
+        //
+        // converter-status.js が
+        // window.converterCallbacks を
+        // 使用する
         // =====================================
 
-        async function checkStatus() {
+        window.converterCallbacks = {
 
-            if (!currentJobId) {
-                return;
-            }
+            // ---------------------------------
+            // タイマー停止
+            // ---------------------------------
 
-
-            try {
-
-                const response =
-                    await fetch(
-                        `/status/${encodeURIComponent(currentJobId)}`,
-                        {
-
-                            method:
-                                "GET",
-
-                            cache:
-                                "no-store"
-
-                        }
-                    );
-
-
-                // =================================
-                // 429 Rate Limit / Cloudflare
-                //
-                // 15 → 30 → 60 → 120 → 120...
-                // =================================
-
-                if (
-                    response.status ===
-                    429
-                ) {
-
-                    statusRetryCount++;
-
-
-                    const retryDelays = [
-                        15,
-                        30,
-                        60,
-                        120
-                    ];
-
-
-                    const retryIndex =
-                        Math.min(
-                            statusRetryCount - 1,
-                            retryDelays.length - 1
-                        );
-
-
-                    const waitSeconds =
-                        retryDelays[
-                            retryIndex
-                        ];
-
-
-                    console.warn(
-                        "STATUS 429: Rate Limit / Cloudflare"
-                    );
-
-
-                    console.warn(
-                        waitSeconds +
-                        "秒後に再試行します"
-                    );
-
-
-                    setTimeout(
-                        checkStatus,
-                        waitSeconds * 1000
-                    );
-
-
-                    return;
-
-                }
-
-
-
-                // =================================
-                // 一時的なRenderエラー
-                // =================================
-
-                if (
-                    response.status === 502 ||
-                    response.status === 503 ||
-                    response.status === 504
-                ) {
-
-                    console.warn(
-                        "一時的なRenderエラー:",
-                        response.status
-                    );
-
-
-                    setTimeout(
-                        checkStatus,
-                        5000
-                    );
-
-
-                    return;
-
-                }
-
-
-
-                // =================================
-                // その他のHTTPエラー
-                // =================================
-
-                if (!response.ok) {
-
-                    const text =
-                        await response.text();
-
-
-                    throw new Error(
-                        "HTTP "
-                        +
-                        response.status
-                        +
-                        " : "
-                        +
-                        text
-                    );
-
-                }
-
-
-
-                const text =
-                    await response.text();
-
-
-                if (!text) {
-
-                    setTimeout(
-                        checkStatus,
-                        5000
-                    );
-
-
-                    return;
-
-                }
-
-
-
-                let data;
-
-
-                try {
-
-                    data =
-                        JSON.parse(
-                            text
-                        );
-
-                }
-                catch (error) {
-
-                    console.error(
-                        "STATUS JSON解析エラー:",
-                        error
-                    );
-
-
-                    setTimeout(
-                        checkStatus,
-                        5000
-                    );
-
-
-                    return;
-
-                }
-
-
-
-                // =================================
-                // 正常応答したので429回数をリセット
-                // =================================
-
-                statusRetryCount =
-                    0;
-
-
-                console.log(
-                    "STATUS:",
-                    data
-                );
-
-
-
-                // =================================
-                // 完了
-                // =================================
-
-                if (
-                    data.status ===
-                    "complete"
-                ) {
+            stopConvertTimer:
+                function () {
 
                     stopConvertTimer();
 
-
-                    // ---------------------------------
-                    // STATUSから情報を取得
-                    // ---------------------------------
-
-                    currentVideoTitle =
-                        data.title ||
-                        data.video_title ||
-                        currentVideoTitle;
+                },
 
 
-                    currentVideoDuration =
-                        data.duration ||
-                        data.video_duration ||
-                        currentVideoDuration;
+            // ---------------------------------
+            // タイマー秒数
+            // ---------------------------------
+
+            getConvertSeconds:
+                function () {
+
+                    return convertSeconds;
+
+                },
 
 
-                    // ---------------------------------
-                    // ボタン非表示
-                    // ---------------------------------
+            // ---------------------------------
+            // 動画タイトル更新
+            // ---------------------------------
 
-                    if (convertButton) {
+            setVideoTitle:
+                function (value) {
 
-                        convertButton.style.display =
-                            "none";
+                    if (value) {
+
+                        currentVideoTitle =
+                            value;
 
                     }
 
+                },
 
-                    // ---------------------------------
-                    // 完成ファイル表示
-                    // ---------------------------------
 
-                    showFiles(
-                        Array.isArray(
-                            data.files
-                        )
-                            ? data.files
-                            : [],
+            // ---------------------------------
+            // 動画時間更新
+            // ---------------------------------
+
+            setVideoDuration:
+                function (value) {
+
+                    if (
+                        value !== undefined &&
+                        value !== null &&
+                        value !== ""
+                    ) {
+
+                        currentVideoDuration =
+                            value;
+
+                    }
+
+                },
+
+
+            // ---------------------------------
+            // 完了処理
+            // ---------------------------------
+
+            onComplete:
+                function (data) {
+
+                    handleConversionComplete(
                         data
                     );
 
+                },
 
-                    return;
+
+            // ---------------------------------
+            // エラー処理
+            // ---------------------------------
+
+            onError:
+                function (message) {
+
+                    handleConversionError(
+                        message
+                    );
 
                 }
 
-
-
-                // =================================
-                // エラー
-                // =================================
-
-                if (
-                    data.status ===
-                    "error"
-                ) {
-
-                    stopConvertTimer();
-
-
-                    if (convertButton) {
-
-                        convertButton.disabled =
-                            false;
-
-                        convertButton.innerHTML =
-                            "実行";
-
-                    }
-
-
-                    alert(
-                        data.message ||
-                        "変換中にエラーが発生しました"
-                    );
-
-
-                    return;
-
-                }
-
-
-
-                // =================================
-                // queued / running
-                // =================================
-
-                setTimeout(
-                    checkStatus,
-                    5000
-                );
-
-            }
-            catch (error) {
-
-                console.error(
-                    "変換状態確認エラー:",
-                    error
-                );
-
-
-                setTimeout(
-                    checkStatus,
-                    5000
-                );
-
-            }
-
-        }
+        };
 
 
 
         // =====================================
-        // Gemini領域を隠す
+        // 変換完了
         // =====================================
 
-        function hideGeminiArea() {
-
-            const srtArea =
-                document.getElementById(
-                    "srtArea"
-                );
-
-
-            if (srtArea) {
-
-                srtArea.style.display =
-                    "none";
-
-            }
-
-
-            const srtContent =
-                document.getElementById(
-                    "srt-content"
-                );
-
-
-            if (srtContent) {
-
-                srtContent.style.display =
-                    "none";
-
-            }
-
-
-            const srtDownloadArea =
-                document.getElementById(
-                    "srt-download-area"
-                );
-
-
-            if (srtDownloadArea) {
-
-                srtDownloadArea.innerHTML =
-                    "";
-
-            }
-
-        }
-
-
-
-        // =====================================
-        // Geminiボタン状態リセット
-        // =====================================
-
-        function resetGeminiButton() {
-
-            const button =
-                document.getElementById(
-                    "gemini-button"
-                );
-
-
-            if (!button) {
-                return;
-            }
-
-
-            button.disabled =
-                false;
-
-
-            button.style.display =
-                "";
-
-
-            button.textContent =
-                "Geminiで文字起こし";
-
-        }
-
-
-
-        // =====================================
-        // 変換情報HTML
-        // =====================================
-
-        function createConversionInfo(
-            type,
-            data,
-            durationOverride
-        ) {
-
-            const title =
-                data.title ||
-                data.video_title ||
-                currentVideoTitle ||
-                "不明";
-
-
-            const duration =
-                durationOverride !== undefined &&
-                durationOverride !== null &&
-                durationOverride !== ""
-                    ? durationOverride
-                    : (
-                        data.duration ||
-                        data.video_duration ||
-                        currentVideoDuration ||
-                        "不明"
-                    );
-
-
-            const start =
-                convertStartTime
-                    ? formatClock(
-                        convertStartTime
-                    )
-                    : "";
-
-
-            const end =
-                convertEndTime
-                    ? formatClock(
-                        convertEndTime
-                    )
-                    : "";
-
-
-            return `
-                <div class="conversion-info">
-
-                    <div class="conversion-info-title">
-                        【${escapeHtml(type)}変換】
-                    </div>
-
-                    <div>
-                        タイトル：${escapeHtml(title)}
-                    </div>
-
-                    <div>
-                        再生時間：${escapeHtml(
-                            formatDuration(duration)
-                        )}
-                    </div>
-
-                    <div>
-                        実行開始：${escapeHtml(start)}
-                    </div>
-
-                    <div>
-                        実行終了：${escapeHtml(end)}
-                        （${escapeHtml(
-                            formatElapsed(
-                                convertSeconds
-                            )
-                        )}）
-                    </div>
-
-                </div>
-            `;
-
-        }
-
-
-
-        // =====================================
-        // HTMLエスケープ
-        // =====================================
-
-        function escapeHtml(value) {
-
-            return String(value)
-                .replace(
-                    /&/g,
-                    "&amp;"
-                )
-                .replace(
-                    /</g,
-                    "&lt;"
-                )
-                .replace(
-                    />/g,
-                    "&gt;"
-                )
-                .replace(
-                    /"/g,
-                    "&quot;"
-                )
-                .replace(
-                    /'/g,
-                    "&#039;"
-                );
-
-        }
-
-
-
-        // =====================================
-        // ダウンロードURL作成
-        // =====================================
-
-        function makeDownloadUrl(
-            filename
-        ) {
-
-            return (
-                "/download/"
-                +
-                encodeURIComponent(
-                    filename
-                )
-            );
-
-        }
-
-
-
-        // =====================================
-        // 完成ファイル表示
-        // =====================================
-
-        function showFiles(
-            files,
+        function handleConversionComplete(
             data
         ) {
 
-            if (!downloadArea) {
-                return;
-            }
+            stopConvertTimer();
+
+
+            stopStatusCheck();
+
+
+
+            // =================================
+            // 動画情報
+            // =================================
+
+            currentVideoTitle =
+                data.title ||
+                data.video_title ||
+                currentVideoTitle;
+
+
+            currentVideoDuration =
+                data.duration ||
+                data.video_duration ||
+                currentVideoDuration;
+
+
+
+            // =================================
+            // ファイル取得
+            // =================================
+
+            const files =
+                Array.isArray(
+                    data.files
+                )
+                    ? data.files
+                    : [];
+
 
 
             let mp3File =
@@ -1661,9 +982,6 @@ document.addEventListener(
                 "";
 
 
-            // =================================
-            // files解析
-            // =================================
 
             files.forEach(
                 function (file) {
@@ -1672,7 +990,9 @@ document.addEventListener(
                         typeof file !== "string" ||
                         !file
                     ) {
+
                         return;
+
                     }
 
 
@@ -1707,6 +1027,7 @@ document.addEventListener(
             );
 
 
+
             currentMp3File =
                 mp3File;
 
@@ -1717,43 +1038,7 @@ document.addEventListener(
 
 
             // =================================
-            // ファイルが1つもない
-            // =================================
-
-            if (
-                !mp3File &&
-                !mp4File
-            ) {
-
-                downloadArea.innerHTML = `
-                    <div class="download-error">
-                        変換されたファイルがありません。
-                    </div>
-                `;
-
-
-                if (convertButton) {
-
-                    convertButton.style.display =
-                        "";
-
-                    convertButton.disabled =
-                        false;
-
-                    convertButton.innerHTML =
-                        "実行";
-
-                }
-
-
-                return;
-
-            }
-
-
-
-            // =================================
-            // Gemini対象MP3
+            // Gemini用MP3
             // =================================
 
             const geminiFile =
@@ -1772,741 +1057,166 @@ document.addEventListener(
 
 
             // =================================
-            // ダウンロードHTML
-            // =================================
-
-            let html =
-                "";
-
-
-
-            // =================================
-            // MP3
-            // =================================
-
-            if (mp3File) {
-
-                html += `
-
-                    ${createConversionInfo(
-                        "MP3",
-                        data || {}
-                    )}
-
-                    <div class="download-section">
-
-                        <div class="download-label">
-                            MP3のダウンロード
-                        </div>
-
-                        <div class="mp3-button-row">
-
-                            <a
-                                href="${makeDownloadUrl(mp3File)}"
-                                download
-                                class="download-button"
-                            >
-                                mp3
-                            </a>
-
-                            <button
-                                type="button"
-                                id="srt-toggle-button"
-                                class="srt-toggle-button"
-                                aria-expanded="false"
-                            >
-                                ▼
-                            </button>
-
-                        </div>
-
-                    </div>
-
-                `;
-
-            }
-
-
-
-            // =================================
-            // MP4
-            // =================================
-
-            if (mp4File) {
-
-                html += `
-
-                    ${createConversionInfo(
-                        "MP4",
-                        data || {}
-                    )}
-
-                    <div class="download-section">
-
-                        <div class="download-label">
-                            MP4のダウンロード
-                        </div>
-
-                        <div class="mp4-button-row">
-
-                            <a
-                                href="${makeDownloadUrl(mp4File)}"
-                                download
-                                class="download-button"
-                            >
-                                mp4
-                            </a>
-
-                        </div>
-
-                    </div>
-
-                `;
-
-            }
-
-
-
-            // =================================
-            // HTML反映
-            // =================================
-
-            downloadArea.innerHTML =
-                html;
-
-
-
-            // =================================
-            // Gemini領域
+            // ダウンロード表示
             //
-            // MP3が存在する場合だけ有効
+            // converter-utils.js 側
             // =================================
-
-            const srtArea =
-                document.getElementById(
-                    "srtArea"
-                );
-
-
-            const srtContent =
-                document.getElementById(
-                    "srt-content"
-                );
-
-
-            if (srtArea) {
-
-                srtArea.style.display =
-                    "none";
-
-            }
-
-
-            if (srtContent) {
-
-                srtContent.style.display =
-                    "none";
-
-            }
-
-
-            // =================================
-            // MP3がない場合
-            // Gemini不要
-            // =================================
-
-            if (!mp3File) {
-
-                hideGeminiArea();
-
-                return;
-
-            }
-
-
-
-            // =================================
-            // ▼ボタン
-            // =================================
-
-            const toggle =
-                document.getElementById(
-                    "srt-toggle-button"
-                );
-
 
             if (
-                toggle &&
-                srtArea
+                typeof window.showConversionFiles ===
+                "function"
             ) {
 
-                toggle.addEventListener(
-                    "click",
-                    function () {
-
-                        const isHidden =
-                            srtArea.style.display ===
-                            "none";
-
-
-                        if (isHidden) {
-
-                            srtArea.style.display =
-                                "block";
-
-
-                            if (srtContent) {
-
-                                srtContent.style.display =
-                                    "block";
-
-                            }
-
-
-                            toggle.textContent =
-                                "▲";
-
-
-                            toggle.setAttribute(
-                                "aria-expanded",
-                                "true"
-                            );
-
-                        }
-                        else {
-
-                            srtArea.style.display =
-                                "none";
-
-
-                            toggle.textContent =
-                                "▼";
-
-
-                            toggle.setAttribute(
-                                "aria-expanded",
-                                "false"
-                            );
-
-                        }
-
-                    }
+                window.showConversionFiles(
+                    files,
+                    data
                 );
 
             }
 
-        }
 
 
+            // =================================
+            // converter-download.js が
+            // window経由で登録されていない場合
+            // =================================
 
-        // =====================================
-        // Geminiボタン
-        // =====================================
-
-        const geminiButton =
-            document.getElementById(
-                "gemini-button"
-            );
-
-
-        if (geminiButton) {
-
-            geminiButton.addEventListener(
-                "click",
-                startGemini
-            );
-
-        }
-
-
-
-        // =====================================
-        // Gemini開始
-        // =====================================
-
-        async function startGemini() {
-
-            const geminiFileElement =
-                document.getElementById(
-                    "gemini-file"
-                );
-
-
-            const result =
-                document.getElementById(
-                    "gemini-result"
-                );
-
-
-            const file =
-                geminiFileElement
-                    ? geminiFileElement.value.trim()
-                    : "";
-
-
-            if (!file) {
-
-                alert(
-                    "MP3ファイルがありません"
-                );
-
-                return;
-
-            }
-
-
-            if (!geminiButton) {
-                return;
-            }
-
-
-            geminiButton.disabled =
-                true;
-
-
-            geminiButton.textContent =
-                "文字起こし中...";
-
-
-            let seconds = 0;
-
-
-            if (result) {
-
-                result.style.display =
-                    "block";
-
-
-                result.textContent =
-                    "文字起こし中... 0秒";
-
-            }
-
-
-            const timer =
-                setInterval(
-                    function () {
-
-                        seconds++;
-
-
-                        if (result) {
-
-                            result.textContent =
-                                "文字起こし中... "
-                                +
-                                seconds
-                                +
-                                "秒";
-
-                        }
-
-                    },
-                    1000
-                );
-
-
-
-            try {
-
-                const response =
-                    await fetch(
-                        "/gemini-transcribe",
-                        {
-
-                            method:
-                                "POST",
-
-                            headers: {
-                                "Content-Type":
-                                    "application/json"
-                            },
-
-                            body:
-                                JSON.stringify({
-
-                                    file:
-                                        file
-
-                                })
-
-                        }
-                    );
-
-
-                if (!response.ok) {
-
-                    const text =
-                        await response.text();
-
-
-                    throw new Error(
-                        "HTTP "
-                        +
-                        response.status
-                        +
-                        " : "
-                        +
-                        (
-                            text ||
-                            "サーバーから空のレスポンスが返されました"
-                        )
-                    );
-
-                }
-
-
-                const text =
-                    await response.text();
-
-
-                if (!text) {
-
-                    throw new Error(
-                        "サーバーから空のレスポンスが返されました"
-                    );
-
-                }
-
-
-                let data;
-
-
-                try {
-
-                    data =
-                        JSON.parse(
-                            text
-                        );
-
-                }
-                catch (error) {
-
-                    console.error(
-                        "Gemini JSON解析エラー:",
-                        error
-                    );
-
-
-                    throw new Error(
-                        "サーバーから正しいJSONが返されませんでした"
-                    );
-
-                }
-
-
-                clearInterval(
-                    timer
-                );
-
-
-
-                // =================================
-                // Gemini成功
-                // =================================
-
-                if (data.success) {
-
-                    if (result) {
-
-                        result.style.display =
-                            "none";
-
-                    }
-
-
-                    geminiButton.style.display =
-                        "none";
-
-
-                    showSrtDownload(
-                        data
-                    );
-
-                }
-                else {
-
-                    geminiButton.disabled =
-                        false;
-
-
-                    geminiButton.textContent =
-                        "Geminiで文字起こし";
-
-
-                    if (result) {
-
-                        result.style.display =
-                            "block";
-
-
-                        result.textContent =
-                            data.message ||
-                            "文字起こしに失敗しました";
-
-                    }
-
-                }
-
-            }
-            catch (error) {
-
-                clearInterval(
-                    timer
-                );
-
+            if (
+                !window.showConversionFiles
+            ) {
 
                 console.error(
-                    "Geminiエラー:",
-                    error
+                    "showConversionFiles が登録されていません"
                 );
 
+            }
 
-                geminiButton.disabled =
+
+
+            // =================================
+            // 完了後ボタン
+            // =================================
+
+            if (convertButton) {
+
+                convertButton.style.display =
+                    "none";
+
+            }
+
+        }
+
+
+
+        // =====================================
+        // 変換エラー
+        // =====================================
+
+        function handleConversionError(
+            message
+        ) {
+
+            stopConvertTimer();
+
+
+            stopStatusCheck();
+
+
+
+            if (convertButton) {
+
+                convertButton.disabled =
                     false;
 
 
-                geminiButton.textContent =
-                    "Geminiで文字起こし";
+                convertButton.style.display =
+                    "";
 
 
-                if (result) {
+                convertButton.innerHTML =
+                    "実行";
 
-                    result.style.display =
-                        "block";
+            }
 
 
-                    result.textContent =
-                        "エラー: "
-                        +
-                        error.message;
+
+            alert(
+                message ||
+                "変換中にエラーが発生しました"
+            );
+
+        }
+
+
+
+        // =====================================
+        // 外部からJOB IDを取得
+        // =====================================
+
+        window.getCurrentJobId =
+            function () {
+
+                return currentJobId;
+
+            };
+
+
+
+        // =====================================
+        // デバッグ
+        // =====================================
+
+        window.youtubeConverter = {
+
+            getJobId:
+                function () {
+
+                    return currentJobId;
+
+                },
+
+
+            getVideoTitle:
+                function () {
+
+                    return currentVideoTitle;
+
+                },
+
+
+            getVideoDuration:
+                function () {
+
+                    return currentVideoDuration;
+
+                },
+
+
+            getMp3File:
+                function () {
+
+                    return currentMp3File;
+
+                },
+
+
+            getMp4File:
+                function () {
+
+                    return currentMp4File;
+
+                },
+
+
+            getElapsedSeconds:
+                function () {
+
+                    return convertSeconds;
 
                 }
 
-            }
+        };
 
-        }
-
-
-
-        // =====================================
-        // SRTダウンロード表示
-        // =====================================
-
-        function showSrtDownload(
-            data
-        ) {
-
-            const srtFile =
-                data.srt_file ||
-                "";
-
-
-            if (!srtFile) {
-
-                return;
-
-            }
-
-
-            const srtArea =
-                document.getElementById(
-                    "srtArea"
-                );
-
-
-            if (!srtArea) {
-
-                return;
-
-            }
-
-
-            // ---------------------------------
-            // SRT変換時間
-            // ---------------------------------
-
-            const srtStart =
-                new Date();
-
-
-            const srtEnd =
-                new Date();
-
-
-            const srtSeconds =
-                Number(
-                    data.seconds ||
-                    data.elapsed_seconds ||
-                    0
-                );
-
-
-            const title =
-                data.title ||
-                data.video_title ||
-                currentVideoTitle ||
-                "不明";
-
-
-            const duration =
-                data.duration ||
-                data.video_duration ||
-                currentVideoDuration ||
-                "不明";
-
-
-            const srtInfo = `
-
-                <div class="conversion-info">
-
-                    <div class="conversion-info-title">
-                        【SRT変換】
-                    </div>
-
-                    <div>
-                        タイトル：${escapeHtml(title)}
-                    </div>
-
-                    <div>
-                        再生時間：${escapeHtml(
-                            formatDuration(duration)
-                        )}
-                    </div>
-
-                    <div>
-                        実行開始：
-                        ${escapeHtml(
-                            formatClock(srtStart)
-                        )}
-                    </div>
-
-                    <div>
-                        実行終了：
-                        ${escapeHtml(
-                            formatClock(srtEnd)
-                        )}
-                        （${escapeHtml(
-                            formatElapsed(
-                                srtSeconds
-                            )
-                        )}）
-                    </div>
-
-                </div>
-
-            `;
-
-
-            const downloadHtml = `
-
-                ${srtInfo}
-
-                <div class="srt-download-section">
-
-                    <div class="download-label">
-                        SRTダウンロード
-                    </div>
-
-                    <div class="srt-button-row">
-
-                        <a
-                            href="${makeDownloadUrl(srtFile)}"
-                            download
-                            class="download-button"
-                        >
-                            srt
-                        </a>
-
-                    </div>
-
-                </div>
-
-            `;
-
-
-
-            // =================================
-            // srt-download-areaがある場合
-            // =================================
-
-            let srtDownloadArea =
-                document.getElementById(
-                    "srt-download-area"
-                );
-
-
-            if (!srtDownloadArea) {
-
-                srtDownloadArea =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                srtDownloadArea.id =
-                    "srt-download-area";
-
-
-                srtArea.appendChild(
-                    srtDownloadArea
-                );
-
-            }
-
-
-            srtDownloadArea.innerHTML =
-                downloadHtml;
-
-
-            srtArea.style.display =
-                "block";
-
-
-
-            // =================================
-            // srt-content
-            // =================================
-
-            const srtContent =
-                document.getElementById(
-                    "srt-content"
-                );
-
-
-            if (srtContent) {
-
-                srtContent.style.display =
-                    "block";
-
-            }
-
-
-
-            // =================================
-            // ▼ボタンを▲へ
-            // =================================
-
-            const toggle =
-                document.getElementById(
-                    "srt-toggle-button"
-                );
-
-
-            if (toggle) {
-
-                toggle.textContent =
-                    "▲";
-
-
-                toggle.setAttribute(
-                    "aria-expanded",
-                    "true"
-                );
-
-            }
-
-        }
 
     }
 );
