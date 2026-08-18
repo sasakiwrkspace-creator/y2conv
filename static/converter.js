@@ -77,7 +77,6 @@ document.addEventListener(
         let currentMp4File = "";
 
 
-
         // =====================================
         // グローバル参照
         //
@@ -158,7 +157,6 @@ document.addEventListener(
             }
 
         };
-
 
 
         // =====================================
@@ -253,7 +251,6 @@ document.addEventListener(
         }
 
 
-
         // =====================================
         // 時間入力設定
         // =====================================
@@ -294,7 +291,6 @@ document.addEventListener(
                 "end-second"
             )
         );
-
 
 
         // =====================================
@@ -344,6 +340,21 @@ document.addEventListener(
                         : "";
 
 
+                // =================================
+                // 確認ログ
+                // =================================
+
+                console.log(
+                    "[TIME INPUT]",
+                    prefix,
+                    {
+                        hour: h,
+                        minute: m,
+                        second: s
+                    }
+                );
+
+
                 if (
                     !h &&
                     !m &&
@@ -355,11 +366,23 @@ document.addEventListener(
                 }
 
 
-                return window.converterUtils.makeTime(
-                    h,
-                    m,
-                    s
+                const result =
+                    window.converterUtils.makeTime(
+                        h,
+                        m,
+                        s
+                    );
+
+
+                console.log(
+                    "[TIME VALUE]",
+                    prefix,
+                    "=>",
+                    result
                 );
+
+
+                return result;
 
             }
 
@@ -384,98 +407,100 @@ document.addEventListener(
         }
 
 
-
         // =====================================
         // 時間範囲
         // =====================================
-        
+
         function getTimeRange() {
-        
-            // =================================
-            // HTMLのID
-            //
-            // start-hour
-            // start-minute
-            // start-second
-            //
-            // end-hour
-            // end-minute
-            // end-second
-            // =================================
-        
+
             const startTime =
                 getTimeValue(
                     "start"
                 );
-        
-        
+
+
             const endTime =
                 getTimeValue(
                     "end"
                 );
-        
-        
+
+
+            // =================================
+            // 確認ログ
+            // =================================
+
+            console.log(
+                "[TIME RANGE INPUT]",
+                {
+                    startTime:
+                        startTime,
+
+                    endTime:
+                        endTime
+                }
+            );
+
+
             // =================================
             // 開始だけ指定
             // =================================
-        
+
             if (
                 startTime &&
                 !endTime
             ) {
-        
+
                 return {
-        
+
                     start_time:
                         startTime,
-        
+
                     end_time:
                         ""
-        
+
                 };
-        
+
             }
-        
-        
+
+
             // =================================
             // 終了だけ指定
             //
             // 「最初から～20秒」
-            // の場合
             // =================================
-        
+
             if (
                 !startTime &&
                 endTime
             ) {
-        
+
                 return {
-        
+
                     start_time:
                         "00:00:00",
-        
+
                     end_time:
                         endTime
-        
+
                 };
-        
+
             }
-        
-        
+
+
             // =================================
             // 開始・終了とも指定
             // =================================
-        
+
             return {
-        
+
                 start_time:
                     startTime,
-        
+
                 end_time:
                     endTime
-        
+
             };
-        
+
         }
 
 
@@ -507,7 +532,6 @@ document.addEventListener(
             `;
 
         }
-
 
 
         // =====================================
@@ -545,7 +569,6 @@ document.addEventListener(
 
                         convertSeconds++;
 
-
                         showConvertingState();
 
                     },
@@ -553,7 +576,6 @@ document.addEventListener(
                 );
 
         }
-
 
 
         // =====================================
@@ -579,7 +601,6 @@ document.addEventListener(
                 new Date();
 
         }
-
 
 
         // =====================================
@@ -653,7 +674,6 @@ document.addEventListener(
         }
 
 
-
         // =====================================
         // 変換ボタン
         // =====================================
@@ -666,7 +686,6 @@ document.addEventListener(
             );
 
         }
-
 
 
         // =====================================
@@ -685,7 +704,6 @@ document.addEventListener(
 
                         event.preventDefault();
 
-
                         startConvert();
 
                     }
@@ -694,7 +712,6 @@ document.addEventListener(
             );
 
         }
-
 
 
         // =====================================
@@ -768,23 +785,66 @@ document.addEventListener(
                 getTimeRange();
 
 
+            // =================================
+            // 詳細確認ログ
+            // =================================
+
+            console.log(
+                "======================================"
+            );
+
+            console.log(
+                "[CONVERT REQUEST]"
+            );
+
+            console.log(
+                "URL:",
+                url
+            );
+
             console.log(
                 "開始時間:",
                 timeRange.start_time
             );
-
 
             console.log(
                 "終了時間:",
                 timeRange.end_time
             );
 
-
             console.log(
                 "出力:",
                 outputs
             );
 
+
+            const requestBody = {
+
+                url:
+                    url,
+
+                outputs:
+                    outputs,
+
+                start_time:
+                    timeRange.start_time,
+
+                end_time:
+                    timeRange.end_time
+
+            };
+
+
+            console.log(
+                "送信JSON:",
+                JSON.stringify(
+                    requestBody
+                )
+            );
+
+            console.log(
+                "======================================"
+            );
 
 
             // =================================
@@ -847,7 +907,6 @@ document.addEventListener(
             }
 
 
-
             // =================================
             // ボタン
             // =================================
@@ -863,12 +922,20 @@ document.addEventListener(
             startConvertTimer();
 
 
-
             // =================================
             // /convert
             // =================================
 
             try {
+
+                console.log(
+                    "[CONVERT] POST /convert 開始"
+                );
+
+
+                const requestStartTime =
+                    Date.now();
+
 
                 const response =
                     await fetch(
@@ -886,25 +953,28 @@ document.addEventListener(
                             },
 
                             body:
-                                JSON.stringify({
-
-                                    url:
-                                        url,
-
-                                    outputs:
-                                        outputs,
-
-                                    start_time:
-                                        timeRange.start_time,
-
-                                    end_time:
-                                        timeRange.end_time
-
-                                })
+                                JSON.stringify(
+                                    requestBody
+                                )
 
                         }
                     );
 
+
+                console.log(
+                    "[CONVERT] レスポンス受信",
+                    {
+                        status:
+                            response.status,
+
+                        elapsed:
+                            (
+                                Date.now() -
+                                requestStartTime
+                            ) +
+                            "ms"
+                    }
+                );
 
 
                 // =================================
@@ -935,13 +1005,18 @@ document.addEventListener(
                 }
 
 
-
                 // =================================
                 // レスポンス
                 // =================================
 
                 const text =
                     await response.text();
+
+
+                console.log(
+                    "[CONVERT] レスポンス本文:",
+                    text
+                );
 
 
                 if (!text) {
@@ -985,6 +1060,11 @@ document.addEventListener(
                 }
 
 
+                console.log(
+                    "[CONVERT] JSON:",
+                    data
+                );
+
 
                 // =================================
                 // JOB開始
@@ -1014,6 +1094,29 @@ document.addEventListener(
                     );
 
 
+                    console.log(
+                        "[CONVERT] JOB情報:",
+                        {
+                            job_id:
+                                currentJobId,
+
+                            title:
+                                currentVideoTitle,
+
+                            duration:
+                                currentVideoDuration,
+
+                            start_time:
+                                timeRange.start_time,
+
+                            end_time:
+                                timeRange.end_time,
+
+                            outputs:
+                                outputs
+                        }
+                    );
+
 
                     // =================================
                     // STATUS開始
@@ -1026,6 +1129,12 @@ document.addEventListener(
                             "function"
                     ) {
 
+                        console.log(
+                            "[STATUS] 監視開始:",
+                            currentJobId
+                        );
+
+
                         window.converterStatus.start(
                             currentJobId
                         );
@@ -1035,6 +1144,12 @@ document.addEventListener(
 
                         console.error(
                             "converter-status.js が読み込まれていません"
+                        );
+
+
+                        console.error(
+                            "[STATUS] window.converterStatus:",
+                            window.converterStatus
                         );
 
                     }
@@ -1080,7 +1195,6 @@ document.addEventListener(
             }
 
         }
-
 
 
         // =====================================
@@ -1147,7 +1261,6 @@ document.addEventListener(
         };
 
 
-
         // =====================================
         // 完成ファイル表示
         // =====================================
@@ -1165,10 +1278,8 @@ document.addEventListener(
             let mp3File =
                 "";
 
-
             let mp4File =
                 "";
-
 
 
             // =================================
@@ -1225,7 +1336,6 @@ document.addEventListener(
             }
 
 
-
             // =================================
             // 保存
             // =================================
@@ -1236,7 +1346,6 @@ document.addEventListener(
 
             currentMp4File =
                 mp4File;
-
 
 
             // =================================
@@ -1280,7 +1389,6 @@ document.addEventListener(
             }
 
 
-
             // =================================
             // Gemini対象MP3
             // =================================
@@ -1299,14 +1407,12 @@ document.addEventListener(
             }
 
 
-
             // =================================
             // ダウンロードHTML
             // =================================
 
             let html =
                 "";
-
 
 
             // =================================
@@ -1356,7 +1462,6 @@ document.addEventListener(
             }
 
 
-
             // =================================
             // MP4
             // =================================
@@ -1395,14 +1500,12 @@ document.addEventListener(
             }
 
 
-
             // =================================
             // HTML反映
             // =================================
 
             downloadArea.innerHTML =
                 html;
-
 
 
             // =================================
@@ -1437,7 +1540,6 @@ document.addEventListener(
             }
 
 
-
             // =================================
             // MP3なし
             // =================================
@@ -1459,7 +1561,6 @@ document.addEventListener(
                 return;
 
             }
-
 
 
             // =================================
@@ -1533,7 +1634,6 @@ document.addEventListener(
             }
 
 
-
             // =================================
             // Gemini状態
             // =================================
@@ -1552,7 +1652,6 @@ document.addEventListener(
             }
 
         }
-
 
 
         // =====================================
@@ -1658,7 +1757,6 @@ document.addEventListener(
             `;
 
         }
-
 
 
         // =====================================
