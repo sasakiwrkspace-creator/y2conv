@@ -1245,9 +1245,19 @@ def create_mp3(
         "実際の再生時間:",
         actual_duration
     )
+    print(
+        "ファイル存在確認:",
+        os.path.isfile(output_file)
+    )
     print("==========================================")
-
-
+    
+    print("DEBUG: MP3作成後60秒停止します")
+    
+    time.sleep(60)
+    
+    print("DEBUG: 60秒停止終了")
+    
+    
     return actual_duration
 
 
