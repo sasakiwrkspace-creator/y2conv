@@ -10,7 +10,7 @@ from flask import (
 import os
 import shutil
 
-from paths import (
+from config import (
     BASE_DIR,
     DOWNLOAD_DIR
 )
