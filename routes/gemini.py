@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from flask import request, jsonify
 from google import genai
 
-from paths import DOWNLOAD_DIR
+from config import DOWNLOAD_DIR
 
 
 # ==========================================================
