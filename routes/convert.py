@@ -17,7 +17,7 @@ from datetime import datetime
 from routes.status import jobs
 from cleanup import cleanup_downloads
 
-from paths import (
+from config import (
     BASE_DIR,
     DOWNLOAD_DIR
 )
