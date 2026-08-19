@@ -6,6 +6,8 @@
 // ・queued / running / complete / error
 // ・429 / 502 / 503 / 504 対応
 // ・JOBなしの一時的な消失に対応
+// ・JOBなしでも長めに待機
+// ・ネットワークエラーでも変換を終了扱いにしない
 // ・完了時に converter.js の showFiles()
 // ・converter.js から
 //   window.converterStatus.start(jobId)
@@ -25,22 +27,52 @@ let statusRetryCount = 0;
 
 
 // =====================================
-// 最大リトライ
+// JOBなし最大リトライ
 //
-// JOBなしが永久に続く場合に
-// 無限リクエストにならないようにする
+// 5秒 × 60回 = 最大300秒
+//
+// これまで:
+// 12回 × 5秒 = 60秒
+//
+// → JOBが一時的に消えただけでも
+//   監視終了してしまう可能性があった。
+//
+// 今回:
+// 60回 × 5秒 = 300秒
+//
 // =====================================
 
-const MAX_JOB_NOT_FOUND_RETRY = 12;
+const MAX_JOB_NOT_FOUND_RETRY = 60;
 
 
 // =====================================
-// 次回確認時間
+// STATUS確認間隔
 // =====================================
 
 const STATUS_INTERVAL = 5;
 
+
+// =====================================
+// Rate Limit時
+// =====================================
+
 const RATE_LIMIT_INTERVAL = 15;
+
+
+// =====================================
+// Render一時エラー時
+// =====================================
+
+const RENDER_ERROR_INTERVAL = 10;
+
+
+// =====================================
+// JOBなし時
+//
+// 通常STATUSより少し長めに待つ。
+// =====================================
+
+const JOB_NOT_FOUND_INTERVAL = 5;
 
 
 // =====================================
@@ -206,8 +238,20 @@ function start(
 
 
     console.log(
-        "STATUS監視開始:",
+        "====================================="
+    );
+
+    console.log(
+        "STATUS監視開始"
+    );
+
+    console.log(
+        "JOB ID:",
         statusCurrentJobId
+    );
+
+    console.log(
+        "====================================="
     );
 
 
@@ -242,6 +286,10 @@ async function checkStatus() {
 
 
     try {
+
+        // =================================
+        // STATUS API
+        // =================================
 
         const response =
             await fetch(
@@ -279,7 +327,14 @@ async function checkStatus() {
         ) {
 
             console.warn(
-                "STATUS 429: Rate Limit / Cloudflare"
+                "STATUS 429: Rate Limit"
+            );
+
+
+            console.warn(
+                "次回確認:",
+                RATE_LIMIT_INTERVAL,
+                "秒後"
             );
 
 
@@ -293,9 +348,12 @@ async function checkStatus() {
         }
 
 
-
         // =================================
         // Render一時エラー
+        //
+        // 502
+        // 503
+        // 504
         // =================================
 
         if (
@@ -310,15 +368,19 @@ async function checkStatus() {
             );
 
 
+            console.warn(
+                "変換JOB自体は終了扱いにしません"
+            );
+
+
             scheduleStatusCheck(
-                STATUS_INTERVAL
+                RENDER_ERROR_INTERVAL
             );
 
 
             return;
 
         }
-
 
 
         // =================================
@@ -347,7 +409,6 @@ async function checkStatus() {
         }
 
 
-
         // =================================
         // レスポンス取得
         // =================================
@@ -371,7 +432,6 @@ async function checkStatus() {
             return;
 
         }
-
 
 
         // =================================
@@ -413,6 +473,9 @@ async function checkStatus() {
         }
 
 
+        // =================================
+        // STATUSログ
+        // =================================
 
         console.log(
             "STATUS:",
@@ -420,9 +483,17 @@ async function checkStatus() {
         );
 
 
-
         // =================================
         // JOBなし
+        //
+        // 重要:
+        //
+        // JOBなし = 即エラー
+        // ではない。
+        //
+        // Render再起動や一時的な
+        // jobs辞書消失などを考慮して
+        // 最大300秒待つ。
         // =================================
 
         if (
@@ -437,12 +508,14 @@ async function checkStatus() {
                 "JOBなし:",
                 jobId,
                 "retry:",
-                statusRetryCount
+                statusRetryCount,
+                "/",
+                MAX_JOB_NOT_FOUND_RETRY
             );
 
 
             // ---------------------------------
-            // 一時的なJOB取得失敗
+            // まだ待機可能
             // ---------------------------------
 
             if (
@@ -450,8 +523,20 @@ async function checkStatus() {
                 MAX_JOB_NOT_FOUND_RETRY
             ) {
 
+                console.warn(
+                    "JOBなしは一時的な可能性があります"
+                );
+
+
+                console.warn(
+                    "STATUS監視継続:",
+                    JOB_NOT_FOUND_INTERVAL,
+                    "秒後"
+                );
+
+
                 scheduleStatusCheck(
-                    STATUS_INTERVAL
+                    JOB_NOT_FOUND_INTERVAL
                 );
 
 
@@ -461,11 +546,33 @@ async function checkStatus() {
 
 
             // ---------------------------------
-            // 一定回数を超えた場合
+            // 最大回数を超えた
             // ---------------------------------
 
             console.error(
-                "JOBなしが続いたためSTATUS監視を終了します"
+                "====================================="
+            );
+
+            console.error(
+                "JOBなしが長時間継続しました"
+            );
+
+            console.error(
+                "JOB ID:",
+                jobId
+            );
+
+            console.error(
+                "retry:",
+                statusRetryCount
+            );
+
+            console.error(
+                "STATUS監視を終了します"
+            );
+
+            console.error(
+                "====================================="
             );
 
 
@@ -498,8 +605,10 @@ async function checkStatus() {
 
                 downloadArea.innerHTML = `
                     <div class="download-error">
-                        変換JOBを確認できなくなりました。
-                        しばらくしてから再度実行してください。
+                        変換JOBを長時間確認できませんでした。<br>
+                        Render側の処理が終了したか、
+                        JOB情報が失われた可能性があります。<br>
+                        もう一度実行してください。
                     </div>
                 `;
 
@@ -511,7 +620,6 @@ async function checkStatus() {
         }
 
 
-
         // =================================
         // JOB正常取得
         //
@@ -520,7 +628,6 @@ async function checkStatus() {
 
         statusRetryCount =
             0;
-
 
 
         // =================================
@@ -546,7 +653,6 @@ async function checkStatus() {
         }
 
 
-
         // =================================
         // 再生時間
         // =================================
@@ -568,7 +674,6 @@ async function checkStatus() {
             }
 
         }
-
 
 
         // =================================
@@ -595,7 +700,6 @@ async function checkStatus() {
         }
 
 
-
         // =================================
         // running
         // =================================
@@ -620,7 +724,6 @@ async function checkStatus() {
         }
 
 
-
         // =================================
         // complete
         // =================================
@@ -630,8 +733,21 @@ async function checkStatus() {
         ) {
 
             console.log(
+                "====================================="
+            );
+
+            console.log(
                 "JOB完了:",
                 jobId
+            );
+
+            console.log(
+                "FILES:",
+                data.files
+            );
+
+            console.log(
+                "====================================="
             );
 
 
@@ -678,6 +794,21 @@ async function checkStatus() {
 
 
             // ---------------------------------
+            // ファイルがない場合
+            // ---------------------------------
+
+            if (
+                files.length === 0
+            ) {
+
+                console.warn(
+                    "JOBはcompleteですがfilesが空です"
+                );
+
+            }
+
+
+            // ---------------------------------
             // converter.jsへ
             // ---------------------------------
 
@@ -708,7 +839,6 @@ async function checkStatus() {
         }
 
 
-
         // =================================
         // error
         // =================================
@@ -718,9 +848,22 @@ async function checkStatus() {
         ) {
 
             console.error(
+                "====================================="
+            );
+
+            console.error(
                 "JOBエラー:",
                 data.message ||
                 "変換中にエラーが発生しました"
+            );
+
+            console.error(
+                "JOB ID:",
+                jobId
+            );
+
+            console.error(
+                "====================================="
             );
 
 
@@ -759,7 +902,6 @@ async function checkStatus() {
         }
 
 
-
         // =================================
         // 不明なSTATUS
         // =================================
@@ -774,6 +916,7 @@ async function checkStatus() {
             STATUS_INTERVAL
         );
 
+
     }
     catch (error) {
 
@@ -785,10 +928,14 @@ async function checkStatus() {
 
         // ---------------------------------
         // ネットワークエラー
-        // ---------------------------------
         //
-        // 変換JOB自体を終了扱いにしない
+        // ここではJOBを終了扱いにしない。
         // ---------------------------------
+
+        console.warn(
+            "ネットワークエラーのためSTATUS監視を継続します"
+        );
+
 
         scheduleStatusCheck(
             STATUS_INTERVAL
@@ -805,7 +952,7 @@ async function checkStatus() {
 // converter.js は
 //
 // window.converterStatus.start()
-// 
+//
 // を使用する
 // =====================================
 
