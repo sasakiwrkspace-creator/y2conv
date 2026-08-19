@@ -15,7 +15,6 @@ import time
 from datetime import datetime
 
 from routes.status import jobs
-from cleanup import cleanup_downloads
 
 from config import (
     BASE_DIR,
@@ -2051,23 +2050,6 @@ def convert_task(
             "DEBUG: Cookie作成完了",
             flush=True
         )
-
-
-        # ==================================================
-        # 古いファイル削除
-        # ==================================================
-
-        try:
-
-            cleanup_downloads()
-
-        except Exception as e:
-
-            print(
-                "WARNING: cleanup失敗:",
-                repr(e),
-                flush=True
-            )
 
 
         # ==================================================
