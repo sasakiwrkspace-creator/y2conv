@@ -59,19 +59,32 @@ else:
     SOURCE_COOKIE_FILE = LOCAL_COOKIE_FILE
 
 
-print("==========================================", flush=True)
-print("convert.py Cookie設定", flush=True)
+print(
+    "==========================================",
+    flush=True
+)
+
+print(
+    "convert.py Cookie設定",
+    flush=True
+)
+
 print(
     "RENDER:",
     os.environ.get("RENDER"),
     flush=True
 )
+
 print(
     "Cookie:",
     SOURCE_COOKIE_FILE,
     flush=True
 )
-print("==========================================", flush=True)
+
+print(
+    "==========================================",
+    flush=True
+)
 
 
 # ==========================================================
@@ -95,20 +108,33 @@ def check_cookie_file():
     )
 
 
-    print("==========================================", flush=True)
-    print("Cookieファイル確認", flush=True)
+    print(
+        "==========================================",
+        flush=True
+    )
+
+    print(
+        "Cookieファイル確認",
+        flush=True
+    )
+
     print(
         "ファイル:",
         SOURCE_COOKIE_FILE,
         flush=True
     )
+
     print(
         "サイズ:",
         file_size,
         "bytes",
         flush=True
     )
-    print("==========================================", flush=True)
+
+    print(
+        "==========================================",
+        flush=True
+    )
 
 
     if file_size == 0:
@@ -140,10 +166,12 @@ def create_temp_cookie_file():
             fd
         )
 
+
         shutil.copyfile(
             SOURCE_COOKIE_FILE,
             temp_cookie
         )
+
 
         print(
             "一時Cookie作成:",
@@ -151,7 +179,9 @@ def create_temp_cookie_file():
             flush=True
         )
 
+
         return temp_cookie
+
 
     except Exception:
 
@@ -172,6 +202,7 @@ def create_temp_cookie_file():
             except Exception:
 
                 pass
+
 
         raise
 
@@ -198,11 +229,13 @@ def remove_temp_cookie_file(
                 cookie_file
             )
 
+
             print(
                 "一時Cookie削除:",
                 cookie_file,
                 flush=True
             )
+
 
         except Exception as e:
 
@@ -251,15 +284,6 @@ def check_deno():
 
 # ==========================================================
 # 時間を秒へ変換
-#
-# 対応:
-#
-# 10
-# 1:30
-# 01:30
-# 1:02:30
-# 00:00:00
-#
 # ==========================================================
 
 def time_to_seconds(
@@ -296,9 +320,11 @@ def time_to_seconds(
                 parts[0]
             )
 
+
             if seconds < 0:
 
                 raise ValueError
+
 
             return seconds
 
@@ -317,6 +343,7 @@ def time_to_seconds(
                 parts[1]
             )
 
+
             if (
                 minutes < 0
                 or seconds < 0
@@ -324,6 +351,7 @@ def time_to_seconds(
             ):
 
                 raise ValueError
+
 
             return (
                 minutes * 60
@@ -349,6 +377,7 @@ def time_to_seconds(
                 parts[2]
             )
 
+
             if (
                 hours < 0
                 or minutes < 0
@@ -358,6 +387,7 @@ def time_to_seconds(
             ):
 
                 raise ValueError
+
 
             return (
                 hours * 3600
@@ -399,6 +429,7 @@ def seconds_to_time(
                 float(seconds)
             )
         )
+
 
     except Exception:
 
@@ -462,9 +493,11 @@ def check_ffmpeg():
 
         )
 
+
         return (
             result.returncode == 0
         )
+
 
     except Exception:
 
@@ -494,9 +527,11 @@ def check_ffprobe():
 
         )
 
+
         return (
             result.returncode == 0
         )
+
 
     except Exception:
 
@@ -577,6 +612,7 @@ def get_media_duration(
             result.stdout.strip()
         )
 
+
     except Exception as e:
 
         raise Exception(
@@ -636,10 +672,6 @@ def get_ydl_base_options(
 
         }
 
-
-        # --------------------------------------------------
-        # 現在のyt-dlpで利用可能なremote component
-        # --------------------------------------------------
 
         options["remote_components"] = {
 
@@ -735,14 +767,17 @@ def get_video_info(
 # ==========================================================
 # ソース動画ダウンロード
 #
-# 重要:
+# MP4の場合:
 #
-# 時間指定がある場合、
-# yt-dlp側で指定範囲に切り出す。
+# YouTube
+# ↓
+# yt-dlp
+# ↓
+# 指定範囲
+# ↓
+# MP4
 #
-# そのため後段のMP3/MP4では
-# 原則として再度時間範囲を指定しない。
-#
+# その後のMP4処理では再エンコードしない。
 # ==========================================================
 
 def download_source(
@@ -791,9 +826,11 @@ def download_source(
 
 
     # ======================================================
-    # MP4が必要
+    # MP4
     #
     # 映像 + 音声
+    #
+    # 可能な限りMP4映像 + M4A音声を使用
     # ======================================================
 
     if need_video:
@@ -810,7 +847,7 @@ def download_source(
 
 
     # ======================================================
-    # MP3だけ
+    # MP3
     #
     # 音声のみ
     # ======================================================
@@ -825,7 +862,7 @@ def download_source(
     # ======================================================
     # 時間範囲
     #
-    # ★ここでyt-dlp側が切り出す
+    # yt-dlp側で指定範囲を取得
     # ======================================================
 
     if (
@@ -852,15 +889,6 @@ def download_source(
             )
         )
 
-
-        # ==================================================
-        # 注意
-        #
-        # 音声のみの場合、
-        # force_keyframes_at_cuts は不要。
-        #
-        # 映像の場合も現在はFalseとしておく。
-        # ==================================================
 
         options["force_keyframes_at_cuts"] = False
 
@@ -975,10 +1003,6 @@ def download_source(
     )
 
 
-    # ======================================================
-    # yt-dlp
-    # ======================================================
-
     print(
         "DEBUG: yt-dlp START",
         flush=True
@@ -996,6 +1020,7 @@ def download_source(
                 flush=True
             )
 
+
             info = ydl.extract_info(
 
                 url,
@@ -1003,6 +1028,7 @@ def download_source(
                 download=True
 
             )
+
 
             print(
                 "DEBUG: extract_info returned",
@@ -1052,6 +1078,7 @@ def download_source(
         directory_files = os.listdir(
             source_dir
         )
+
 
     except Exception as e:
 
@@ -1241,17 +1268,7 @@ def safe_filename(
 # ==========================================================
 # FFmpegでMP3作成
 #
-# ★重要
-#
-# yt-dlp側ですでに時間範囲を切り出しているため、
-# ここでは再度 -ss / -t を指定しない。
-#
-# WebM 20秒
-# ↓
-# FFmpeg
-# ↓
-# MP3 20秒
-#
+# MP3は従来どおり再エンコードする。
 # ==========================================================
 
 def create_mp3(
@@ -1280,18 +1297,6 @@ def create_mp3(
     print(
         "出力:",
         output_file,
-        flush=True
-    )
-
-    print(
-        "開始:",
-        start_seconds,
-        flush=True
-    )
-
-    print(
-        "終了:",
-        end_seconds,
         flush=True
     )
 
@@ -1330,28 +1335,6 @@ def create_mp3(
         )
 
 
-    print(
-        "MP3入力サイズ:",
-        input_size,
-        "bytes",
-        flush=True
-    )
-
-
-    # ======================================================
-    # A方式
-    #
-    # WebMはすでにyt-dlpによって
-    # 指定範囲に切り出されている。
-    #
-    # したがって、
-    #
-    # -ss
-    # -t
-    #
-    # はここでは使用しない。
-    # ======================================================
-
     command = [
 
         "ffmpeg",
@@ -1389,18 +1372,6 @@ def create_mp3(
         flush=True
     )
 
-
-    # ======================================================
-    # FFmpeg実行
-    #
-    # stdout/stderrをPIPEにしない。
-    #
-    # Renderログへ直接出す。
-    #
-    # これにより、
-    # FFmpegの出力をPython側が溜め込んで
-    # プロセスが止まる問題を避ける。
-    # ======================================================
 
     try:
 
@@ -1475,10 +1446,6 @@ def create_mp3(
         )
 
 
-    # ======================================================
-    # ファイル確認
-    # ======================================================
-
     if not os.path.exists(
         output_file
     ):
@@ -1500,94 +1467,8 @@ def create_mp3(
         )
 
 
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    print(
-        "DEBUG: MP3保存先確認",
-        flush=True
-    )
-
-    print(
-        "output_file:",
-        output_file,
-        flush=True
-    )
-
-    print(
-        "絶対パス:",
-        os.path.abspath(output_file),
-        flush=True
-    )
-
-    print(
-        "exists:",
-        os.path.exists(output_file),
-        flush=True
-    )
-
-
-    if os.path.exists(
-        output_file
-    ):
-
-        print(
-            "size:",
-            os.path.getsize(output_file),
-            flush=True
-        )
-
-
-    print(
-        "DOWNLOAD_DIR:",
-        DOWNLOAD_DIR,
-        flush=True
-    )
-
-
-    try:
-
-        print(
-            "downloads内容:",
-            os.listdir(DOWNLOAD_DIR),
-            flush=True
-        )
-
-    except Exception as e:
-
-        print(
-            "downloads読み込み失敗:",
-            repr(e),
-            flush=True
-        )
-
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-
-    # ======================================================
-    # 実際のMP3再生時間
-    # ======================================================
-
-    print(
-        "DEBUG: MP3 duration取得開始",
-        flush=True
-    )
-
-
     actual_duration = get_media_duration(
         output_file
-    )
-
-
-    print(
-        "DEBUG: MP3 duration取得終了",
-        flush=True
     )
 
 
@@ -1620,12 +1501,6 @@ def create_mp3(
     )
 
     print(
-        "ファイル存在確認:",
-        os.path.isfile(output_file),
-        flush=True
-    )
-
-    print(
         "==========================================",
         flush=True
     )
@@ -1635,13 +1510,13 @@ def create_mp3(
 
 
 # ==========================================================
-# FFmpegでMP4作成
+# MP4そのまま使用
 #
-# A方式:
+# ★重要
 #
-# yt-dlp側ですでに指定範囲を取得しているため、
-# MP4側でも再度 -ss / -t を使用しない。
+# 再エンコードしない。
 #
+# YouTubeから取得したMP4をそのままコピーする。
 # ==========================================================
 
 def create_mp4(
@@ -1657,7 +1532,7 @@ def create_mp4(
     )
 
     print(
-        "MP4作成",
+        "MP4そのまま使用",
         flush=True
     )
 
@@ -1691,12 +1566,9 @@ def create_mp4(
     )
 
 
-    if not check_ffmpeg():
-
-        raise Exception(
-            "ffmpegが利用できません"
-        )
-
+    # ======================================================
+    # 入力確認
+    # ======================================================
 
     if not os.path.exists(
         source_file
@@ -1708,138 +1580,44 @@ def create_mp4(
         )
 
 
+    input_size = os.path.getsize(
+        source_file
+    )
+
+
+    if input_size <= 0:
+
+        raise Exception(
+            "MP4入力ファイルが0 bytesです"
+        )
+
+
+    print(
+        "MP4入力サイズ:",
+        input_size,
+        "bytes",
+        flush=True
+    )
+
+
     # ======================================================
-    # A方式
+    # MP4コピー
     #
-    # WebM / 元ファイル側ですでに時間範囲を処理済み。
+    # 再エンコードなし
     # ======================================================
 
-    command = [
+    shutil.copy2(
 
-        "ffmpeg",
-
-        "-y",
-
-        "-i",
         source_file,
-
-        "-map",
-        "0:v:0",
-
-        "-map",
-        "0:a:0?",
-
-        "-c:v",
-        "libx264",
-
-        "-preset",
-        "veryfast",
-
-        "-crf",
-        "23",
-
-        "-c:a",
-        "aac",
-
-        "-b:a",
-        "128k",
-
-        "-movflags",
-        "+faststart",
-
-        "-map_metadata",
-        "-1",
 
         output_file
 
-    ]
-
-
-    print(
-        "FFmpeg:",
-        command,
-        flush=True
     )
 
 
-    print(
-        "DEBUG: FFmpeg MP4 START",
-        flush=True
-    )
-
-
-    try:
-
-        result = subprocess.run(
-
-            command,
-
-            stdout=None,
-
-            stderr=None,
-
-            timeout=600
-
-        )
-
-
-    except subprocess.TimeoutExpired:
-
-        print(
-            "ERROR: FFmpeg MP4 TIMEOUT",
-            flush=True
-        )
-
-        raise Exception(
-            "MP4作成が10分以内に終了しませんでした"
-        )
-
-
-    except Exception as e:
-
-        print(
-            "ERROR: FFmpeg MP4実行例外:",
-            repr(e),
-            flush=True
-        )
-
-        raise
-
-
-    print(
-        "DEBUG: FFmpeg MP4 END",
-        flush=True
-    )
-
-
-    print(
-        "DEBUG: FFmpeg MP4 returncode:",
-        result.returncode,
-        flush=True
-    )
-
-
-    if result.returncode != 0:
-
-        if os.path.exists(
-            output_file
-        ):
-
-            try:
-
-                os.remove(
-                    output_file
-                )
-
-            except Exception:
-
-                pass
-
-
-        raise Exception(
-            "MP4作成に失敗しました"
-        )
-
+    # ======================================================
+    # 出力確認
+    # ======================================================
 
     if not os.path.exists(
         output_file
@@ -1862,18 +1640,8 @@ def create_mp4(
         )
 
 
-    actual_duration = get_media_duration(
-        output_file
-    )
-
-
     print(
-        "==========================================",
-        flush=True
-    )
-
-    print(
-        "MP4作成完了",
+        "MP4コピー完了",
         flush=True
     )
 
@@ -1886,14 +1654,29 @@ def create_mp4(
     print(
         "サイズ:",
         file_size,
+        "bytes",
         flush=True
     )
 
+
+    # ======================================================
+    # ffprobe
+    #
+    # 再エンコードではない。
+    # 再生時間を確認するだけ。
+    # ======================================================
+
+    actual_duration = get_media_duration(
+        output_file
+    )
+
+
     print(
-        "実際の再生時間:",
+        "MP4実際の再生時間:",
         actual_duration,
         flush=True
     )
+
 
     print(
         "==========================================",
@@ -1920,10 +1703,6 @@ def convert_task(
 
     temp_source_dir = None
 
-
-    # ======================================================
-    # 実行開始時刻
-    # ======================================================
 
     execution_start_timestamp = time.time()
 
@@ -2014,21 +1793,26 @@ def convert_task(
 
 
         # ==================================================
-        # FFmpeg確認
+        # FFmpeg / FFprobe確認
+        #
+        # MP4コピーだけでもffprobeは使用する。
+        # MP3の場合はFFmpegも必要。
         # ==================================================
-
-        if not check_ffmpeg():
-
-            raise Exception(
-                "ffmpegが利用できません"
-            )
-
 
         if not check_ffprobe():
 
             raise Exception(
                 "ffprobeが利用できません"
             )
+
+
+        if "mp3" in outputs:
+
+            if not check_ffmpeg():
+
+                raise Exception(
+                    "ffmpegが利用できません"
+                )
 
 
         # ==================================================
@@ -2234,14 +2018,9 @@ def convert_task(
             flush=True
         )
 
-        print(
-            "==========================================",
-            flush=True
-        )
-
 
         # ==================================================
-        # 指定時間が元動画を超えていないか
+        # 指定時間チェック
         # ==================================================
 
         if end_seconds is not None:
@@ -2271,7 +2050,7 @@ def convert_task(
 
 
         # ==================================================
-        # 選択時間から再生時間を計算
+        # 選択時間
         # ==================================================
 
         if (
@@ -2364,8 +2143,6 @@ def convert_task(
 
         # ==================================================
         # YouTube元データ取得
-        #
-        # ★時間指定はここで行う
         # ==================================================
 
         source_file, downloaded_info = (
@@ -2406,7 +2183,7 @@ def convert_task(
 
 
         # ==================================================
-        # 出力ファイル名
+        # 出力ファイル
         # ==================================================
 
         mp3_file = os.path.join(
@@ -2429,10 +2206,6 @@ def convert_task(
 
         files = []
 
-
-        # ==================================================
-        # 実際に作成されたファイルの再生時間
-        # ==================================================
 
         actual_duration = None
 
@@ -2496,6 +2269,8 @@ def convert_task(
 
         # ==================================================
         # MP4
+        #
+        # ★再エンコードしない
         # ==================================================
 
         if "mp4" in valid_outputs:
@@ -2507,6 +2282,11 @@ def convert_task(
 
             print(
                 "DEBUG: MP4処理開始",
+                flush=True
+            )
+
+            print(
+                "DEBUG: MP4再エンコードなし",
                 flush=True
             )
 
@@ -2541,10 +2321,6 @@ def convert_task(
                 )
             )
 
-
-            # ------------------------------------------------
-            # MP3がない場合はMP4の実測時間を使用
-            # ------------------------------------------------
 
             if actual_duration is None:
 
@@ -2706,14 +2482,6 @@ def convert_task(
         )
 
         print(
-            "Full再生時間 TEXT:",
-            seconds_to_time(
-                full_duration
-            ),
-            flush=True
-        )
-
-        print(
             "実行開始:",
             execution_start_text,
             flush=True
@@ -2745,10 +2513,6 @@ def convert_task(
 
 
     except Exception as e:
-
-        # ==================================================
-        # エラー時も実行時間を保存
-        # ==================================================
 
         execution_end_timestamp = time.time()
 
@@ -2968,8 +2732,6 @@ def register_convert(
 
             # ==================================================
             # outputs
-            #
-            # MP3 / MP4 / 両方
             # ==================================================
 
             outputs = data.get(
@@ -3052,10 +2814,6 @@ def register_convert(
                 ).strip()
 
 
-            # ==================================================
-            # 空文字
-            # ==================================================
-
             if start_time == "":
 
                 start_time = None
@@ -3105,9 +2863,7 @@ def register_convert(
 
 
             # ==================================================
-            # 終了時間だけの場合
-            #
-            # 00:00 ～ 終了時間
+            # 終了時間だけ
             # ==================================================
 
             if (
