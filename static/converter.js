@@ -340,10 +340,6 @@ document.addEventListener(
                         : "";
 
 
-                // =================================
-                // 確認ログ
-                // =================================
-
                 console.log(
                     "[TIME INPUT]",
                     prefix,
@@ -425,10 +421,6 @@ document.addEventListener(
                 );
 
 
-            // =================================
-            // 確認ログ
-            // =================================
-
             console.log(
                 "[TIME RANGE INPUT]",
                 {
@@ -441,9 +433,9 @@ document.addEventListener(
             );
 
 
-            // =================================
+            // ---------------------------------
             // 開始だけ指定
-            // =================================
+            // ---------------------------------
 
             if (
                 startTime &&
@@ -463,11 +455,10 @@ document.addEventListener(
             }
 
 
-            // =================================
+            // ---------------------------------
             // 終了だけ指定
-            //
             // 「最初から～20秒」
-            // =================================
+            // ---------------------------------
 
             if (
                 !startTime &&
@@ -487,9 +478,9 @@ document.addEventListener(
             }
 
 
-            // =================================
+            // ---------------------------------
             // 開始・終了とも指定
-            // =================================
+            // ---------------------------------
 
             return {
 
@@ -621,10 +612,6 @@ document.addEventListener(
                     : "mp3";
 
 
-            // ---------------------------------
-            // MP3
-            // ---------------------------------
-
             if (
                 outputFormat === "mp3"
             ) {
@@ -636,10 +623,6 @@ document.addEventListener(
             }
 
 
-            // ---------------------------------
-            // MP4
-            // ---------------------------------
-
             if (
                 outputFormat === "mp4"
             ) {
@@ -650,10 +633,6 @@ document.addEventListener(
 
             }
 
-
-            // ---------------------------------
-            // MP3 + MP4
-            // ---------------------------------
 
             if (
                 outputFormat === "mp3mp4"
@@ -786,7 +765,7 @@ document.addEventListener(
 
 
             // =================================
-            // 詳細確認ログ
+            // 確認ログ
             // =================================
 
             console.log(
@@ -854,18 +833,14 @@ document.addEventListener(
             currentJobId =
                 null;
 
-
             currentVideoTitle =
                 "";
-
 
             currentVideoDuration =
                 "";
 
-
             currentMp3File =
                 "";
-
 
             currentMp4File =
                 "";
@@ -1373,10 +1348,8 @@ document.addEventListener(
                     convertButton.style.display =
                         "";
 
-
                     convertButton.disabled =
                         false;
-
 
                     convertButton.innerHTML =
                         "実行";
@@ -1411,7 +1384,7 @@ document.addEventListener(
             // ダウンロードHTML
             // =================================
 
-            let html =
+            let downloadHtml =
                 "";
 
 
@@ -1421,12 +1394,7 @@ document.addEventListener(
 
             if (mp3File) {
 
-                html += `
-
-                    ${createConversionInfo(
-                        "MP3",
-                        data || {}
-                    )}
+                downloadHtml += `
 
                     <div class="download-section">
 
@@ -1444,15 +1412,6 @@ document.addEventListener(
                                 mp3
                             </a>
 
-                            <button
-                                type="button"
-                                id="srt-toggle-button"
-                                class="srt-toggle-button"
-                                aria-expanded="false"
-                            >
-                                ▼
-                            </button>
-
                         </div>
 
                     </div>
@@ -1468,12 +1427,7 @@ document.addEventListener(
 
             if (mp4File) {
 
-                html += `
-
-                    ${createConversionInfo(
-                        "MP4",
-                        data || {}
-                    )}
+                downloadHtml += `
 
                     <div class="download-section">
 
@@ -1501,11 +1455,144 @@ document.addEventListener(
 
 
             // =================================
-            // HTML反映
+            // 処理詳細
+            //
+            // 最初は閉じた状態
             // =================================
 
-            downloadArea.innerHTML =
-                html;
+            let detailHtml =
+                "";
+
+
+            if (mp3File) {
+
+                detailHtml +=
+                    createConversionInfo(
+                        "MP3",
+                        data || {}
+                    );
+
+            }
+
+
+            if (mp4File) {
+
+                detailHtml +=
+                    createConversionInfo(
+                        "MP4",
+                        data || {}
+                    );
+
+            }
+
+
+            // =================================
+            // 最終HTML
+            // =================================
+
+            downloadArea.innerHTML = `
+
+                <div class="conversion-summary">
+
+                    ${downloadHtml}
+
+                </div>
+
+
+                <div class="conversion-details">
+
+                    <button
+                        type="button"
+                        id="conversion-details-toggle"
+                        class="conversion-details-toggle"
+                        aria-expanded="false"
+                    >
+                        【処理詳細】 ▲
+                    </button>
+
+
+                    <div
+                        id="conversion-details-content"
+                        class="conversion-details-content"
+                        style="display:none;"
+                    >
+
+                        ${detailHtml}
+
+                    </div>
+
+                </div>
+
+            `;
+
+
+            // =================================
+            // 処理詳細 開閉
+            // =================================
+
+            const detailsToggle =
+                document.getElementById(
+                    "conversion-details-toggle"
+                );
+
+
+            const detailsContent =
+                document.getElementById(
+                    "conversion-details-content"
+                );
+
+
+            if (
+                detailsToggle &&
+                detailsContent
+            ) {
+
+                detailsToggle.addEventListener(
+                    "click",
+                    function () {
+
+                        const isHidden =
+                            detailsContent.style.display ===
+                            "none";
+
+
+                        if (isHidden) {
+
+                            detailsContent.style.display =
+                                "block";
+
+
+                            detailsToggle.textContent =
+                                "【処理詳細】 ▼";
+
+
+                            detailsToggle.setAttribute(
+                                "aria-expanded",
+                                "true"
+                            );
+
+                        }
+                        else {
+
+                            detailsContent.style.display =
+                                "none";
+
+
+                            detailsToggle.textContent =
+                                "【処理詳細】 ▲";
+
+
+                            detailsToggle.setAttribute(
+                                "aria-expanded",
+                                "false"
+                            );
+
+                        }
+
+                    }
+                );
+
+            }
 
 
             // =================================
@@ -1564,77 +1651,6 @@ document.addEventListener(
 
 
             // =================================
-            // ▼ボタン
-            // =================================
-
-            const toggle =
-                document.getElementById(
-                    "srt-toggle-button"
-                );
-
-
-            if (
-                toggle &&
-                srtArea
-            ) {
-
-                toggle.addEventListener(
-                    "click",
-                    function () {
-
-                        const isHidden =
-                            srtArea.style.display ===
-                            "none";
-
-
-                        if (isHidden) {
-
-                            srtArea.style.display =
-                                "block";
-
-
-                            if (srtContent) {
-
-                                srtContent.style.display =
-                                    "block";
-
-                            }
-
-
-                            toggle.textContent =
-                                "▲";
-
-
-                            toggle.setAttribute(
-                                "aria-expanded",
-                                "true"
-                            );
-
-                        }
-                        else {
-
-                            srtArea.style.display =
-                                "none";
-
-
-                            toggle.textContent =
-                                "▼";
-
-
-                            toggle.setAttribute(
-                                "aria-expanded",
-                                "false"
-                            );
-
-                        }
-
-                    }
-                );
-
-            }
-
-
-            // =================================
             // Gemini状態
             // =================================
 
@@ -1648,6 +1664,21 @@ document.addEventListener(
                 window.converterGemini.setFile(
                     mp3File
                 );
+
+            }
+
+
+            // =================================
+            // 実行ボタン復帰
+            // =================================
+
+            if (convertButton) {
+
+                convertButton.disabled =
+                    false;
+
+                convertButton.innerHTML =
+                    "実行";
 
             }
 
@@ -1706,7 +1737,7 @@ document.addEventListener(
 
                     <div class="conversion-info-title">
 
-                        【${window.converterUtils.escapeHtml(type)}変換】
+                        ★${window.converterUtils.escapeHtml(type)}変換
 
                     </div>
 
