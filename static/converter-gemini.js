@@ -7,6 +7,11 @@
 // ・SRT変換情報表示
 // ・タイトル / 再生時間は converterState から取得
 // ・SRT実行時間を正しく計測
+//
+// 表示仕様
+// ・MP3 / MP4 / SRT のダウンロードボタンは横並び
+// ・タイトルはダウンロードボタンの上には表示しない
+// ・SRT処理情報は「処理詳細」の中に表示
 // =====================================
 
 document.addEventListener(
@@ -68,6 +73,10 @@ document.addEventListener(
         }
 
 
+        // =====================================
+        // 時計
+        // =====================================
+
         function formatClock(date) {
 
             if (
@@ -103,6 +112,10 @@ document.addEventListener(
 
         }
 
+
+        // =====================================
+        // 経過時間
+        // =====================================
 
         function formatElapsed(seconds) {
 
@@ -155,6 +168,10 @@ document.addEventListener(
 
         }
 
+
+        // =====================================
+        // 再生時間
+        // =====================================
 
         function formatDuration(duration) {
 
@@ -294,6 +311,10 @@ document.addEventListener(
         }
 
 
+        // =====================================
+        // ダウンロードURL
+        // =====================================
+
         function makeDownloadUrl(filename) {
 
             if (
@@ -368,6 +389,10 @@ document.addEventListener(
 
         async function startGemini() {
 
+            // =================================
+            // SRT開始時刻
+            // =================================
+
             const srtStart =
                 new Date();
 
@@ -409,7 +434,15 @@ document.addEventListener(
             }
 
 
+            // =================================
+            // ボタンチェック
+            // =================================
+
             if (!geminiButton) {
+
+                console.error(
+                    "gemini-button が見つかりません"
+                );
 
                 return;
 
@@ -467,8 +500,16 @@ document.addEventListener(
                 "文字起こし中...";
 
 
+            // =================================
+            // 経過秒数
+            // =================================
+
             let seconds = 0;
 
+
+            // =================================
+            // 結果表示
+            // =================================
 
             if (result) {
 
@@ -631,9 +672,17 @@ document.addEventListener(
 
                 if (data.success) {
 
+                    // -----------------------------
+                    // SRT終了時刻
+                    // -----------------------------
+
                     const srtEnd =
                         new Date();
 
+
+                    // -----------------------------
+                    // 実測時間
+                    // -----------------------------
 
                     const actualElapsedSeconds =
                         Math.max(
@@ -647,6 +696,10 @@ document.addEventListener(
                         );
 
 
+                    // -----------------------------
+                    // サーバー側の秒数
+                    // -----------------------------
+
                     const responseSeconds =
                         Number(
                             data.seconds ??
@@ -654,13 +707,14 @@ document.addEventListener(
                         );
 
 
+                    // -----------------------------
+                    // 最終的なSRT処理時間
+                    //
+                    // 基本はブラウザで実測した時間を使用
+                    // -----------------------------
+
                     const finalSeconds =
-                        Number.isFinite(
-                            responseSeconds
-                        ) &&
-                        responseSeconds >= 0
-                            ? responseSeconds
-                            : actualElapsedSeconds;
+                        actualElapsedSeconds;
 
 
                     console.log(
@@ -686,7 +740,19 @@ document.addEventListener(
                     );
 
                     console.log(
-                        "[GEMINI] 実行時間:",
+                        "[GEMINI] 実測時間:",
+                        actualElapsedSeconds,
+                        "秒"
+                    );
+
+                    console.log(
+                        "[GEMINI] サーバー報告時間:",
+                        responseSeconds,
+                        "秒"
+                    );
+
+                    console.log(
+                        "[GEMINI] 採用時間:",
                         finalSeconds,
                         "秒"
                     );
@@ -701,6 +767,10 @@ document.addEventListener(
                     );
 
 
+                    // =================================
+                    // 結果非表示
+                    // =================================
+
                     if (result) {
 
                         result.style.display =
@@ -708,6 +778,10 @@ document.addEventListener(
 
                     }
 
+
+                    // =================================
+                    // Geminiボタン非表示
+                    // =================================
 
                     geminiButton.style.display =
                         "none";
@@ -797,7 +871,7 @@ document.addEventListener(
         // =====================================
         // SRT表示
         //
-        // MP3 / MP4の処理詳細の中に追加
+        // MP3 / MP4の「処理詳細」の中に追加
         // =====================================
 
         function showSrtDownload(
@@ -807,8 +881,14 @@ document.addEventListener(
             srtSeconds
         ) {
 
+            // =================================
+            // SRTファイル
+            // =================================
+
             const srtFile =
                 data.srt_file ||
+                data.srt ||
+                data.file ||
                 "";
 
 
@@ -823,6 +903,10 @@ document.addEventListener(
 
             }
 
+
+            // =================================
+            // 時刻補正
+            // =================================
 
             if (!srtStart) {
 
@@ -839,6 +923,10 @@ document.addEventListener(
 
             }
 
+
+            // =================================
+            // 実行時間補正
+            // =================================
 
             if (
                 srtSeconds ===
@@ -889,11 +977,11 @@ document.addEventListener(
 
             const srtInfo = `
 
-                <div class="conversion-info">
+                <div class="conversion-info srt-conversion-info">
 
                     <div class="conversion-info-title">
 
-                        【SRT変換】
+                        ★SRT変換
 
                     </div>
 
@@ -956,6 +1044,9 @@ document.addEventListener(
 
             // =================================
             // converter.jsへ渡す
+            //
+            // 処理詳細内へSRT情報を追加
+            // かつダウンロードボタンを追加
             // =================================
 
             if (
@@ -980,9 +1071,66 @@ document.addEventListener(
             }
 
 
+            // =================================
+            // SRTダウンロードボタン
+            //
+            // converter.js側でも追加するが、
+            // ここでも念のため直接更新
+            // =================================
+
+            const buttonContainer =
+                document.getElementById(
+                    "srt-download-button-container"
+                );
+
+
+            if (
+                buttonContainer &&
+                srtFile
+            ) {
+
+                buttonContainer.innerHTML = `
+
+                    <a
+                        href="${escapeHtml(
+                            makeDownloadUrl(
+                                srtFile
+                            )
+                        )}"
+                        download
+                        class="download-button"
+                        id="srt-download-button"
+                    >
+                        srt
+                    </a>
+
+                `;
+
+            }
+
+
+            // =================================
+            // 保存
+            // =================================
+
+            if (
+                window.converterState
+            ) {
+
+                window.converterState.currentSrtFile =
+                    srtFile;
+
+            }
+
+
+            // =================================
+            // ログ
+            // =================================
+
             console.log(
                 "[SRT DISPLAY]",
                 {
+
                     title:
                         title,
 
