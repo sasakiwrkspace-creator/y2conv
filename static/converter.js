@@ -13,11 +13,18 @@
 // ・converter-utils.js
 // ・converter-status.js
 // ・converter-gemini.js
+//
+// Gemini動作
+// ・MP3のみ      → 手動実行
+// ・MP4のみ      → Geminiなし
+// ・MP3 + MP4    → 自動実行
 // =====================================
+
 
 document.addEventListener(
     "DOMContentLoaded",
     function () {
+
 
         // =====================================
         // DOM
@@ -28,10 +35,12 @@ document.addEventListener(
                 "youtube-url"
             );
 
+
         const convertButton =
             document.getElementById(
                 "convertBtn"
             );
+
 
         const downloadArea =
             document.getElementById(
@@ -39,11 +48,13 @@ document.addEventListener(
             );
 
 
+
         // =====================================
         // JOB
         // =====================================
 
         let currentJobId = null;
+
 
 
         // =====================================
@@ -59,6 +70,7 @@ document.addEventListener(
         let convertEndTime = null;
 
 
+
         // =====================================
         // 動画情報
         // =====================================
@@ -68,6 +80,7 @@ document.addEventListener(
         let currentVideoDuration = "";
 
 
+
         // =====================================
         // ファイル
         // =====================================
@@ -75,6 +88,7 @@ document.addEventListener(
         let currentMp3File = "";
 
         let currentMp4File = "";
+
 
 
         // =====================================
@@ -157,6 +171,7 @@ document.addEventListener(
             }
 
         };
+
 
 
         // =====================================
@@ -251,6 +266,7 @@ document.addEventListener(
         }
 
 
+
         // =====================================
         // 時間入力設定
         // =====================================
@@ -261,11 +277,13 @@ document.addEventListener(
             )
         );
 
+
         setupNumericInput(
             document.getElementById(
                 "start-minute"
             )
         );
+
 
         setupNumericInput(
             document.getElementById(
@@ -280,17 +298,20 @@ document.addEventListener(
             )
         );
 
+
         setupNumericInput(
             document.getElementById(
                 "end-minute"
             )
         );
 
+
         setupNumericInput(
             document.getElementById(
                 "end-second"
             )
         );
+
 
 
         // =====================================
@@ -307,10 +328,12 @@ document.addEventListener(
                     prefix + "-hour"
                 );
 
+
             const minute =
                 document.getElementById(
                     prefix + "-minute"
                 );
+
 
             const second =
                 document.getElementById(
@@ -329,10 +352,12 @@ document.addEventListener(
                         ? hour.value.trim()
                         : "";
 
+
                 const m =
                     minute
                         ? minute.value.trim()
                         : "";
+
 
                 const s =
                     second
@@ -401,6 +426,7 @@ document.addEventListener(
             return element.value.trim();
 
         }
+
 
 
         // =====================================
@@ -495,6 +521,7 @@ document.addEventListener(
         }
 
 
+
         // =====================================
         // 変換時間表示
         // =====================================
@@ -523,6 +550,7 @@ document.addEventListener(
             `;
 
         }
+
 
 
         // =====================================
@@ -569,6 +597,7 @@ document.addEventListener(
         }
 
 
+
         // =====================================
         // 変換タイマー停止
         // =====================================
@@ -592,6 +621,7 @@ document.addEventListener(
                 new Date();
 
         }
+
 
 
         // =====================================
@@ -653,6 +683,7 @@ document.addEventListener(
         }
 
 
+
         // =====================================
         // 変換ボタン
         // =====================================
@@ -665,6 +696,7 @@ document.addEventListener(
             );
 
         }
+
 
 
         // =====================================
@@ -693,11 +725,13 @@ document.addEventListener(
         }
 
 
+
         // =====================================
         // 変換開始
         // =====================================
 
         async function startConvert() {
+
 
             // ---------------------------------
             // 二重実行防止
@@ -723,6 +757,7 @@ document.addEventListener(
                     : "";
 
 
+
             // ---------------------------------
             // URLチェック
             // ---------------------------------
@@ -736,6 +771,7 @@ document.addEventListener(
                 return;
 
             }
+
 
 
             // ---------------------------------
@@ -756,12 +792,14 @@ document.addEventListener(
             }
 
 
+
             // ---------------------------------
             // 時間範囲
             // ---------------------------------
 
             const timeRange =
                 getTimeRange();
+
 
 
             // =================================
@@ -772,29 +810,35 @@ document.addEventListener(
                 "======================================"
             );
 
+
             console.log(
                 "[CONVERT REQUEST]"
             );
+
 
             console.log(
                 "URL:",
                 url
             );
 
+
             console.log(
                 "開始時間:",
                 timeRange.start_time
             );
+
 
             console.log(
                 "終了時間:",
                 timeRange.end_time
             );
 
+
             console.log(
                 "出力:",
                 outputs
             );
+
 
 
             const requestBody = {
@@ -814,6 +858,7 @@ document.addEventListener(
             };
 
 
+
             console.log(
                 "送信JSON:",
                 JSON.stringify(
@@ -821,9 +866,11 @@ document.addEventListener(
                 )
             );
 
+
             console.log(
                 "======================================"
             );
+
 
 
             // =================================
@@ -833,17 +880,22 @@ document.addEventListener(
             currentJobId =
                 null;
 
+
             currentVideoTitle =
                 "";
+
 
             currentVideoDuration =
                 "";
 
+
             currentMp3File =
                 "";
 
+
             currentMp4File =
                 "";
+
 
 
             if (downloadArea) {
@@ -852,6 +904,7 @@ document.addEventListener(
                     "";
 
             }
+
 
 
             // =================================
@@ -882,6 +935,7 @@ document.addEventListener(
             }
 
 
+
             // =================================
             // ボタン
             // =================================
@@ -895,6 +949,7 @@ document.addEventListener(
 
 
             startConvertTimer();
+
 
 
             // =================================
@@ -936,6 +991,7 @@ document.addEventListener(
                     );
 
 
+
                 console.log(
                     "[CONVERT] レスポンス受信",
                     {
@@ -950,6 +1006,7 @@ document.addEventListener(
                             "ms"
                     }
                 );
+
 
 
                 // =================================
@@ -980,6 +1037,7 @@ document.addEventListener(
                 }
 
 
+
                 // =================================
                 // レスポンス
                 // =================================
@@ -1001,6 +1059,7 @@ document.addEventListener(
                     );
 
                 }
+
 
 
                 let data;
@@ -1035,10 +1094,12 @@ document.addEventListener(
                 }
 
 
+
                 console.log(
                     "[CONVERT] JSON:",
                     data
                 );
+
 
 
                 // =================================
@@ -1061,6 +1122,7 @@ document.addEventListener(
                         data.duration ||
                         data.video_duration ||
                         "";
+
 
 
                     console.log(
@@ -1091,6 +1153,7 @@ document.addEventListener(
                                 outputs
                         }
                     );
+
 
 
                     // =================================
@@ -1172,6 +1235,7 @@ document.addEventListener(
         }
 
 
+
         // =====================================
         // 完了処理
         //
@@ -1236,6 +1300,7 @@ document.addEventListener(
         };
 
 
+
         // =====================================
         // 完成ファイル表示
         // =====================================
@@ -1250,11 +1315,14 @@ document.addEventListener(
             }
 
 
+
             let mp3File =
                 "";
 
+
             let mp4File =
                 "";
+
 
 
             // =================================
@@ -1311,6 +1379,7 @@ document.addEventListener(
             }
 
 
+
             // =================================
             // 保存
             // =================================
@@ -1321,6 +1390,7 @@ document.addEventListener(
 
             currentMp4File =
                 mp4File;
+
 
 
             // =================================
@@ -1362,6 +1432,53 @@ document.addEventListener(
             }
 
 
+
+            // =================================
+            // 出力形式判定
+            //
+            // MP3のみ
+            // MP4のみ
+            // MP3 + MP4
+            // =================================
+
+            const isMp3Only =
+                Boolean(
+                    mp3File &&
+                    !mp4File
+                );
+
+
+            const isMp4Only =
+                Boolean(
+                    !mp3File &&
+                    mp4File
+                );
+
+
+            const isMp3Mp4 =
+                Boolean(
+                    mp3File &&
+                    mp4File
+                );
+
+
+
+            console.log(
+                "[OUTPUT TYPE]",
+                {
+                    mp3Only:
+                        isMp3Only,
+
+                    mp4Only:
+                        isMp4Only,
+
+                    mp3Mp4:
+                        isMp3Mp4
+                }
+            );
+
+
+
             // =================================
             // Gemini対象MP3
             // =================================
@@ -1380,12 +1497,14 @@ document.addEventListener(
             }
 
 
+
             // =================================
             // ダウンロードHTML
             // =================================
 
             let downloadHtml =
                 "";
+
 
 
             // =================================
@@ -1421,6 +1540,7 @@ document.addEventListener(
             }
 
 
+
             // =================================
             // MP4
             // =================================
@@ -1454,6 +1574,7 @@ document.addEventListener(
             }
 
 
+
             // =================================
             // 処理詳細
             //
@@ -1484,6 +1605,7 @@ document.addEventListener(
                     );
 
             }
+
 
 
             // =================================
@@ -1524,6 +1646,7 @@ document.addEventListener(
                 </div>
 
             `;
+
 
 
             // =================================
@@ -1595,8 +1718,9 @@ document.addEventListener(
             }
 
 
+
             // =================================
-            // Gemini領域
+            // Gemini / SRT領域
             // =================================
 
             const srtArea =
@@ -1611,27 +1735,35 @@ document.addEventListener(
                 );
 
 
-            if (srtArea) {
-
-                srtArea.style.display =
-                    "none";
-
-            }
-
-
-            if (srtContent) {
-
-                srtContent.style.display =
-                    "none";
-
-            }
-
 
             // =================================
-            // MP3なし
+            // MP4のみ
+            //
+            // Gemini不要
             // =================================
 
-            if (!mp3File) {
+            if (isMp4Only) {
+
+                console.log(
+                    "[GEMINI] MP4のみ"
+                );
+
+
+                if (srtArea) {
+
+                    srtArea.style.display =
+                        "none";
+
+                }
+
+
+                if (srtContent) {
+
+                    srtContent.style.display =
+                        "none";
+
+                }
+
 
                 if (
                     window.converterGemini &&
@@ -1645,86 +1777,245 @@ document.addEventListener(
                 }
 
 
+                if (convertButton) {
+
+                    convertButton.disabled =
+                        false;
+
+                    convertButton.innerHTML =
+                        "実行";
+
+                }
+
+
                 return;
 
             }
 
 
-            // =====================================
-            // Gemini状態
-            // =====================================
-            
-            if (
-                window.converterGemini &&
-                typeof
-                    window.converterGemini.setFile ===
-                    "function"
-            ) {
-            
-                window.converterGemini.setFile(
-                    mp3File
-                );
-            
-            }
-            
-            
-            // =====================================
-            // Gemini自動実行
-            //
-            // MP3 / MP4変換が完全に終了した後に
-            // Geminiを開始する
-            //
-            // 並列実行ではない
-            // =====================================
-            
-            if (
-                mp3File &&
-                mp4File &&
-                typeof window.startGemini === "function"
-            ) {
-            
-                console.log(
-                    "=========================================="
-                );
-            
-                console.log(
-                    "[CONVERTER] MP3 / MP4変換完了"
-                );
-            
-                console.log(
-                    "[CONVERTER] Gemini自動実行開始"
-                );
-            
-                console.log(
-                    "[CONVERTER] MP3:",
-                    mp3File
-                );
-            
-                console.log(
-                    "[CONVERTER] MP4:",
-                    mp4File
-                );
-            
-                console.log(
-                    "=========================================="
-                );
-            
-            
-                // DOM反映が完全に終わってから開始
-                setTimeout(
-                    function () {
-            
-                        window.startGemini();
-            
-                    },
-                    0
-                );
-            
-            }
-            
 
             // =================================
-            // 実行ボタン復帰
+            // MP3あり
+            // =================================
+
+            if (mp3File) {
+
+                // ---------------------------------
+                // GeminiにMP3を設定
+                // ---------------------------------
+
+                if (
+                    window.converterGemini &&
+                    typeof
+                        window.converterGemini.setFile ===
+                        "function"
+                ) {
+
+                    window.converterGemini.setFile(
+                        mp3File
+                    );
+
+                }
+
+
+                // ---------------------------------
+                // MP3のみ
+                //
+                // Geminiは自動実行しない
+                //
+                // ユーザーが
+                // 「MP3 ▼」
+                // を開いて手動実行する
+                // ---------------------------------
+
+                if (isMp3Only) {
+
+                    console.log(
+                        "=========================================="
+                    );
+
+
+                    console.log(
+                        "[GEMINI] MP3単独"
+                    );
+
+
+                    console.log(
+                        "[GEMINI] 自動実行しません"
+                    );
+
+
+                    console.log(
+                        "[GEMINI] ユーザーによる手動実行を待機"
+                    );
+
+
+                    console.log(
+                        "=========================================="
+                    );
+
+
+                    // ---------------------------------
+                    // MP3単独ではGemini領域を表示
+                    // ---------------------------------
+
+                    if (srtArea) {
+
+                        srtArea.style.display =
+                            "block";
+
+                    }
+
+
+                    if (srtContent) {
+
+                        srtContent.style.display =
+                            "none";
+
+                    }
+
+
+                    // ---------------------------------
+                    // 実行ボタン復帰
+                    // ---------------------------------
+
+                    if (convertButton) {
+
+                        convertButton.disabled =
+                            false;
+
+                        convertButton.innerHTML =
+                            "実行";
+
+                    }
+
+
+                    return;
+
+                }
+
+
+
+                // =====================================
+                // MP3 + MP4
+                //
+                // Gemini自動実行
+                // =====================================
+
+                if (isMp3Mp4) {
+
+                    console.log(
+                        "=========================================="
+                    );
+
+
+                    console.log(
+                        "[CONVERTER] MP3 / MP4変換完了"
+                    );
+
+
+                    console.log(
+                        "[CONVERTER] MP3 + MP4"
+                    );
+
+
+                    console.log(
+                        "[CONVERTER] Gemini自動実行開始"
+                    );
+
+
+                    console.log(
+                        "[CONVERTER] MP3:",
+                        mp3File
+                    );
+
+
+                    console.log(
+                        "[CONVERTER] MP4:",
+                        mp4File
+                    );
+
+
+                    console.log(
+                        "=========================================="
+                    );
+
+
+                    // ---------------------------------
+                    // Gemini領域を表示
+                    // ---------------------------------
+
+                    if (srtArea) {
+
+                        srtArea.style.display =
+                            "block";
+
+                    }
+
+
+                    if (srtContent) {
+
+                        srtContent.style.display =
+                            "none";
+
+                    }
+
+
+                    // ---------------------------------
+                    // DOM反映後にGemini開始
+                    // ---------------------------------
+
+                    if (
+                        typeof window.startGemini ===
+                        "function"
+                    ) {
+
+                        setTimeout(
+                            function () {
+
+                                window.startGemini();
+
+                            },
+                            0
+                        );
+
+                    }
+                    else {
+
+                        console.error(
+                            "[GEMINI] window.startGemini がありません"
+                        );
+
+                    }
+
+
+                    // ---------------------------------
+                    // 変換ボタン復帰
+                    //
+                    // Geminiは別処理として継続
+                    // ---------------------------------
+
+                    if (convertButton) {
+
+                        convertButton.disabled =
+                            false;
+
+                        convertButton.innerHTML =
+                            "実行";
+
+                    }
+
+
+                    return;
+
+                }
+
+            }
+
+
+
+            // =================================
+            // 安全処理
             // =================================
 
             if (convertButton) {
@@ -1738,6 +2029,7 @@ document.addEventListener(
             }
 
         }
+
 
 
         // =====================================
@@ -1784,6 +2076,7 @@ document.addEventListener(
                         convertEndTime
                     )
                     : "";
+
 
 
             return `
@@ -1843,6 +2136,7 @@ document.addEventListener(
             `;
 
         }
+
 
 
         // =====================================
