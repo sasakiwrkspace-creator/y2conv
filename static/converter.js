@@ -1650,23 +1650,78 @@ document.addEventListener(
             }
 
 
-            // =================================
+            // =====================================
             // Gemini状態
-            // =================================
-
+            // =====================================
+            
             if (
                 window.converterGemini &&
                 typeof
                     window.converterGemini.setFile ===
                     "function"
             ) {
-
+            
                 window.converterGemini.setFile(
                     mp3File
                 );
-
+            
             }
-
+            
+            
+            // =====================================
+            // Gemini自動実行
+            //
+            // MP3 / MP4変換が完全に終了した後に
+            // Geminiを開始する
+            //
+            // 並列実行ではない
+            // =====================================
+            
+            if (
+                mp3File &&
+                mp4File &&
+                typeof window.startGemini === "function"
+            ) {
+            
+                console.log(
+                    "=========================================="
+                );
+            
+                console.log(
+                    "[CONVERTER] MP3 / MP4変換完了"
+                );
+            
+                console.log(
+                    "[CONVERTER] Gemini自動実行開始"
+                );
+            
+                console.log(
+                    "[CONVERTER] MP3:",
+                    mp3File
+                );
+            
+                console.log(
+                    "[CONVERTER] MP4:",
+                    mp4File
+                );
+            
+                console.log(
+                    "=========================================="
+                );
+            
+            
+                // DOM反映が完全に終わってから開始
+                setTimeout(
+                    function () {
+            
+                        window.startGemini();
+            
+                    },
+                    0
+                );
+            
+            }
+            
 
             // =================================
             // 実行ボタン復帰
