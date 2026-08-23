@@ -170,6 +170,23 @@
             "click",
             function (event) {
 
+                // =================================
+                // 前回の表示をクリア
+                // =================================
+                
+                if (statusElement) {
+                
+                    statusElement.textContent = "";
+                
+                }
+                
+                
+                if (filesElement) {
+                
+                    filesElement.innerHTML = "";
+                
+                }
+                
                 console.log(
                     "[SUB EMBED] "
                     + "アップロードボタンがクリックされました"
