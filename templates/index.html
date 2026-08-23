@@ -54,98 +54,83 @@
         id="sub-embed-area"
         class="sub-embed-area"
     >
-
-        <div class="sub-embed-title">
-
-            【字幕を動画に埋め込む】
-
-        </div>
-
-
-        <!-- =====================================
-             MP4ファイル
-        ====================================== -->
-
-        <div class="sub-embed-file-row">
-
-            <label
-                for="sub-embed-mp4"
-                class="sub-embed-file-label"
-            >
-                MP4
-            </label>
-
-            <input
-                id="sub-embed-mp4"
-                class="sub-embed-file-input"
-                type="file"
-                accept=".mp4,video/mp4"
-            >
-
-        </div>
-
-
-        <!-- =====================================
-             SRTファイル
-        ====================================== -->
-
-        <div class="sub-embed-file-row">
-
-            <label
-                for="sub-embed-srt"
-                class="sub-embed-file-label"
-            >
-                SRT
-            </label>
-
-            <input
-                id="sub-embed-srt"
-                class="sub-embed-file-input"
-                type="file"
-                accept=".srt,text/plain"
-            >
-
-        </div>
-
-
-        <!-- =====================================
-             アップロードボタン
-        ====================================== -->
-
-        <div class="sub-embed-button-row">
-
-            <button
-                id="sub-embed-upload-button"
-                class="sub-embed-upload-button"
-                type="button"
-            >
-                アップロード
-            </button>
-
-        </div>
-
-
-        <!-- =====================================
-             アップロード状態
-        ====================================== -->
-
-        <div
-            id="sub-embed-status"
-            class="sub-embed-status"
-        ></div>
-
-
-        <!-- =====================================
-             アップロード済みファイル表示
-        ====================================== -->
-
-        <div
-            id="sub-embed-files"
-            class="sub-embed-files"
-        ></div>
-
+    
+        <details>
+    
+            <summary class="sub-embed-title">
+                【字幕を動画に埋め込む】
+            </summary>
+    
+    
+            <div class="sub-embed-content">
+    
+                <div class="sub-embed-file-row">
+    
+                    <label
+                        for="sub-embed-mp4"
+                        class="sub-embed-file-label"
+                    >
+                        MP4
+                    </label>
+    
+                    <input
+                        id="sub-embed-mp4"
+                        class="sub-embed-file-input"
+                        type="file"
+                        accept=".mp4,video/mp4"
+                    >
+    
+                </div>
+    
+    
+                <div class="sub-embed-file-row">
+    
+                    <label
+                        for="sub-embed-srt"
+                        class="sub-embed-file-label"
+                    >
+                        SRT
+                    </label>
+    
+                    <input
+                        id="sub-embed-srt"
+                        class="sub-embed-file-input"
+                        type="file"
+                        accept=".srt,text/plain"
+                    >
+    
+                </div>
+    
+    
+                <div class="sub-embed-button-row">
+    
+                    <button
+                        id="sub-embed-upload-button"
+                        class="sub-embed-upload-button"
+                        type="button"
+                    >
+                        アップロード
+                    </button>
+    
+                </div>
+    
+    
+                <div
+                    id="sub-embed-status"
+                    class="sub-embed-status"
+                ></div>
+    
+    
+                <div
+                    id="sub-embed-files"
+                    class="sub-embed-files"
+                ></div>
+    
+            </div>
+    
+        </details>
+    
     </div>
-
 
     <!-- =========================================
          URL + 実行
