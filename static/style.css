@@ -1211,3 +1211,327 @@ h1 {
     }
 
 }
+
+/* =========================================================
+   メインタブ
+   ========================================================= */
+
+.main-tabs {
+
+    display: flex;
+
+    width: 100%;
+
+    margin-bottom: 20px;
+
+    border-bottom: 2px solid #1976d2;
+
+}
+
+
+.main-tab-button {
+
+    flex: 1;
+
+    min-width: 0;
+
+    height: 46px;
+
+    padding: 0 10px;
+
+    border: none;
+
+    border-radius: 6px 6px 0 0;
+
+    background: #e5e7eb;
+
+    color: #555;
+
+    font-size: 15px;
+
+    font-weight: bold;
+
+    cursor: pointer;
+
+}
+
+
+.main-tab-button:hover {
+
+    background: #d5d8dc;
+
+}
+
+
+.main-tab-button.active {
+
+    background: #1976d2;
+
+    color: white;
+
+}
+
+
+/* =========================================================
+   タブコンテンツ
+   ========================================================= */
+
+.tab-content {
+
+    display: none;
+
+    width: 100%;
+
+}
+
+
+.tab-content.active {
+
+    display: block;
+
+}
+
+
+/* =========================================================
+   タブ内タイトル
+   ========================================================= */
+
+.tab-title {
+
+    margin-bottom: 18px;
+
+    font-size: 17px;
+
+    font-weight: bold;
+
+}
+
+
+/* =========================================================
+   字幕埋め込み
+   ========================================================= */
+
+.sub-embed-file-row {
+
+    display: flex;
+
+    align-items: center;
+
+    width: 100%;
+
+    margin-bottom: 14px;
+
+}
+
+
+.sub-embed-file-label {
+
+    width: 60px;
+
+    flex-shrink: 0;
+
+    font-size: 15px;
+
+    font-weight: bold;
+
+}
+
+
+.sub-embed-file-input {
+
+    flex: 1;
+
+    min-width: 0;
+
+    width: 100%;
+
+    font-size: 14px;
+
+}
+
+
+.sub-embed-button-row {
+
+    width: 100%;
+
+    margin-top: 20px;
+
+}
+
+
+.sub-embed-upload-button {
+
+    width: 100%;
+
+    height: 46px;
+
+    border: none;
+
+    border-radius: 6px;
+
+    background: #1976d2;
+
+    color: white;
+
+    font-size: 16px;
+
+    font-weight: bold;
+
+    cursor: pointer;
+
+}
+
+
+.sub-embed-upload-button:hover {
+
+    background: #1565c0;
+
+}
+
+
+.sub-embed-upload-button:disabled {
+
+    background: #999;
+
+    cursor: not-allowed;
+
+}
+
+
+/* =========================================================
+   字幕ステータス
+   ========================================================= */
+
+.sub-embed-status {
+
+    display: block;
+
+    width: 100%;
+
+    margin-top: 18px;
+
+    padding: 12px 14px;
+
+    border-radius: 6px;
+
+    background: #eeeeee;
+
+    white-space: pre-wrap;
+
+}
+
+
+.sub-embed-status:empty {
+
+    display: none;
+
+}
+
+
+/* =========================================================
+   字幕ファイル一覧
+   ========================================================= */
+
+.sub-embed-files {
+
+    width: 100%;
+
+    margin-top: 12px;
+
+}
+
+
+.sub-embed-files:empty {
+
+    display: none;
+
+}
+
+
+.sub-embed-files > div {
+
+    margin-bottom: 6px;
+
+    padding: 8px 10px;
+
+    border-radius: 5px;
+
+    background: white;
+
+    font-size: 14px;
+
+}
+
+
+/* =========================================================
+   スマホ
+   ========================================================= */
+
+@media screen and (max-width: 600px) {
+
+
+    .main-tabs {
+
+        margin-bottom: 18px;
+
+    }
+
+
+    .main-tab-button {
+
+        height: 44px;
+
+        padding: 0 5px;
+
+        font-size: 13px;
+
+    }
+
+
+    .tab-title {
+
+        margin-bottom: 16px;
+
+        font-size: 16px;
+
+    }
+
+
+    .sub-embed-file-row {
+
+        display: block;
+
+        margin-bottom: 16px;
+
+    }
+
+
+    .sub-embed-file-label {
+
+        display: block;
+
+        width: 100%;
+
+        margin-bottom: 6px;
+
+    }
+
+
+    .sub-embed-file-input {
+
+        width: 100%;
+
+        font-size: 13px;
+
+    }
+
+
+    .sub-embed-upload-button {
+
+        height: 44px;
+
+        font-size: 15px;
+
+    }
+
+}
