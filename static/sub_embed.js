@@ -11,6 +11,8 @@
 // xxx_sub_embed.mp4
 // ↓
 // ダウンロード
+//
+// 処理時間カウント付き
 // =====================================
 
 (function () {
@@ -216,6 +218,93 @@
                     "";
 
             }
+
+        }
+
+
+        // =================================
+        // 経過時間表示用
+        // =================================
+
+        function formatElapsedTime(
+            milliseconds
+        ) {
+
+            const totalSeconds =
+                Math.floor(
+                    milliseconds / 1000
+                );
+
+
+            const hours =
+                Math.floor(
+                    totalSeconds / 3600
+                );
+
+
+            const minutes =
+                Math.floor(
+                    (totalSeconds % 3600) / 60
+                );
+
+
+            const seconds =
+                totalSeconds % 60;
+
+
+            if (hours > 0) {
+
+                return (
+                    hours +
+                    "時間 " +
+                    minutes +
+                    "分 " +
+                    seconds +
+                    "秒"
+                );
+
+            }
+
+
+            if (minutes > 0) {
+
+                return (
+                    minutes +
+                    "分 " +
+                    seconds +
+                    "秒"
+                );
+
+            }
+
+
+            return (
+                seconds +
+                "秒"
+            );
+
+        }
+
+
+        // =================================
+        // 現在の処理時間を取得
+        // =================================
+
+        function getElapsedText(
+            startTime
+        ) {
+
+            const elapsed =
+                Date.now() -
+                startTime;
+
+
+            return (
+                "処理時間: " +
+                formatElapsedTime(
+                    elapsed
+                )
+            );
 
         }
 
@@ -620,6 +709,23 @@
 
 
                 // =================================
+                // 処理開始時間
+                // =================================
+
+                const startTime =
+                    Date.now();
+
+
+                console.log(
+                    "[SUB EMBED] "
+                    + "処理開始時間:",
+                    new Date(
+                        startTime
+                    ).toLocaleString()
+                );
+
+
+                // =================================
                 // ファイル取得
                 // =================================
 
@@ -754,8 +860,14 @@
                     // =================================
 
                     setStatus(
-                        "MP4をアップロードしています...",
+
+                        "MP4をアップロードしています...\n" +
+                        getElapsedText(
+                            startTime
+                        ),
+
                         null
+
                     );
 
 
@@ -777,8 +889,14 @@
                     // =================================
 
                     setStatus(
-                        "SRTをアップロードしています...",
+
+                        "SRTをアップロードしています...\n" +
+                        getElapsedText(
+                            startTime
+                        ),
+
                         null
+
                     );
 
 
@@ -800,9 +918,15 @@
                     // =================================
 
                     setStatus(
-                        "字幕を動画に付けています...\n"
-                        + "しばらくお待ちください。",
+
+                        "字幕を動画に付けています...\n" +
+                        "しばらくお待ちください。\n" +
+                        getElapsedText(
+                            startTime
+                        ),
+
                         null
+
                     );
 
 
@@ -824,14 +948,39 @@
 
 
                     // =================================
+                    // 処理時間計算
+                    // =================================
+
+                    const elapsedTime =
+                        Date.now() -
+                        startTime;
+
+
+                    const elapsedText =
+                        formatElapsedTime(
+                            elapsedTime
+                        );
+
+
+                    console.log(
+                        "[SUB EMBED] "
+                        + "総処理時間:",
+                        elapsedText
+                    );
+
+
+                    // =================================
                     // STEP 4
                     // 完了
                     // =================================
 
                     setStatus(
 
-                        "字幕焼き込みが完了しました。\n"
-                        + embedResult.filename,
+                        "字幕焼き込みが完了しました。\n" +
+                        embedResult.filename +
+                        "\n\n" +
+                        "処理時間: " +
+                        elapsedText,
 
                         "success"
 
@@ -857,7 +1006,23 @@
                         + "すべての処理が完了しました"
                     );
 
+
                 } catch (error) {
+
+                    // =================================
+                    // エラー時処理時間
+                    // =================================
+
+                    const elapsedTime =
+                        Date.now() -
+                        startTime;
+
+
+                    const elapsedText =
+                        formatElapsedTime(
+                            elapsedTime
+                        );
+
 
                     console.error(
                         "[SUB EMBED] "
@@ -866,14 +1031,29 @@
                     );
 
 
+                    console.error(
+                        "[SUB EMBED] "
+                        + "エラー発生までの時間:",
+                        elapsedText
+                    );
+
+
+                    // =================================
+                    // エラー表示
+                    // =================================
+
                     setStatus(
 
-                        "処理中にエラーが発生しました。\n"
-                        + error.message,
+                        "処理中にエラーが発生しました。\n" +
+                        error.message +
+                        "\n\n" +
+                        "エラー発生までの処理時間: " +
+                        elapsedText,
 
                         "error"
 
                     );
+
 
                 } finally {
 
