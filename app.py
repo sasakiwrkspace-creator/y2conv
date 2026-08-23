@@ -9,6 +9,7 @@ from routes.status import register_status
 from routes.download import register_download
 from routes.gemini import register_gemini
 from routes.files import register_files
+from routes.sub_embed_routes import register_sub_embed
 
 
 app = Flask(__name__)
