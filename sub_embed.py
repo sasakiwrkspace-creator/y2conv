@@ -1,422 +1,749 @@
-// =====================================
-// Subtitle Embed
-// sub_embed.js
-//
-// 第1段階：アップロード動作確認
-//
-// MP4 / SRTを選択
-// ↓
-// アップロードボタン
-// ↓
-// ボタンが押されたことを画面とConsoleに表示
-//
-// ※この段階ではまだサーバーへのアップロードは行わない
-// =====================================
+# =====================================
+# Subtitle Embed
+# sub_embed.py
+#
+# MP4動画へSRT字幕を焼き込む
+#
+# 入力:
+#   downloads/xxx.mp4
+#   downloads/xxx.srt
+#
+# 出力:
+#   downloads/xxx_sub_embed.mp4
+#
+# FFmpegを使用
+# =====================================
 
-(function () {
+import os
+import sys
+import subprocess
+from pathlib import Path
 
-    "use strict";
 
+# =====================================
+# 設定
+# =====================================
 
-    // =====================================
-    // 読み込み確認
-    // =====================================
+BASE_DIR = Path(
+    __file__
+).resolve().parent
 
-    console.log(
-        "[SUB EMBED] sub_embed.js loaded"
-    );
 
+DOWNLOADS_DIR = (
+    BASE_DIR /
+    "downloads"
+)
 
-    // =====================================
-    // DOM読み込み後に初期化
-    // =====================================
 
-    function initializeSubEmbed() {
+# =====================================
+# ログ
+# =====================================
 
-        console.log(
-            "[SUB EMBED] initialize start"
-        );
+def log(message):
 
+    print(
+        "[SUB EMBED]",
+        message,
+        flush=True
+    )
 
-        // =================================
-        // DOM取得
-        // =================================
 
-        const mp4Input =
-            document.getElementById(
-                "sub-embed-mp4"
-            );
+# =====================================
+# 入力ファイル確認
+# =====================================
 
+def validate_input_file(
+    file_path,
+    extension
+):
 
-        const srtInput =
-            document.getElementById(
-                "sub-embed-srt"
-            );
+    path = Path(
+        file_path
+    )
 
 
-        const uploadButton =
-            document.getElementById(
-                "sub-embed-upload-button"
-            );
+    # ---------------------------------
+    # 存在確認
+    # ---------------------------------
 
+    if not path.exists():
 
-        const statusElement =
-            document.getElementById(
-                "sub-embed-status"
-            );
+        raise FileNotFoundError(
+            f"ファイルがありません: {path}"
+        )
 
 
-        const filesElement =
-            document.getElementById(
-                "sub-embed-files"
-            );
+    # ---------------------------------
+    # ファイル確認
+    # ---------------------------------
 
+    if not path.is_file():
 
-        // =================================
-        // DOM確認
-        // =================================
+        raise ValueError(
+            f"ファイルではありません: {path}"
+        )
 
-        console.log(
-            "[SUB EMBED] MP4 input:",
-            mp4Input
-        );
 
+    # ---------------------------------
+    # 拡張子確認
+    # ---------------------------------
 
-        console.log(
-            "[SUB EMBED] SRT input:",
-            srtInput
-        );
+    if path.suffix.lower() != extension:
 
+        raise ValueError(
+            f"{extension} ファイルではありません: {path}"
+        )
 
-        console.log(
-            "[SUB EMBED] upload button:",
-            uploadButton
-        );
 
+    return path
 
-        console.log(
-            "[SUB EMBED] status:",
-            statusElement
-        );
 
+# =====================================
+# 出力ファイル名
+# =====================================
 
-        console.log(
-            "[SUB EMBED] files:",
-            filesElement
-        );
+def make_output_path(
+    mp4_path
+):
 
+    mp4_path = Path(
+        mp4_path
+    )
 
-        // =================================
-        // アップロードボタン確認
-        // =================================
 
-        if (!uploadButton) {
+    stem = mp4_path.stem
 
-            console.error(
-                "[SUB EMBED] アップロードボタンが見つかりません"
-            );
 
-            if (statusElement) {
+    # ---------------------------------
+    # すでに _sub_embed の場合
+    # ---------------------------------
 
-                statusElement.textContent =
-                    "エラー：アップロードボタンが見つかりません。";
+    if stem.lower().endswith(
+        "_sub_embed"
+    ):
 
-            }
+        output_stem = stem
 
-            return;
-        }
+    else:
 
+        output_stem = (
+            stem +
+            "_sub_embed"
+        )
 
-        // =================================
-        // アップロードボタン
-        // =================================
 
-        uploadButton.addEventListener(
-            "click",
-            function () {
+    return (
+        mp4_path.parent /
+        (
+            output_stem +
+            ".mp4"
+        )
+    )
 
-                console.log(
-                    "[SUB EMBED] アップロードボタンが押されました"
-                );
 
+# =====================================
+# SRTパスをFFmpeg用に変換
+#
+# subtitles filter用
+#
+# Linux:
+#   /opt/render/project/src/downloads/test.srt
+#
+# Windows:
+#   C:/xxx/test.srt
+# =====================================
 
-                // =============================
-                // 画面に確認メッセージ
-                // =============================
+def escape_subtitle_path(
+    srt_path
+):
 
-                if (statusElement) {
+    path = str(
+        Path(srt_path).resolve()
+    )
 
-                    statusElement.textContent =
-                        "アップロードボタンが押されました";
 
-                }
+    # ---------------------------------
+    # バックスラッシュをスラッシュへ
+    # ---------------------------------
 
+    path = path.replace(
+        "\\",
+        "/"
+    )
 
-                // =============================
-                // MP4確認
-                // =============================
 
-                let mp4File = null;
+    # ---------------------------------
+    # Windowsのドライブレター対応
+    #
+    # C:/xxx
+    # ↓
+    # C\:/xxx
+    # ---------------------------------
 
+    path = path.replace(
+        ":",
+        "\\:"
+    )
 
-                if (
-                    mp4Input &&
-                    mp4Input.files &&
-                    mp4Input.files.length > 0
-                ) {
 
-                    mp4File =
-                        mp4Input.files[0];
+    # ---------------------------------
+    # シングルクォート対応
+    # ---------------------------------
 
-                }
+    path = path.replace(
+        "'",
+        "\\'"
+    )
 
 
-                // =============================
-                // SRT確認
-                // =============================
+    return path
 
-                let srtFile = null;
 
+# =====================================
+# FFmpeg存在確認
+# =====================================
 
-                if (
-                    srtInput &&
-                    srtInput.files &&
-                    srtInput.files.length > 0
-                ) {
+def check_ffmpeg():
 
-                    srtFile =
-                        srtInput.files[0];
+    log(
+        "FFmpeg確認開始"
+    )
 
-                }
 
+    try:
 
-                // =============================
-                // 選択ファイルConsole表示
-                // =============================
+        result = subprocess.run(
 
-                console.log(
-                    "[SUB EMBED] MP4:",
-                    mp4File
-                );
+            [
+                "ffmpeg",
+                "-version"
+            ],
 
+            stdout=subprocess.PIPE,
 
-                console.log(
-                    "[SUB EMBED] SRT:",
-                    srtFile
-                );
+            stderr=subprocess.PIPE,
 
+            text=True,
 
-                // =============================
-                // ファイル選択状態を画面表示
-                // =============================
+            timeout=30
 
-                let message =
-                    "アップロードボタンが押されました";
+        )
 
+    except FileNotFoundError:
 
-                if (mp4File) {
+        raise RuntimeError(
+            "FFmpegが見つかりません。"
+            "FFmpegをインストールしてPATHを設定してください。"
+        )
 
-                    message +=
-                        "\nMP4: " +
-                        mp4File.name;
 
-                } else {
+    except subprocess.TimeoutExpired:
 
-                    message +=
-                        "\nMP4: 未選択";
+        raise RuntimeError(
+            "FFmpegの確認がタイムアウトしました。"
+        )
 
-                }
 
+    if result.returncode != 0:
 
-                if (srtFile) {
+        raise RuntimeError(
+            "FFmpegを実行できませんでした。"
+        )
 
-                    message +=
-                        "\nSRT: " +
-                        srtFile.name;
 
-                } else {
+    # ---------------------------------
+    # バージョン表示
+    # ---------------------------------
 
-                    message +=
-                        "\nSRT: 未選択";
+    first_line = (
+        result.stdout.splitlines()[0]
+        if result.stdout
+        else "FFmpeg"
+    )
 
-                }
 
+    log(
+        first_line
+    )
 
-                if (statusElement) {
 
-                    statusElement.textContent =
-                        message;
+    return True
 
-                }
 
+# =====================================
+# 字幕焼き込み
+# =====================================
 
-                // =============================
-                // ファイル一覧表示
-                // =============================
+def embed_subtitle(
+    mp4_path,
+    srt_path,
+    output_path=None
+):
 
-                if (filesElement) {
+    # =================================
+    # 入力MP4確認
+    # =================================
 
-                    filesElement.innerHTML = "";
+    mp4_path = validate_input_file(
+        mp4_path,
+        ".mp4"
+    )
 
 
-                    if (mp4File) {
+    # =================================
+    # 入力SRT確認
+    # =================================
 
-                        const mp4Info =
-                            document.createElement(
-                                "div"
-                            );
+    srt_path = validate_input_file(
+        srt_path,
+        ".srt"
+    )
 
 
-                        mp4Info.textContent =
-                            "MP4: " +
-                            mp4File.name;
+    # =================================
+    # 出力先
+    # =================================
 
+    if output_path:
 
-                        filesElement.appendChild(
-                            mp4Info
-                        );
+        output_path = Path(
+            output_path
+        )
 
-                    }
+    else:
 
+        output_path = make_output_path(
+            mp4_path
+        )
 
-                    if (srtFile) {
 
-                        const srtInfo =
-                            document.createElement(
-                                "div"
-                            );
+    # =================================
+    # 出力フォルダ作成
+    # =================================
 
+    output_path.parent.mkdir(
+        parents=True,
+        exist_ok=True
+    )
 
-                        srtInfo.textContent =
-                            "SRT: " +
-                            srtFile.name;
 
+    # =================================
+    # FFmpeg確認
+    # =================================
 
-                        filesElement.appendChild(
-                            srtInfo
-                        );
+    check_ffmpeg()
 
-                    }
 
-                }
+    # =================================
+    # SRTパス
+    # =================================
 
+    subtitle_path = (
+        escape_subtitle_path(
+            srt_path
+        )
+    )
 
-                // =============================
-                // 重要
-                //
-                // 現段階ではまだ
-                // fetch() は実行しない
-                //
-                // まずボタンイベントが正常に
-                // 動作するか確認する。
-                // =============================
 
-                console.log(
-                    "[SUB EMBED] アップロード処理テスト終了"
-                );
+    # =================================
+    # FFmpegコマンド
+    #
+    # 字幕:
+    #   subtitles filter
+    #
+    # 映像:
+    #   libx264で再エンコード
+    #
+    # 音声:
+    #   そのままコピー
+    # =================================
 
-            }
-        );
+    command = [
 
+        "ffmpeg",
 
-        // =================================
-        // MP4選択イベント
-        // =================================
+        "-y",
 
-        if (mp4Input) {
+        "-i",
+        str(mp4_path),
 
-            mp4Input.addEventListener(
-                "change",
-                function () {
+        "-vf",
+        "subtitles=" + subtitle_path,
 
-                    if (
-                        this.files &&
-                        this.files.length > 0
-                    ) {
+        "-c:v",
+        "libx264",
 
-                        console.log(
-                            "[SUB EMBED] MP4選択:",
-                            this.files[0].name
-                        );
+        "-preset",
+        "medium",
 
-                    } else {
+        "-crf",
+        "18",
 
-                        console.log(
-                            "[SUB EMBED] MP4選択解除"
-                        );
+        "-c:a",
+        "copy",
 
-                    }
+        str(output_path)
 
-                }
-            );
+    ]
 
-        }
 
+    # =================================
+    # ログ
+    # =================================
 
-        // =================================
-        // SRT選択イベント
-        // =================================
+    log(
+        "字幕焼き込み開始"
+    )
 
-        if (srtInput) {
+    log(
+        f"MP4: {mp4_path}"
+    )
 
-            srtInput.addEventListener(
-                "change",
-                function () {
+    log(
+        f"SRT: {srt_path}"
+    )
 
-                    if (
-                        this.files &&
-                        this.files.length > 0
-                    ) {
+    log(
+        f"出力: {output_path}"
+    )
 
-                        console.log(
-                            "[SUB EMBED] SRT選択:",
-                            this.files[0].name
-                        );
 
-                    } else {
+    log(
+        "FFmpeg実行"
+    )
 
-                        console.log(
-                            "[SUB EMBED] SRT選択解除"
-                        );
 
-                    }
+    # =================================
+    # FFmpeg実行
+    # =================================
 
-                }
-            );
+    try:
 
-        }
+        result = subprocess.run(
 
+            command,
 
-        // =================================
-        // 初期化完了
-        // =================================
+            stdout=subprocess.PIPE,
 
-        console.log(
-            "[SUB EMBED] initialize complete"
-        );
+            stderr=subprocess.PIPE,
 
-    }
+            text=True
 
+        )
 
-    // =====================================
-    // DOMContentLoaded
-    // =====================================
+    except Exception as error:
 
-    if (
-        document.readyState ===
-        "loading"
-    ) {
+        raise RuntimeError(
+            "FFmpeg実行中にエラーが発生しました: "
+            + str(error)
+        )
 
-        document.addEventListener(
-            "DOMContentLoaded",
-            initializeSubEmbed
-        );
 
-    } else {
+    # =================================
+    # FFmpegエラー
+    # =================================
 
-        initializeSubEmbed();
+    if result.returncode != 0:
 
-    }
+        log(
+            "FFmpegエラー"
+        )
 
 
-})();
+        if result.stderr:
+
+            print(
+                result.stderr,
+                file=sys.stderr,
+                flush=True
+            )
+
+
+        error_detail = (
+            result.stderr[-3000:]
+            if result.stderr
+            else "FFmpegからエラー内容が返されませんでした。"
+        )
+
+
+        raise RuntimeError(
+            "字幕焼き込みに失敗しました。"
+            "\n"
+            +
+            error_detail
+        )
+
+
+    # =================================
+    # 出力ファイル確認
+    # =================================
+
+    if not output_path.exists():
+
+        raise RuntimeError(
+            "FFmpegは終了しましたが、"
+            "出力ファイルが作成されていません。"
+        )
+
+
+    # =================================
+    # サイズ確認
+    # =================================
+
+    output_size = (
+        output_path.stat().st_size
+    )
+
+
+    if output_size <= 0:
+
+        raise RuntimeError(
+            "出力ファイルのサイズが0です。"
+        )
+
+
+    # =================================
+    # 完了ログ
+    # =================================
+
+    log(
+        "字幕焼き込み完了"
+    )
+
+    log(
+        f"出力ファイル: {output_path}"
+    )
+
+    log(
+        f"サイズ: {output_size} bytes"
+    )
+
+
+    return output_path
+
+
+# =====================================
+# downloads内のファイルを指定して実行
+# =====================================
+
+def embed_from_downloads(
+    mp4_filename,
+    srt_filename
+):
+
+    # ---------------------------------
+    # ファイル名からパス部分を除去
+    # ---------------------------------
+
+    mp4_filename = Path(
+        mp4_filename
+    ).name
+
+
+    srt_filename = Path(
+        srt_filename
+    ).name
+
+
+    # ---------------------------------
+    # downloadsパス
+    # ---------------------------------
+
+    mp4_path = (
+        DOWNLOADS_DIR /
+        mp4_filename
+    )
+
+
+    srt_path = (
+        DOWNLOADS_DIR /
+        srt_filename
+    )
+
+
+    log(
+        f"downloads MP4: {mp4_path}"
+    )
+
+    log(
+        f"downloads SRT: {srt_path}"
+    )
+
+
+    # ---------------------------------
+    # 字幕焼き込み
+    # ---------------------------------
+
+    return embed_subtitle(
+        mp4_path,
+        srt_path
+    )
+
+
+# =====================================
+# コマンドライン実行
+#
+# 例:
+#
+# python sub_embed.py test.mp4 test.srt
+#
+# =====================================
+
+def main():
+
+    # =================================
+    # 引数確認
+    # =================================
+
+    if len(sys.argv) < 3:
+
+        print()
+
+        print(
+            "使用方法:"
+        )
+
+        print(
+            "python sub_embed.py "
+            "動画.mp4 字幕.srt"
+        )
+
+        print()
+
+        print(
+            "例:"
+        )
+
+        print(
+            "python sub_embed.py "
+            "test.mp4 test.srt"
+        )
+
+        print()
+
+        print(
+            "入力ファイルは downloads/ "
+            "に置いてください。"
+        )
+
+        print()
+
+        return 1
+
+
+    # =================================
+    # 引数取得
+    # =================================
+
+    mp4_filename = (
+        sys.argv[1]
+    )
+
+
+    srt_filename = (
+        sys.argv[2]
+    )
+
+
+    # =================================
+    # 実行
+    # =================================
+
+    try:
+
+        output_path = (
+            embed_from_downloads(
+                mp4_filename,
+                srt_filename
+            )
+        )
+
+
+        # =================================
+        # 成功表示
+        # =================================
+
+        print()
+
+        print(
+            "====================================="
+        )
+
+        print(
+            "字幕焼き込み成功"
+        )
+
+        print(
+            "====================================="
+        )
+
+        print(
+            f"入力MP4: {mp4_filename}"
+        )
+
+        print(
+            f"入力SRT: {srt_filename}"
+        )
+
+        print(
+            f"出力: {output_path.name}"
+        )
+
+        print(
+            f"出力パス: {output_path}"
+        )
+
+        print(
+            "====================================="
+        )
+
+        print()
+
+
+        return 0
+
+
+    # =================================
+    # エラー
+    # =================================
+
+    except Exception as error:
+
+        print()
+
+        print(
+            "====================================="
+        )
+
+        print(
+            "字幕焼き込み失敗"
+        )
+
+        print(
+            "====================================="
+        )
+
+        print(
+            str(error),
+            file=sys.stderr
+        )
+
+        print(
+            "====================================="
+        )
+
+        print()
+
+
+        return 1
+
+
+# =====================================
+# 実行
+# =====================================
+
+if __name__ == "__main__":
+
+    sys.exit(
+        main()
+    )
