@@ -57,7 +57,7 @@ register_status(app)
 register_download(app)
 register_gemini(app)
 register_files(app)
-
+register_sub_embed(app)
 
 # =====================================
 # 起動
