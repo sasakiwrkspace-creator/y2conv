@@ -62,13 +62,11 @@ def validate_input_file(
         file_path
     )
 
-
     if not path.exists():
 
         raise FileNotFoundError(
             f"ファイルがありません: {path}"
         )
-
 
     if not path.is_file():
 
@@ -76,13 +74,11 @@ def validate_input_file(
             f"ファイルではありません: {path}"
         )
 
-
     if path.suffix.lower() != extension:
 
         raise ValueError(
             f"{extension} ファイルではありません: {path}"
         )
-
 
     return path
 
@@ -99,9 +95,7 @@ def make_output_path(
         mp4_path
     )
 
-
     stem = mp4_path.stem
-
 
     if stem.lower().endswith(
         "_sub_embed"
@@ -115,7 +109,6 @@ def make_output_path(
             stem +
             "_sub_embed"
         )
-
 
     return (
         mp4_path.parent /
@@ -136,7 +129,6 @@ def check_ffmpeg():
         "FFmpeg確認開始"
     )
 
-
     try:
 
         result = subprocess.run(
@@ -152,6 +144,10 @@ def check_ffmpeg():
 
             text=True,
 
+            encoding="utf-8",
+
+            errors="replace",
+
             timeout=30
 
         )
@@ -163,20 +159,34 @@ def check_ffmpeg():
             "Render側でFFmpegをインストールしてください。"
         )
 
-
     except subprocess.TimeoutExpired:
 
         raise RuntimeError(
             "FFmpegの確認がタイムアウトしました。"
         )
 
+    except Exception as error:
+
+        raise RuntimeError(
+            "FFmpeg確認中にエラーが発生しました: "
+            +
+            str(error)
+        )
 
     if result.returncode != 0:
 
-        raise RuntimeError(
-            "FFmpegを実行できませんでした。"
+        error_detail = (
+            result.stderr
+            if result.stderr
+            else
+            "FFmpegからエラー内容が返されませんでした。"
         )
 
+        raise RuntimeError(
+            "FFmpegを実行できませんでした。\n"
+            +
+            error_detail
+        )
 
     first_line = (
         result.stdout.splitlines()[0]
@@ -184,11 +194,9 @@ def check_ffmpeg():
         else "FFmpeg"
     )
 
-
     log(
         first_line
     )
-
 
     return True
 
@@ -196,7 +204,8 @@ def check_ffmpeg():
 # =====================================
 # 字幕ファイルの文字コード確認
 #
-# SRTは基本UTF-8を想定
+# SRTはUTF-8を想定
+# UTF-8 BOMありも許可
 # =====================================
 
 def validate_srt_encoding(
@@ -206,7 +215,6 @@ def validate_srt_encoding(
     srt_path = Path(
         srt_path
     )
-
 
     try:
 
@@ -218,7 +226,6 @@ def validate_srt_encoding(
 
             file.read()
 
-
     except UnicodeDecodeError:
 
         raise RuntimeError(
@@ -226,6 +233,94 @@ def validate_srt_encoding(
             "\n"
             "SRTをUTF-8形式で保存してください。"
         )
+
+
+# =====================================
+# 字幕ファイル内容確認
+# =====================================
+
+def validate_srt_content(
+    srt_path
+):
+
+    srt_path = Path(
+        srt_path
+    )
+
+    try:
+
+        with open(
+            srt_path,
+            "r",
+            encoding="utf-8-sig"
+        ) as file:
+
+            content = file.read()
+
+    except Exception as error:
+
+        raise RuntimeError(
+            "SRTファイルの読み込みに失敗しました: "
+            +
+            str(error)
+        )
+
+    if not content.strip():
+
+        raise RuntimeError(
+            "SRTファイルが空です。"
+        )
+
+    log(
+        f"SRT文字数: {len(content)}"
+    )
+
+
+# =====================================
+# FFmpeg用字幕パス作成
+#
+# FFmpegのsubtitles filterでは
+# Windows / Linuxのパス記号などが
+# filter parserに影響するため、
+# 必要なエスケープを行う。
+# =====================================
+
+def make_ffmpeg_subtitle_path(
+    srt_path
+):
+
+    srt_path = Path(
+        srt_path
+    ).resolve()
+
+    subtitle_path = str(
+        srt_path
+    )
+
+    # ---------------------------------
+    # Windows形式のバックスラッシュ対策
+    # ---------------------------------
+
+    subtitle_path = subtitle_path.replace(
+        "\\",
+        "/"
+    )
+
+    # ---------------------------------
+    # FFmpeg filter parser用エスケープ
+    # ---------------------------------
+
+    subtitle_path = subtitle_path.replace(
+        "'",
+        "\\'"
+    )
+
+    subtitle_path = subtitle_path.replace(
+        ":",
+        "\\:"
+    )
+
+    return subtitle_path
 
 
 # =====================================
@@ -244,7 +339,6 @@ def embed_subtitle(
 
     start_time = time.monotonic()
 
-
     # =================================
     # 入力確認
     # =================================
@@ -254,12 +348,17 @@ def embed_subtitle(
         ".mp4"
     )
 
-
     srt_path = validate_input_file(
         srt_path,
         ".srt"
     )
 
+    # =================================
+    # 絶対パス化
+    # =================================
+
+    mp4_path = mp4_path.resolve()
+    srt_path = srt_path.resolve()
 
     # =================================
     # SRT確認
@@ -269,6 +368,9 @@ def embed_subtitle(
         srt_path
     )
 
+    validate_srt_content(
+        srt_path
+    )
 
     # =================================
     # 出力先
@@ -278,14 +380,13 @@ def embed_subtitle(
 
         output_path = Path(
             output_path
-        )
+        ).resolve()
 
     else:
 
         output_path = make_output_path(
             mp4_path
-        )
-
+        ).resolve()
 
     # =================================
     # 出力フォルダ
@@ -296,13 +397,11 @@ def embed_subtitle(
         exist_ok=True
     )
 
-
     # =================================
     # FFmpeg確認
     # =================================
 
     check_ffmpeg()
-
 
     # =================================
     # ログ
@@ -312,50 +411,51 @@ def embed_subtitle(
         "字幕焼き込み開始"
     )
 
-
     log(
         f"MP4: {mp4_path}"
     )
-
 
     log(
         f"SRT: {srt_path}"
     )
 
-
     log(
         f"出力: {output_path}"
     )
 
+    # =================================
+    # ファイルサイズ確認
+    # =================================
+
+    mp4_size = (
+        mp4_path.stat().st_size
+    )
+
+    srt_size = (
+        srt_path.stat().st_size
+    )
+
+    log(
+        f"入力MP4サイズ: {mp4_size} bytes"
+    )
+
+    log(
+        f"入力SRTサイズ: {srt_size} bytes"
+    )
 
     # =================================
-    # FFmpegコマンド
-    #
-    # filter_complexではなく
-    # subtitles=filename の形を使用
-    #
-    # filename部分をシングルクォートで
-    # 囲んでFFmpegのfilter parserへ渡す
+    # FFmpeg字幕パス
     # =================================
 
     subtitle_path = (
-        str(
-            srt_path.resolve()
-        )
-        .replace(
-            "\\",
-            "/"
-        )
-        .replace(
-            "'",
-            "\\'"
-        )
-        .replace(
-            ":",
-            "\\:"
+        make_ffmpeg_subtitle_path(
+            srt_path
         )
     )
 
+    # =================================
+    # video filter
+    # =================================
 
     video_filter = (
         "subtitles='"
@@ -365,6 +465,9 @@ def embed_subtitle(
         "'"
     )
 
+    # =================================
+    # FFmpegコマンド
+    # =================================
 
     command = [
 
@@ -394,15 +497,13 @@ def embed_subtitle(
 
     ]
 
+    # =================================
+    # FFmpeg実行ログ
+    # =================================
 
     log(
         "FFmpeg実行"
     )
-
-
-    # =================================
-    # コマンド確認
-    # =================================
 
     log(
         "FFmpeg video filter:"
@@ -412,6 +513,15 @@ def embed_subtitle(
         video_filter
     )
 
+    log(
+        "FFmpeg command:"
+    )
+
+    log(
+        " ".join(
+            command
+        )
+    )
 
     # =================================
     # FFmpeg実行
@@ -427,17 +537,33 @@ def embed_subtitle(
 
             stderr=subprocess.PIPE,
 
-            text=True
+            text=True,
 
+            encoding="utf-8",
+
+            errors="replace"
+
+        )
+
+    except FileNotFoundError:
+
+        raise RuntimeError(
+            "FFmpeg実行ファイルが見つかりません。"
+        )
+
+    except subprocess.TimeoutExpired:
+
+        raise RuntimeError(
+            "FFmpeg処理がタイムアウトしました。"
         )
 
     except Exception as error:
 
         raise RuntimeError(
             "FFmpeg実行中にエラーが発生しました: "
-            + str(error)
+            +
+            str(error)
         )
-
 
     # =================================
     # 処理時間
@@ -449,6 +575,58 @@ def embed_subtitle(
         start_time
     )
 
+    # =================================
+    # FFmpeg終了情報
+    # =================================
+
+    log(
+        f"FFmpeg return code: {result.returncode}"
+    )
+
+    # =================================
+    # stdout
+    # =================================
+
+    if result.stdout:
+
+        log(
+            "FFmpeg stdout:"
+        )
+
+        print(
+            result.stdout,
+            flush=True
+        )
+
+    else:
+
+        log(
+            "FFmpeg stdout: なし"
+        )
+
+    # =================================
+    # stderr
+    #
+    # FFmpegは通常、進捗やエラーを
+    # stderrへ出力する。
+    # =================================
+
+    if result.stderr:
+
+        log(
+            "FFmpeg stderr:"
+        )
+
+        print(
+            result.stderr,
+            flush=True
+        )
+
+    else:
+
+        log(
+            "FFmpeg stderr: なし"
+        )
 
     # =================================
     # FFmpegエラー
@@ -460,23 +638,12 @@ def embed_subtitle(
             "FFmpegエラー"
         )
 
-
-        if result.stderr:
-
-            print(
-                result.stderr,
-                file=sys.stderr,
-                flush=True
-            )
-
-
         error_detail = (
-            result.stderr[-5000:]
+            result.stderr[-10000:]
             if result.stderr
             else
             "FFmpegからエラー内容が返されませんでした。"
         )
-
 
         raise RuntimeError(
 
@@ -495,7 +662,6 @@ def embed_subtitle(
 
         )
 
-
     # =================================
     # 出力確認
     # =================================
@@ -504,11 +670,10 @@ def embed_subtitle(
 
         raise RuntimeError(
 
-            "FFmpegは終了しましたが、"
+            "FFmpegは正常終了しましたが、"
             "出力ファイルが作成されていません。"
 
         )
-
 
     # =================================
     # サイズ確認
@@ -518,13 +683,11 @@ def embed_subtitle(
         output_path.stat().st_size
     )
 
-
     if output_size <= 0:
 
         raise RuntimeError(
             "出力ファイルのサイズが0です。"
         )
-
 
     # =================================
     # 完了ログ
@@ -534,16 +697,13 @@ def embed_subtitle(
         "字幕焼き込み完了"
     )
 
-
     log(
         f"出力ファイル: {output_path}"
     )
 
-
     log(
         f"サイズ: {output_size} bytes"
     )
-
 
     log(
         "処理時間: "
@@ -552,7 +712,6 @@ def embed_subtitle(
             elapsed_time
         )
     )
-
 
     return output_path
 
@@ -569,21 +728,17 @@ def format_elapsed_time(
         round(seconds)
     )
 
-
     hours = (
         seconds // 3600
     )
-
 
     minutes = (
         seconds % 3600
     ) // 60
 
-
     secs = (
         seconds % 60
     )
-
 
     return (
         f"{hours:02d}:"
@@ -601,41 +756,70 @@ def embed_from_downloads(
     srt_filename
 ):
 
+    # ---------------------------------
+    # ファイル名のみ取得
+    # ---------------------------------
+
     mp4_filename = Path(
         mp4_filename
     ).name
-
 
     srt_filename = Path(
         srt_filename
     ).name
 
+    # ---------------------------------
+    # downloadsパス
+    # ---------------------------------
 
     mp4_path = (
         DOWNLOADS_DIR /
         mp4_filename
     )
 
-
     srt_path = (
         DOWNLOADS_DIR /
         srt_filename
     )
 
+    # ---------------------------------
+    # ログ
+    # ---------------------------------
 
     log(
         f"downloads MP4: {mp4_path}"
     )
 
-
     log(
         f"downloads SRT: {srt_path}"
     )
 
+    # ---------------------------------
+    # 存在確認
+    # ---------------------------------
+
+    if not mp4_path.exists():
+
+        raise FileNotFoundError(
+            f"downloadsにMP4がありません: {mp4_path}"
+        )
+
+    if not srt_path.exists():
+
+        raise FileNotFoundError(
+            f"downloadsにSRTがありません: {srt_path}"
+        )
+
+    # ---------------------------------
+    # 字幕焼き込み
+    # ---------------------------------
 
     return embed_subtitle(
+
         mp4_path,
+
         srt_path
+
     )
 
 
@@ -662,19 +846,15 @@ def main():
 
         return 1
 
-
     mp4_filename = (
         sys.argv[1]
     )
-
 
     srt_filename = (
         sys.argv[2]
     )
 
-
     start_time = time.monotonic()
-
 
     try:
 
@@ -685,13 +865,11 @@ def main():
             )
         )
 
-
         elapsed_time = (
             time.monotonic()
             -
             start_time
         )
-
 
         print()
 
@@ -737,9 +915,7 @@ def main():
 
         print()
 
-
         return 0
-
 
     except Exception as error:
 
@@ -748,7 +924,6 @@ def main():
             -
             start_time
         )
-
 
         print()
 
@@ -766,7 +941,8 @@ def main():
 
         print(
             str(error),
-            file=sys.stderr
+            file=sys.stderr,
+            flush=True
         )
 
         print(
@@ -775,7 +951,8 @@ def main():
             format_elapsed_time(
                 elapsed_time
             ),
-            file=sys.stderr
+            file=sys.stderr,
+            flush=True
         )
 
         print(
@@ -783,7 +960,6 @@ def main():
         )
 
         print()
-
 
         return 1
 
