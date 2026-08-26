@@ -1535,3 +1535,54 @@ h1 {
     }
 
 }
+
+.sub-embed-download-section {
+
+    width: 100%;
+
+    margin-top: 18px;
+
+    padding: 0;
+
+    background: none;
+
+    font-size: initial;
+
+}
+
+
+.sub-embed-download-label {
+
+    display: block;
+
+    height: auto;
+
+    margin-bottom: 8px;
+
+    padding: 0;
+
+    background: none;
+
+    color: #333;
+
+    font-size: 16px;
+
+    font-weight: bold;
+
+    white-space: nowrap;
+
+}
+
+
+@media screen and (max-width: 600px) {
+
+    .sub-embed-download-label {
+
+        font-size: 14px;
+
+        margin-bottom: 7px;
+
+    }
+
+}
+
