@@ -349,7 +349,7 @@
 
 
             <!-- =====================================
-                 MP3 / MP4
+                 字幕MP4
             ====================================== -->
 
             <label class="output-format-option">
@@ -358,12 +358,12 @@
                 <input
                     type="radio"
                     name="output-format"
-                    value="mp3mp4"
+                    value="subtitle_mp4"
                 >
 
 
                 <span>
-                    mp3/mp4
+                    字幕MP4
                 </span>
 
 
@@ -386,6 +386,7 @@
         <!-- =========================================
              途中経過ステータス
         ========================================== -->
+
         <div
             id="conversion-status-area"
             class="conversion-status-area"
@@ -393,9 +394,11 @@
             aria-live="polite"
         ></div>
 
-        
+
         <!-- =========================================
              Gemini用ファイル名
+
+             converter.js がMP3作成後に設定する
         ========================================== -->
 
         <input
@@ -407,6 +410,13 @@
 
         <!-- =========================================
              ダウンロード結果
+
+             MP3
+             MP4
+             SRT
+             字幕MP4
+
+             すべてここを基準に表示する
         ========================================== -->
 
         <div
@@ -417,6 +427,14 @@
 
         <!-- =========================================
              Gemini文字起こしエリア
+
+             MP3選択時：
+             手動Geminiボタンを表示可能
+
+             字幕MP4選択時：
+             自動処理のため基本的に
+             converter.js / converter-gemini.js
+             から制御する
         ========================================== -->
 
         <div
@@ -426,43 +444,135 @@
 
 
             <!-- =====================================
-                 Gemini文字起こしボタン
+                 Gemini手動実行エリア
             ====================================== -->
 
-            <button
-                id="gemini-button"
-                class="gemini-button"
-                type="button"
+            <div
+                id="gemini-manual-area"
+                class="gemini-manual-area"
             >
-                Geminiで文字起こし
-            </button>
+
+
+                <!-- =================================
+                     折り畳み見出し
+                ================================== -->
+
+                <button
+                    id="gemini-toggle-button"
+                    class="gemini-toggle-button"
+                    type="button"
+                    aria-expanded="false"
+                    aria-controls="gemini-content"
+                >
+                    ▲ Geminiで文字起こし
+                </button>
+
+
+                <!-- =================================
+                     Gemini内容
+                ================================== -->
+
+                <div
+                    id="gemini-content"
+                    class="gemini-content"
+                    style="display:none;"
+                >
+
+
+                    <!-- =============================
+                         Gemini文字起こしボタン
+                    ============================== -->
+
+                    <button
+                        id="gemini-button"
+                        class="gemini-button"
+                        type="button"
+                    >
+                        Geminiで文字起こし
+                    </button>
+
+
+                    <!-- =============================
+                         Gemini処理結果
+                    ============================== -->
+
+                    <div
+                        id="gemini-result"
+                    ></div>
+
+
+                    <!-- =============================
+                         SRTコンテンツ
+                    ============================== -->
+
+                    <div
+                        id="srt-content"
+                        style="display:none;"
+                    ></div>
+
+
+                    <!-- =============================
+                         SRTダウンロード
+                    ============================== -->
+
+                    <div
+                        id="srt-download-area"
+                    ></div>
+
+
+                    <!-- =============================
+                         SRTダウンロード用
+                         converter.jsとの互換領域
+                    ============================== -->
+
+                    <div
+                        id="srt-download-button-container"
+                    ></div>
+
+
+                </div>
+
+
+            </div>
+
+
+        </div>
+
+
+        <!-- =========================================
+             字幕MP4処理結果
+
+             字幕MP4選択時のみ使用
+
+             最終的な字幕MP4ボタンを
+             ダウンロードボタン群の左側に
+             暖色系で表示する
+        ========================================== -->
+
+        <div
+            id="subtitle-mp4-area"
+            class="subtitle-mp4-area"
+            style="display:none;"
+        >
 
 
             <!-- =====================================
-                 Gemini処理結果
+                 字幕MP4情報
             ====================================== -->
 
             <div
-                id="gemini-result"
+                id="subtitle-mp4-info"
+                class="subtitle-mp4-info"
             ></div>
 
 
             <!-- =====================================
-                 SRTコンテンツ
+                 字幕MP4ダウンロード
             ====================================== -->
 
             <div
-                id="srt-content"
-                style="display:none;"
-            ></div>
-
-
-            <!-- =====================================
-                 SRTダウンロード
-            ====================================== -->
-
-            <div
-                id="srt-download-area"
+                id="subtitle-mp4-download-container"
+                class="subtitle-mp4-download-container"
             ></div>
 
 
@@ -716,6 +826,89 @@ document.addEventListener(
 
                     }
                 );
+
+
+            }
+        );
+
+
+    }
+);
+
+</script>
+
+
+<!-- =========================================
+     Gemini折り畳み
+========================================== -->
+
+<script>
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+
+        const toggleButton =
+            document.getElementById(
+                "gemini-toggle-button"
+            );
+
+
+        const geminiContent =
+            document.getElementById(
+                "gemini-content"
+            );
+
+
+        if (
+            !toggleButton ||
+            !geminiContent
+        ) {
+
+            return;
+
+        }
+
+
+        toggleButton.addEventListener(
+            "click",
+            function () {
+
+
+                const isOpen =
+                    geminiContent.style.display !==
+                    "none";
+
+
+                if (isOpen) {
+
+                    geminiContent.style.display =
+                        "none";
+
+                    toggleButton.textContent =
+                        "▲ Geminiで文字起こし";
+
+                    toggleButton.setAttribute(
+                        "aria-expanded",
+                        "false"
+                    );
+
+                }
+                else {
+
+                    geminiContent.style.display =
+                        "block";
+
+                    toggleButton.textContent =
+                        "▼ Geminiで文字起こし";
+
+                    toggleButton.setAttribute(
+                        "aria-expanded",
+                        "true"
+                    );
+
+                }
 
 
             }
