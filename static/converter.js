@@ -534,46 +534,21 @@ document.addEventListener(
             // =================================
             // ★ 動画タイトルを表示
             //
-            // currentVideoTitle は /convert の
-            // レスポンスから取得したタイトル
-            //
             // options.videoTitle が指定された場合は
             // そちらを優先
+            //
+            // 指定がなければ現在保持している
+            // currentVideoTitle を使用
             // =================================
 
-            currentVideoTitle =
-                data.title ||
-                data.video_title ||
+            const statusVideoTitle =
+                options.videoTitle ||
+                currentVideoTitle ||
                 "";
-            
-            
-            currentVideoDuration =
-                data.duration ||
-                data.video_duration ||
-                "";
-            
-            
-            
-            // =================================
-            // ★ タイトル取得直後に表示
-            // =================================
-            
-            if (currentVideoTitle) {
-            
-                updateProcessingStatus(
-                    "convert",
-                    "変換処理を開始しています...",
-                    {
-                        title:
-                            "実行中・・・",
-            
-                        videoTitle:
-                            currentVideoTitle
-                    }
-                );
-            
-            }
 
+
+            videoTitle.textContent =
+                statusVideoTitle;
 
 
 
@@ -748,6 +723,15 @@ document.addEventListener(
                     break;
 
             }
+
+
+
+            // =================================
+            // ステータスアイコン
+            // =================================
+
+            icon.textContent =
+                statusIcon;
 
 
 
@@ -1018,351 +1002,51 @@ document.addEventListener(
 
 
         // =====================================
-        // 数字入力
-        // =====================================
-
-        function setupNumericInput(element) {
-
-
-            if (!element) {
-
-                return;
-
-            }
-
-
-            element.addEventListener(
-                "input",
-                function () {
-
-                    this.value =
-                        this.value.replace(
-                            /[^0-9]/g,
-                            ""
-                        );
-
-                }
-            );
-
-
-            element.addEventListener(
-                "keydown",
-                function (event) {
-
-
-                    const allowedKeys = [
-
-                        "Backspace",
-                        "Delete",
-
-                        "ArrowLeft",
-                        "ArrowRight",
-                        "ArrowUp",
-                        "ArrowDown",
-
-                        "Tab",
-
-                        "Home",
-                        "End"
-
-                    ];
-
-
-                    if (
-                        allowedKeys.includes(
-                            event.key
-                        )
-                    ) {
-
-                        return;
-
-                    }
-
-
-                    if (
-                        event.ctrlKey ||
-                        event.metaKey
-                    ) {
-
-                        return;
-
-                    }
-
-
-                    if (
-                        !/^[0-9]$/.test(
-                            event.key
-                        )
-                    ) {
-
-                        event.preventDefault();
-
-                    }
-
-                }
-            );
-
-
-            element.setAttribute(
-                "inputmode",
-                "numeric"
-            );
-
-
-            element.setAttribute(
-                "pattern",
-                "[0-9]*"
-            );
-
-        }
-
-
-
-        // =====================================
         // 時間入力設定
+        //
+        // converter-utils.js に一本化
         // =====================================
 
-        setupNumericInput(
+        window.converterUtils.setupNumericInput(
             document.getElementById(
                 "start-hour"
             )
         );
 
 
-        setupNumericInput(
+        window.converterUtils.setupNumericInput(
             document.getElementById(
                 "start-minute"
             )
         );
 
 
-        setupNumericInput(
+        window.converterUtils.setupNumericInput(
             document.getElementById(
                 "start-second"
             )
         );
 
 
-        setupNumericInput(
+        window.converterUtils.setupNumericInput(
             document.getElementById(
                 "end-hour"
             )
         );
 
 
-        setupNumericInput(
+        window.converterUtils.setupNumericInput(
             document.getElementById(
                 "end-minute"
             )
         );
 
 
-        setupNumericInput(
+        window.converterUtils.setupNumericInput(
             document.getElementById(
                 "end-second"
             )
         );
-
-
-
-        // =====================================
-        // 時間取得
-        // =====================================
-
-        function getTimeValue(prefix) {
-
-
-            const hour =
-                document.getElementById(
-                    prefix + "-hour"
-                );
-
-
-            const minute =
-                document.getElementById(
-                    prefix + "-minute"
-                );
-
-
-            const second =
-                document.getElementById(
-                    prefix + "-second"
-                );
-
-
-            if (
-                hour ||
-                minute ||
-                second
-            ) {
-
-
-                const h =
-                    hour
-                        ? hour.value.trim()
-                        : "";
-
-
-                const m =
-                    minute
-                        ? minute.value.trim()
-                        : "";
-
-
-                const s =
-                    second
-                        ? second.value.trim()
-                        : "";
-
-
-                console.log(
-                    "[TIME INPUT]",
-                    prefix,
-                    {
-                        hour: h,
-                        minute: m,
-                        second: s
-                    }
-                );
-
-
-                if (
-                    !h &&
-                    !m &&
-                    !s
-                ) {
-
-                    return "";
-
-                }
-
-
-                const result =
-                    window.converterUtils.makeTime(
-                        h,
-                        m,
-                        s
-                    );
-
-
-                console.log(
-                    "[TIME VALUE]",
-                    prefix,
-                    "=>",
-                    result
-                );
-
-
-                return result;
-
-            }
-
-
-
-            // ---------------------------------
-            // 旧UI対応
-            // ---------------------------------
-
-            const element =
-                document.getElementById(
-                    prefix
-                );
-
-
-            if (!element) {
-
-                return "";
-
-            }
-
-
-            return element.value.trim();
-
-        }
-
-
-
-        // =====================================
-        // 時間範囲
-        // =====================================
-
-        function getTimeRange() {
-
-
-            const startTime =
-                getTimeValue(
-                    "start"
-                );
-
-
-            const endTime =
-                getTimeValue(
-                    "end"
-                );
-
-
-            console.log(
-                "[TIME RANGE INPUT]",
-                {
-                    startTime:
-                        startTime,
-
-                    endTime:
-                        endTime
-                }
-            );
-
-
-
-            if (
-                startTime &&
-                !endTime
-            ) {
-
-                return {
-
-                    start_time:
-                        startTime,
-
-                    end_time:
-                        ""
-
-                };
-
-            }
-
-
-
-            if (
-                !startTime &&
-                endTime
-            ) {
-
-                return {
-
-                    start_time:
-                        "00:00:00",
-
-                    end_time:
-                        endTime
-
-                };
-
-            }
-
-
-
-            return {
-
-                start_time:
-                    startTime,
-
-                end_time:
-                    endTime
-
-            };
-
-        }
 
 
 
@@ -1480,71 +1164,6 @@ document.addEventListener(
 
 
         // =====================================
-        // 選択されている出力形式
-        // =====================================
-
-        function getSelectedOutputs() {
-
-
-            const selectedFormat =
-                document.querySelector(
-                    'input[name="output-format"]:checked'
-                );
-
-
-            const outputFormat =
-                selectedFormat
-                    ? selectedFormat.value
-                    : "mp3";
-
-
-
-            if (
-                outputFormat === "mp3"
-            ) {
-
-                return [
-                    "mp3"
-                ];
-
-            }
-
-
-
-            if (
-                outputFormat === "mp4"
-            ) {
-
-                return [
-                    "mp4"
-                ];
-
-            }
-
-
-
-            if (
-                outputFormat === "mp3mp4"
-            ) {
-
-                return [
-                    "mp3",
-                    "mp4"
-                ];
-
-            }
-
-
-
-            return [
-                "mp3"
-            ];
-
-        }
-
-
-
-        // =====================================
         // 変換ボタン
         // =====================================
 
@@ -1611,7 +1230,7 @@ document.addEventListener(
 
 
             const outputs =
-                getSelectedOutputs();
+                window.converterUtils.getSelectedOutputs();
 
 
             const url =
@@ -1661,7 +1280,7 @@ document.addEventListener(
             // ---------------------------------
 
             const timeRange =
-                getTimeRange();
+                window.converterUtils.getTimeRange();
 
 
 
@@ -3334,17 +2953,6 @@ document.addEventListener(
             // MP3 + MP4 の場合だけ自動実行
             // =====================================
 
-            // =====================================
-            // Gemini自動実行
-            //
-            // MP3 + MP4 の場合だけ自動実行
-            // =====================================
-            
-            
-            // =================================
-            // ★ Gemini自動実行判定ログ
-            // =================================
-            
             console.log(
                 "=========================================="
             );
