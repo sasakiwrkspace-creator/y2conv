@@ -2,6 +2,8 @@
 // YouTube Converter - Gemini
 // static/converter-gemini.js
 //
+// converter-utils.js を基準として使用
+//
 // ・Gemini文字起こし
 // ・SRTダウンロード
 // ・SRT変換情報表示
@@ -12,330 +14,131 @@
 // ・MP3 / MP4 / SRT のダウンロードボタンは横並び
 // ・タイトルはダウンロードボタンの上には表示しない
 // ・SRT処理情報は「処理詳細」の中に表示
+//
+// 共通関数は converter-utils.js を使用
+//
+// 使用する共通関数
+// ・escapeHtml()
+// ・formatClock()
+// ・formatElapsed()
+// ・formatDuration()
+// ・makeDownloadUrl()
 // =====================================
 
-document.addEventListener(
-    "DOMContentLoaded",
-    function () {
+
+(function () {
+
+
+    // =====================================
+    // Gemini初期化
+    // =====================================
+
+    function initializeConverterGemini() {
+
 
         // =====================================
-        // DOM
+        // 二重初期化防止
         // =====================================
 
-        const geminiButton =
-            document.getElementById(
+        if (
+            window.converterGemini &&
+            window.converterGemini.__initialized
+        ) {
+
+            console.log(
+                "[GEMINI] already initialized"
+            );
+
+            return;
+
+        }
+
+
+        // =====================================
+        // converterUtils確認
+        // =====================================
+
+        if (
+            !window.converterUtils
+        ) {
+
+            console.error(
+                "[GEMINI] converterUtils がありません"
+            );
+
+            return;
+
+        }
+
+
+        const utils =
+            window.converterUtils;
+
+
+        // =====================================
+        // 共通関数確認
+        // =====================================
+
+        const requiredFunctions = [
+
+            "escapeHtml",
+            "formatClock",
+            "formatElapsed",
+            "formatDuration",
+            "makeDownloadUrl"
+
+        ];
+
+
+        for (
+            const functionName
+            of requiredFunctions
+        ) {
+
+            if (
+                typeof utils[functionName] !==
+                "function"
+            ) {
+
+                console.error(
+                    "[GEMINI] converterUtils." +
+                    functionName +
+                    " がありません"
+                );
+
+                return;
+
+            }
+
+        }
+
+
+        // =====================================
+        // DOM取得
+        // =====================================
+
+        function getGeminiButton() {
+
+            return document.getElementById(
                 "gemini-button"
             );
 
-
-        // =====================================
-        // 共通関数
-        // =====================================
-
-        function escapeHtml(value) {
-
-            if (
-                window.converterUtils &&
-                typeof
-                    window.converterUtils.escapeHtml ===
-                    "function"
-            ) {
-
-                return window.converterUtils.escapeHtml(
-                    value
-                );
-
-            }
-
-
-            return String(value)
-                .replace(
-                    /&/g,
-                    "&amp;"
-                )
-                .replace(
-                    /</g,
-                    "&lt;"
-                )
-                .replace(
-                    />/g,
-                    "&gt;"
-                )
-                .replace(
-                    /"/g,
-                    "&quot;"
-                )
-                .replace(
-                    /'/g,
-                    "&#039;"
-                );
-
         }
 
 
-        // =====================================
-        // 時計
-        // =====================================
+        function getGeminiFileElement() {
 
-        function formatClock(date) {
-
-            if (
-                window.converterUtils &&
-                typeof
-                    window.converterUtils.formatClock ===
-                    "function"
-            ) {
-
-                return window.converterUtils.formatClock(
-                    date
-                );
-
-            }
-
-
-            if (!date) {
-
-                return "";
-
-            }
-
-
-            return date.toLocaleTimeString(
-                "ja-JP",
-                {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    second: "2-digit",
-                    hour12: false
-                }
+            return document.getElementById(
+                "gemini-file"
             );
 
         }
 
 
-        // =====================================
-        // 経過時間
-        // =====================================
+        function getGeminiResult() {
 
-        function formatElapsed(seconds) {
-
-            if (
-                window.converterUtils &&
-                typeof
-                    window.converterUtils.formatElapsed ===
-                    "function"
-            ) {
-
-                return window.converterUtils.formatElapsed(
-                    seconds
-                );
-
-            }
-
-
-            const totalSeconds =
-                Math.floor(
-                    Number(seconds) || 0
-                );
-
-
-            const minutes =
-                Math.floor(
-                    totalSeconds / 60
-                );
-
-
-            const remainSeconds =
-                totalSeconds % 60;
-
-
-            if (minutes === 0) {
-
-                return (
-                    remainSeconds +
-                    "秒"
-                );
-
-            }
-
-
-            return (
-                minutes +
-                "分" +
-                remainSeconds +
-                "秒"
-            );
-
-        }
-
-
-        // =====================================
-        // 再生時間
-        // =====================================
-
-        function formatDuration(duration) {
-
-            if (
-                window.converterUtils &&
-                typeof
-                    window.converterUtils.formatDuration ===
-                    "function"
-            ) {
-
-                return window.converterUtils.formatDuration(
-                    duration
-                );
-
-            }
-
-
-            if (
-                duration === null ||
-                duration === undefined ||
-                duration === ""
-            ) {
-
-                return "不明";
-
-            }
-
-
-            if (
-                typeof duration === "string" &&
-                duration.includes(":")
-            ) {
-
-                const parts =
-                    duration.split(":");
-
-
-                if (
-                    parts.length === 3
-                ) {
-
-                    return (
-                        String(
-                            parseInt(
-                                parts[0],
-                                10
-                            ) || 0
-                        ).padStart(
-                            2,
-                            "0"
-                        )
-                        +
-                        ":"
-                        +
-                        String(
-                            parseInt(
-                                parts[1],
-                                10
-                            ) || 0
-                        ).padStart(
-                            2,
-                            "0"
-                        )
-                        +
-                        ":"
-                        +
-                        String(
-                            parseInt(
-                                parts[2],
-                                10
-                            ) || 0
-                        ).padStart(
-                            2,
-                            "0"
-                        )
-                    );
-
-                }
-
-            }
-
-
-            const totalSeconds =
-                parseInt(
-                    duration,
-                    10
-                );
-
-
-            if (
-                isNaN(totalSeconds) ||
-                totalSeconds < 0
-            ) {
-
-                return "不明";
-
-            }
-
-
-            const hours =
-                Math.floor(
-                    totalSeconds / 3600
-                );
-
-
-            const minutes =
-                Math.floor(
-                    (totalSeconds % 3600) / 60
-                );
-
-
-            const seconds =
-                totalSeconds % 60;
-
-
-            return (
-                String(hours).padStart(
-                    2,
-                    "0"
-                )
-                +
-                ":"
-                +
-                String(minutes).padStart(
-                    2,
-                    "0"
-                )
-                +
-                ":"
-                +
-                String(seconds).padStart(
-                    2,
-                    "0"
-                )
-            );
-
-        }
-
-
-        // =====================================
-        // ダウンロードURL
-        // =====================================
-
-        function makeDownloadUrl(filename) {
-
-            if (
-                window.converterUtils &&
-                typeof
-                    window.converterUtils.makeDownloadUrl ===
-                    "function"
-            ) {
-
-                return window.converterUtils.makeDownloadUrl(
-                    filename
-                );
-
-            }
-
-
-            return (
-                "/download/" +
-                encodeURIComponent(
-                    filename
-                )
+            return document.getElementById(
+                "gemini-result"
             );
 
         }
@@ -346,6 +149,7 @@ document.addEventListener(
         // =====================================
 
         function getCurrentVideoTitle() {
+
 
             if (
                 window.converterState
@@ -366,6 +170,7 @@ document.addEventListener(
 
         function getCurrentVideoDuration() {
 
+
             if (
                 window.converterState
             ) {
@@ -384,13 +189,38 @@ document.addEventListener(
 
 
         // =====================================
+        // SRTファイル保存
+        // =====================================
+
+        function saveCurrentSrtFile(
+            srtFile
+        ) {
+
+
+            if (
+                !window.converterState
+            ) {
+
+                return;
+
+            }
+
+
+            window.converterState.currentSrtFile =
+                srtFile;
+
+        }
+
+
+        // =====================================
         // Gemini開始
         // =====================================
 
         async function startGemini() {
 
+
             // =================================
-            // SRT開始時刻
+            // 開始時刻
             // =================================
 
             const srtStart =
@@ -401,17 +231,21 @@ document.addEventListener(
             // DOM
             // =================================
 
+            const geminiButton =
+                getGeminiButton();
+
+
             const geminiFileElement =
-                document.getElementById(
-                    "gemini-file"
-                );
+                getGeminiFileElement();
 
 
             const result =
-                document.getElementById(
-                    "gemini-result"
-                );
+                getGeminiResult();
 
+
+            // =================================
+            // ファイル
+            // =================================
 
             const file =
                 geminiFileElement
@@ -423,7 +257,9 @@ document.addEventListener(
             // MP3チェック
             // =================================
 
-            if (!file) {
+            if (
+                !file
+            ) {
 
                 alert(
                     "MP3ファイルがありません"
@@ -438,10 +274,12 @@ document.addEventListener(
             // ボタンチェック
             // =================================
 
-            if (!geminiButton) {
+            if (
+                !geminiButton
+            ) {
 
                 console.error(
-                    "gemini-button が見つかりません"
+                    "[GEMINI] gemini-button が見つかりません"
                 );
 
                 return;
@@ -457,31 +295,37 @@ document.addEventListener(
                 "=========================================="
             );
 
+
             console.log(
                 "[GEMINI] 文字起こし開始"
             );
 
+
             console.log(
                 "[GEMINI] 開始時刻:",
-                formatClock(
+                utils.formatClock(
                     srtStart
                 )
             );
+
 
             console.log(
                 "[GEMINI] ファイル:",
                 file
             );
 
+
             console.log(
                 "[GEMINI] タイトル:",
                 getCurrentVideoTitle()
             );
 
+
             console.log(
                 "[GEMINI] 再生時間:",
                 getCurrentVideoDuration()
             );
+
 
             console.log(
                 "=========================================="
@@ -501,17 +345,20 @@ document.addEventListener(
 
 
             // =================================
-            // 経過秒数
+            // 経過時間
             // =================================
 
-            let seconds = 0;
+            let seconds =
+                0;
 
 
             // =================================
             // 結果表示
             // =================================
 
-            if (result) {
+            if (
+                result
+            ) {
 
                 result.style.display =
                     "block";
@@ -534,7 +381,9 @@ document.addEventListener(
                         seconds++;
 
 
-                        if (result) {
+                        if (
+                            result
+                        ) {
 
                             result.textContent =
                                 "文字起こし中... "
@@ -551,6 +400,7 @@ document.addEventListener(
 
 
             try {
+
 
                 // =================================
                 // Gemini API
@@ -587,13 +437,16 @@ document.addEventListener(
                 // HTTPエラー
                 // =================================
 
-                if (!response.ok) {
+                if (
+                    !response.ok
+                ) {
 
                     const text =
                         await response.text();
 
 
                     throw new Error(
+
                         "HTTP "
                         +
                         response.status
@@ -604,6 +457,7 @@ document.addEventListener(
                             text ||
                             "サーバーから空のレスポンスが返されました"
                         )
+
                     );
 
                 }
@@ -617,7 +471,9 @@ document.addEventListener(
                     await response.text();
 
 
-                if (!text) {
+                if (
+                    !text
+                ) {
 
                     throw new Error(
                         "サーバーから空のレスポンスが返されました"
@@ -625,6 +481,10 @@ document.addEventListener(
 
                 }
 
+
+                // =================================
+                // JSON
+                // =================================
 
                 let data;
 
@@ -637,15 +497,18 @@ document.addEventListener(
                         );
 
                 }
-                catch (error) {
+                catch (
+                    error
+                ) {
 
                     console.error(
-                        "Gemini JSON解析エラー:",
+                        "[GEMINI] JSON解析エラー:",
                         error
                     );
 
+
                     console.error(
-                        "Geminiレスポンス:",
+                        "[GEMINI] レスポンス:",
                         text
                     );
 
@@ -670,19 +533,22 @@ document.addEventListener(
                 // 成功
                 // =================================
 
-                if (data.success) {
+                if (
+                    data.success
+                ) {
 
-                    // -----------------------------
-                    // SRT終了時刻
-                    // -----------------------------
+
+                    // =================================
+                    // 終了時刻
+                    // =================================
 
                     const srtEnd =
                         new Date();
 
 
-                    // -----------------------------
-                    // 実測時間
-                    // -----------------------------
+                    // =================================
+                    // ブラウザ実測時間
+                    // =================================
 
                     const actualElapsedSeconds =
                         Math.max(
@@ -696,9 +562,9 @@ document.addEventListener(
                         );
 
 
-                    // -----------------------------
-                    // サーバー側の秒数
-                    // -----------------------------
+                    // =================================
+                    // サーバー報告時間
+                    // =================================
 
                     const responseSeconds =
                         Number(
@@ -707,37 +573,45 @@ document.addEventListener(
                         );
 
 
-                    // -----------------------------
-                    // 最終的なSRT処理時間
+                    // =================================
+                    // 最終採用時間
                     //
-                    // 基本はブラウザで実測した時間を使用
-                    // -----------------------------
+                    // ブラウザ実測値を使用
+                    // =================================
 
                     const finalSeconds =
                         actualElapsedSeconds;
 
 
+                    // =================================
+                    // ログ
+                    // =================================
+
                     console.log(
                         "=========================================="
                     );
+
 
                     console.log(
                         "[GEMINI] 文字起こし完了"
                     );
 
+
                     console.log(
                         "[GEMINI] 開始:",
-                        formatClock(
+                        utils.formatClock(
                             srtStart
                         )
                     );
 
+
                     console.log(
                         "[GEMINI] 終了:",
-                        formatClock(
+                        utils.formatClock(
                             srtEnd
                         )
                     );
+
 
                     console.log(
                         "[GEMINI] 実測時間:",
@@ -745,11 +619,13 @@ document.addEventListener(
                         "秒"
                     );
 
+
                     console.log(
                         "[GEMINI] サーバー報告時間:",
                         responseSeconds,
                         "秒"
                     );
+
 
                     console.log(
                         "[GEMINI] 採用時間:",
@@ -757,10 +633,12 @@ document.addEventListener(
                         "秒"
                     );
 
+
                     console.log(
                         "[GEMINI] SRT:",
                         data.srt_file
                     );
+
 
                     console.log(
                         "=========================================="
@@ -771,7 +649,9 @@ document.addEventListener(
                     // 結果非表示
                     // =================================
 
-                    if (result) {
+                    if (
+                        result
+                    ) {
 
                         result.style.display =
                             "none";
@@ -816,7 +696,9 @@ document.addEventListener(
                     "Geminiで文字起こし";
 
 
-                if (result) {
+                if (
+                    result
+                ) {
 
                     result.style.display =
                         "block";
@@ -829,18 +711,33 @@ document.addEventListener(
                 }
 
             }
-            catch (error) {
+            catch (
+                error
+            ) {
+
+
+                // =================================
+                // タイマー停止
+                // =================================
 
                 clearInterval(
                     timer
                 );
 
 
+                // =================================
+                // エラーログ
+                // =================================
+
                 console.error(
-                    "Geminiエラー:",
+                    "[GEMINI] エラー:",
                     error
                 );
 
+
+                // =================================
+                // ボタン復帰
+                // =================================
 
                 geminiButton.disabled =
                     false;
@@ -850,7 +747,13 @@ document.addEventListener(
                     "Geminiで文字起こし";
 
 
-                if (result) {
+                // =================================
+                // エラー表示
+                // =================================
+
+                if (
+                    result
+                ) {
 
                     result.style.display =
                         "block";
@@ -871,7 +774,8 @@ document.addEventListener(
         // =====================================
         // SRT表示
         //
-        // MP3 / MP4の「処理詳細」の中に追加
+        // converter.js側の
+        // addSrtInfo()を使用
         // =====================================
 
         function showSrtDownload(
@@ -880,6 +784,7 @@ document.addEventListener(
             srtEnd,
             srtSeconds
         ) {
+
 
             // =================================
             // SRTファイル
@@ -892,10 +797,12 @@ document.addEventListener(
                 "";
 
 
-            if (!srtFile) {
+            if (
+                !srtFile
+            ) {
 
                 console.error(
-                    "SRTファイルがありません:",
+                    "[GEMINI] SRTファイルがありません:",
                     data
                 );
 
@@ -908,7 +815,9 @@ document.addEventListener(
             // 時刻補正
             // =================================
 
-            if (!srtStart) {
+            if (
+                !srtStart
+            ) {
 
                 srtStart =
                     new Date();
@@ -916,7 +825,9 @@ document.addEventListener(
             }
 
 
-            if (!srtEnd) {
+            if (
+                !srtEnd
+            ) {
 
                 srtEnd =
                     new Date();
@@ -951,6 +862,8 @@ document.addEventListener(
 
             // =================================
             // タイトル
+            //
+            // 基本はconverterState
             // =================================
 
             const title =
@@ -962,6 +875,8 @@ document.addEventListener(
 
             // =================================
             // 再生時間
+            //
+            // 基本はconverterState
             // =================================
 
             const duration =
@@ -989,7 +904,7 @@ document.addEventListener(
                     <div>
 
                         タイトル：
-                        ${escapeHtml(
+                        ${utils.escapeHtml(
                             title
                         )}
 
@@ -999,8 +914,8 @@ document.addEventListener(
                     <div>
 
                         再生時間：
-                        ${escapeHtml(
-                            formatDuration(
+                        ${utils.escapeHtml(
+                            utils.formatDuration(
                                 duration
                             )
                         )}
@@ -1011,8 +926,8 @@ document.addEventListener(
                     <div>
 
                         実行開始：
-                        ${escapeHtml(
-                            formatClock(
+                        ${utils.escapeHtml(
+                            utils.formatClock(
                                 srtStart
                             )
                         )}
@@ -1023,14 +938,14 @@ document.addEventListener(
                     <div>
 
                         実行終了：
-                        ${escapeHtml(
-                            formatClock(
+                        ${utils.escapeHtml(
+                            utils.formatClock(
                                 srtEnd
                             )
                         )}
 
-                        （${escapeHtml(
-                            formatElapsed(
+                        （${utils.escapeHtml(
+                            utils.formatElapsed(
                                 srtSeconds
                             )
                         )}）
@@ -1043,10 +958,9 @@ document.addEventListener(
 
 
             // =================================
-            // converter.jsへ渡す
+            // converter.js
             //
-            // 処理詳細内へSRT情報を追加
-            // かつダウンロードボタンを追加
+            // 処理詳細へSRT情報を追加
             // =================================
 
             if (
@@ -1055,6 +969,11 @@ document.addEventListener(
                     window.converterMain.addSrtInfo ===
                     "function"
             ) {
+
+                console.log(
+                    "[GEMINI] converterMain.addSrtInfo()"
+                );
+
 
                 window.converterMain.addSrtInfo(
                     srtInfo,
@@ -1065,7 +984,7 @@ document.addEventListener(
             else {
 
                 console.error(
-                    "converterMain.addSrtInfo がありません"
+                    "[GEMINI] converterMain.addSrtInfo がありません"
                 );
 
             }
@@ -1074,8 +993,8 @@ document.addEventListener(
             // =================================
             // SRTダウンロードボタン
             //
-            // converter.js側でも追加するが、
-            // ここでも念のため直接更新
+            // converter.js側で処理する場合でも
+            // HTMLが存在していれば更新する
             // =================================
 
             const buttonContainer =
@@ -1085,15 +1004,14 @@ document.addEventListener(
 
 
             if (
-                buttonContainer &&
-                srtFile
+                buttonContainer
             ) {
 
                 buttonContainer.innerHTML = `
 
                     <a
-                        href="${escapeHtml(
-                            makeDownloadUrl(
+                        href="${utils.escapeHtml(
+                            utils.makeDownloadUrl(
                                 srtFile
                             )
                         )}"
@@ -1110,17 +1028,12 @@ document.addEventListener(
 
 
             // =================================
-            // 保存
+            // converterStateへ保存
             // =================================
 
-            if (
-                window.converterState
-            ) {
-
-                window.converterState.currentSrtFile =
-                    srtFile;
-
-            }
+            saveCurrentSrtFile(
+                srtFile
+            );
 
 
             // =================================
@@ -1157,11 +1070,15 @@ document.addEventListener(
 
         // =====================================
         // Geminiボタン
-        //
-        // MP3単独時の手動実行用
         // =====================================
 
-        if (geminiButton) {
+        const geminiButton =
+            getGeminiButton();
+
+
+        if (
+            geminiButton
+        ) {
 
             geminiButton.addEventListener(
                 "click",
@@ -1172,7 +1089,43 @@ document.addEventListener(
 
 
         // =====================================
-        // 外部公開
+        // 共通オブジェクト
+        // =====================================
+
+        const gemini = {
+
+            __initialized:
+                true,
+
+            start:
+                startGemini,
+
+            showSrtDownload:
+                showSrtDownload,
+
+            getCurrentVideoTitle:
+                getCurrentVideoTitle,
+
+            getCurrentVideoDuration:
+                getCurrentVideoDuration
+
+        };
+
+
+        // =====================================
+        // グローバル公開
+        // =====================================
+
+        window.converterGemini =
+            gemini;
+
+
+        window.ConverterGemini =
+            gemini;
+
+
+        // =====================================
+        // 旧互換
         // =====================================
 
         window.startGemini =
@@ -1188,8 +1141,62 @@ document.addEventListener(
         // =====================================
 
         console.log(
+            "======================================"
+        );
+
+
+        console.log(
             "converter-gemini.js loaded"
         );
 
+
+        console.log(
+            "[GEMINI] converterUtils:",
+            window.converterUtils
+        );
+
+
+        console.log(
+            "[GEMINI] start:",
+            typeof
+                window.converterGemini.start
+        );
+
+
+        console.log(
+            "[GEMINI] showSrtDownload:",
+            typeof
+                window.converterGemini.showSrtDownload
+        );
+
+
+        console.log(
+            "======================================"
+        );
+
     }
-);
+
+
+    // =====================================
+    // DOMContentLoaded対応
+    // =====================================
+
+    if (
+        document.readyState ===
+        "loading"
+    ) {
+
+        document.addEventListener(
+            "DOMContentLoaded",
+            initializeConverterGemini
+        );
+
+    }
+    else {
+
+        initializeConverterGemini();
+
+    }
+
+
+})();
