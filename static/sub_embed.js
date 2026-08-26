@@ -680,7 +680,7 @@
 
 
             button.className =
-                "sub-embed-download-button";
+                "download-button";
 
 
             button.href =
