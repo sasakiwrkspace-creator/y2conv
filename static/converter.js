@@ -3334,6 +3334,77 @@ document.addEventListener(
             // MP3 + MP4 の場合だけ自動実行
             // =====================================
 
+            // =====================================
+            // Gemini自動実行
+            //
+            // MP3 + MP4 の場合だけ自動実行
+            // =====================================
+            
+            
+            // =================================
+            // ★ Gemini自動実行判定ログ
+            // =================================
+            
+            console.log(
+                "=========================================="
+            );
+            
+            console.log(
+                "[CONVERTER] Gemini自動実行判定"
+            );
+            
+            console.log(
+                "[CONVERTER] files:",
+                files
+            );
+            
+            console.log(
+                "[CONVERTER] mp3File:",
+                mp3File
+            );
+            
+            console.log(
+                "[CONVERTER] mp4File:",
+                mp4File
+            );
+            
+            console.log(
+                "[CONVERTER] window.startGemini:",
+                window.startGemini
+            );
+            
+            console.log(
+                "[CONVERTER] typeof startGemini:",
+                typeof window.startGemini
+            );
+            
+            console.log(
+                "[CONVERTER] mp3File存在:",
+                !!mp3File
+            );
+            
+            console.log(
+                "[CONVERTER] mp4File存在:",
+                !!mp4File
+            );
+            
+            console.log(
+                "[CONVERTER] startGemini存在:",
+                typeof window.startGemini === "function"
+            );
+            
+            console.log(
+                "[CONVERTER] ★最終判定:",
+                !!mp3File &&
+                !!mp4File &&
+                typeof window.startGemini === "function"
+            );
+            
+            console.log(
+                "=========================================="
+            );
+            
+            
             if (
                 mp3File &&
                 mp4File &&
