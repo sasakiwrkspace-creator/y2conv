@@ -10,7 +10,7 @@
 // ・ネットワークエラーでも変換を終了扱いにしない
 // ・完了時に converter.js の showFiles()
 // ・処理中は画面表示を変更しない
-// ・実行開始時 / 完了時 / エラー時だけ表示を変更
+// ・実行開始時 / タイトル取得時 / 完了時 / エラー時だけ表示を変更
 // =====================================
 
 
@@ -237,6 +237,142 @@ function escapeHtml(
 
 
 // =====================================
+// 動画タイトルをHTMLへ表示
+// =====================================
+//
+// /status APIからタイトルを取得した
+// 時点で即座に画面へ反映する。
+// =====================================
+
+function updateVideoTitle(
+    title
+) {
+
+    const videoTitle =
+        String(
+            title || ""
+        ).trim();
+
+
+    if (
+        !videoTitle
+    ) {
+
+        return;
+
+    }
+
+
+    // =================================
+    // converterStateへ保存
+    // =================================
+
+    if (
+        window.converterState
+    ) {
+
+        window.converterState.currentVideoTitle =
+            videoTitle;
+
+    }
+
+
+    // =================================
+    // HTML取得
+    // =================================
+
+    const titleArea =
+        document.getElementById(
+            "video-title-area"
+        );
+
+
+    const titleElement =
+        document.getElementById(
+            "video-title"
+        );
+
+
+    if (
+        !titleArea ||
+        !titleElement
+    ) {
+
+        console.warn(
+            "[STATUS] video-title HTMLがありません"
+        );
+
+
+        console.warn(
+            "[STATUS] 必要なHTML:",
+            "#video-title-area",
+            "#video-title"
+        );
+
+
+        return;
+
+    }
+
+
+    // =================================
+    // タイトル表示
+    // =================================
+
+    titleElement.textContent =
+        videoTitle;
+
+
+    titleArea.style.display =
+        "block";
+
+
+    console.log(
+        "[STATUS] 動画タイトルをHTMLへ反映:",
+        videoTitle
+    );
+
+}
+
+
+// =====================================
+// 動画再生時間を保存
+// =====================================
+
+function updateVideoDuration(
+    duration
+) {
+
+    if (
+        duration === undefined ||
+        duration === null ||
+        duration === ""
+    ) {
+
+        return;
+
+    }
+
+
+    if (
+        window.converterState
+    ) {
+
+        window.converterState.currentVideoDuration =
+            duration;
+
+    }
+
+
+    console.log(
+        "[STATUS] 動画再生時間:",
+        duration
+    );
+
+}
+
+
+// =====================================
 // メイン処理ステータス表示
 //
 // converter.js側の
@@ -319,7 +455,7 @@ function showRunningState() {
 
 
     // ---------------------------------
-    // 旧STATUS領域も存在する場合は表示
+    // STATUS領域
     // ---------------------------------
 
     updateStatus(
@@ -697,7 +833,6 @@ async function checkStatus() {
 
 
             // ---------------------------------
-            // 重要
             // 実行中表示は変更しない
             // ---------------------------------
 
@@ -900,6 +1035,22 @@ async function checkStatus() {
 
 
         console.log(
+            "title:",
+            data.title ||
+            data.video_title ||
+            ""
+        );
+
+
+        console.log(
+            "duration:",
+            data.duration ||
+            data.video_duration ||
+            ""
+        );
+
+
+        console.log(
             "files:",
             data.files
         );
@@ -1010,23 +1161,24 @@ async function checkStatus() {
 
         // =================================
         // タイトル
+        //
+        // STATUSで取得できた瞬間に
+        // HTMLへ反映する
         // =================================
 
-        if (
+        const videoTitle =
             data.title ||
-            data.video_title
+            data.video_title ||
+            "";
+
+
+        if (
+            videoTitle
         ) {
 
-            if (
-                window.converterState
-            ) {
-
-                window.converterState.currentVideoTitle =
-                    data.title ||
-                    data.video_title ||
-                    "";
-
-            }
+            updateVideoTitle(
+                videoTitle
+            );
 
         }
 
@@ -1035,21 +1187,19 @@ async function checkStatus() {
         // 再生時間
         // =================================
 
-        if (
+        const videoDuration =
             data.duration ||
-            data.video_duration
+            data.video_duration ||
+            "";
+
+
+        if (
+            videoDuration
         ) {
 
-            if (
-                window.converterState
-            ) {
-
-                window.converterState.currentVideoDuration =
-                    data.duration ||
-                    data.video_duration ||
-                    "";
-
-            }
+            updateVideoDuration(
+                videoDuration
+            );
 
         }
 
@@ -1397,7 +1547,13 @@ window.converterStatus = {
         getJobId,
 
     updateStatus:
-        updateStatus
+        updateStatus,
+
+    updateVideoTitle:
+        updateVideoTitle,
+
+    updateVideoDuration:
+        updateVideoDuration
 
 };
 
