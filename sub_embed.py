@@ -1,6 +1,8 @@
 # =====================================
-# Subtitle Embed
+# Subtitle Embed - Low Memory Edition
 # sub_embed.py
+#
+# 512MB RAM環境向け
 #
 # MP4動画へSRT字幕を焼き込む
 #
@@ -12,6 +14,15 @@
 #   downloads/xxx_sub_embed.mp4
 #
 # FFmpegを使用
+#
+# 重要:
+#   - 1080pを維持
+#   - 日本語字幕対応
+#   - 動画は再エンコード
+#   - audioはcopy
+#   - FFmpegを1スレッドに制限
+#   - ultrafastでメモリ負荷を抑制
+#   - FFmpegログを最大100行だけ保持
 # =====================================
 
 import os
@@ -20,6 +31,7 @@ import time
 import shutil
 import subprocess
 from pathlib import Path
+from collections import deque
 
 
 # =====================================
@@ -29,6 +41,24 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 
 DOWNLOADS_DIR = BASE_DIR / "downloads"
+
+# FFmpegログを保持する最大行数
+MAX_FFMPEG_LOG_LINES = 100
+
+# 512MB環境では1スレッドを推奨
+FFMPEG_THREADS = "1"
+
+# メモリ負荷を最小化
+FFMPEG_PRESET = "ultrafast"
+
+# 画質
+#
+# 18 = 高画質
+# 20 = 高画質
+# 23 = 標準的
+#
+# 512MB環境では23を推奨
+FFMPEG_CRF = "23"
 
 
 # =====================================
@@ -187,6 +217,9 @@ def check_ffmpeg():
 
 # =====================================
 # SRT文字コード確認
+#
+# 512MB対策:
+# ファイル全体をread()しない
 # =====================================
 
 def validate_srt_encoding(
@@ -205,12 +238,21 @@ def validate_srt_encoding(
             encoding="utf-8-sig"
         ) as file:
 
-            content = file.read()
+            # ---------------------------------
+            # 先頭だけ確認
+            #
+            # SRT全体をメモリに読み込まない
+            # ---------------------------------
+
+            first_content = file.read(
+                4096
+            )
 
     except UnicodeDecodeError:
 
         raise RuntimeError(
-            "SRTファイルをUTF-8として読み込めませんでした。\n"
+            "SRTファイルをUTF-8として"
+            "読み込めませんでした。\n"
             "SRTをUTF-8形式で保存してください。"
         )
 
@@ -220,14 +262,24 @@ def validate_srt_encoding(
             f"SRTファイルを読み込めませんでした: {error}"
         )
 
-    if not content.strip():
+    if not first_content.strip():
 
         raise RuntimeError(
             "SRTファイルが空です。"
         )
 
+    try:
+
+        srt_size = (
+            srt_path.stat().st_size
+        )
+
+    except OSError:
+
+        srt_size = 0
+
     log(
-        f"SRT文字数: {len(content)}"
+        f"SRTサイズ: {srt_size} bytes"
     )
 
     return True
@@ -244,7 +296,7 @@ def find_japanese_font():
     )
 
     # ---------------------------------
-    # 環境変数で指定されている場合
+    # 環境変数
     # ---------------------------------
 
     environment_font = os.environ.get(
@@ -260,40 +312,41 @@ def find_japanese_font():
         if environment_font_path.exists():
 
             log(
-                f"環境変数指定フォント: {environment_font_path}"
+                f"環境変数指定フォント: "
+                f"{environment_font_path}"
             )
 
             return environment_font_path
 
 
     # ---------------------------------
-    # 優先する日本語フォント
+    # 優先フォント
     # ---------------------------------
 
     preferred_fonts = [
 
-        # Noto
         "NotoSansCJK-Regular.ttc",
         "NotoSansCJKJP-Regular.otf",
         "NotoSansJP-Regular.ttf",
+
         "NotoSerifCJK-Regular.ttc",
         "NotoSerifCJKJP-Regular.otf",
         "NotoSerifJP-Regular.ttf",
 
-        # IPA
         "ipaexg.ttf",
         "ipaexm.ttf",
+
         "IPAGothic.ttf",
         "IPAPGothic.ttf",
+
         "IPAMincho.ttf",
         "IPAPMincho.ttf",
 
-        # Takao
         "TakaoGothic.ttf",
         "TakaoPGothic.ttf",
+
         "TakaoMincho.ttf",
 
-        # VL
         "VL-Gothic-Regular.ttf",
 
     ]
@@ -331,7 +384,7 @@ def find_japanese_font():
 
 
     # ---------------------------------
-    # 優先フォントを検索
+    # 優先フォント検索
     # ---------------------------------
 
     for directory in font_directories:
@@ -344,93 +397,26 @@ def find_japanese_font():
 
             try:
 
-                matches = list(
-                    directory.rglob(
-                        font_name
-                    )
-                )
+                for match in directory.rglob(
+                    font_name
+                ):
+
+                    if match.is_file():
+
+                        log(
+                            f"日本語フォント検出: "
+                            f"{match}"
+                        )
+
+                        return match
 
             except Exception:
 
                 continue
 
-            if matches:
-
-                font_path = matches[0]
-
-                log(
-                    f"日本語フォント検出: {font_path}"
-                )
-
-                return font_path
-
 
     # ---------------------------------
-    # ファイル名に日本語フォント名を
-    # 含むものを検索
-    # ---------------------------------
-
-    japanese_keywords = [
-
-        "noto",
-        "ipa",
-        "takao",
-        "gothic",
-        "mincho",
-        "cjk",
-        "japan",
-        "jp",
-
-    ]
-
-
-    possible_fonts = []
-
-
-    for directory in font_directories:
-
-        if not directory.exists():
-
-            continue
-
-        try:
-
-            for extension in (
-                "*.ttf",
-                "*.otf",
-                "*.ttc"
-            ):
-
-                possible_fonts.extend(
-                    directory.rglob(
-                        extension
-                    )
-                )
-
-        except Exception:
-
-            continue
-
-
-    for font_path in possible_fonts:
-
-        lower_name = (
-            font_path.name.lower()
-        )
-
-        for keyword in japanese_keywords:
-
-            if keyword in lower_name:
-
-                log(
-                    f"候補日本語フォント検出: {font_path}"
-                )
-
-                return font_path
-
-
-    # ---------------------------------
-    # fc-listを使った検索
+    # fc-list
     # ---------------------------------
 
     fc_list = shutil.which(
@@ -476,7 +462,8 @@ def find_japanese_font():
                     if font_path.exists():
 
                         log(
-                            f"fc-list日本語フォント検出: {font_path}"
+                            f"fc-list日本語フォント検出: "
+                            f"{font_path}"
                         )
 
                         return font_path
@@ -511,24 +498,19 @@ def escape_ffmpeg_filter_path(
         Path(file_path).resolve()
     )
 
-    # ---------------------------------
-    # Linuxでは / に統一
-    # ---------------------------------
-
+    # Linux
     path = path.replace(
         "\\",
         "/"
     )
 
-    # ---------------------------------
-    # FFmpeg filter parser用
-    # ---------------------------------
-
+    # シングルクォート
     path = path.replace(
         "'",
         "\\'"
     )
 
+    # Windows等のコロン対策
     path = path.replace(
         ":",
         "\\:"
@@ -552,9 +534,8 @@ def make_subtitle_filter(
         )
     )
 
-
     # ---------------------------------
-    # 基本字幕フィルター
+    # 基本
     # ---------------------------------
 
     video_filter = (
@@ -567,31 +548,10 @@ def make_subtitle_filter(
 
 
     # ---------------------------------
-    # 日本語フォント指定
-    #
-    # fontsdirを使わずfontfileを直接
-    # 指定する。
-    #
-    # libassの環境差を減らす。
+    # 日本語フォント
     # ---------------------------------
 
     if font_path:
-
-        font_path_escaped = (
-            escape_ffmpeg_filter_path(
-                font_path
-            )
-        )
-
-        # subtitles filterでは
-        # force_styleでFontNameを指定する
-        #
-        # フォントファイルそのものを
-        # FontNameに指定できないため、
-        # fontsdir方式を利用する。
-        #
-        # ただしfontsdirにはディレクトリを
-        # 指定する必要がある。
 
         font_directory = (
             Path(font_path).parent
@@ -618,14 +578,15 @@ def make_subtitle_filter(
         )
 
         log(
-            f"字幕フォントディレクトリ: {font_directory}"
+            f"字幕フォントディレクトリ: "
+            f"{font_directory}"
         )
 
     return video_filter
 
 
 # =====================================
-# FFmpegコマンド表示用
+# FFmpegコマンド表示
 # =====================================
 
 def command_to_string(
@@ -647,10 +608,6 @@ def embed_subtitle(
     srt_path,
     output_path=None
 ):
-
-    # =================================
-    # 開始時刻
-    # =================================
 
     start_time = time.monotonic()
 
@@ -713,7 +670,8 @@ def embed_subtitle(
     if output_path.exists():
 
         log(
-            f"既存出力ファイルを削除: {output_path}"
+            f"既存出力ファイルを削除: "
+            f"{output_path}"
         )
 
         try:
@@ -723,7 +681,8 @@ def embed_subtitle(
         except Exception as error:
 
             raise RuntimeError(
-                "既存の出力ファイルを削除できませんでした: "
+                "既存の出力ファイルを"
+                "削除できませんでした: "
                 +
                 str(error)
             )
@@ -744,7 +703,7 @@ def embed_subtitle(
 
 
     # =================================
-    # フィルター作成
+    # フィルター
     # =================================
 
     video_filter = make_subtitle_filter(
@@ -754,8 +713,23 @@ def embed_subtitle(
 
 
     # =================================
-    # ログ
+    # 入力サイズ
     # =================================
+
+    try:
+
+        input_mp4_size = (
+            mp4_path.stat().st_size
+        )
+
+    except Exception:
+
+        input_mp4_size = 0
+
+
+    log(
+        "====================================="
+    )
 
     log(
         "字幕焼き込み開始"
@@ -773,73 +747,85 @@ def embed_subtitle(
         f"出力: {output_path}"
     )
 
-
-    # =================================
-    # サイズ
-    # =================================
-
-    try:
-
-        input_mp4_size = (
-            mp4_path.stat().st_size
-        )
-
-    except Exception:
-
-        input_mp4_size = 0
-
-
-    try:
-
-        input_srt_size = (
-            srt_path.stat().st_size
-        )
-
-    except Exception:
-
-        input_srt_size = 0
-
-
     log(
-        f"入力MP4サイズ: {input_mp4_size} bytes"
+        f"入力MP4サイズ: "
+        f"{input_mp4_size} bytes"
     )
 
     log(
-        f"入力SRTサイズ: {input_srt_size} bytes"
+        f"FFmpeg threads: "
+        f"{FFMPEG_THREADS}"
+    )
+
+    log(
+        f"FFmpeg preset: "
+        f"{FFMPEG_PRESET}"
+    )
+
+    log(
+        f"FFmpeg CRF: "
+        f"{FFMPEG_CRF}"
     )
 
 
     # =================================
     # FFmpegコマンド
+    #
+    # 512MB対策
+    #
+    # -threads 1
+    #   メモリピークを抑える
+    #
+    # -preset ultrafast
+    #   エンコード負荷を抑える
+    #
+    # -c:a copy
+    #   音声を再エンコードしない
     # =================================
 
     command = [
 
         ffmpeg_path,
 
+        # 既存ファイル上書き
         "-y",
 
+        # stdinを使わない
+        "-nostdin",
+
+        # 入力
         "-i",
         str(mp4_path),
 
+        # 字幕
         "-vf",
         video_filter,
 
+        # Video
         "-c:v",
         "libx264",
 
+        # 512MB対策
+        "-threads",
+        FFMPEG_THREADS,
+
+        # 低メモリ・高速
         "-preset",
-        "medium",
+        FFMPEG_PRESET,
 
+        # 画質
         "-crf",
-        "18",
+        FFMPEG_CRF,
 
+        # Audioはコピー
         "-c:a",
         "copy",
 
+        # MP4
         "-movflags",
         "+faststart",
 
+        # 出力
         str(output_path)
 
     ]
@@ -848,10 +834,6 @@ def embed_subtitle(
     # =================================
     # コマンドログ
     # =================================
-
-    log(
-        "FFmpeg実行"
-    )
 
     log(
         "FFmpeg video filter:"
@@ -874,8 +856,6 @@ def embed_subtitle(
 
     # =================================
     # FFmpeg実行
-    #
-    # stderrをリアルタイム表示
     # =================================
 
     try:
@@ -884,9 +864,9 @@ def embed_subtitle(
 
             command,
 
-            stdout=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
 
-            stderr=subprocess.STDOUT,
+            stderr=subprocess.PIPE,
 
             text=True,
 
@@ -907,7 +887,16 @@ def embed_subtitle(
         )
 
 
-    ffmpeg_output_lines = []
+    # =================================
+    # 最後の100行だけ保存
+    #
+    # 重要:
+    # FFmpegログ全体をメモリに保持しない
+    # =================================
+
+    ffmpeg_output_lines = deque(
+        maxlen=MAX_FFMPEG_LOG_LINES
+    )
 
 
     # =================================
@@ -916,29 +905,43 @@ def embed_subtitle(
 
     try:
 
-        if process.stdout:
+        if process.stderr:
 
-            for line in process.stdout:
+            for line in process.stderr:
 
                 line = line.rstrip()
 
-                if line:
+                if not line:
 
-                    ffmpeg_output_lines.append(
-                        line
-                    )
+                    continue
 
-                    print(
-                        "[FFMPEG]",
-                        line,
-                        flush=True
-                    )
+                ffmpeg_output_lines.append(
+                    line
+                )
+
+                print(
+                    "[FFMPEG]",
+                    line,
+                    flush=True
+                )
 
     except Exception as error:
 
-        process.kill()
+        try:
 
-        process.wait()
+            process.kill()
+
+        except Exception:
+
+            pass
+
+        try:
+
+            process.wait()
+
+        except Exception:
+
+            pass
 
         raise RuntimeError(
             "FFmpegログ取得中にエラーが発生しました: "
@@ -948,7 +951,7 @@ def embed_subtitle(
 
 
     # =================================
-    # FFmpeg終了待機
+    # 終了
     # =================================
 
     return_code = process.wait()
@@ -972,19 +975,24 @@ def embed_subtitle(
     if return_code != 0:
 
         log(
-            f"FFmpegエラー: return code={return_code}"
+            f"FFmpegエラー: "
+            f"return code={return_code}"
         )
 
+        if ffmpeg_output_lines:
 
-        error_detail = (
-            "\n".join(
-                ffmpeg_output_lines[-100:]
+            error_detail = (
+                "\n".join(
+                    ffmpeg_output_lines
+                )
             )
-            if ffmpeg_output_lines
-            else
-            "FFmpegからエラー内容が返されませんでした。"
-        )
 
+        else:
+
+            error_detail = (
+                "FFmpegからエラー内容が"
+                "返されませんでした。"
+            )
 
         raise RuntimeError(
 
@@ -1022,9 +1030,17 @@ def embed_subtitle(
     # サイズ確認
     # =================================
 
-    output_size = (
-        output_path.stat().st_size
-    )
+    try:
+
+        output_size = (
+            output_path.stat().st_size
+        )
+
+    except OSError as error:
+
+        raise RuntimeError(
+            f"出力ファイルを確認できませんでした: {error}"
+        )
 
 
     if output_size <= 0:
@@ -1035,7 +1051,7 @@ def embed_subtitle(
 
 
     # =================================
-    # 完了ログ
+    # 完了
     # =================================
 
     log(
@@ -1043,11 +1059,13 @@ def embed_subtitle(
     )
 
     log(
-        f"出力ファイル: {output_path}"
+        f"出力ファイル: "
+        f"{output_path}"
     )
 
     log(
-        f"サイズ: {output_size} bytes"
+        f"サイズ: "
+        f"{output_size} bytes"
     )
 
     log(
@@ -1056,6 +1074,10 @@ def embed_subtitle(
         format_elapsed_time(
             elapsed_time
         )
+    )
+
+    log(
+        "====================================="
     )
 
 
@@ -1094,7 +1116,7 @@ def format_elapsed_time(
 
 
 # =====================================
-# downloads内のファイルを指定して実行
+# downloads内から実行
 # =====================================
 
 def embed_from_downloads(
@@ -1116,7 +1138,7 @@ def embed_from_downloads(
 
 
     # ---------------------------------
-    # downloadsパス
+    # パス
     # ---------------------------------
 
     mp4_path = (
@@ -1135,11 +1157,13 @@ def embed_from_downloads(
     # ---------------------------------
 
     log(
-        f"downloads MP4: {mp4_path}"
+        f"downloads MP4: "
+        f"{mp4_path}"
     )
 
     log(
-        f"downloads SRT: {srt_path}"
+        f"downloads SRT: "
+        f"{srt_path}"
     )
 
 
@@ -1157,7 +1181,7 @@ def embed_from_downloads(
 
 
 # =====================================
-# コマンドライン実行
+# コマンドライン
 # =====================================
 
 def main():
@@ -1224,19 +1248,23 @@ def main():
         )
 
         print(
-            f"入力MP4: {mp4_filename}"
+            f"入力MP4: "
+            f"{mp4_filename}"
         )
 
         print(
-            f"入力SRT: {srt_filename}"
+            f"入力SRT: "
+            f"{srt_filename}"
         )
 
         print(
-            f"出力: {output_path.name}"
+            f"出力: "
+            f"{output_path.name}"
         )
 
         print(
-            f"出力パス: {output_path}"
+            f"出力パス: "
+            f"{output_path}"
         )
 
         print(
