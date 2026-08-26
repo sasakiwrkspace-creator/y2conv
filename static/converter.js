@@ -163,43 +163,54 @@ document.addEventListener(
 
 
             area.innerHTML = `
-
+            
+                <div class="converter-processing-title-area">
+            
+                    <div
+                        id="converter-processing-video-title"
+                        class="converter-processing-video-title"
+                    ></div>
+            
+                </div>
+            
+            
                 <div
                     class="converter-processing-status-inner"
                 >
-
+            
                     <div
                         id="converter-processing-icon"
                         class="converter-processing-icon"
                     >
                         ⏳
                     </div>
-
-
+            
+            
                     <div
                         class="converter-processing-text"
                     >
-
+            
                         <div
                             id="converter-processing-title"
                             class="converter-processing-title"
                         >
                             処理中
                         </div>
-
-
+            
+            
                         <div
                             id="converter-processing-message"
                             class="converter-processing-message"
                         >
                             準備しています...
                         </div>
-
+            
                     </div>
-
+            
                 </div>
-
+            
             `;
+
 
 
 
