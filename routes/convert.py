@@ -13,6 +13,7 @@ import re
 import time
 
 from datetime import datetime
+from urllib.parse import urlparse
 
 from routes.status import jobs
 
@@ -85,6 +86,273 @@ print(
     "==========================================",
     flush=True
 )
+
+
+# ==========================================================
+# URLを安全にログ出力
+#
+# URLそのものは確認したいので最大500文字まで。
+# 巨大なRenderログが入った場合にもログが暴走しないようにする。
+# ==========================================================
+
+def debug_url(
+    url
+):
+
+    if url is None:
+
+        return None
+
+
+    try:
+
+        text = str(
+            url
+        )
+
+    except Exception:
+
+        return "<URL文字列化失敗>"
+
+
+    if len(text) > 500:
+
+        return (
+            text[:500]
+            + "... [truncated]"
+        )
+
+
+    return text
+
+
+# ==========================================================
+# YouTube URL検証
+# ==========================================================
+
+def validate_youtube_url(
+    url
+):
+
+    if url is None:
+
+        raise ValueError(
+            "YouTube URLがありません"
+        )
+
+
+    try:
+
+        url = str(
+            url
+        ).strip()
+
+    except Exception as e:
+
+        raise ValueError(
+            "URLを文字列として処理できません"
+        ) from e
+
+
+    if not url:
+
+        raise ValueError(
+            "YouTube URLが空です"
+        )
+
+
+    # ======================================================
+    # 明らかにURLではない巨大文字列を早期拒否
+    # ======================================================
+
+    if len(url) > 2048:
+
+        raise ValueError(
+            "URLが長すぎます"
+        )
+
+
+    # ======================================================
+    # 改行・NULL文字などを拒否
+    # ======================================================
+
+    if "\x00" in url:
+
+        raise ValueError(
+            "URLに不正な文字が含まれています"
+        )
+
+
+    if "\r" in url or "\n" in url:
+
+        raise ValueError(
+            "URLに改行が含まれています"
+        )
+
+
+    # ======================================================
+    # URL解析
+    # ======================================================
+
+    try:
+
+        parsed_url = urlparse(
+            url
+        )
+
+    except Exception as e:
+
+        raise ValueError(
+            "URL形式が正しくありません"
+        ) from e
+
+
+    # ======================================================
+    # scheme
+    # ======================================================
+
+    if parsed_url.scheme.lower() not in (
+        "http",
+        "https"
+    ):
+
+        raise ValueError(
+            "httpまたはhttpsのURLを指定してください"
+        )
+
+
+    # ======================================================
+    # hostname
+    # ======================================================
+
+    hostname = (
+        parsed_url.hostname
+        or ""
+    ).lower()
+
+
+    valid_youtube_hosts = {
+
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+
+        "youtu.be",
+        "www.youtu.be"
+
+    }
+
+
+    if hostname not in valid_youtube_hosts:
+
+        raise ValueError(
+            "YouTube URLではありません"
+        )
+
+
+    # ======================================================
+    # youtube.com
+    #
+    # 通常動画:
+    #
+    # https://www.youtube.com/watch?v=xxxx
+    #
+    # Shorts:
+    #
+    # https://www.youtube.com/shorts/xxxx
+    #
+    # Live:
+    #
+    # https://www.youtube.com/live/xxxx
+    # ======================================================
+
+    if hostname in {
+
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com"
+
+    }:
+
+        path = (
+            parsed_url.path
+            or ""
+        ).lower()
+
+
+        if path == "/watch":
+
+            query = parsed_url.query
+
+            if "v=" not in query:
+
+                raise ValueError(
+                    "YouTube動画URLのvパラメータがありません"
+                )
+
+
+        elif path.startswith(
+            "/shorts/"
+        ):
+
+            pass
+
+
+        elif path.startswith(
+            "/live/"
+        ):
+
+            pass
+
+
+        elif path.startswith(
+            "/embed/"
+        ):
+
+            pass
+
+
+        else:
+
+            raise ValueError(
+                "YouTube動画URLとして認識できません"
+            )
+
+
+    # ======================================================
+    # youtu.be
+    # ======================================================
+
+    if hostname in {
+
+        "youtu.be",
+        "www.youtu.be"
+
+    }:
+
+        path = (
+            parsed_url.path
+            or ""
+        ).strip("/")
+
+
+        if not path:
+
+            raise ValueError(
+                "youtu.beの動画IDがありません"
+            )
+
+
+    print(
+        "URL検証OK:",
+        debug_url(url),
+        flush=True
+    )
+
+
+    return url
 
 
 # ==========================================================
@@ -693,6 +961,15 @@ def get_video_info(
     temp_cookie
 ):
 
+    # ======================================================
+    # 念のため再検証
+    # ======================================================
+
+    url = validate_youtube_url(
+        url
+    )
+
+
     options = {
 
         "cookiefile":
@@ -737,6 +1014,12 @@ def get_video_info(
         flush=True
     )
 
+    print(
+        "DEBUG: URL:",
+        debug_url(url),
+        flush=True
+    )
+
 
     with yt_dlp.YoutubeDL(
         options
@@ -766,18 +1049,6 @@ def get_video_info(
 
 # ==========================================================
 # ソース動画ダウンロード
-#
-# MP4の場合:
-#
-# YouTube
-# ↓
-# yt-dlp
-# ↓
-# 指定範囲
-# ↓
-# MP4
-#
-# その後のMP4処理では再エンコードしない。
 # ==========================================================
 
 def download_source(
@@ -788,6 +1059,15 @@ def download_source(
     start_seconds=None,
     end_seconds=None
 ):
+
+    # ======================================================
+    # URL再検証
+    # ======================================================
+
+    url = validate_youtube_url(
+        url
+    )
+
 
     os.makedirs(
         source_dir,
@@ -827,10 +1107,6 @@ def download_source(
 
     # ======================================================
     # MP4
-    #
-    # 映像 + 音声
-    #
-    # 可能な限りMP4映像 + M4A音声を使用
     # ======================================================
 
     if need_video:
@@ -848,8 +1124,6 @@ def download_source(
 
     # ======================================================
     # MP3
-    #
-    # 音声のみ
     # ======================================================
 
     else:
@@ -861,8 +1135,6 @@ def download_source(
 
     # ======================================================
     # 時間範囲
-    #
-    # yt-dlp側で指定範囲を取得
     # ======================================================
 
     if (
@@ -975,7 +1247,7 @@ def download_source(
 
     print(
         "URL:",
-        url,
+        debug_url(url),
         flush=True
     )
 
@@ -1267,8 +1539,6 @@ def safe_filename(
 
 # ==========================================================
 # FFmpegでMP3作成
-#
-# MP3は従来どおり再エンコードする。
 # ==========================================================
 
 def create_mp3(
@@ -1511,12 +1781,6 @@ def create_mp3(
 
 # ==========================================================
 # MP4そのまま使用
-#
-# ★重要
-#
-# 再エンコードしない。
-#
-# YouTubeから取得したMP4をそのままコピーする。
 # ==========================================================
 
 def create_mp4(
@@ -1661,9 +1925,6 @@ def create_mp4(
 
     # ======================================================
     # ffprobe
-    #
-    # 再エンコードではない。
-    # 再生時間を確認するだけ。
     # ======================================================
 
     actual_duration = get_media_duration(
@@ -1714,6 +1975,15 @@ def convert_task(
     try:
 
         # ==================================================
+        # URL再検証
+        # ==================================================
+
+        url = validate_youtube_url(
+            url
+        )
+
+
+        # ==================================================
         # Job running
         # ==================================================
 
@@ -1758,7 +2028,7 @@ def convert_task(
 
         print(
             "URL:",
-            url,
+            debug_url(url),
             flush=True
         )
 
@@ -1794,9 +2064,6 @@ def convert_task(
 
         # ==================================================
         # FFmpeg / FFprobe確認
-        #
-        # MP4コピーだけでもffprobeは使用する。
-        # MP3の場合はFFmpegも必要。
         # ==================================================
 
         if not check_ffprobe():
@@ -2270,7 +2537,7 @@ def convert_task(
         # ==================================================
         # MP4
         #
-        # ★再エンコードしない
+        # 再エンコードなし
         # ==================================================
 
         if "mp4" in valid_outputs:
@@ -2529,6 +2796,11 @@ def convert_task(
         )
 
 
+        error_message = str(
+            e
+        )
+
+
         print(
             "==========================================",
             flush=True
@@ -2554,6 +2826,18 @@ def convert_task(
         print(
             "ERROR:",
             repr(e),
+            flush=True
+        )
+
+        print(
+            "URL:",
+            debug_url(url),
+            flush=True
+        )
+
+        print(
+            "OUTPUTS:",
+            outputs,
             flush=True
         )
 
@@ -2588,7 +2872,10 @@ def convert_task(
                 "error",
 
             "message":
-                str(e),
+                error_message,
+
+            "error_type":
+                type(e).__name__,
 
             "outputs":
                 outputs,
@@ -2703,12 +2990,49 @@ def register_convert(
                 }), 400
 
 
+            print(
+                "==========================================",
+                flush=True
+            )
+
+            print(
+                "POST /convert",
+                flush=True
+            )
+
+            print(
+                "受信JSON keys:",
+                list(data.keys()),
+                flush=True
+            )
+
+            print(
+                "==========================================",
+                flush=True
+            )
+
+
             # ==================================================
             # URL
             # ==================================================
 
             url = data.get(
                 "url"
+            )
+
+
+            print(
+                "受信URL:",
+                debug_url(url),
+                flush=True
+            )
+
+            print(
+                "受信URL length:",
+                len(str(url))
+                if url is not None
+                else 0,
+                flush=True
             )
 
 
@@ -2725,9 +3049,57 @@ def register_convert(
                 }), 400
 
 
-            url = str(
-                url
-            ).strip()
+            # ==================================================
+            # URL検証
+            #
+            # ★今回追加した重要部分
+            # ==================================================
+
+            try:
+
+                url = validate_youtube_url(
+                    url
+                )
+
+            except ValueError as e:
+
+                print(
+                    "==========================================",
+                    flush=True
+                )
+
+                print(
+                    "URL検証失敗",
+                    flush=True
+                )
+
+                print(
+                    "URL:",
+                    debug_url(url),
+                    flush=True
+                )
+
+                print(
+                    "ERROR:",
+                    repr(e),
+                    flush=True
+                )
+
+                print(
+                    "==========================================",
+                    flush=True
+                )
+
+
+                return jsonify({
+
+                    "success":
+                        False,
+
+                    "message":
+                        str(e)
+
+                }), 400
 
 
             # ==================================================
@@ -2828,18 +3200,32 @@ def register_convert(
             # 時間を秒へ変換
             # ==================================================
 
-            start_seconds = (
-                time_to_seconds(
-                    start_time
+            try:
+
+                start_seconds = (
+                    time_to_seconds(
+                        start_time
+                    )
                 )
-            )
 
 
-            end_seconds = (
-                time_to_seconds(
-                    end_time
+                end_seconds = (
+                    time_to_seconds(
+                        end_time
+                    )
                 )
-            )
+
+            except ValueError as e:
+
+                return jsonify({
+
+                    "success":
+                        False,
+
+                    "message":
+                        str(e)
+
+                }), 400
 
 
             # ==================================================
@@ -2923,7 +3309,10 @@ def register_convert(
                     start_time or "",
 
                 "end_time":
-                    end_time or ""
+                    end_time or "",
+
+                "created_at":
+                    get_current_time_text()
 
             }
 
@@ -2946,7 +3335,7 @@ def register_convert(
 
             print(
                 "URL:",
-                url,
+                debug_url(url),
                 flush=True
             )
 
@@ -2994,6 +3383,11 @@ def register_convert(
 
                     end_time
 
+                ),
+
+                name=(
+                    "convert-"
+                    + job_id
                 )
 
             )
@@ -3003,6 +3397,13 @@ def register_convert(
 
 
             thread.start()
+
+
+            print(
+                "変換Thread開始:",
+                thread.name,
+                flush=True
+            )
 
 
             # ==================================================
@@ -3023,8 +3424,18 @@ def register_convert(
         except Exception as e:
 
             print(
+                "==========================================",
+                flush=True
+            )
+
+            print(
                 "convertエラー:",
                 repr(e),
+                flush=True
+            )
+
+            print(
+                "==========================================",
                 flush=True
             )
 
