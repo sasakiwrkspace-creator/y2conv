@@ -9,6 +9,8 @@
 // ・変換開始
 // ・変換結果表示
 // ・MP3 / MP4 / SRT ダウンロード表示
+// ・字幕付きMP4ダウンロード表示
+// ・MP3のGemini展開ボタン
 // ・処理詳細表示
 //
 // 別ファイル
@@ -102,6 +104,10 @@ document.addEventListener(
 
 
         let currentSrtFile =
+            "";
+
+
+        let currentSubEmbedFile =
             "";
 
 
@@ -245,6 +251,21 @@ document.addEventListener(
             set currentSrtFile(value) {
 
                 currentSrtFile =
+                    value;
+
+            },
+
+
+            get currentSubEmbedFile() {
+
+                return currentSubEmbedFile;
+
+            },
+
+
+            set currentSubEmbedFile(value) {
+
+                currentSubEmbedFile =
                     value;
 
             }
@@ -1009,6 +1030,10 @@ document.addEventListener(
                 "";
 
 
+            currentSubEmbedFile =
+                "";
+
+
 
             if (downloadArea) {
 
@@ -1415,6 +1440,9 @@ document.addEventListener(
                         srtFile:
                             currentSrtFile,
 
+                        subEmbedFile:
+                            currentSubEmbedFile,
+
                         convertSeconds:
                             convertSeconds,
 
@@ -1530,6 +1558,10 @@ document.addEventListener(
                 mp4File;
 
 
+            currentSubEmbedFile =
+                "";
+
+
 
             // =================================
             // ファイルがない
@@ -1609,16 +1641,51 @@ document.addEventListener(
 
 
             // =================================
-            // ダウンロードボタン
+            // ダウンロードUI
             //
-            // MP3 / MP4 / SRT
+            // グループ構成
+            //
+            // 🟧 字幕付きMP4
+            //
+            // 🟦 MP3 / MP4 / SRT
             // =================================
 
             let downloadHtml = `
 
                 ${titleHtml}
 
-                <div class="download-button-row">
+                <div class="download-groups">
+
+
+                    <!-- =========================
+                         字幕付きMP4グループ
+                         ========================= -->
+
+                    <div
+                        class="download-group download-group-subtitle"
+                        id="subtitle-download-group"
+                    >
+
+                        <div class="download-group-buttons">
+
+                            <span
+                                id="subtitle-embed-download-container"
+                            ></span>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =========================
+                         通常ファイルグループ
+                         ========================= -->
+
+                    <div
+                        class="download-group download-group-normal"
+                    >
+
+                        <div class="download-group-buttons">
 
             `;
 
@@ -1633,14 +1700,48 @@ document.addEventListener(
 
                 downloadHtml += `
 
-                    <a
-                        href="${window.converterUtils.makeDownloadUrl(mp3File)}"
-                        download
-                        class="download-button"
-                        id="mp3-download-button"
-                    >
-                        mp3
-                    </a>
+                            <div
+                                class="mp3-download-wrapper"
+                                id="mp3-download-wrapper"
+                            >
+
+                                <a
+                                    href="${window.converterUtils.makeDownloadUrl(mp3File)}"
+                                    download
+                                    class="download-button download-button-normal"
+                                    id="mp3-download-button"
+                                >
+                                    mp3
+                                </a>
+
+
+                                <button
+                                    type="button"
+                                    class="gemini-expand-button"
+                                    id="gemini-expand-button"
+                                    aria-expanded="false"
+                                    title="Geminiで文字起こし"
+                                >
+                                    ▲
+                                </button>
+
+                            </div>
+
+                            <div
+                                class="gemini-expand-area"
+                                id="gemini-expand-area"
+                                style="display:none;"
+                            >
+
+                                <button
+                                    type="button"
+                                    class="gemini-transcribe-button"
+                                    id="gemini-transcribe-button"
+                                >
+                                    Geminiで文字起こし
+                                </button>
+
+                            </div>
 
                 `;
 
@@ -1657,14 +1758,14 @@ document.addEventListener(
 
                 downloadHtml += `
 
-                    <a
-                        href="${window.converterUtils.makeDownloadUrl(mp4File)}"
-                        download
-                        class="download-button"
-                        id="mp4-download-button"
-                    >
-                        mp4
-                    </a>
+                            <a
+                                href="${window.converterUtils.makeDownloadUrl(mp4File)}"
+                                download
+                                class="download-button download-button-normal"
+                                id="mp4-download-button"
+                            >
+                                mp4
+                            </a>
 
                 `;
 
@@ -1675,14 +1776,18 @@ document.addEventListener(
             // =================================
             // SRT
             //
-            // Gemini完了後にここへ追加
+            // Gemini完了後に追加
             // =================================
 
             downloadHtml += `
 
-                    <span
-                        id="srt-download-button-container"
-                    ></span>
+                            <span
+                                id="srt-download-button-container"
+                            ></span>
+
+                        </div>
+
+                    </div>
 
                 </div>
 
@@ -1690,28 +1795,22 @@ document.addEventListener(
 
 
 
+            // =================================
+            // SRT情報
+            // =================================
+
             downloadHtml += `
 
                 <div
                     id="srt-download-info-placeholder"
                 ></div>
 
-            `;
-
-
-
-            downloadHtml += `
 
                 <div
                     id="srt-conversion-info"
                     style="display:none;"
                 ></div>
 
-            `;
-
-
-
-            downloadHtml += `
 
                 <div
                     id="srt-download-area"
@@ -1732,7 +1831,6 @@ document.addEventListener(
 
             // =================================
             // MP3詳細
-            // ※タイトルは表示しない
             // =================================
 
             if (mp3File) {
@@ -1750,7 +1848,6 @@ document.addEventListener(
 
             // =================================
             // MP4詳細
-            // ※タイトルは表示しない
             // =================================
 
             if (mp4File) {
@@ -1776,6 +1873,21 @@ document.addEventListener(
 
                 <div
                     id="srt-conversion-detail"
+                    style="display:none;"
+                ></div>
+
+            `;
+
+
+
+            // =================================
+            // 字幕付きMP4詳細
+            // =================================
+
+            detailHtml += `
+
+                <div
+                    id="subtitle-embed-conversion-detail"
                     style="display:none;"
                 ></div>
 
@@ -1821,6 +1933,14 @@ document.addEventListener(
                 </div>
 
             `;
+
+
+
+            // =================================
+            // Gemini展開ボタン
+            // =================================
+
+            setupGeminiExpandButton();
 
 
 
@@ -1944,7 +2064,7 @@ document.addEventListener(
                     window.converterGemini &&
                     typeof
                         window.converterGemini.hideArea ===
-                        "function"
+                    "function"
                 ) {
 
 
@@ -1988,7 +2108,7 @@ document.addEventListener(
             // MP3 + MP4 の場合だけ自動実行
             //
             // MP3単独では自動実行しない
-            // MP3のGeminiは▼等から手動実行
+            // MP3のGeminiは▲から手動実行
             // =====================================
 
             if (
@@ -2070,6 +2190,160 @@ document.addEventListener(
             // =================================
 
             restoreConvertButton();
+
+        }
+
+
+
+        // =====================================
+        // Gemini展開ボタン設定
+        //
+        // MP3の右側に
+        //
+        // [mp3] ▲
+        //
+        // を表示
+        //
+        // ▲を押すと
+        //
+        // Geminiで文字起こし
+        //
+        // を展開
+        // =====================================
+
+        function setupGeminiExpandButton() {
+
+
+            const expandButton =
+                document.getElementById(
+                    "gemini-expand-button"
+                );
+
+
+            const expandArea =
+                document.getElementById(
+                    "gemini-expand-area"
+                );
+
+
+            const transcribeButton =
+                document.getElementById(
+                    "gemini-transcribe-button"
+                );
+
+
+
+            if (
+                !expandButton ||
+                !expandArea
+            ) {
+
+                return;
+
+            }
+
+
+
+            // ---------------------------------
+            // ▲クリック
+            // ---------------------------------
+
+            expandButton.addEventListener(
+                "click",
+                function () {
+
+
+                    const isHidden =
+                        expandArea.style.display ===
+                        "none";
+
+
+
+                    if (isHidden) {
+
+
+                        expandArea.style.display =
+                            "block";
+
+
+                        expandButton.textContent =
+                            "▼";
+
+
+                        expandButton.setAttribute(
+                            "aria-expanded",
+                            "true"
+                        );
+
+                    }
+                    else {
+
+
+                        expandArea.style.display =
+                            "none";
+
+
+                        expandButton.textContent =
+                            "▲";
+
+
+                        expandButton.setAttribute(
+                            "aria-expanded",
+                            "false"
+                        );
+
+                    }
+
+                }
+            );
+
+
+
+            // ---------------------------------
+            // Gemini実行
+            // ---------------------------------
+
+            if (transcribeButton) {
+
+
+                transcribeButton.addEventListener(
+                    "click",
+                    function () {
+
+
+                        console.log(
+                            "[GEMINI] 手動文字起こし開始"
+                        );
+
+
+
+                        if (
+                            typeof window.startGemini ===
+                            "function"
+                        ) {
+
+
+                            window.startGemini();
+
+                        }
+                        else {
+
+
+                            console.error(
+                                "[GEMINI] startGemini がありません"
+                            );
+
+
+                            alert(
+                                "Gemini機能を読み込めませんでした。"
+                            );
+
+                        }
+
+                    }
+                );
+
+            }
 
         }
 
@@ -2193,7 +2467,7 @@ document.addEventListener(
                         <a
                             href="${window.converterUtils.makeDownloadUrl(srtFile)}"
                             download
-                            class="download-button"
+                            class="download-button download-button-normal"
                             id="srt-download-button"
                         >
                             srt
@@ -2202,6 +2476,114 @@ document.addEventListener(
                     `;
 
                 }
+
+            };
+
+
+
+        // =====================================
+        // 字幕付きMP4ダウンロードボタン追加
+        //
+        // 外部処理から呼び出し可能
+        //
+        // 使用例：
+        //
+        // window.converterMain.addSubtitleEmbedFile(
+        //     "xxx_sub_embed.mp4"
+        // );
+        // =====================================
+
+        window.converterMain.addSubtitleEmbedFile =
+            function (
+                file
+            ) {
+
+
+                if (!file) {
+
+                    console.error(
+                        "[SUB EMBED] ファイル名がありません"
+                    );
+
+                    return;
+
+                }
+
+
+
+                currentSubEmbedFile =
+                    file;
+
+
+
+                const container =
+                    document.getElementById(
+                        "subtitle-embed-download-container"
+                    );
+
+
+                if (!container) {
+
+                    console.error(
+                        "[SUB EMBED] ダウンロード領域がありません"
+                    );
+
+                    return;
+
+                }
+
+
+
+                container.innerHTML = `
+
+                    <a
+                        href="/subtitle-download/${encodeURIComponent(file)}"
+                        download
+                        class="download-button download-button-subtitle"
+                        id="subtitle-embed-download-button"
+                    >
+                        字幕付
+                    </a>
+
+                `;
+
+            };
+
+
+
+        // =====================================
+        // 字幕付きMP4情報追加
+        // =====================================
+
+        window.converterMain.addSubtitleEmbedInfo =
+            function (
+                html
+            ) {
+
+
+                const detail =
+                    document.getElementById(
+                        "subtitle-embed-conversion-detail"
+                    );
+
+
+                if (!detail) {
+
+                    console.error(
+                        "[SUB EMBED] 処理詳細領域がありません"
+                    );
+
+                    return;
+
+                }
+
+
+                detail.innerHTML =
+                    html;
+
+
+                detail.style.display =
+                    "block";
 
             };
 
