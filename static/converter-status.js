@@ -1336,6 +1336,7 @@ async function checkStatus() {
         );
 
     }
+
     catch (
         error
     ) {
