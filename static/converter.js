@@ -541,14 +541,39 @@ document.addEventListener(
             // そちらを優先
             // =================================
 
-            const displayVideoTitle =
-                options.videoTitle ||
-                currentVideoTitle ||
+            currentVideoTitle =
+                data.title ||
+                data.video_title ||
                 "";
+            
+            
+            currentVideoDuration =
+                data.duration ||
+                data.video_duration ||
+                "";
+            
+            
+            
+            // =================================
+            // ★ タイトル取得直後に表示
+            // =================================
+            
+            if (currentVideoTitle) {
+            
+                updateProcessingStatus(
+                    "convert",
+                    "変換処理を開始しています...",
+                    {
+                        title:
+                            "実行中・・・",
+            
+                        videoTitle:
+                            currentVideoTitle
+                    }
+                );
+            
+            }
 
-
-            videoTitle.textContent =
-                displayVideoTitle;
 
 
 
