@@ -1587,3 +1587,111 @@ h1 {
     }
 
 }
+
+/* =====================================
+   変換処理ステータス
+   ===================================== */
+
+.conversion-status-area {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    margin-top: 15px;
+
+    padding: 12px 16px;
+
+    border-radius: 8px;
+
+    font-size: 15px;
+
+    font-weight: 600;
+
+}
+
+
+/* -------------------------------------
+   実行中
+   ------------------------------------- */
+
+.conversion-status-running {
+
+    color: #1565c0;
+
+    background: #eaf3ff;
+
+    border: 1px solid #90caf9;
+
+}
+
+
+/* -------------------------------------
+   待機中
+   ------------------------------------- */
+
+.conversion-status-waiting {
+
+    color: #8a6500;
+
+    background: #fff8df;
+
+    border: 1px solid #f0d36a;
+
+}
+
+
+/* -------------------------------------
+   完了
+   ------------------------------------- */
+
+.conversion-status-complete {
+
+    color: #167c3a;
+
+    background: #eaf8ef;
+
+    border: 1px solid #8bd5a8;
+
+}
+
+
+/* -------------------------------------
+   エラー
+   ------------------------------------- */
+
+.conversion-status-error {
+
+    color: #b42318;
+
+    background: #fff0ee;
+
+    border: 1px solid #f0aaa3;
+
+}
+
+
+/* -------------------------------------
+   アイコン
+   ------------------------------------- */
+
+.conversion-status-icon {
+
+    min-width: 20px;
+
+    font-size: 16px;
+
+}
+
+
+/* -------------------------------------
+   メッセージ
+   ------------------------------------- */
+
+.conversion-status-message {
+
+    flex: 1;
+
+}
