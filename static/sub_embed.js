@@ -12,7 +12,7 @@
 // ↓
 // ダウンロード
 //
-// 処理時間カウント付き
+// 処理時間リアルタイム表示
 // =====================================
 
 (function () {
@@ -154,6 +154,15 @@
 
 
         // =================================
+        // タイマー管理
+        // =================================
+
+        let elapsedTimerId = null;
+
+        let processingStartTime = null;
+
+
+        // =================================
         // ステータス表示
         // =================================
 
@@ -223,7 +232,7 @@
 
 
         // =================================
-        // 経過時間表示用
+        // 経過時間フォーマット
         // =================================
 
         function formatElapsedTime(
@@ -287,16 +296,23 @@
 
 
         // =================================
-        // 現在の処理時間を取得
+        // 経過時間テキスト
         // =================================
 
-        function getElapsedText(
-            startTime
-        ) {
+        function getElapsedText() {
+
+            if (
+                processingStartTime === null
+            ) {
+
+                return "処理時間: 0秒";
+
+            }
+
 
             const elapsed =
                 Date.now() -
-                startTime;
+                processingStartTime;
 
 
             return (
@@ -310,70 +326,77 @@
 
 
         // =================================
-        // ファイル名表示
+        // リアルタイムタイマー停止
         // =================================
 
-        function showSelectedFiles(
-            mp4File,
-            srtFile
+        function stopElapsedTimer() {
+
+            if (
+                elapsedTimerId !== null
+            ) {
+
+                clearTimeout(
+                    elapsedTimerId
+                );
+
+                elapsedTimerId =
+                    null;
+
+            }
+
+        }
+
+
+        // =================================
+        // リアルタイムタイマー開始
+        //
+        // setIntervalではなく
+        // setTimeoutを1回ずつ実行する
+        // =================================
+
+        function startElapsedTimer(
+            message
         ) {
 
-            if (!filesElement) {
-
-                return;
-            }
+            stopElapsedTimer();
 
 
-            filesElement.innerHTML =
-                "";
+            function updateTimer() {
+
+                if (
+                    processingStartTime === null
+                ) {
+
+                    return;
+
+                }
 
 
-            // -----------------------------
-            // MP4
-            // -----------------------------
-
-            if (mp4File) {
-
-                const mp4Info =
-                    document.createElement(
-                        "div"
-                    );
+                const elapsedText =
+                    getElapsedText();
 
 
-                mp4Info.textContent =
-                    "MP4: " +
-                    mp4File.name;
+                setStatus(
 
+                    message +
+                    "\n" +
+                    elapsedText,
 
-                filesElement.appendChild(
-                    mp4Info
+                    null
+
                 );
 
-            }
 
-
-            // -----------------------------
-            // SRT
-            // -----------------------------
-
-            if (srtFile) {
-
-                const srtInfo =
-                    document.createElement(
-                        "div"
+                elapsedTimerId =
+                    setTimeout(
+                        updateTimer,
+                        1000
                     );
 
-
-                srtInfo.textContent =
-                    "SRT: " +
-                    srtFile.name;
-
-
-                filesElement.appendChild(
-                    srtInfo
-                );
-
             }
+
+
+            updateTimer();
 
         }
 
@@ -702,6 +725,13 @@
 
 
                 // =================================
+                // 前回のタイマー停止
+                // =================================
+
+                stopElapsedTimer();
+
+
+                // =================================
                 // 前回の結果をクリア
                 // =================================
 
@@ -712,7 +742,7 @@
                 // 処理開始時間
                 // =================================
 
-                const startTime =
+                processingStartTime =
                     Date.now();
 
 
@@ -720,7 +750,7 @@
                     "[SUB EMBED] "
                     + "処理開始時間:",
                     new Date(
-                        startTime
+                        processingStartTime
                     ).toLocaleString()
                 );
 
@@ -776,6 +806,9 @@
 
                 if (!mp4File) {
 
+                    processingStartTime =
+                        null;
+
                     setStatus(
                         "MP4ファイルを選択してください。",
                         "error"
@@ -790,6 +823,9 @@
                 // =================================
 
                 if (!srtFile) {
+
+                    processingStartTime =
+                        null;
 
                     setStatus(
                         "SRTファイルを選択してください。",
@@ -810,6 +846,9 @@
                         .endsWith(".mp4")
                 ) {
 
+                    processingStartTime =
+                        null;
+
                     setStatus(
                         "MP4ファイルを選択してください。",
                         "error"
@@ -825,6 +864,9 @@
                         .endsWith(".srt")
                 ) {
 
+                    processingStartTime =
+                        null;
+
                     setStatus(
                         "SRTファイルを選択してください。",
                         "error"
@@ -832,16 +874,6 @@
 
                     return;
                 }
-
-
-                // =================================
-                // 選択ファイル表示
-                // =================================
-
-                showSelectedFiles(
-                    mp4File,
-                    srtFile
-                );
 
 
                 // =================================
@@ -859,15 +891,8 @@
                     // MP4アップロード
                     // =================================
 
-                    setStatus(
-
-                        "MP4をアップロードしています...\n" +
-                        getElapsedText(
-                            startTime
-                        ),
-
-                        null
-
+                    startElapsedTimer(
+                        "MP4をアップロードしています..."
                     );
 
 
@@ -888,15 +913,8 @@
                     // SRTアップロード
                     // =================================
 
-                    setStatus(
-
-                        "SRTをアップロードしています...\n" +
-                        getElapsedText(
-                            startTime
-                        ),
-
-                        null
-
+                    startElapsedTimer(
+                        "SRTをアップロードしています..."
                     );
 
 
@@ -917,16 +935,9 @@
                     // 字幕焼き込み
                     // =================================
 
-                    setStatus(
-
+                    startElapsedTimer(
                         "字幕を動画に付けています...\n" +
-                        "しばらくお待ちください。\n" +
-                        getElapsedText(
-                            startTime
-                        ),
-
-                        null
-
+                        "しばらくお待ちください。"
                     );
 
 
@@ -948,12 +959,12 @@
 
 
                     // =================================
-                    // 処理時間計算
+                    // 処理時間確定
                     // =================================
 
                     const elapsedTime =
                         Date.now() -
-                        startTime;
+                        processingStartTime;
 
 
                     const elapsedText =
@@ -962,11 +973,11 @@
                         );
 
 
-                    console.log(
-                        "[SUB EMBED] "
-                        + "総処理時間:",
-                        elapsedText
-                    );
+                    // =================================
+                    // タイマー停止
+                    // =================================
+
+                    stopElapsedTimer();
 
 
                     // =================================
@@ -976,9 +987,7 @@
 
                     setStatus(
 
-                        "字幕焼き込みが完了しました。\n" +
-                        embedResult.filename +
-                        "\n\n" +
+                        "字幕焼き込みが完了しました。\n\n" +
                         "処理時間: " +
                         elapsedText,
 
@@ -1010,18 +1019,36 @@
                 } catch (error) {
 
                     // =================================
+                    // タイマー停止
+                    // =================================
+
+                    stopElapsedTimer();
+
+
+                    // =================================
                     // エラー時処理時間
                     // =================================
 
-                    const elapsedTime =
-                        Date.now() -
-                        startTime;
+                    let elapsedText =
+                        "0秒";
 
 
-                    const elapsedText =
-                        formatElapsedTime(
-                            elapsedTime
-                        );
+                    if (
+                        processingStartTime !==
+                        null
+                    ) {
+
+                        const elapsedTime =
+                            Date.now() -
+                            processingStartTime;
+
+
+                        elapsedText =
+                            formatElapsedTime(
+                                elapsedTime
+                            );
+
+                    }
 
 
                     console.error(
@@ -1056,6 +1083,21 @@
 
 
                 } finally {
+
+                    // =================================
+                    // タイマー停止
+                    // =================================
+
+                    stopElapsedTimer();
+
+
+                    // =================================
+                    // 処理時間リセット
+                    // =================================
+
+                    processingStartTime =
+                        null;
+
 
                     // =================================
                     // ボタン再有効化
