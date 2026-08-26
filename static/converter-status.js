@@ -11,6 +11,13 @@
 // ・完了時に converter.js の showFiles()
 // ・処理中は画面表示を変更しない
 // ・実行開始時 / タイトル取得時 / 完了時 / エラー時だけ表示を変更
+//
+// 共通関数
+// ・converter-utils.js
+//
+// メイン処理
+// ・converter.js
+//
 // =====================================
 
 
@@ -82,14 +89,44 @@ function getDownloadArea() {
 }
 
 
-// =====================================
-// HTML処理状況表示
-// =====================================
-
 function getStatusArea() {
 
     return document.getElementById(
         "conversion-status-area"
+    );
+
+}
+
+
+// =====================================
+// HTMLエスケープ
+//
+// 共通関数は converter-utils.js を使用
+// =====================================
+
+function escapeStatusHtml(
+    value
+) {
+
+    if (
+        window.converterUtils &&
+        typeof
+            window.converterUtils.escapeHtml ===
+            "function"
+    ) {
+
+        return window.converterUtils.escapeHtml(
+            value
+        );
+
+    }
+
+
+    return String(
+        value === null ||
+        value === undefined
+            ? ""
+            : value
     );
 
 }
@@ -138,7 +175,7 @@ function updateStatus(
 
         <div class="conversion-status-message">
 
-            ${escapeHtml(message)}
+            ${escapeStatusHtml(message)}
 
         </div>
 
@@ -188,60 +225,14 @@ function getStatusIcon(
 
 
 // =====================================
-// HTMLエスケープ
-// =====================================
-
-function escapeHtml(
-    value
-) {
-
-    if (
-        window.converterUtils &&
-        typeof
-            window.converterUtils.escapeHtml ===
-            "function"
-    ) {
-
-        return window.converterUtils.escapeHtml(
-            value
-        );
-
-    }
-
-
-    return String(
-        value ?? ""
-    )
-        .replace(
-            /&/g,
-            "&amp;"
-        )
-        .replace(
-            /</g,
-            "&lt;"
-        )
-        .replace(
-            />/g,
-            "&gt;"
-        )
-        .replace(
-            /"/g,
-            "&quot;"
-        )
-        .replace(
-            /'/g,
-            "&#039;"
-        );
-
-}
-
-
-// =====================================
-// 動画タイトルをHTMLへ表示
+// 動画タイトル更新
 // =====================================
 //
-// /status APIからタイトルを取得した
-// 時点で即座に画面へ反映する。
+// /status APIからタイトルを取得した場合、
+// converterStateへ保存する。
+//
+// 画面表示については converter.js の
+// converter-processing-status を使用する。
 // =====================================
 
 function updateVideoTitle(
@@ -277,60 +268,39 @@ function updateVideoTitle(
     }
 
 
-    // =================================
-    // HTML取得
-    // =================================
-
-    const titleArea =
-        document.getElementById(
-            "video-title-area"
-        );
-
-
-    const titleElement =
-        document.getElementById(
-            "video-title"
-        );
-
-
-    if (
-        !titleArea ||
-        !titleElement
-    ) {
-
-        console.warn(
-            "[STATUS] video-title HTMLがありません"
-        );
-
-
-        console.warn(
-            "[STATUS] 必要なHTML:",
-            "#video-title-area",
-            "#video-title"
-        );
-
-
-        return;
-
-    }
-
-
-    // =================================
-    // タイトル表示
-    // =================================
-
-    titleElement.textContent =
-        videoTitle;
-
-
-    titleArea.style.display =
-        "block";
-
-
     console.log(
-        "[STATUS] 動画タイトルをHTMLへ反映:",
+        "[STATUS] 動画タイトル取得:",
         videoTitle
     );
+
+
+    // =================================
+    // converter.js側の
+    // 処理ステータスへ反映
+    // =================================
+
+    if (
+        window.converterMain &&
+        typeof
+            window.converterMain.updateProcessingStatus ===
+            "function"
+    ) {
+
+        window.converterMain.updateProcessingStatus(
+            "convert",
+            "ファイルを作成しています...",
+            {
+
+                title:
+                    "実行中・・・",
+
+                videoTitle:
+                    videoTitle
+
+            }
+        );
+
+    }
 
 }
 
@@ -377,62 +347,95 @@ function updateVideoDuration(
 //
 // converter.js側の
 // converter-processing-status
-// を優先して使用する。
+// を使用する。
 // =====================================
 
 function updateMainProcessingStatus(
     message,
-    type
+    type,
+    options
 ) {
 
     if (
-        window.converterMain &&
+        !window.converterMain ||
         typeof
-            window.converterMain.updateProcessingStatus ===
+            window.converterMain.updateProcessingStatus !==
             "function"
     ) {
 
-        if (
-            type === "complete"
-        ) {
-
-            window.converterMain.updateProcessingStatus(
-                "success",
-                message ||
-                    "処理が完了しました。"
-            );
-
-            return;
-
-        }
-
-
-        if (
-            type === "error"
-        ) {
-
-            window.converterMain.updateProcessingStatus(
-                "error",
-                message ||
-                    "処理中にエラーが発生しました。"
-            );
-
-            return;
-
-        }
-
-
-        window.converterMain.updateProcessingStatus(
-            "convert",
-            message ||
-                "処理を実行中です...",
-            {
-                title:
-                    "実行中・・・"
-            }
-        );
+        return;
 
     }
+
+
+    options =
+        options || {};
+
+
+    // =================================
+    // 完了
+    // =================================
+
+    if (
+        type === "complete"
+    ) {
+
+        window.converterMain.updateProcessingStatus(
+            "success",
+            message ||
+                "処理が完了しました。",
+            options
+        );
+
+        return;
+
+    }
+
+
+    // =================================
+    // エラー
+    // =================================
+
+    if (
+        type === "error"
+    ) {
+
+        window.converterMain.updateProcessingStatus(
+            "error",
+            message ||
+                "処理中にエラーが発生しました。",
+            options
+        );
+
+        return;
+
+    }
+
+
+    // =================================
+    // 通常処理中
+    // =================================
+
+    window.converterMain.updateProcessingStatus(
+        "convert",
+        message ||
+            "処理を実行中です...",
+        {
+
+            title:
+                options.title ||
+                "実行中・・・",
+
+            videoTitle:
+                options.videoTitle ||
+                (
+                    window.converterState
+                        ? window.converterState.currentVideoTitle
+                        : ""
+                )
+
+        }
+    );
 
 }
 
@@ -448,15 +451,32 @@ function showRunningState() {
     );
 
 
+    const state =
+        window.converterState
+            ? window.converterState
+            : null;
+
+
+    const videoTitle =
+        state
+            ? state.currentVideoTitle
+            : "";
+
+
     updateMainProcessingStatus(
         "MP3 / MP4を作成しています...",
-        "running"
+        "running",
+        {
+
+            title:
+                "実行中・・・",
+
+            videoTitle:
+                videoTitle
+
+        }
     );
 
-
-    // ---------------------------------
-    // STATUS領域
-    // ---------------------------------
 
     updateStatus(
         "MP3 / MP4を作成しています...",
@@ -485,9 +505,23 @@ function showCompleteState(
     );
 
 
+    const state =
+        window.converterState
+            ? window.converterState
+            : null;
+
+
     updateMainProcessingStatus(
         finalMessage,
-        "complete"
+        "complete",
+        {
+
+            videoTitle:
+                state
+                    ? state.currentVideoTitle
+                    : ""
+
+        }
     );
 
 
@@ -518,9 +552,23 @@ function showErrorState(
     );
 
 
+    const state =
+        window.converterState
+            ? window.converterState
+            : null;
+
+
     updateMainProcessingStatus(
         finalMessage,
-        "error"
+        "error",
+        {
+
+            videoTitle:
+                state
+                    ? state.currentVideoTitle
+                    : ""
+
+        }
     );
 
 
@@ -535,10 +583,8 @@ function showErrorState(
 // =====================================
 // 待機・接続エラー表示
 //
-// 重要
-// -------------------------------------
-// 処理そのものを終了しないため、
-// メインの「実行中・・・」表示は
+// 処理そのものを終了しない。
+// メインの「実行中・・・」表示も
 // 変更しない。
 // =====================================
 
@@ -552,7 +598,7 @@ function keepRunningDisplay() {
 
 
 // =====================================
-// タイマー停止
+// メインタイマー停止
 // =====================================
 
 function stopMainTimer() {
@@ -678,7 +724,7 @@ function start(
     ) {
 
         console.error(
-            "STATUS開始失敗: JOB IDがありません"
+            "[STATUS] 開始失敗: JOB IDがありません"
         );
 
 
@@ -744,7 +790,7 @@ async function checkStatus() {
     ) {
 
         console.warn(
-            "STATUS確認: JOB IDがありません"
+            "[STATUS] JOB IDがありません"
         );
 
 
@@ -820,7 +866,7 @@ async function checkStatus() {
 
 
         // =================================
-        // 429
+        // 429 Rate Limit
         // =================================
 
         if (
@@ -831,10 +877,6 @@ async function checkStatus() {
                 "[STATUS] 429 Rate Limit"
             );
 
-
-            // ---------------------------------
-            // 実行中表示は変更しない
-            // ---------------------------------
 
             keepRunningDisplay();
 
@@ -864,10 +906,6 @@ async function checkStatus() {
                 response.status
             );
 
-
-            // ---------------------------------
-            // 実行中表示を維持
-            // ---------------------------------
 
             keepRunningDisplay();
 
@@ -942,10 +980,6 @@ async function checkStatus() {
             );
 
 
-            // ---------------------------------
-            // 実行中表示を維持
-            // ---------------------------------
-
             keepRunningDisplay();
 
 
@@ -990,9 +1024,7 @@ async function checkStatus() {
             );
 
 
-            // ---------------------------------
-            // JSONエラーでも処理終了扱いにしない
-            // ---------------------------------
+            // JSONエラーでもJOB終了扱いにしない
 
             keepRunningDisplay();
 
@@ -1088,11 +1120,6 @@ async function checkStatus() {
                 MAX_JOB_NOT_FOUND_RETRY
             ) {
 
-                // ---------------------------------
-                // JOBが一時的に見えないだけなら
-                // 実行中表示を維持
-                // ---------------------------------
-
                 keepRunningDisplay();
 
 
@@ -1106,9 +1133,9 @@ async function checkStatus() {
             }
 
 
-            // ---------------------------------
+            // =================================
             // 長時間JOBなし
-            // ---------------------------------
+            // =================================
 
             console.error(
                 "[STATUS] JOBなしが長時間継続しました"
@@ -1163,7 +1190,8 @@ async function checkStatus() {
         // タイトル
         //
         // STATUSで取得できた瞬間に
-        // HTMLへ反映する
+        // converterStateへ保存し、
+        // converter.jsの表示へ反映
         // =================================
 
         const videoTitle =
@@ -1207,7 +1235,7 @@ async function checkStatus() {
         // =================================
         // queued
         //
-        // 表示は変更しない
+        // 画面表示は変更しない
         // =================================
 
         if (
@@ -1235,7 +1263,7 @@ async function checkStatus() {
         // =================================
         // running
         //
-        // 表示は変更しない
+        // 画面表示は変更しない
         // =================================
 
         if (
@@ -1290,32 +1318,62 @@ async function checkStatus() {
             );
 
 
-            // ---------------------------------
+            // =================================
             // STATUS停止
-            // ---------------------------------
+            // =================================
 
             stopStatusPolling();
 
 
-            // ---------------------------------
+            // =================================
             // メインタイマー停止
-            // ---------------------------------
+            // =================================
 
             stopMainTimer();
 
 
-            // ---------------------------------
+            // =================================
+            // 最新タイトル取得
+            // =================================
+
+            const completedTitle =
+                data.title ||
+                data.video_title ||
+                (
+                    window.converterState
+                        ? window.converterState.currentVideoTitle
+                        : ""
+                );
+
+
+            if (
+                completedTitle
+            ) {
+
+                if (
+                    window.converterState
+                ) {
+
+                    window.converterState.currentVideoTitle =
+                        completedTitle;
+
+                }
+
+            }
+
+
+            // =================================
             // 完了表示
-            // ---------------------------------
+            // =================================
 
             showCompleteState(
                 "MP3 / MP4の作成が完了しました。"
             );
 
 
-            // ---------------------------------
+            // =================================
             // ボタン非表示
-            // ---------------------------------
+            // =================================
 
             const button =
                 getConvertButton();
@@ -1331,9 +1389,9 @@ async function checkStatus() {
             }
 
 
-            // ---------------------------------
+            // =================================
             // files
-            // ---------------------------------
+            // =================================
 
             const files =
                 Array.isArray(
@@ -1354,10 +1412,10 @@ async function checkStatus() {
             }
 
 
-            // ---------------------------------
+            // =================================
             // converter.js
             // showFiles()
-            // ---------------------------------
+            // =================================
 
             if (
                 window.converterMain &&
@@ -1474,9 +1532,7 @@ async function checkStatus() {
         );
 
 
-        // ---------------------------------
         // 未知のSTATUSでも終了扱いにしない
-        // ---------------------------------
 
         keepRunningDisplay();
 
@@ -1507,11 +1563,11 @@ async function checkStatus() {
         );
 
 
-        // ---------------------------------
+        // =================================
         // ネットワークエラー
         //
-        // ここでは変換終了扱いにしない
-        // ---------------------------------
+        // 変換終了扱いにしない
+        // =================================
 
         keepRunningDisplay();
 
