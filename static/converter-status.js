@@ -9,6 +9,8 @@
 // ・JOBなしの一時的な消失に対応
 // ・ネットワークエラーでも変換を終了扱いにしない
 // ・完了時に converter.js の showFiles()
+// ・処理中は画面表示を変更しない
+// ・実行開始時 / 完了時 / エラー時だけ表示を変更
 // =====================================
 
 
@@ -149,23 +151,31 @@ function updateStatus(
 // ステータスアイコン
 // =====================================
 
-function getStatusIcon(type) {
+function getStatusIcon(
+    type
+) {
 
-    if (type === "complete") {
+    if (
+        type === "complete"
+    ) {
 
         return "✓";
 
     }
 
 
-    if (type === "error") {
+    if (
+        type === "error"
+    ) {
 
         return "✕";
 
     }
 
 
-    if (type === "waiting") {
+    if (
+        type === "waiting"
+    ) {
 
         return "⏳";
 
@@ -181,7 +191,9 @@ function getStatusIcon(type) {
 // HTMLエスケープ
 // =====================================
 
-function escapeHtml(value) {
+function escapeHtml(
+    value
+) {
 
     if (
         window.converterUtils &&
@@ -197,7 +209,9 @@ function escapeHtml(value) {
     }
 
 
-    return String(value ?? "")
+    return String(
+        value ?? ""
+    )
         .replace(
             /&/g,
             "&amp;"
@@ -218,6 +232,185 @@ function escapeHtml(value) {
             /'/g,
             "&#039;"
         );
+
+}
+
+
+// =====================================
+// メイン処理ステータス表示
+//
+// converter.js側の
+// converter-processing-status
+// を優先して使用する。
+// =====================================
+
+function updateMainProcessingStatus(
+    message,
+    type
+) {
+
+    if (
+        window.converterMain &&
+        typeof
+            window.converterMain.updateProcessingStatus ===
+            "function"
+    ) {
+
+        if (
+            type === "complete"
+        ) {
+
+            window.converterMain.updateProcessingStatus(
+                "success",
+                message ||
+                    "処理が完了しました。"
+            );
+
+            return;
+
+        }
+
+
+        if (
+            type === "error"
+        ) {
+
+            window.converterMain.updateProcessingStatus(
+                "error",
+                message ||
+                    "処理中にエラーが発生しました。"
+            );
+
+            return;
+
+        }
+
+
+        window.converterMain.updateProcessingStatus(
+            "convert",
+            message ||
+                "処理を実行中です...",
+            {
+                title:
+                    "実行中・・・"
+            }
+        );
+
+    }
+
+}
+
+
+// =====================================
+// 実行開始表示
+// =====================================
+
+function showRunningState() {
+
+    console.log(
+        "[STATUS UI] 実行中表示"
+    );
+
+
+    updateMainProcessingStatus(
+        "MP3 / MP4を作成しています...",
+        "running"
+    );
+
+
+    // ---------------------------------
+    // 旧STATUS領域も存在する場合は表示
+    // ---------------------------------
+
+    updateStatus(
+        "MP3 / MP4を作成しています...",
+        "running"
+    );
+
+}
+
+
+// =====================================
+// 完了表示
+// =====================================
+
+function showCompleteState(
+    message
+) {
+
+    const finalMessage =
+        message ||
+        "MP3 / MP4の作成が完了しました。";
+
+
+    console.log(
+        "[STATUS UI] 完了表示:",
+        finalMessage
+    );
+
+
+    updateMainProcessingStatus(
+        finalMessage,
+        "complete"
+    );
+
+
+    updateStatus(
+        finalMessage,
+        "complete"
+    );
+
+}
+
+
+// =====================================
+// エラー表示
+// =====================================
+
+function showErrorState(
+    message
+) {
+
+    const finalMessage =
+        message ||
+        "変換中にエラーが発生しました。";
+
+
+    console.error(
+        "[STATUS UI] エラー表示:",
+        finalMessage
+    );
+
+
+    updateMainProcessingStatus(
+        finalMessage,
+        "error"
+    );
+
+
+    updateStatus(
+        finalMessage,
+        "error"
+    );
+
+}
+
+
+// =====================================
+// 待機・接続エラー表示
+//
+// 重要
+// -------------------------------------
+// 処理そのものを終了しないため、
+// メインの「実行中・・・」表示は
+// 変更しない。
+// =====================================
+
+function keepRunningDisplay() {
+
+    console.log(
+        "[STATUS UI] 実行中表示を維持"
+    );
 
 }
 
@@ -250,7 +443,9 @@ function scheduleStatusCheck(
     seconds
 ) {
 
-    if (statusTimer) {
+    if (
+        statusTimer
+    ) {
 
         clearTimeout(
             statusTimer
@@ -281,7 +476,9 @@ function scheduleStatusCheck(
 
 function stopStatusPolling() {
 
-    if (statusTimer) {
+    if (
+        statusTimer
+    ) {
 
         clearTimeout(
             statusTimer
@@ -340,16 +537,19 @@ function start(
     );
 
 
-    if (!statusCurrentJobId) {
+    if (
+        !statusCurrentJobId
+    ) {
 
         console.error(
             "STATUS開始失敗: JOB IDがありません"
         );
 
-        updateStatus(
-            "変換JOBを開始できませんでした",
-            "error"
+
+        showErrorState(
+            "変換JOBを開始できませんでした。"
         );
+
 
         return;
 
@@ -357,137 +557,38 @@ function start(
 
 
     console.log(
-        "STATUS監視開始:",
+        "======================================"
+    );
+
+
+    console.log(
+        "[STATUS] 監視開始"
+    );
+
+
+    console.log(
+        "[STATUS] JOB ID:",
         statusCurrentJobId
     );
 
 
-    updateStatus(
-        "変換処理を開始しています...",
-        "running"
+    console.log(
+        "======================================"
     );
 
 
+    // =================================
+    // 実行開始時だけ画面表示
+    // =================================
+
+    showRunningState();
+
+
+    // =================================
+    // STATUS確認開始
+    // =================================
+
     checkStatus();
-
-}
-
-
-// =====================================
-// 現在の処理ステージを表示
-// =====================================
-//
-// バックエンドから
-//
-// stage
-//
-// が返ってきた場合はこちらを使用。
-// =====================================
-
-function updateStageFromData(
-    data
-) {
-
-    const stage =
-        data.stage ||
-        data.current_stage ||
-        data.step ||
-        data.current_step ||
-        "";
-
-
-    if (!stage) {
-
-        return false;
-
-    }
-
-
-    const stageMap = {
-
-        "download":
-            "動画をダウンロード中...",
-
-        "downloading":
-            "動画をダウンロード中...",
-
-        "mp3":
-            "MP3を作成中...",
-
-        "mp3_creating":
-            "MP3を作成中...",
-
-        "creating_mp3":
-            "MP3を作成中...",
-
-        "mp4":
-            "MP4を作成中...",
-
-        "mp4_creating":
-            "MP4を作成中...",
-
-        "creating_mp4":
-            "MP4を作成中...",
-
-        "gemini":
-            "字幕ファイル（Gemini）作成中...",
-
-        "gemini_transcribe":
-            "字幕ファイル（Gemini）作成中...",
-
-        "srt":
-            "字幕ファイル（SRT）作成中...",
-
-        "subtitle":
-            "字幕ファイル（SRT）作成中...",
-
-        "subtitle_embed":
-            "字幕付きMP4を作成中...",
-
-        "complete":
-            "変換完了"
-
-    };
-
-
-    const message =
-        stageMap[stage];
-
-
-    if (message) {
-
-        updateStatus(
-            message,
-            stage === "complete"
-                ? "complete"
-                : "running"
-        );
-
-        return true;
-
-    }
-
-
-    // ---------------------------------
-    // バックエンドが日本語を直接返す場合
-    // ---------------------------------
-
-    if (
-        typeof stage === "string" &&
-        stage.length > 0
-    ) {
-
-        updateStatus(
-            stage,
-            "running"
-        );
-
-        return true;
-
-    }
-
-
-    return false;
 
 }
 
@@ -502,15 +603,24 @@ async function checkStatus() {
         statusCurrentJobId;
 
 
-    if (!jobId) {
+    if (
+        !jobId
+    ) {
 
         console.warn(
             "STATUS確認: JOB IDがありません"
         );
 
+
         return;
 
     }
+
+
+    console.log(
+        "[STATUS] 確認:",
+        jobId
+    );
 
 
     try {
@@ -519,11 +629,21 @@ async function checkStatus() {
         // STATUS API
         // =================================
 
+        const statusUrl =
+            `/status/${encodeURIComponent(
+                jobId
+            )}`;
+
+
+        console.log(
+            "[STATUS REQUEST]",
+            statusUrl
+        );
+
+
         const response =
             await fetch(
-                `/status/${encodeURIComponent(
-                    jobId
-                )}`,
+                statusUrl,
                 {
 
                     method:
@@ -546,6 +666,23 @@ async function checkStatus() {
             );
 
 
+        console.log(
+            "[STATUS RESPONSE]",
+            {
+
+                status:
+                    response.status,
+
+                ok:
+                    response.ok,
+
+                url:
+                    response.url
+
+            }
+        );
+
+
         // =================================
         // 429
         // =================================
@@ -555,14 +692,16 @@ async function checkStatus() {
         ) {
 
             console.warn(
-                "STATUS 429: Rate Limit"
+                "[STATUS] 429 Rate Limit"
             );
 
 
-            updateStatus(
-                "サーバーが混雑しています。再確認中...",
-                "waiting"
-            );
+            // ---------------------------------
+            // 重要
+            // 実行中表示は変更しない
+            // ---------------------------------
+
+            keepRunningDisplay();
 
 
             scheduleStatusCheck(
@@ -586,15 +725,16 @@ async function checkStatus() {
         ) {
 
             console.warn(
-                "一時的なRenderエラー:",
+                "[STATUS] 一時的なRenderエラー:",
                 response.status
             );
 
 
-            updateStatus(
-                "サーバーとの接続を再確認しています...",
-                "waiting"
-            );
+            // ---------------------------------
+            // 実行中表示を維持
+            // ---------------------------------
+
+            keepRunningDisplay();
 
 
             scheduleStatusCheck(
@@ -611,13 +751,23 @@ async function checkStatus() {
         // その他HTTPエラー
         // =================================
 
-        if (!response.ok) {
+        if (
+            !response.ok
+        ) {
 
             const text =
                 await response.text();
 
 
+            console.error(
+                "[STATUS] HTTPエラー:",
+                response.status,
+                text
+            );
+
+
             throw new Error(
+
                 "HTTP "
                 +
                 response.status
@@ -628,30 +778,40 @@ async function checkStatus() {
                     text ||
                     "サーバーから空のレスポンスが返されました"
                 )
+
             );
 
         }
 
 
         // =================================
-        // レスポンス
+        // レスポンス本文
         // =================================
 
         const text =
             await response.text();
 
 
-        if (!text) {
+        console.log(
+            "[STATUS RAW RESPONSE]",
+            text
+        );
+
+
+        if (
+            !text
+        ) {
 
             console.warn(
-                "STATUS: 空レスポンス"
+                "[STATUS] 空レスポンス"
             );
 
 
-            updateStatus(
-                "変換状況を確認中...",
-                "waiting"
-            );
+            // ---------------------------------
+            // 実行中表示を維持
+            // ---------------------------------
+
+            keepRunningDisplay();
 
 
             scheduleStatusCheck(
@@ -679,18 +839,27 @@ async function checkStatus() {
                 );
 
         }
-        catch (error) {
+        catch (
+            error
+        ) {
 
             console.error(
-                "STATUS JSON解析エラー:",
+                "[STATUS] JSON解析エラー:",
                 error
             );
 
 
-            updateStatus(
-                "変換状況を確認中...",
-                "waiting"
+            console.error(
+                "[STATUS] レスポンス:",
+                text
             );
+
+
+            // ---------------------------------
+            // JSONエラーでも処理終了扱いにしない
+            // ---------------------------------
+
+            keepRunningDisplay();
 
 
             scheduleStatusCheck(
@@ -704,8 +873,40 @@ async function checkStatus() {
 
 
         console.log(
-            "STATUS:",
+            "======================================"
+        );
+
+
+        console.log(
+            "[STATUS DATA]",
             data
+        );
+
+
+        console.log(
+            "status:",
+            data.status
+        );
+
+
+        console.log(
+            "stage:",
+            data.stage ||
+            data.current_stage ||
+            data.step ||
+            data.current_step ||
+            ""
+        );
+
+
+        console.log(
+            "files:",
+            data.files
+        );
+
+
+        console.log(
+            "======================================"
         );
 
 
@@ -722,7 +923,7 @@ async function checkStatus() {
 
 
             console.warn(
-                "JOBなし:",
+                "[STATUS] JOBなし:",
                 jobId,
                 "retry:",
                 statusRetryCount,
@@ -736,10 +937,12 @@ async function checkStatus() {
                 MAX_JOB_NOT_FOUND_RETRY
             ) {
 
-                updateStatus(
-                    "変換状況を再確認しています...",
-                    "waiting"
-                );
+                // ---------------------------------
+                // JOBが一時的に見えないだけなら
+                // 実行中表示を維持
+                // ---------------------------------
+
+                keepRunningDisplay();
 
 
                 scheduleStatusCheck(
@@ -752,9 +955,16 @@ async function checkStatus() {
             }
 
 
+            // ---------------------------------
+            // 長時間JOBなし
+            // ---------------------------------
+
             console.error(
-                "JOBなしが長時間継続しました"
+                "[STATUS] JOBなしが長時間継続しました"
             );
+
+
+            stopStatusPolling();
 
 
             stopMainTimer();
@@ -764,7 +974,9 @@ async function checkStatus() {
                 getConvertButton();
 
 
-            if (button) {
+            if (
+                button
+            ) {
 
                 button.disabled =
                     false;
@@ -778,9 +990,8 @@ async function checkStatus() {
             }
 
 
-            updateStatus(
-                "変換JOBを長時間確認できませんでした。もう一度実行してください。",
-                "error"
+            showErrorState(
+                "変換JOBを長時間確認できませんでした。もう一度実行してください。"
             );
 
 
@@ -844,27 +1055,21 @@ async function checkStatus() {
 
 
         // =================================
-        // ステージ表示
-        // =================================
-
-        const stageDisplayed =
-            updateStageFromData(
-                data
-            );
-
-
-        // =================================
         // queued
+        //
+        // 表示は変更しない
         // =================================
 
         if (
             data.status === "queued"
         ) {
 
-            updateStatus(
-                "変換処理を待機中...",
-                "waiting"
+            console.log(
+                "[STATUS] queued"
             );
+
+
+            keepRunningDisplay();
 
 
             scheduleStatusCheck(
@@ -879,23 +1084,20 @@ async function checkStatus() {
 
         // =================================
         // running
+        //
+        // 表示は変更しない
         // =================================
 
         if (
             data.status === "running"
         ) {
 
-            // stageが返っていなければ
-            // 一般的な表示
+            console.log(
+                "[STATUS] running"
+            );
 
-            if (!stageDisplayed) {
 
-                updateStatus(
-                    "変換中...",
-                    "running"
-                );
-
-            }
+            keepRunningDisplay();
 
 
             scheduleStatusCheck(
@@ -917,34 +1119,71 @@ async function checkStatus() {
         ) {
 
             console.log(
-                "JOB完了:",
+                "======================================"
+            );
+
+
+            console.log(
+                "[STATUS] JOB完了:",
                 jobId
             );
 
 
+            console.log(
+                "[STATUS] files:",
+                data.files
+            );
+
+
+            console.log(
+                "======================================"
+            );
+
+
+            // ---------------------------------
+            // STATUS停止
+            // ---------------------------------
+
             stopStatusPolling();
 
+
+            // ---------------------------------
+            // メインタイマー停止
+            // ---------------------------------
 
             stopMainTimer();
 
 
-            updateStatus(
-                "MP3 / MP4変換完了",
-                "complete"
+            // ---------------------------------
+            // 完了表示
+            // ---------------------------------
+
+            showCompleteState(
+                "MP3 / MP4の作成が完了しました。"
             );
 
+
+            // ---------------------------------
+            // ボタン非表示
+            // ---------------------------------
 
             const button =
                 getConvertButton();
 
 
-            if (button) {
+            if (
+                button
+            ) {
 
                 button.style.display =
                     "none";
 
             }
 
+
+            // ---------------------------------
+            // files
+            // ---------------------------------
 
             const files =
                 Array.isArray(
@@ -959,11 +1198,16 @@ async function checkStatus() {
             ) {
 
                 console.warn(
-                    "JOBはcompleteですがfilesが空です"
+                    "[STATUS] JOBはcompleteですがfilesが空です"
                 );
 
             }
 
+
+            // ---------------------------------
+            // converter.js
+            // showFiles()
+            // ---------------------------------
 
             if (
                 window.converterMain &&
@@ -971,6 +1215,11 @@ async function checkStatus() {
                     window.converterMain.showFiles ===
                     "function"
             ) {
+
+                console.log(
+                    "[STATUS] converterMain.showFiles() 実行"
+                );
+
 
                 window.converterMain.showFiles(
                     files,
@@ -981,7 +1230,7 @@ async function checkStatus() {
             else {
 
                 console.error(
-                    "converterMain.showFiles() がありません"
+                    "[STATUS] converterMain.showFiles() がありません"
                 );
 
             }
@@ -1001,8 +1250,24 @@ async function checkStatus() {
         ) {
 
             console.error(
-                "JOBエラー:",
+                "======================================"
+            );
+
+
+            console.error(
+                "[STATUS] JOBエラー:",
                 data.message
+            );
+
+
+            console.error(
+                "[STATUS] DATA:",
+                data
+            );
+
+
+            console.error(
+                "======================================"
             );
 
 
@@ -1016,7 +1281,9 @@ async function checkStatus() {
                 getConvertButton();
 
 
-            if (button) {
+            if (
+                button
+            ) {
 
                 button.style.display =
                     "";
@@ -1030,16 +1297,15 @@ async function checkStatus() {
             }
 
 
-            updateStatus(
+            showErrorState(
                 data.message ||
-                "変換中にエラーが発生しました",
-                "error"
+                "変換中にエラーが発生しました。"
             );
 
 
             alert(
                 data.message ||
-                "変換中にエラーが発生しました"
+                "変換中にエラーが発生しました。"
             );
 
 
@@ -1053,39 +1319,50 @@ async function checkStatus() {
         // =================================
 
         console.warn(
-            "未知のSTATUS:",
+            "[STATUS] 未知のSTATUS:",
             data.status
         );
 
 
-        updateStatus(
-            "変換状況を確認中...",
-            "waiting"
-        );
+        // ---------------------------------
+        // 未知のSTATUSでも終了扱いにしない
+        // ---------------------------------
+
+        keepRunningDisplay();
 
 
         scheduleStatusCheck(
             STATUS_INTERVAL
         );
 
-
     }
-    catch (error) {
+    catch (
+        error
+    ) {
 
         console.error(
-            "変換状態確認エラー:",
+            "======================================"
+        );
+
+
+        console.error(
+            "[STATUS] 変換状態確認エラー:",
             error
+        );
+
+
+        console.error(
+            "======================================"
         );
 
 
         // ---------------------------------
         // ネットワークエラー
+        //
+        // ここでは変換終了扱いにしない
         // ---------------------------------
 
-        updateStatus(
-            "サーバーとの接続を再確認しています...",
-            "waiting"
-        );
+        keepRunningDisplay();
 
 
         scheduleStatusCheck(
