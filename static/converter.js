@@ -235,8 +235,6 @@ document.addEventListener(
 
             // ---------------------------------
             // 最低限のCSS
-            //
-            // 既存CSSがあればそちらを優先
             // ---------------------------------
 
             if (
@@ -394,17 +392,6 @@ document.addEventListener(
 
         // =====================================
         // HTML処理ステータス表示
-        //
-        // stage:
-        // convert
-        // mp3
-        // mp4
-        // gemini
-        // srt
-        // subtitle
-        // success
-        // error
-        // retry
         // =====================================
 
         function updateProcessingStatus(
@@ -418,14 +405,12 @@ document.addEventListener(
                 options || {};
 
 
-
             currentProcessingStage =
                 stage || "";
 
 
             currentProcessingMessage =
                 message || "";
-
 
 
             const area =
@@ -648,7 +633,6 @@ document.addEventListener(
                 "";
 
 
-
             area.classList.remove(
                 "processing",
                 "success",
@@ -733,8 +717,6 @@ document.addEventListener(
 
         // =====================================
         // グローバル参照
-        //
-        // 他ファイルからも利用できるようにする
         // =====================================
 
         window.converterState = {
@@ -1190,10 +1172,6 @@ document.addEventListener(
 
 
 
-            // ---------------------------------
-            // 開始だけ指定
-            // ---------------------------------
-
             if (
                 startTime &&
                 !endTime
@@ -1213,11 +1191,6 @@ document.addEventListener(
 
 
 
-            // ---------------------------------
-            // 終了だけ指定
-            // 「最初から～20秒」
-            // ---------------------------------
-
             if (
                 !startTime &&
                 endTime
@@ -1236,10 +1209,6 @@ document.addEventListener(
             }
 
 
-
-            // ---------------------------------
-            // 開始・終了とも指定
-            // ---------------------------------
 
             return {
 
@@ -1357,8 +1326,16 @@ document.addEventListener(
             }
 
 
-            convertEndTime =
-                new Date();
+            /*
+             * 変換開始済みの場合だけ終了時刻を記録
+             */
+
+            if (convertStartTime) {
+
+                convertEndTime =
+                    new Date();
+
+            }
 
         }
 
@@ -1549,10 +1526,6 @@ document.addEventListener(
                 getTimeRange();
 
 
-
-            // =================================
-            // ログ
-            // =================================
 
             console.log(
                 "======================================"
@@ -1980,7 +1953,6 @@ document.addEventListener(
 
 
 
-
                     // =================================
                     // STATUS開始
                     // =================================
@@ -2265,7 +2237,6 @@ document.addEventListener(
             {};
 
 
-
         window.converterMain.addSrtInfo =
             function (
                 html,
@@ -2301,10 +2272,6 @@ document.addEventListener(
 
 
 
-                // ---------------------------------
-                // SRT処理情報
-                // ---------------------------------
-
                 srtInfo.innerHTML =
                     html;
 
@@ -2313,19 +2280,10 @@ document.addEventListener(
                     "block";
 
 
-
-                // ---------------------------------
-                // 保存
-                // ---------------------------------
-
                 currentSrtFile =
                     srtFile || "";
 
 
-
-                // ---------------------------------
-                // SRTダウンロードボタン
-                // ---------------------------------
 
                 const buttonContainer =
                     document.getElementById(
@@ -2491,7 +2449,6 @@ document.addEventListener(
                     : "";
 
 
-
             const end =
                 convertEndTime
                     ? window.converterUtils.formatClock(
@@ -2567,6 +2524,15 @@ document.addEventListener(
             files,
             data
         ) {
+
+
+            // =================================
+            // ★重要
+            // 変換完了時にタイマーを停止
+            // =================================
+
+            stopConvertTimer();
+
 
 
             if (!downloadArea) {
@@ -3432,6 +3398,201 @@ document.addEventListener(
                 }
 
         };
+
+
+
+        // =====================================
+        // ★ ダウンロードボタン横並びCSS
+        // =====================================
+
+        if (
+            !document.getElementById(
+                "converter-download-layout-style"
+            )
+        ) {
+
+
+            const style =
+                document.createElement(
+                    "style"
+                );
+
+
+            style.id =
+                "converter-download-layout-style";
+
+
+            style.textContent = `
+
+                /* =================================
+                   ダウンロードボタン全体
+                   ================================= */
+
+                .download-group-buttons {
+
+                    display: flex;
+
+                    flex-direction: row;
+
+                    align-items: center;
+
+                    flex-wrap: wrap;
+
+                    gap: 8px;
+
+                }
+
+
+                /* =================================
+                   MP3 + Geminiボタン
+                   ================================= */
+
+                .mp3-download-wrapper {
+
+                    display: flex;
+
+                    flex-direction: row;
+
+                    align-items: center;
+
+                    gap: 4px;
+
+                    flex: 0 0 auto;
+
+                }
+
+
+                /* =================================
+                   ダウンロードボタン
+                   ================================= */
+
+                .download-button {
+
+                    display: inline-flex;
+
+                    align-items: center;
+
+                    justify-content: center;
+
+                    white-space: nowrap;
+
+                    flex: 0 0 auto;
+
+                }
+
+
+                /* =================================
+                   SRT
+                   ================================= */
+
+                #srt-download-button-container {
+
+                    display: inline-flex;
+
+                    align-items: center;
+
+                    flex: 0 0 auto;
+
+                }
+
+
+                /* =================================
+                   字幕付きMP4
+                   ================================= */
+
+                #subtitle-embed-download-container {
+
+                    display: inline-flex;
+
+                    align-items: center;
+
+                    flex: 0 0 auto;
+
+                }
+
+
+                /* =================================
+                   通常ダウンロードグループ
+                   ================================= */
+
+                .download-group-normal {
+
+                    width: 100%;
+
+                }
+
+
+                .download-group-normal
+                .download-group-buttons {
+
+                    display: flex;
+
+                    flex-direction: row;
+
+                    align-items: center;
+
+                    flex-wrap: wrap;
+
+                    gap: 8px;
+
+                    width: 100%;
+
+                }
+
+
+                /* =================================
+                   Gemini展開エリア
+                   
+                   MP3ボタンの下に表示
+                   ================================= */
+
+                .gemini-expand-area {
+
+                    flex-basis: 100%;
+
+                    width: 100%;
+
+                }
+
+
+                /* =================================
+                   Gemini文字起こしボタン
+                   ================================= */
+
+                .gemini-transcribe-button {
+
+                    margin-top: 4px;
+
+                }
+
+
+                /* =================================
+                   字幕ダウンロードグループ
+                   ================================= */
+
+                .download-group-subtitle
+                .download-group-buttons {
+
+                    display: flex;
+
+                    flex-direction: row;
+
+                    align-items: center;
+
+                    flex-wrap: wrap;
+
+                    gap: 8px;
+
+                }
+
+            `;
+
+
+            document.head.appendChild(
+                style
+            );
+
+        }
 
 
 
