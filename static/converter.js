@@ -164,6 +164,11 @@ document.addEventListener(
 
             area.innerHTML = `
             
+                <!-- =================================
+                     動画タイトル
+                     実行中・・・の上に表示
+                     ================================= -->
+
                 <div class="converter-processing-title-area">
             
                     <div
@@ -174,6 +179,10 @@ document.addEventListener(
                 </div>
             
             
+                <!-- =================================
+                     ステータス本体
+                     ================================= -->
+
                 <div
                     class="converter-processing-status-inner"
                 >
@@ -245,7 +254,7 @@ document.addEventListener(
 
 
             // ---------------------------------
-            // 最低限のCSS
+            // CSS
             // ---------------------------------
 
             if (
@@ -267,6 +276,10 @@ document.addEventListener(
 
                 style.textContent = `
 
+                    /* =================================
+                       処理ステータス全体
+                       ================================= */
+
                     #converter-processing-status {
 
                         width: 100%;
@@ -287,6 +300,41 @@ document.addEventListener(
 
                     }
 
+
+                    /* =================================
+                       ★ 動画タイトル
+                       実行中・・・の上
+                       ================================= */
+
+                    .converter-processing-title-area {
+
+                        width: 100%;
+
+                        box-sizing: border-box;
+
+                        margin-bottom: 10px;
+
+                    }
+
+
+                    .converter-processing-video-title {
+
+                        font-size: 16px;
+
+                        font-weight: bold;
+
+                        line-height: 1.5;
+
+                        color: #222;
+
+                        word-break: break-word;
+
+                    }
+
+
+                    /* =================================
+                       ステータス本体
+                       ================================= */
 
                     .converter-processing-status-inner {
 
@@ -349,6 +397,10 @@ document.addEventListener(
                     }
 
 
+                    /* =================================
+                       処理中
+                       ================================= */
+
                     #converter-processing-status.processing {
 
                         background: #f5f9ff;
@@ -357,6 +409,10 @@ document.addEventListener(
 
                     }
 
+
+                    /* =================================
+                       完了
+                       ================================= */
 
                     #converter-processing-status.success {
 
@@ -367,6 +423,10 @@ document.addEventListener(
                     }
 
 
+                    /* =================================
+                       エラー
+                       ================================= */
+
                     #converter-processing-status.error {
 
                         background: #fff4f4;
@@ -375,6 +435,10 @@ document.addEventListener(
 
                     }
 
+
+                    /* =================================
+                       再試行
+                       ================================= */
 
                     #converter-processing-status.retry {
 
@@ -439,6 +503,7 @@ document.addEventListener(
                     "converter-processing-video-title"
                 );
 
+
             const title =
                 document.getElementById(
                     "converter-processing-title"
@@ -465,6 +530,31 @@ document.addEventListener(
             }
 
 
+
+            // =================================
+            // ★ 動画タイトルを表示
+            //
+            // currentVideoTitle は /convert の
+            // レスポンスから取得したタイトル
+            //
+            // options.videoTitle が指定された場合は
+            // そちらを優先
+            // =================================
+
+            const displayVideoTitle =
+                options.videoTitle ||
+                currentVideoTitle ||
+                "";
+
+
+            videoTitle.textContent =
+                displayVideoTitle;
+
+
+
+            // =================================
+            // ステータス初期値
+            // =================================
 
             let statusIcon =
                 "⏳";
@@ -636,19 +726,29 @@ document.addEventListener(
 
 
 
-            icon.textContent =
-                statusIcon;
-
+            // =================================
+            // ★ ステータスタイトル
+            // =================================
 
             title.textContent =
                 options.title ||
                 statusTitle;
 
 
+
+            // =================================
+            // メッセージ
+            // =================================
+
             messageElement.textContent =
                 message ||
                 "";
 
+
+
+            // =================================
+            // CSS状態
+            // =================================
 
             area.classList.remove(
                 "processing",
@@ -1343,10 +1443,6 @@ document.addEventListener(
             }
 
 
-            /*
-             * 変換開始済みの場合だけ終了時刻を記録
-             */
-
             if (convertStartTime) {
 
                 convertEndTime =
@@ -1926,7 +2022,7 @@ document.addEventListener(
 
 
                     // =================================
-                    // HTMLステータス
+                    // ★ タイトル付きHTMLステータス
                     // =================================
 
                     let initialMessage =
@@ -1964,7 +2060,11 @@ document.addEventListener(
                         "convert",
                         initialMessage,
                         {
-                            title: "実行中・・・"
+                            title:
+                                "実行中・・・",
+
+                            videoTitle:
+                                currentVideoTitle
                         }
                     );
 
@@ -2544,8 +2644,7 @@ document.addEventListener(
 
 
             // =================================
-            // ★重要
-            // 変換完了時にタイマーを停止
+            // 変換完了時にタイマー停止
             // =================================
 
             stopConvertTimer();
@@ -3253,7 +3352,11 @@ document.addEventListener(
 
                 updateProcessingStatus(
                     "gemini",
-                    "MP3 / MP4の作成が完了しました。Geminiで字幕を作成しています..."
+                    "MP3 / MP4の作成が完了しました。Geminiで字幕を作成しています...",
+                    {
+                        videoTitle:
+                            currentVideoTitle
+                    }
                 );
 
 
@@ -3419,7 +3522,7 @@ document.addEventListener(
 
 
         // =====================================
-        // ★ ダウンロードボタン横並びCSS
+        // ダウンロードボタン横並びCSS
         // =====================================
 
         if (
