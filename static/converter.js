@@ -434,6 +434,11 @@ document.addEventListener(
                 );
 
 
+            const videoTitle =
+                document.getElementById(
+                    "converter-processing-video-title"
+                );
+
             const title =
                 document.getElementById(
                     "converter-processing-title"
