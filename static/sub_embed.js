@@ -12,7 +12,11 @@
 // ↓
 // ダウンロード
 //
-// 処理時間リアルタイム表示
+// ・処理時間リアルタイム表示
+// ・MP4 / SRT の選択確認
+// ・二重実行防止
+// ・エラー処理
+// ・converter.js の字幕付きMP4表示にも対応
 // =====================================
 
 (function () {
@@ -91,24 +95,20 @@
             mp4Input
         );
 
-
         console.log(
             "[SUB EMBED] srtInput =",
             srtInput
         );
-
 
         console.log(
             "[SUB EMBED] uploadButton =",
             uploadButton
         );
 
-
         console.log(
             "[SUB EMBED] statusElement =",
             statusElement
         );
-
 
         console.log(
             "[SUB EMBED] filesElement =",
@@ -123,8 +123,8 @@
         if (!uploadButton) {
 
             console.error(
-                "[SUB EMBED] ERROR: "
-                + "sub-embed-upload-button が見つかりません"
+                "[SUB EMBED] ERROR: " +
+                "sub-embed-upload-button が見つかりません"
             );
 
             return;
@@ -141,8 +141,8 @@
         ) {
 
             console.log(
-                "[SUB EMBED] "
-                + "アップロードボタンは既に初期化済みです"
+                "[SUB EMBED] " +
+                "アップロードボタンは既に初期化済みです"
             );
 
             return;
@@ -157,9 +157,12 @@
         // タイマー管理
         // =================================
 
-        let elapsedTimerId = null;
+        let elapsedTimerId =
+            null;
 
-        let processingStartTime = null;
+
+        let processingStartTime =
+            null;
 
 
         // =================================
@@ -240,8 +243,11 @@
         ) {
 
             const totalSeconds =
-                Math.floor(
-                    milliseconds / 1000
+                Math.max(
+                    0,
+                    Math.floor(
+                        Number(milliseconds) / 1000
+                    )
                 );
 
 
@@ -302,7 +308,8 @@
         function getElapsedText() {
 
             if (
-                processingStartTime === null
+                processingStartTime ===
+                null
             ) {
 
                 return "処理時間: 0秒";
@@ -332,12 +339,14 @@
         function stopElapsedTimer() {
 
             if (
-                elapsedTimerId !== null
+                elapsedTimerId !==
+                null
             ) {
 
                 clearTimeout(
                     elapsedTimerId
                 );
+
 
                 elapsedTimerId =
                     null;
@@ -351,7 +360,7 @@
         // リアルタイムタイマー開始
         //
         // setIntervalではなく
-        // setTimeoutを1回ずつ実行する
+        // setTimeoutを1回ずつ実行
         // =================================
 
         function startElapsedTimer(
@@ -364,23 +373,23 @@
             function updateTimer() {
 
                 if (
-                    processingStartTime === null
+                    processingStartTime ===
+                    null
                 ) {
+
+                    elapsedTimerId =
+                        null;
 
                     return;
 
                 }
 
 
-                const elapsedText =
-                    getElapsedText();
-
-
                 setStatus(
 
                     message +
                     "\n" +
-                    elapsedText,
+                    getElapsedText(),
 
                     null
 
@@ -402,6 +411,94 @@
 
 
         // =====================================
+        // JSONレスポンス取得
+        //
+        // エラー時にもJSON以外のレスポンスを
+        // 安全に処理する
+        // =====================================
+
+        async function parseResponse(
+            response
+        ) {
+
+            const text =
+                await response.text();
+
+
+            if (!text) {
+
+                return null;
+
+            }
+
+
+            try {
+
+                return JSON.parse(
+                    text
+                );
+
+            }
+            catch (error) {
+
+                console.error(
+                    "[SUB EMBED] JSON解析エラー:",
+                    error
+                );
+
+
+                console.error(
+                    "[SUB EMBED] レスポンス:",
+                    text
+                );
+
+
+                return null;
+
+            }
+
+        }
+
+
+        // =====================================
+        // エラーメッセージ取得
+        // =====================================
+
+        function getResponseErrorMessage(
+            data,
+            defaultMessage
+        ) {
+
+            if (
+                data &&
+                typeof data.message ===
+                    "string" &&
+                data.message.trim()
+            ) {
+
+                return data.message.trim();
+
+            }
+
+
+            if (
+                data &&
+                typeof data.error ===
+                    "string" &&
+                data.error.trim()
+            ) {
+
+                return data.error.trim();
+
+            }
+
+
+            return defaultMessage;
+
+        }
+
+
+        // =====================================
         // ファイルアップロード
         // =====================================
 
@@ -409,9 +506,24 @@
             file
         ) {
 
+            if (!file) {
+
+                throw new Error(
+                    "アップロードするファイルがありません。"
+                );
+
+            }
+
+
             console.log(
                 "[SUB EMBED] アップロード開始:",
                 file.name
+            );
+
+
+            console.log(
+                "[SUB EMBED] ファイルサイズ:",
+                file.size
             );
 
 
@@ -429,42 +541,28 @@
                 await fetch(
                     "/subtitle-upload",
                     {
-                        method: "POST",
-                        body: formData
+                        method:
+                            "POST",
+
+                        body:
+                            formData
                     }
                 );
 
 
-            let data = null;
-
-
-            try {
-
-                data =
-                    await response.json();
-
-            } catch (error) {
-
-                console.error(
-                    "[SUB EMBED] "
-                    + "JSON解析エラー:",
-                    error
+            const data =
+                await parseResponse(
+                    response
                 );
-
-            }
 
 
             if (!response.ok) {
 
-                const message =
-                    data &&
-                    data.message
-                        ? data.message
-                        : "アップロードに失敗しました。";
-
-
                 throw new Error(
-                    message
+                    getResponseErrorMessage(
+                        data,
+                        "アップロードに失敗しました。"
+                    )
                 );
 
             }
@@ -475,15 +573,22 @@
                 data.success !== true
             ) {
 
-                const message =
-                    data &&
-                    data.message
-                        ? data.message
-                        : "アップロードに失敗しました。";
+                throw new Error(
+                    getResponseErrorMessage(
+                        data,
+                        "アップロードに失敗しました。"
+                    )
+                );
 
+            }
+
+
+            if (
+                !data.filename
+            ) {
 
                 throw new Error(
-                    message
+                    "アップロードされたファイル名を取得できませんでした。"
                 );
 
             }
@@ -509,6 +614,24 @@
             srtFilename
         ) {
 
+            if (!mp4Filename) {
+
+                throw new Error(
+                    "MP4ファイル名がありません。"
+                );
+
+            }
+
+
+            if (!srtFilename) {
+
+                throw new Error(
+                    "SRTファイル名がありません。"
+                );
+
+            }
+
+
             console.log(
                 "[SUB EMBED] 字幕焼き込み開始"
             );
@@ -530,57 +653,45 @@
                 await fetch(
                     "/subtitle-embed",
                     {
-                        method: "POST",
+
+                        method:
+                            "POST",
 
                         headers: {
+
                             "Content-Type":
                                 "application/json"
+
                         },
 
-                        body: JSON.stringify({
+                        body:
+                            JSON.stringify({
 
-                            mp4_filename:
-                                mp4Filename,
+                                mp4_filename:
+                                    mp4Filename,
 
-                            srt_filename:
-                                srtFilename
+                                srt_filename:
+                                    srtFilename
 
-                        })
+                            })
 
                     }
                 );
 
 
-            let data = null;
-
-
-            try {
-
-                data =
-                    await response.json();
-
-            } catch (error) {
-
-                console.error(
-                    "[SUB EMBED] "
-                    + "JSON解析エラー:",
-                    error
+            const data =
+                await parseResponse(
+                    response
                 );
-
-            }
 
 
             if (!response.ok) {
 
-                const message =
-                    data &&
-                    data.message
-                        ? data.message
-                        : "字幕焼き込みに失敗しました。";
-
-
                 throw new Error(
-                    message
+                    getResponseErrorMessage(
+                        data,
+                        "字幕焼き込みに失敗しました。"
+                    )
                 );
 
             }
@@ -591,28 +702,103 @@
                 data.success !== true
             ) {
 
-                const message =
-                    data &&
-                    data.message
-                        ? data.message
-                        : "字幕焼き込みに失敗しました。";
+                throw new Error(
+                    getResponseErrorMessage(
+                        data,
+                        "字幕焼き込みに失敗しました。"
+                    )
+                );
 
+            }
+
+
+            if (
+                !data.filename
+            ) {
 
                 throw new Error(
-                    message
+                    "字幕付きMP4のファイル名を取得できませんでした。"
                 );
 
             }
 
 
             console.log(
-                "[SUB EMBED] "
-                + "字幕焼き込み完了:",
+                "[SUB EMBED] 字幕焼き込み完了:",
                 data
             );
 
 
             return data;
+
+        }
+
+
+        // =====================================
+        // ダウンロードURL作成
+        //
+        // サーバーからdownload_urlが返らない
+        // 場合のフォールバック
+        // =====================================
+
+        function makeDownloadUrl(
+            filename
+        ) {
+
+            if (!filename) {
+
+                return "";
+
+            }
+
+
+            if (
+                window.converterUtils &&
+                typeof
+                    window.converterUtils.makeDownloadUrl ===
+                    "function"
+            ) {
+
+                return window.converterUtils.makeDownloadUrl(
+                    filename
+                );
+
+            }
+
+
+            return (
+                "/download/" +
+                encodeURIComponent(
+                    filename
+                )
+            );
+
+        }
+
+
+        // =====================================
+        // 安全なダウンロードURL
+        // =====================================
+
+        function resolveDownloadUrl(
+            filename,
+            downloadUrl
+        ) {
+
+            if (
+                typeof downloadUrl ===
+                    "string" &&
+                downloadUrl.trim()
+            ) {
+
+                return downloadUrl.trim();
+
+            }
+
+
+            return makeDownloadUrl(
+                filename
+            );
 
         }
 
@@ -628,8 +814,35 @@
 
             if (!filesElement) {
 
+                console.warn(
+                    "[SUB EMBED] filesElement がありません"
+                );
+
                 return;
+
             }
+
+
+            if (!filename) {
+
+                console.error(
+                    "[SUB EMBED] ダウンロードファイル名がありません"
+                );
+
+                return;
+
+            }
+
+
+            // ---------------------------------
+            // URL
+            // ---------------------------------
+
+            const resolvedUrl =
+                resolveDownloadUrl(
+                    filename,
+                    downloadUrl
+                );
 
 
             // ---------------------------------
@@ -684,7 +897,7 @@
 
 
             button.href =
-                downloadUrl;
+                resolvedUrl;
 
 
             button.download =
@@ -704,6 +917,305 @@
                 section
             );
 
+
+            console.log(
+                "[SUB EMBED] ダウンロードボタン追加:",
+                {
+                    filename:
+                        filename,
+
+                    downloadUrl:
+                        resolvedUrl
+                }
+            );
+
+        }
+
+
+        // =====================================
+        // converter.jsへ通知
+        //
+        // 自動変換フローで字幕焼き込みを
+        // 実行した場合にも、converter.js側の
+        // 「字幕付」ボタンへ反映する
+        // =====================================
+
+        function notifyConverterMain(
+            filename
+        ) {
+
+            if (!filename) {
+
+                return;
+
+            }
+
+
+            if (
+                window.converterMain &&
+                typeof
+                    window.converterMain.addSubtitleEmbedFile ===
+                    "function"
+            ) {
+
+                console.log(
+                    "[SUB EMBED] converterMainへ字幕付きMP4を通知:",
+                    filename
+                );
+
+
+                window.converterMain.addSubtitleEmbedFile(
+                    filename
+                );
+
+            }
+
+        }
+
+
+        // =====================================
+        // converter.jsへ処理詳細を通知
+        // =====================================
+
+        function notifyConverterDetail(
+            html
+        ) {
+
+            if (!html) {
+
+                return;
+
+            }
+
+
+            if (
+                window.converterMain &&
+                typeof
+                    window.converterMain.addSubtitleEmbedInfo ===
+                    "function"
+            ) {
+
+                console.log(
+                    "[SUB EMBED] converterMainへ処理詳細を通知"
+                );
+
+
+                window.converterMain.addSubtitleEmbedInfo(
+                    html
+                );
+
+            }
+
+        }
+
+
+        // =====================================
+        // 字幕付きMP4の処理詳細HTML
+        // =====================================
+
+        function createConversionDetail(
+            startTime,
+            endTime,
+            elapsedText
+        ) {
+
+            let title =
+                "不明";
+
+
+            let duration =
+                "不明";
+
+
+            if (
+                window.converterState
+            ) {
+
+                title =
+                    window.converterState.currentVideoTitle ||
+                    "不明";
+
+
+                duration =
+                    window.converterState.currentVideoDuration ||
+                    "不明";
+
+            }
+
+
+            let formattedDuration =
+                duration;
+
+
+            if (
+                window.converterUtils &&
+                typeof
+                    window.converterUtils.formatDuration ===
+                    "function"
+            ) {
+
+                formattedDuration =
+                    window.converterUtils.formatDuration(
+                        duration
+                    );
+
+            }
+
+
+            let formattedStart =
+                startTime
+                    ? startTime.toLocaleTimeString(
+                        "ja-JP",
+                        {
+                            hour:
+                                "2-digit",
+
+                            minute:
+                                "2-digit",
+
+                            second:
+                                "2-digit",
+
+                            hour12:
+                                false
+                        }
+                    )
+                    : "";
+
+
+            let formattedEnd =
+                endTime
+                    ? endTime.toLocaleTimeString(
+                        "ja-JP",
+                        {
+                            hour:
+                                "2-digit",
+
+                            minute:
+                                "2-digit",
+
+                            second:
+                                "2-digit",
+
+                            hour12:
+                                false
+                        }
+                    )
+                    : "";
+
+
+            if (
+                window.converterUtils &&
+                typeof
+                    window.converterUtils.formatClock ===
+                    "function"
+            ) {
+
+                formattedStart =
+                    startTime
+                        ? window.converterUtils.formatClock(
+                            startTime
+                        )
+                        : "";
+
+
+                formattedEnd =
+                    endTime
+                        ? window.converterUtils.formatClock(
+                            endTime
+                        )
+                        : "";
+
+            }
+
+
+            if (
+                window.converterUtils &&
+                typeof
+                    window.converterUtils.escapeHtml ===
+                    "function"
+            ) {
+
+                title =
+                    window.converterUtils.escapeHtml(
+                        title
+                    );
+
+
+                formattedDuration =
+                    window.converterUtils.escapeHtml(
+                        formattedDuration
+                    );
+
+
+                formattedStart =
+                    window.converterUtils.escapeHtml(
+                        formattedStart
+                    );
+
+
+                formattedEnd =
+                    window.converterUtils.escapeHtml(
+                        formattedEnd
+                    );
+
+
+                elapsedText =
+                    window.converterUtils.escapeHtml(
+                        elapsedText
+                    );
+
+            }
+
+
+            return `
+
+                <div class="conversion-info subtitle-embed-conversion-info">
+
+                    <div class="conversion-info-title">
+
+                        ★字幕付きMP4変換
+
+                    </div>
+
+
+                    <div>
+
+                        タイトル：
+                        ${title}
+
+                    </div>
+
+
+                    <div>
+
+                        再生時間：
+                        ${formattedDuration}
+
+                    </div>
+
+
+                    <div>
+
+                        実行開始：
+                        ${formattedStart}
+
+                    </div>
+
+
+                    <div>
+
+                        実行終了：
+                        ${formattedEnd}
+
+                        （${elapsedText}）
+
+                    </div>
+
+                </div>
+
+            `;
+
         }
 
 
@@ -719,39 +1231,42 @@
 
 
                 console.log(
-                    "[SUB EMBED] "
-                    + "アップロードボタンがクリックされました"
+                    "[SUB EMBED] " +
+                    "アップロードボタンがクリックされました"
                 );
 
 
                 // =================================
-                // 前回のタイマー停止
+                // 前回タイマー停止
                 // =================================
 
                 stopElapsedTimer();
 
 
                 // =================================
-                // 前回の結果をクリア
+                // 前回結果クリア
                 // =================================
 
                 clearPreviousResult();
 
 
                 // =================================
-                // 処理開始時間
+                // 処理開始時刻
                 // =================================
 
                 processingStartTime =
                     Date.now();
 
 
-                console.log(
-                    "[SUB EMBED] "
-                    + "処理開始時間:",
+                const processStartDate =
                     new Date(
                         processingStartTime
-                    ).toLocaleString()
+                    );
+
+
+                console.log(
+                    "[SUB EMBED] 処理開始時間:",
+                    processStartDate.toLocaleString()
                 );
 
 
@@ -759,9 +1274,12 @@
                 // ファイル取得
                 // =================================
 
-                let mp4File = null;
+                let mp4File =
+                    null;
 
-                let srtFile = null;
+
+                let srtFile =
+                    null;
 
 
                 if (
@@ -809,12 +1327,15 @@
                     processingStartTime =
                         null;
 
+
                     setStatus(
                         "MP4ファイルを選択してください。",
                         "error"
                     );
 
+
                     return;
+
                 }
 
 
@@ -827,12 +1348,15 @@
                     processingStartTime =
                         null;
 
+
                     setStatus(
                         "SRTファイルを選択してください。",
                         "error"
                     );
 
+
                     return;
+
                 }
 
 
@@ -843,36 +1367,46 @@
                 if (
                     !mp4File.name
                         .toLowerCase()
-                        .endsWith(".mp4")
+                        .endsWith(
+                            ".mp4"
+                        )
                 ) {
 
                     processingStartTime =
                         null;
+
 
                     setStatus(
                         "MP4ファイルを選択してください。",
                         "error"
                     );
 
+
                     return;
+
                 }
 
 
                 if (
                     !srtFile.name
                         .toLowerCase()
-                        .endsWith(".srt")
+                        .endsWith(
+                            ".srt"
+                        )
                 ) {
 
                     processingStartTime =
                         null;
+
 
                     setStatus(
                         "SRTファイルを選択してください。",
                         "error"
                     );
 
+
                     return;
+
                 }
 
 
@@ -882,6 +1416,43 @@
 
                 uploadButton.disabled =
                     true;
+
+
+                // =================================
+                // 処理開始ログ
+                // =================================
+
+                console.log(
+                    "[SUB EMBED] ====================================="
+                );
+
+                console.log(
+                    "[SUB EMBED] 処理開始"
+                );
+
+                console.log(
+                    "[SUB EMBED] MP4:",
+                    mp4File.name
+                );
+
+                console.log(
+                    "[SUB EMBED] MP4 size:",
+                    mp4File.size
+                );
+
+                console.log(
+                    "[SUB EMBED] SRT:",
+                    srtFile.name
+                );
+
+                console.log(
+                    "[SUB EMBED] SRT size:",
+                    srtFile.size
+                );
+
+                console.log(
+                    "[SUB EMBED] ====================================="
+                );
 
 
                 try {
@@ -952,10 +1523,17 @@
 
 
                     console.log(
-                        "[SUB EMBED] "
-                        + "embed result:",
+                        "[SUB EMBED] embed result:",
                         embedResult
                     );
+
+
+                    // =================================
+                    // 完了時刻
+                    // =================================
+
+                    const processingEndDate =
+                        new Date();
 
 
                     // =================================
@@ -963,8 +1541,12 @@
                     // =================================
 
                     const elapsedTime =
-                        Date.now() -
-                        processingStartTime;
+                        processingStartTime !== null
+                            ? (
+                                Date.now() -
+                                processingStartTime
+                            )
+                            : 0;
 
 
                     const elapsedText =
@@ -982,7 +1564,7 @@
 
                     // =================================
                     // STEP 4
-                    // 完了
+                    // 完了表示
                     // =================================
 
                     setStatus(
@@ -998,6 +1580,21 @@
 
                     // =================================
                     // STEP 5
+                    // ダウンロードURL
+                    // =================================
+
+                    const downloadUrl =
+                        resolveDownloadUrl(
+
+                            embedResult.filename,
+
+                            embedResult.download_url
+
+                        );
+
+
+                    // =================================
+                    // STEP 6
                     // ダウンロードボタン
                     // =================================
 
@@ -1005,18 +1602,87 @@
 
                         embedResult.filename,
 
-                        embedResult.download_url
+                        downloadUrl
 
                     );
 
+
+                    // =================================
+                    // STEP 7
+                    // converter.jsへ通知
+                    // =================================
+
+                    notifyConverterMain(
+                        embedResult.filename
+                    );
+
+
+                    // =================================
+                    // STEP 8
+                    // 処理詳細
+                    // =================================
+
+                    const detailHtml =
+                        createConversionDetail(
+
+                            processStartDate,
+
+                            processingEndDate,
+
+                            elapsedText
+
+                        );
+
+
+                    notifyConverterDetail(
+                        detailHtml
+                    );
+
+
+                    // =================================
+                    // 完了ログ
+                    // =================================
 
                     console.log(
-                        "[SUB EMBED] "
-                        + "すべての処理が完了しました"
+                        "[SUB EMBED] ====================================="
+                    );
+
+                    console.log(
+                        "[SUB EMBED] すべての処理が完了しました"
+                    );
+
+                    console.log(
+                        "[SUB EMBED] 開始:",
+                        processStartDate
+                    );
+
+                    console.log(
+                        "[SUB EMBED] 終了:",
+                        processingEndDate
+                    );
+
+                    console.log(
+                        "[SUB EMBED] 処理時間:",
+                        elapsedText
+                    );
+
+                    console.log(
+                        "[SUB EMBED] ファイル:",
+                        embedResult.filename
+                    );
+
+                    console.log(
+                        "[SUB EMBED] ダウンロードURL:",
+                        downloadUrl
+                    );
+
+                    console.log(
+                        "[SUB EMBED] ====================================="
                     );
 
 
-                } catch (error) {
+                }
+                catch (error) {
 
                     // =================================
                     // タイマー停止
@@ -1051,16 +1717,18 @@
                     }
 
 
+                    // =================================
+                    // エラーログ
+                    // =================================
+
                     console.error(
-                        "[SUB EMBED] "
-                        + "処理エラー:",
+                        "[SUB EMBED] 処理エラー:",
                         error
                     );
 
 
                     console.error(
-                        "[SUB EMBED] "
-                        + "エラー発生までの時間:",
+                        "[SUB EMBED] エラー発生までの時間:",
                         elapsedText
                     );
 
@@ -1072,7 +1740,12 @@
                     setStatus(
 
                         "処理中にエラーが発生しました。\n" +
-                        error.message +
+                        (
+                            error &&
+                            error.message
+                                ? error.message
+                                : "不明なエラー"
+                        ) +
                         "\n\n" +
                         "エラー発生までの処理時間: " +
                         elapsedText,
@@ -1081,8 +1754,8 @@
 
                     );
 
-
-                } finally {
+                }
+                finally {
 
                     // =================================
                     // タイマー停止
@@ -1137,8 +1810,7 @@
 
 
                         console.log(
-                            "[SUB EMBED] "
-                            + "MP4選択:",
+                            "[SUB EMBED] MP4選択:",
                             file.name
                         );
 
@@ -1175,8 +1847,7 @@
 
 
                         console.log(
-                            "[SUB EMBED] "
-                            + "SRT選択:",
+                            "[SUB EMBED] SRT選択:",
                             file.name
                         );
 
@@ -1198,8 +1869,8 @@
 
 
         console.log(
-            "[SUB EMBED] "
-            + "アップロードボタンのクリック待機中"
+            "[SUB EMBED] " +
+            "アップロードボタンのクリック待機中"
         );
 
     }
@@ -1215,8 +1886,8 @@
     ) {
 
         console.log(
-            "[SUB EMBED] "
-            + "DOMContentLoaded 待機"
+            "[SUB EMBED] " +
+            "DOMContentLoaded 待機"
         );
 
 
@@ -1224,15 +1895,17 @@
             "DOMContentLoaded",
             initializeSubEmbed,
             {
-                once: true
+                once:
+                    true
             }
         );
 
-    } else {
+    }
+    else {
 
         console.log(
-            "[SUB EMBED] "
-            + "DOMは既に読み込み済み"
+            "[SUB EMBED] " +
+            "DOMは既に読み込み済み"
         );
 
 
