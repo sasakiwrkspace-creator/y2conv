@@ -1110,15 +1110,13 @@ def download_source(
     # ======================================================
 
     if need_video:
-
+    
         options["format"] = (
-
             "bestvideo[ext=mp4]+bestaudio[ext=m4a]/"
-            "best[ext=mp4]/"
+            "bestvideo+bestaudio/"
             "best"
-
         )
-
+    
         options["merge_output_format"] = "mp4"
 
 
