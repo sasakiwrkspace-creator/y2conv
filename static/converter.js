@@ -1972,8 +1972,12 @@ document.addEventListener(
 
                     updateProcessingStatus(
                         "convert",
-                        initialMessage
+                        initialMessage,
+                        {
+                            title: "実行中・・・"
+                        }
                     );
+
 
 
 
