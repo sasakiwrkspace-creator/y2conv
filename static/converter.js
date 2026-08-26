@@ -456,7 +456,8 @@ document.addEventListener(
                 !area ||
                 !icon ||
                 !title ||
-                !messageElement
+                !messageElement ||
+                !videoTitle
             ) {
 
                 return;
