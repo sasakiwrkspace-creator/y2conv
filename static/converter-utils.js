@@ -7,7 +7,6 @@
 // 使用:
 // ・converter.js
 // ・converter-status.js
-// ・converter-gemini.js
 // ・sub_embed.js
 // =====================================
 
@@ -37,7 +36,7 @@
 
 
         // =====================================
-        // 数字入力設定
+        // 数字入力
         // =====================================
 
         function setupNumericInput(element) {
@@ -148,7 +147,7 @@
 
 
         // =====================================
-        // 時間入力設定
+        // 時間入力初期化
         // =====================================
 
         function setupTimeInputs() {
@@ -191,21 +190,21 @@
             second
         ) {
 
-            const h =
+            hour =
                 parseInt(
                     hour || "0",
                     10
                 ) || 0;
 
 
-            const m =
+            minute =
                 parseInt(
                     minute || "0",
                     10
                 ) || 0;
 
 
-            const s =
+            second =
                 parseInt(
                     second || "0",
                     10
@@ -214,15 +213,15 @@
 
             return (
 
-                String(h).padStart(2, "0")
+                String(hour).padStart(2, "0")
                 +
                 ":"
                 +
-                String(m).padStart(2, "0")
+                String(minute).padStart(2, "0")
                 +
                 ":"
                 +
-                String(s).padStart(2, "0")
+                String(second).padStart(2, "0")
 
             );
 
@@ -379,7 +378,7 @@
 
 
         // =====================================
-        // 時計表示
+        // 時計
         // =====================================
 
         function formatClock(date) {
@@ -441,50 +440,42 @@
         function formatElapsed(seconds) {
 
             const totalSeconds =
+                Math.floor(
+                    Number(seconds) || 0
+                );
+
+
+            const safeSeconds =
                 Math.max(
                     0,
-                    Math.floor(
-                        Number(seconds) || 0
-                    )
+                    totalSeconds
                 );
 
 
             const hours =
                 Math.floor(
-                    totalSeconds / 3600
+                    safeSeconds / 3600
                 );
 
 
             const minutes =
                 Math.floor(
-                    (totalSeconds % 3600) / 60
+                    (safeSeconds % 3600) / 60
                 );
 
 
             const remainSeconds =
-                totalSeconds % 60;
+                safeSeconds % 60;
 
 
-            if (hours > 0) {
+            if (
+                hours > 0
+            ) {
 
                 return (
 
                     hours +
-                    "時間 " +
-                    minutes +
-                    "分 " +
-                    remainSeconds +
-                    "秒"
-
-                );
-
-            }
-
-
-            if (minutes > 0) {
-
-                return (
-
+                    "時間" +
                     minutes +
                     "分" +
                     remainSeconds +
@@ -495,9 +486,25 @@
             }
 
 
+            if (
+                minutes === 0
+            ) {
+
+                return (
+                    remainSeconds +
+                    "秒"
+                );
+
+            }
+
+
             return (
+
+                minutes +
+                "分" +
                 remainSeconds +
                 "秒"
+
             );
 
         }
@@ -530,10 +537,6 @@
 
             }
 
-
-            // ---------------------------------
-            // HH:MM:SS
-            // ---------------------------------
 
             if (
                 value.includes(":")
@@ -587,18 +590,26 @@
                                 hours
                             )
                         ).padStart(2, "0")
+
                         +
+
                         ":"
+
                         +
+
                         String(
                             Math.max(
                                 0,
                                 minutes
                             )
                         ).padStart(2, "0")
+
                         +
+
                         ":"
+
                         +
+
                         String(
                             Math.max(
                                 0,
@@ -612,10 +623,6 @@
 
             }
 
-
-            // ---------------------------------
-            // 秒数
-            // ---------------------------------
 
             const totalSeconds =
                 parseInt(
@@ -714,7 +721,9 @@
         // ダウンロードURL
         // =====================================
 
-        function makeDownloadUrl(filename) {
+        function makeDownloadUrl(
+            filename
+        ) {
 
             if (
                 filename === null ||
@@ -757,36 +766,49 @@
                     : "mp3";
 
 
-            switch (
-                outputFormat
+            if (
+                outputFormat === "mp3"
             ) {
 
-                case "mp4":
-
-                    return ["mp4"];
-
-
-                case "mp3mp4":
-
-                    return [
-                        "mp3",
-                        "mp4"
-                    ];
-
-
-                case "mp3":
-
-                default:
-
-                    return ["mp3"];
+                return [
+                    "mp3"
+                ];
 
             }
+
+
+            if (
+                outputFormat === "mp4"
+            ) {
+
+                return [
+                    "mp4"
+                ];
+
+            }
+
+
+            if (
+                outputFormat === "mp3mp4"
+            ) {
+
+                return [
+                    "mp3",
+                    "mp4"
+                ];
+
+            }
+
+
+            return [
+                "mp3"
+            ];
 
         }
 
 
         // =====================================
-        // 公開
+        // 公開API
         // =====================================
 
         const utils = {
@@ -837,10 +859,6 @@
         window.ConverterUtils =
             utils;
 
-
-        // =====================================
-        // 時間入力初期化
-        // =====================================
 
         setupTimeInputs();
 
