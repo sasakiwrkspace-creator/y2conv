@@ -17,7 +17,10 @@
 // ・二重実行防止
 // ・エラー処理
 // ・converter.js の字幕付きMP4表示にも対応
+//
+// 共通関数は converter-utils.js を使用
 // =====================================
+
 
 (function () {
 
@@ -50,6 +53,65 @@
         console.log(
             "[SUB EMBED] initializeSubEmbed() start"
         );
+
+
+        // =================================
+        // converterUtils確認
+        // =================================
+
+        if (
+            !window.converterUtils
+        ) {
+
+            console.error(
+                "[SUB EMBED] converterUtils がありません"
+            );
+
+            return;
+
+        }
+
+
+        const utils =
+            window.converterUtils;
+
+
+        // =================================
+        // 共通関数確認
+        // =================================
+
+        const requiredFunctions = [
+
+            "escapeHtml",
+            "formatClock",
+            "formatElapsed",
+            "formatDuration",
+            "makeDownloadUrl"
+
+        ];
+
+
+        for (
+            const functionName
+            of requiredFunctions
+        ) {
+
+            if (
+                typeof utils[functionName] !==
+                "function"
+            ) {
+
+                console.error(
+                    "[SUB EMBED] converterUtils." +
+                    functionName +
+                    " がありません"
+                );
+
+                return;
+
+            }
+
+        }
 
 
         // =================================
@@ -128,6 +190,7 @@
             );
 
             return;
+
         }
 
 
@@ -146,6 +209,7 @@
             );
 
             return;
+
         }
 
 
@@ -177,6 +241,7 @@
             if (!statusElement) {
 
                 return;
+
             }
 
 
@@ -235,97 +300,44 @@
 
 
         // =================================
-        // 経過時間フォーマット
+        // 経過時間
         // =================================
 
-        function formatElapsedTime(
-            milliseconds
-        ) {
-
-            const totalSeconds =
-                Math.max(
-                    0,
-                    Math.floor(
-                        Number(milliseconds) / 1000
-                    )
-                );
-
-
-            const hours =
-                Math.floor(
-                    totalSeconds / 3600
-                );
-
-
-            const minutes =
-                Math.floor(
-                    (totalSeconds % 3600) / 60
-                );
-
-
-            const seconds =
-                totalSeconds % 60;
-
-
-            if (hours > 0) {
-
-                return (
-                    hours +
-                    "時間 " +
-                    minutes +
-                    "分 " +
-                    seconds +
-                    "秒"
-                );
-
-            }
-
-
-            if (minutes > 0) {
-
-                return (
-                    minutes +
-                    "分 " +
-                    seconds +
-                    "秒"
-                );
-
-            }
-
-
-            return (
-                seconds +
-                "秒"
-            );
-
-        }
-
-
-        // =================================
-        // 経過時間テキスト
-        // =================================
-
-        function getElapsedText() {
+        function getElapsedSeconds() {
 
             if (
                 processingStartTime ===
                 null
             ) {
 
-                return "処理時間: 0秒";
+                return 0;
 
             }
 
 
-            const elapsed =
-                Date.now() -
-                processingStartTime;
+            return Math.max(
+                0,
+                Math.floor(
+                    (
+                        Date.now() -
+                        processingStartTime
+                    ) / 1000
+                )
+            );
 
+        }
+
+
+        // =================================
+        // 経過時間表示
+        // =================================
+
+        function getElapsedText() {
 
             return (
                 "処理時間: " +
-                formatElapsedTime(
-                    elapsed
+                utils.formatElapsed(
+                    getElapsedSeconds()
                 )
             );
 
@@ -358,9 +370,6 @@
 
         // =================================
         // リアルタイムタイマー開始
-        //
-        // setIntervalではなく
-        // setTimeoutを1回ずつ実行
         // =================================
 
         function startElapsedTimer(
@@ -412,9 +421,6 @@
 
         // =====================================
         // JSONレスポンス取得
-        //
-        // エラー時にもJSON以外のレスポンスを
-        // 安全に処理する
         // =====================================
 
         async function parseResponse(
@@ -445,7 +451,6 @@
                     "[SUB EMBED] JSON解析エラー:",
                     error
                 );
-
 
                 console.error(
                     "[SUB EMBED] レスポンス:",
@@ -520,7 +525,6 @@
                 file.name
             );
 
-
             console.log(
                 "[SUB EMBED] ファイルサイズ:",
                 file.size
@@ -541,11 +545,13 @@
                 await fetch(
                     "/subtitle-upload",
                     {
+
                         method:
                             "POST",
 
                         body:
                             formData
+
                     }
                 );
 
@@ -636,12 +642,10 @@
                 "[SUB EMBED] 字幕焼き込み開始"
             );
 
-
             console.log(
                 "[SUB EMBED] MP4:",
                 mp4Filename
             );
-
 
             console.log(
                 "[SUB EMBED] SRT:",
@@ -735,49 +739,7 @@
 
 
         // =====================================
-        // ダウンロードURL作成
-        //
-        // サーバーからdownload_urlが返らない
-        // 場合のフォールバック
-        // =====================================
-
-        function makeDownloadUrl(
-            filename
-        ) {
-
-            if (!filename) {
-
-                return "";
-
-            }
-
-
-            if (
-                window.converterUtils &&
-                typeof
-                    window.converterUtils.makeDownloadUrl ===
-                    "function"
-            ) {
-
-                return window.converterUtils.makeDownloadUrl(
-                    filename
-                );
-
-            }
-
-
-            return (
-                "/download/" +
-                encodeURIComponent(
-                    filename
-                )
-            );
-
-        }
-
-
-        // =====================================
-        // 安全なダウンロードURL
+        // ダウンロードURL
         // =====================================
 
         function resolveDownloadUrl(
@@ -796,7 +758,7 @@
             }
 
 
-            return makeDownloadUrl(
+            return utils.makeDownloadUrl(
                 filename
             );
 
@@ -834,15 +796,22 @@
             }
 
 
-            // ---------------------------------
-            // URL
-            // ---------------------------------
-
             const resolvedUrl =
                 resolveDownloadUrl(
                     filename,
                     downloadUrl
                 );
+
+
+            if (!resolvedUrl) {
+
+                console.error(
+                    "[SUB EMBED] ダウンロードURLを作成できません"
+                );
+
+                return;
+
+            }
 
 
             // ---------------------------------
@@ -921,11 +890,13 @@
             console.log(
                 "[SUB EMBED] ダウンロードボタン追加:",
                 {
+
                     filename:
                         filename,
 
                     downloadUrl:
                         resolvedUrl
+
                 }
             );
 
@@ -934,10 +905,6 @@
 
         // =====================================
         // converter.jsへ通知
-        //
-        // 自動変換フローで字幕焼き込みを
-        // 実行した場合にも、converter.js側の
-        // 「字幕付」ボタンへ反映する
         // =====================================
 
         function notifyConverterMain(
@@ -1043,129 +1010,56 @@
             }
 
 
-            let formattedDuration =
-                duration;
+            const formattedDuration =
+                utils.formatDuration(
+                    duration
+                );
 
 
-            if (
-                window.converterUtils &&
-                typeof
-                    window.converterUtils.formatDuration ===
-                    "function"
-            ) {
-
-                formattedDuration =
-                    window.converterUtils.formatDuration(
-                        duration
-                    );
-
-            }
-
-
-            let formattedStart =
+            const formattedStart =
                 startTime
-                    ? startTime.toLocaleTimeString(
-                        "ja-JP",
-                        {
-                            hour:
-                                "2-digit",
-
-                            minute:
-                                "2-digit",
-
-                            second:
-                                "2-digit",
-
-                            hour12:
-                                false
-                        }
+                    ? utils.formatClock(
+                        startTime
                     )
                     : "";
 
 
-            let formattedEnd =
+            const formattedEnd =
                 endTime
-                    ? endTime.toLocaleTimeString(
-                        "ja-JP",
-                        {
-                            hour:
-                                "2-digit",
-
-                            minute:
-                                "2-digit",
-
-                            second:
-                                "2-digit",
-
-                            hour12:
-                                false
-                        }
+                    ? utils.formatClock(
+                        endTime
                     )
                     : "";
 
 
-            if (
-                window.converterUtils &&
-                typeof
-                    window.converterUtils.formatClock ===
-                    "function"
-            ) {
-
-                formattedStart =
-                    startTime
-                        ? window.converterUtils.formatClock(
-                            startTime
-                        )
-                        : "";
+            const safeTitle =
+                utils.escapeHtml(
+                    title
+                );
 
 
-                formattedEnd =
-                    endTime
-                        ? window.converterUtils.formatClock(
-                            endTime
-                        )
-                        : "";
-
-            }
+            const safeDuration =
+                utils.escapeHtml(
+                    formattedDuration
+                );
 
 
-            if (
-                window.converterUtils &&
-                typeof
-                    window.converterUtils.escapeHtml ===
-                    "function"
-            ) {
-
-                title =
-                    window.converterUtils.escapeHtml(
-                        title
-                    );
+            const safeStart =
+                utils.escapeHtml(
+                    formattedStart
+                );
 
 
-                formattedDuration =
-                    window.converterUtils.escapeHtml(
-                        formattedDuration
-                    );
+            const safeEnd =
+                utils.escapeHtml(
+                    formattedEnd
+                );
 
 
-                formattedStart =
-                    window.converterUtils.escapeHtml(
-                        formattedStart
-                    );
-
-
-                formattedEnd =
-                    window.converterUtils.escapeHtml(
-                        formattedEnd
-                    );
-
-
-                elapsedText =
-                    window.converterUtils.escapeHtml(
-                        elapsedText
-                    );
-
-            }
+            const safeElapsed =
+                utils.escapeHtml(
+                    elapsedText
+                );
 
 
             return `
@@ -1182,7 +1076,7 @@
                     <div>
 
                         タイトル：
-                        ${title}
+                        ${safeTitle}
 
                     </div>
 
@@ -1190,7 +1084,7 @@
                     <div>
 
                         再生時間：
-                        ${formattedDuration}
+                        ${safeDuration}
 
                     </div>
 
@@ -1198,7 +1092,7 @@
                     <div>
 
                         実行開始：
-                        ${formattedStart}
+                        ${safeStart}
 
                     </div>
 
@@ -1206,9 +1100,9 @@
                     <div>
 
                         実行終了：
-                        ${formattedEnd}
+                        ${safeEnd}
 
-                        （${elapsedText}）
+                        （${safeElapsed}）
 
                     </div>
 
@@ -1266,7 +1160,9 @@
 
                 console.log(
                     "[SUB EMBED] 処理開始時間:",
-                    processStartDate.toLocaleString()
+                    utils.formatClock(
+                        processStartDate
+                    )
                 );
 
 
@@ -1540,18 +1436,23 @@
                     // 処理時間確定
                     // =================================
 
-                    const elapsedTime =
+                    const elapsedSeconds =
                         processingStartTime !== null
-                            ? (
-                                Date.now() -
-                                processingStartTime
+                            ? Math.max(
+                                0,
+                                Math.floor(
+                                    (
+                                        Date.now() -
+                                        processingStartTime
+                                    ) / 1000
+                                )
                             )
                             : 0;
 
 
                     const elapsedText =
-                        formatElapsedTime(
-                            elapsedTime
+                        utils.formatElapsed(
+                            elapsedSeconds
                         );
 
 
@@ -1695,26 +1596,24 @@
                     // エラー時処理時間
                     // =================================
 
-                    let elapsedText =
-                        "0秒";
+                    const elapsedSeconds =
+                        processingStartTime !== null
+                            ? Math.max(
+                                0,
+                                Math.floor(
+                                    (
+                                        Date.now() -
+                                        processingStartTime
+                                    ) / 1000
+                                )
+                            )
+                            : 0;
 
 
-                    if (
-                        processingStartTime !==
-                        null
-                    ) {
-
-                        const elapsedTime =
-                            Date.now() -
-                            processingStartTime;
-
-
-                        elapsedText =
-                            formatElapsedTime(
-                                elapsedTime
-                            );
-
-                    }
+                    const elapsedText =
+                        utils.formatElapsed(
+                            elapsedSeconds
+                        );
 
 
                     // =================================
@@ -1866,7 +1765,6 @@
         console.log(
             "[SUB EMBED] initializeSubEmbed() complete"
         );
-
 
         console.log(
             "[SUB EMBED] " +
