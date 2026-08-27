@@ -18,9 +18,10 @@
 // ・エラー処理
 // ・converter.js の字幕付きMP4表示にも対応
 //
-// 共通関数は converter-utils.js を使用
+// 使用:
+// ・converter-utils.js
+// ・converter.js
 // =====================================
-
 
 (function () {
 
@@ -55,68 +56,9 @@
         );
 
 
-        // =================================
-        // converterUtils確認
-        // =================================
-
-        if (
-            !window.converterUtils
-        ) {
-
-            console.error(
-                "[SUB EMBED] converterUtils がありません"
-            );
-
-            return;
-
-        }
-
-
-        const utils =
-            window.converterUtils;
-
-
-        // =================================
-        // 共通関数確認
-        // =================================
-
-        const requiredFunctions = [
-
-            "escapeHtml",
-            "formatClock",
-            "formatElapsed",
-            "formatDuration",
-            "makeDownloadUrl"
-
-        ];
-
-
-        for (
-            const functionName
-            of requiredFunctions
-        ) {
-
-            if (
-                typeof utils[functionName] !==
-                "function"
-            ) {
-
-                console.error(
-                    "[SUB EMBED] converterUtils." +
-                    functionName +
-                    " がありません"
-                );
-
-                return;
-
-            }
-
-        }
-
-
-        // =================================
-        // DOM取得
-        // =================================
+        // =====================================
+        // DOM
+        // =====================================
 
         const mp4Input =
             document.getElementById(
@@ -148,10 +90,6 @@
             );
 
 
-        // =================================
-        // DOM確認
-        // =================================
-
         console.log(
             "[SUB EMBED] mp4Input =",
             mp4Input
@@ -178,9 +116,9 @@
         );
 
 
-        // =================================
-        // 必須DOM確認
-        // =================================
+        // =====================================
+        // 必須DOM
+        // =====================================
 
         if (!uploadButton) {
 
@@ -194,9 +132,9 @@
         }
 
 
-        // =================================
+        // =====================================
         // 二重初期化防止
-        // =================================
+        // =====================================
 
         if (
             uploadButton.dataset.subEmbedInitialized ===
@@ -217,9 +155,17 @@
             "true";
 
 
-        // =================================
-        // タイマー管理
-        // =================================
+        // =====================================
+        // Utils
+        // =====================================
+
+        const utils =
+            window.converterUtils;
+
+
+        // =====================================
+        // タイマー
+        // =====================================
 
         let elapsedTimerId =
             null;
@@ -229,9 +175,9 @@
             null;
 
 
-        // =================================
-        // ステータス表示
-        // =================================
+        // =====================================
+        // ステータス
+        // =====================================
 
         function setStatus(
             message,
@@ -270,9 +216,9 @@
         }
 
 
-        // =================================
-        // 前回表示クリア
-        // =================================
+        // =====================================
+        // 結果クリア
+        // =====================================
 
         function clearPreviousResult() {
 
@@ -280,6 +226,7 @@
 
                 statusElement.textContent =
                     "";
+
 
                 statusElement.classList.remove(
                     "error",
@@ -299,9 +246,9 @@
         }
 
 
-        // =================================
+        // =====================================
         // 経過時間
-        // =================================
+        // =====================================
 
         function getElapsedSeconds() {
 
@@ -316,37 +263,63 @@
 
 
             return Math.max(
+
                 0,
+
                 Math.floor(
                     (
                         Date.now() -
                         processingStartTime
                     ) / 1000
                 )
+
             );
 
         }
 
 
-        // =================================
-        // 経過時間表示
-        // =================================
+        // =====================================
+        // 経過時間テキスト
+        // =====================================
 
         function getElapsedText() {
 
+            const seconds =
+                getElapsedSeconds();
+
+
+            if (
+                utils &&
+                typeof utils.formatElapsed ===
+                    "function"
+            ) {
+
+                return (
+
+                    "処理時間: " +
+                    utils.formatElapsed(
+                        seconds
+                    )
+
+                );
+
+            }
+
+
             return (
+
                 "処理時間: " +
-                utils.formatElapsed(
-                    getElapsedSeconds()
-                )
+                seconds +
+                "秒"
+
             );
 
         }
 
 
-        // =================================
-        // リアルタイムタイマー停止
-        // =================================
+        // =====================================
+        // タイマー停止
+        // =====================================
 
         function stopElapsedTimer() {
 
@@ -368,9 +341,9 @@
         }
 
 
-        // =================================
-        // リアルタイムタイマー開始
-        // =================================
+        // =====================================
+        // タイマー開始
+        // =====================================
 
         function startElapsedTimer(
             message
@@ -420,7 +393,7 @@
 
 
         // =====================================
-        // JSONレスポンス取得
+        // JSONレスポンス
         // =====================================
 
         async function parseResponse(
@@ -452,6 +425,7 @@
                     error
                 );
 
+
                 console.error(
                     "[SUB EMBED] レスポンス:",
                     text
@@ -466,7 +440,7 @@
 
 
         // =====================================
-        // エラーメッセージ取得
+        // エラーメッセージ
         // =====================================
 
         function getResponseErrorMessage(
@@ -524,6 +498,7 @@
                 "[SUB EMBED] アップロード開始:",
                 file.name
             );
+
 
             console.log(
                 "[SUB EMBED] ファイルサイズ:",
@@ -642,10 +617,12 @@
                 "[SUB EMBED] 字幕焼き込み開始"
             );
 
+
             console.log(
                 "[SUB EMBED] MP4:",
                 mp4Filename
             );
+
 
             console.log(
                 "[SUB EMBED] SRT:",
@@ -742,6 +719,46 @@
         // ダウンロードURL
         // =====================================
 
+        function makeDownloadUrl(
+            filename
+        ) {
+
+            if (!filename) {
+
+                return "";
+
+            }
+
+
+            if (
+                utils &&
+                typeof utils.makeDownloadUrl ===
+                    "function"
+            ) {
+
+                return utils.makeDownloadUrl(
+                    filename
+                );
+
+            }
+
+
+            return (
+
+                "/download/" +
+                encodeURIComponent(
+                    String(filename)
+                )
+
+            );
+
+        }
+
+
+        // =====================================
+        // ダウンロードURL解決
+        // =====================================
+
         function resolveDownloadUrl(
             filename,
             downloadUrl
@@ -758,7 +775,7 @@
             }
 
 
-            return utils.makeDownloadUrl(
+            return makeDownloadUrl(
                 filename
             );
 
@@ -766,7 +783,7 @@
 
 
         // =====================================
-        // ダウンロードボタン作成
+        // ダウンロードボタン
         // =====================================
 
         function createDownloadButton(
@@ -788,7 +805,8 @@
             if (!filename) {
 
                 console.error(
-                    "[SUB EMBED] ダウンロードファイル名がありません"
+                    "[SUB EMBED] " +
+                    "ダウンロードファイル名がありません"
                 );
 
                 return;
@@ -803,21 +821,6 @@
                 );
 
 
-            if (!resolvedUrl) {
-
-                console.error(
-                    "[SUB EMBED] ダウンロードURLを作成できません"
-                );
-
-                return;
-
-            }
-
-
-            // ---------------------------------
-            // セクション
-            // ---------------------------------
-
             const section =
                 document.createElement(
                     "div"
@@ -827,10 +830,6 @@
             section.className =
                 "sub-embed-download-section";
 
-
-            // ---------------------------------
-            // ラベル
-            // ---------------------------------
 
             const label =
                 document.createElement(
@@ -850,10 +849,6 @@
                 label
             );
 
-
-            // ---------------------------------
-            // ボタン
-            // ---------------------------------
 
             const button =
                 document.createElement(
@@ -890,13 +885,11 @@
             console.log(
                 "[SUB EMBED] ダウンロードボタン追加:",
                 {
-
                     filename:
                         filename,
 
                     downloadUrl:
                         resolvedUrl
-
                 }
             );
 
@@ -926,7 +919,8 @@
             ) {
 
                 console.log(
-                    "[SUB EMBED] converterMainへ字幕付きMP4を通知:",
+                    "[SUB EMBED] " +
+                    "converterMainへ字幕付きMP4を通知:",
                     filename
                 );
 
@@ -941,7 +935,7 @@
 
 
         // =====================================
-        // converter.jsへ処理詳細を通知
+        // converter.jsへ詳細通知
         // =====================================
 
         function notifyConverterDetail(
@@ -963,7 +957,8 @@
             ) {
 
                 console.log(
-                    "[SUB EMBED] converterMainへ処理詳細を通知"
+                    "[SUB EMBED] " +
+                    "converterMainへ処理詳細を通知"
                 );
 
 
@@ -977,7 +972,7 @@
 
 
         // =====================================
-        // 字幕付きMP4の処理詳細HTML
+        // 字幕付きMP4詳細HTML
         // =====================================
 
         function createConversionDetail(
@@ -1010,56 +1005,130 @@
             }
 
 
-            const formattedDuration =
-                utils.formatDuration(
-                    duration
-                );
+            let formattedDuration =
+                duration;
 
 
-            const formattedStart =
+            let formattedStart =
                 startTime
-                    ? utils.formatClock(
-                        startTime
+                    ? startTime.toLocaleTimeString(
+                        "ja-JP",
+                        {
+
+                            hour:
+                                "2-digit",
+
+                            minute:
+                                "2-digit",
+
+                            second:
+                                "2-digit",
+
+                            hour12:
+                                false
+
+                        }
                     )
                     : "";
 
 
-            const formattedEnd =
+            let formattedEnd =
                 endTime
-                    ? utils.formatClock(
-                        endTime
+                    ? endTime.toLocaleTimeString(
+                        "ja-JP",
+                        {
+
+                            hour:
+                                "2-digit",
+
+                            minute:
+                                "2-digit",
+
+                            second:
+                                "2-digit",
+
+                            hour12:
+                                false
+
+                        }
                     )
                     : "";
 
 
-            const safeTitle =
-                utils.escapeHtml(
-                    title
-                );
+            if (
+                utils &&
+                typeof utils.formatDuration ===
+                    "function"
+            ) {
+
+                formattedDuration =
+                    utils.formatDuration(
+                        duration
+                    );
+
+            }
 
 
-            const safeDuration =
-                utils.escapeHtml(
-                    formattedDuration
-                );
+            if (
+                utils &&
+                typeof utils.formatClock ===
+                    "function"
+            ) {
+
+                formattedStart =
+                    startTime
+                        ? utils.formatClock(
+                            startTime
+                        )
+                        : "";
 
 
-            const safeStart =
-                utils.escapeHtml(
-                    formattedStart
-                );
+                formattedEnd =
+                    endTime
+                        ? utils.formatClock(
+                            endTime
+                        )
+                        : "";
+
+            }
 
 
-            const safeEnd =
-                utils.escapeHtml(
-                    formattedEnd
-                );
+            if (
+                utils &&
+                typeof utils.escapeHtml ===
+                    "function"
+            ) {
+
+                title =
+                    utils.escapeHtml(
+                        title
+                    );
 
 
-            const safeElapsed =
-                utils.escapeHtml(
-                    elapsedText
-                );
+                formattedDuration =
+                    utils.escapeHtml(
+                        formattedDuration
+                    );
+
+
+                formattedStart =
+                    utils.escapeHtml(
+                        formattedStart
+                    );
+
+
+                formattedEnd =
+                    utils.escapeHtml(
+                        formattedEnd
+                    );
+
+
+                elapsedText =
+                    utils.escapeHtml(
+                        elapsedText
+                    );
+
+            }
 
 
             return `
@@ -1076,7 +1145,7 @@
                     <div>
 
                         タイトル：
-                        ${safeTitle}
+                        ${title}
 
                     </div>
 
@@ -1084,7 +1153,7 @@
                     <div>
 
                         再生時間：
-                        ${safeDuration}
+                        ${formattedDuration}
 
                     </div>
 
@@ -1092,7 +1161,7 @@
                     <div>
 
                         実行開始：
-                        ${safeStart}
+                        ${formattedStart}
 
                     </div>
 
@@ -1100,9 +1169,9 @@
                     <div>
 
                         実行終了：
-                        ${safeEnd}
+                        ${formattedEnd}
 
-                        （${safeElapsed}）
+                        （${elapsedText}）
 
                     </div>
 
@@ -1145,7 +1214,7 @@
 
 
                 // =================================
-                // 処理開始時刻
+                // 処理開始
                 // =================================
 
                 processingStartTime =
@@ -1160,9 +1229,7 @@
 
                 console.log(
                     "[SUB EMBED] 処理開始時間:",
-                    utils.formatClock(
-                        processStartDate
-                    )
+                    processStartDate.toLocaleString()
                 );
 
 
@@ -1257,7 +1324,7 @@
 
 
                 // =================================
-                // 拡張子確認
+                // MP4拡張子確認
                 // =================================
 
                 if (
@@ -1282,6 +1349,10 @@
 
                 }
 
+
+                // =================================
+                // SRT拡張子確認
+                // =================================
 
                 if (
                     !srtFile.name
@@ -1315,7 +1386,7 @@
 
 
                 // =================================
-                // 処理開始ログ
+                // ログ
                 // =================================
 
                 console.log(
@@ -1433,27 +1504,34 @@
 
 
                     // =================================
-                    // 処理時間確定
+                    // 処理時間
                     // =================================
 
                     const elapsedSeconds =
-                        processingStartTime !== null
-                            ? Math.max(
-                                0,
-                                Math.floor(
-                                    (
-                                        Date.now() -
-                                        processingStartTime
-                                    ) / 1000
-                                )
+                        processingStartTime !==
+                        null
+
+                            ? Math.floor(
+                                (
+                                    Date.now() -
+                                    processingStartTime
+                                ) / 1000
                             )
+
                             : 0;
 
 
                     const elapsedText =
-                        utils.formatElapsed(
-                            elapsedSeconds
-                        );
+                        utils &&
+                        typeof utils.formatElapsed ===
+                            "function"
+
+                            ? utils.formatElapsed(
+                                elapsedSeconds
+                            )
+
+                            : elapsedSeconds +
+                              "秒";
 
 
                     // =================================
@@ -1464,7 +1542,6 @@
 
 
                     // =================================
-                    // STEP 4
                     // 完了表示
                     // =================================
 
@@ -1480,7 +1557,6 @@
 
 
                     // =================================
-                    // STEP 5
                     // ダウンロードURL
                     // =================================
 
@@ -1495,7 +1571,6 @@
 
 
                     // =================================
-                    // STEP 6
                     // ダウンロードボタン
                     // =================================
 
@@ -1509,7 +1584,6 @@
 
 
                     // =================================
-                    // STEP 7
                     // converter.jsへ通知
                     // =================================
 
@@ -1519,7 +1593,6 @@
 
 
                     // =================================
-                    // STEP 8
                     // 処理詳細
                     // =================================
 
@@ -1581,7 +1654,6 @@
                         "[SUB EMBED] ====================================="
                     );
 
-
                 }
                 catch (error) {
 
@@ -1593,27 +1665,24 @@
 
 
                     // =================================
-                    // エラー時処理時間
+                    // エラー処理時間
                     // =================================
 
                     const elapsedSeconds =
-                        processingStartTime !== null
-                            ? Math.max(
-                                0,
-                                Math.floor(
-                                    (
-                                        Date.now() -
-                                        processingStartTime
-                                    ) / 1000
-                                )
-                            )
-                            : 0;
+                        getElapsedSeconds();
 
 
                     const elapsedText =
-                        utils.formatElapsed(
-                            elapsedSeconds
-                        );
+                        utils &&
+                        typeof utils.formatElapsed ===
+                            "function"
+
+                            ? utils.formatElapsed(
+                                elapsedSeconds
+                            )
+
+                            : elapsedSeconds +
+                              "秒";
 
 
                     // =================================
@@ -1627,7 +1696,8 @@
 
 
                     console.error(
-                        "[SUB EMBED] エラー発生までの時間:",
+                        "[SUB EMBED] " +
+                        "エラー発生までの時間:",
                         elapsedText
                     );
 
@@ -1664,7 +1734,7 @@
 
 
                     // =================================
-                    // 処理時間リセット
+                    // 時間リセット
                     // =================================
 
                     processingStartTime =
@@ -1681,11 +1751,12 @@
                 }
 
             }
+
         );
 
 
         // =====================================
-        // MP4選択イベント
+        // MP4選択
         // =====================================
 
         if (mp4Input) {
@@ -1704,13 +1775,9 @@
                         this.files.length > 0
                     ) {
 
-                        const file =
-                            this.files[0];
-
-
                         console.log(
                             "[SUB EMBED] MP4選択:",
-                            file.name
+                            this.files[0].name
                         );
 
                     }
@@ -1722,7 +1789,7 @@
 
 
         // =====================================
-        // SRT選択イベント
+        // SRT選択
         // =====================================
 
         if (srtInput) {
@@ -1741,13 +1808,9 @@
                         this.files.length > 0
                     ) {
 
-                        const file =
-                            this.files[0];
-
-
                         console.log(
                             "[SUB EMBED] SRT選択:",
-                            file.name
+                            this.files[0].name
                         );
 
                     }
@@ -1765,6 +1828,7 @@
         console.log(
             "[SUB EMBED] initializeSubEmbed() complete"
         );
+
 
         console.log(
             "[SUB EMBED] " +
