@@ -37,7 +37,7 @@
 
 
         // =====================================
-        // 数字入力
+        // 数字入力設定
         // =====================================
 
         function setupNumericInput(element) {
@@ -51,7 +51,9 @@
                 element.dataset.converterNumericInitialized ===
                 "true"
             ) {
+
                 return;
+
             }
 
 
@@ -101,7 +103,9 @@
                             event.key
                         )
                     ) {
+
                         return;
+
                     }
 
 
@@ -109,7 +113,9 @@
                         event.ctrlKey ||
                         event.metaKey
                     ) {
+
                         return;
+
                     }
 
 
@@ -142,7 +148,7 @@
 
 
         // =====================================
-        // 時間入力
+        // 時間入力設定
         // =====================================
 
         function setupTimeInputs() {
@@ -185,21 +191,21 @@
             second
         ) {
 
-            hour =
+            const h =
                 parseInt(
                     hour || "0",
                     10
                 ) || 0;
 
 
-            minute =
+            const m =
                 parseInt(
                     minute || "0",
                     10
                 ) || 0;
 
 
-            second =
+            const s =
                 parseInt(
                     second || "0",
                     10
@@ -208,15 +214,15 @@
 
             return (
 
-                String(hour).padStart(2, "0")
+                String(h).padStart(2, "0")
                 +
                 ":"
                 +
-                String(minute).padStart(2, "0")
+                String(m).padStart(2, "0")
                 +
                 ":"
                 +
-                String(second).padStart(2, "0")
+                String(s).padStart(2, "0")
 
             );
 
@@ -298,7 +304,9 @@
 
 
             if (!element) {
+
                 return "";
+
             }
 
 
@@ -371,13 +379,15 @@
 
 
         // =====================================
-        // 時計
+        // 時計表示
         // =====================================
 
         function formatClock(date) {
 
             if (!date) {
+
                 return "";
+
             }
 
 
@@ -431,47 +441,63 @@
         function formatElapsed(seconds) {
 
             const totalSeconds =
-                Math.floor(
-                    Number(seconds) || 0
+                Math.max(
+                    0,
+                    Math.floor(
+                        Number(seconds) || 0
+                    )
                 );
 
 
-            const safeSeconds =
-                Math.max(
-                    0,
-                    totalSeconds
+            const hours =
+                Math.floor(
+                    totalSeconds / 3600
                 );
 
 
             const minutes =
                 Math.floor(
-                    safeSeconds / 60
+                    (totalSeconds % 3600) / 60
                 );
 
 
             const remainSeconds =
-                safeSeconds % 60;
+                totalSeconds % 60;
 
 
-            if (
-                minutes === 0
-            ) {
+            if (hours > 0) {
 
                 return (
+
+                    hours +
+                    "時間 " +
+                    minutes +
+                    "分 " +
                     remainSeconds +
                     "秒"
+
+                );
+
+            }
+
+
+            if (minutes > 0) {
+
+                return (
+
+                    minutes +
+                    "分" +
+                    remainSeconds +
+                    "秒"
+
                 );
 
             }
 
 
             return (
-
-                minutes +
-                "分" +
                 remainSeconds +
                 "秒"
-
             );
 
         }
@@ -499,9 +525,15 @@
 
 
             if (!value) {
+
                 return "不明";
+
             }
 
+
+            // ---------------------------------
+            // HH:MM:SS
+            // ---------------------------------
 
             if (
                 value.includes(":")
@@ -516,15 +548,24 @@
                 ) {
 
                     const hours =
-                        parseInt(parts[0], 10);
+                        parseInt(
+                            parts[0],
+                            10
+                        );
 
 
                     const minutes =
-                        parseInt(parts[1], 10);
+                        parseInt(
+                            parts[1],
+                            10
+                        );
 
 
                     const seconds =
-                        parseInt(parts[2], 10);
+                        parseInt(
+                            parts[2],
+                            10
+                        );
 
 
                     if (
@@ -541,19 +582,28 @@
                     return (
 
                         String(
-                            Math.max(0, hours)
+                            Math.max(
+                                0,
+                                hours
+                            )
                         ).padStart(2, "0")
                         +
                         ":"
                         +
                         String(
-                            Math.max(0, minutes)
+                            Math.max(
+                                0,
+                                minutes
+                            )
                         ).padStart(2, "0")
                         +
                         ":"
                         +
                         String(
-                            Math.max(0, seconds)
+                            Math.max(
+                                0,
+                                seconds
+                            )
                         ).padStart(2, "0")
 
                     );
@@ -562,6 +612,10 @@
 
             }
 
+
+            // ---------------------------------
+            // 秒数
+            // ---------------------------------
 
             const totalSeconds =
                 parseInt(
@@ -620,10 +674,12 @@
         function escapeHtml(value) {
 
             return String(
+
                 value === null ||
                 value === undefined
                     ? ""
                     : value
+
             )
 
                 .replace(
@@ -701,37 +757,30 @@
                     : "mp3";
 
 
-            if (
-                outputFormat === "mp3"
+            switch (
+                outputFormat
             ) {
 
-                return ["mp3"];
+                case "mp4":
+
+                    return ["mp4"];
+
+
+                case "mp3mp4":
+
+                    return [
+                        "mp3",
+                        "mp4"
+                    ];
+
+
+                case "mp3":
+
+                default:
+
+                    return ["mp3"];
 
             }
-
-
-            if (
-                outputFormat === "mp4"
-            ) {
-
-                return ["mp4"];
-
-            }
-
-
-            if (
-                outputFormat === "mp3mp4"
-            ) {
-
-                return [
-                    "mp3",
-                    "mp4"
-                ];
-
-            }
-
-
-            return ["mp3"];
 
         }
 
@@ -789,6 +838,10 @@
             utils;
 
 
+        // =====================================
+        // 時間入力初期化
+        // =====================================
+
         setupTimeInputs();
 
 
@@ -798,6 +851,10 @@
 
     }
 
+
+    // =====================================
+    // DOMContentLoaded
+    // =====================================
 
     if (
         document.readyState ===
