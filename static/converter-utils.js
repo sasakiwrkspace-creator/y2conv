@@ -21,6 +21,8 @@
 
 (function () {
 
+    "use strict";
+
 
     // =====================================
     // Utils初期化
@@ -47,20 +49,17 @@
         }
 
 
-
         // =====================================
         // 数字入力
         // =====================================
 
         function setupNumericInput(element) {
 
-
             if (!element) {
 
                 return;
 
             }
-
 
 
             // ---------------------------------
@@ -81,7 +80,6 @@
                 "true";
 
 
-
             // ---------------------------------
             // input
             // ---------------------------------
@@ -89,7 +87,6 @@
             element.addEventListener(
                 "input",
                 function () {
-
 
                     this.value =
                         this.value.replace(
@@ -101,7 +98,6 @@
             );
 
 
-
             // ---------------------------------
             // keydown
             // ---------------------------------
@@ -109,7 +105,6 @@
             element.addEventListener(
                 "keydown",
                 function (event) {
-
 
                     const allowedKeys = [
 
@@ -130,7 +125,6 @@
                     ];
 
 
-
                     // ---------------------------------
                     // 編集・移動キー
                     // ---------------------------------
@@ -146,7 +140,6 @@
                     }
 
 
-
                     // ---------------------------------
                     // Ctrl / Command
                     // ---------------------------------
@@ -159,7 +152,6 @@
                         return;
 
                     }
-
 
 
                     // ---------------------------------
@@ -180,7 +172,6 @@
             );
 
 
-
             // ---------------------------------
             // モバイル入力
             // ---------------------------------
@@ -199,13 +190,11 @@
         }
 
 
-
         // =====================================
         // 時間入力設定
         // =====================================
 
         function setupTimeInputs() {
-
 
             const inputIds = [
 
@@ -220,10 +209,8 @@
             ];
 
 
-
             inputIds.forEach(
                 function (id) {
-
 
                     setupNumericInput(
                         document.getElementById(
@@ -237,7 +224,6 @@
         }
 
 
-
         // =====================================
         // 時間を HH:MM:SS にする
         // =====================================
@@ -247,7 +233,6 @@
             minute,
             second
         ) {
-
 
             hour =
                 parseInt(
@@ -268,7 +253,6 @@
                     second || "0",
                     10
                 ) || 0;
-
 
 
             return (
@@ -305,13 +289,11 @@
         }
 
 
-
         // =====================================
         // 時間取得
         // =====================================
 
         function getTimeValue(prefix) {
-
 
             const hour =
                 document.getElementById(
@@ -331,7 +313,6 @@
                 );
 
 
-
             // =================================
             // 新UI
             // =================================
@@ -341,7 +322,6 @@
                 minute ||
                 second
             ) {
-
 
                 const h =
                     hour
@@ -361,7 +341,6 @@
                         : "";
 
 
-
                 console.log(
                     "[UTILS] TIME INPUT:",
                     prefix,
@@ -371,7 +350,6 @@
                         second: s
                     }
                 );
-
 
 
                 // ---------------------------------
@@ -389,14 +367,12 @@
                 }
 
 
-
                 const result =
                     makeTime(
                         h,
                         m,
                         s
                     );
-
 
 
                 console.log(
@@ -406,11 +382,9 @@
                 );
 
 
-
                 return result;
 
             }
-
 
 
             // =================================
@@ -430,11 +404,9 @@
             }
 
 
-
             return element.value.trim();
 
         }
-
 
 
         // =====================================
@@ -442,7 +414,6 @@
         // =====================================
 
         function getTimeRange() {
-
 
             const startTime =
                 getTimeValue(
@@ -454,7 +425,6 @@
                 getTimeValue(
                     "end"
                 );
-
 
 
             console.log(
@@ -469,7 +439,6 @@
             );
 
 
-
             // =================================
             // 開始だけ指定
             // =================================
@@ -478,7 +447,6 @@
                 startTime &&
                 !endTime
             ) {
-
 
                 const result = {
 
@@ -491,12 +459,10 @@
                 };
 
 
-
                 console.log(
                     "[UTILS] TIME RANGE:",
                     result
                 );
-
 
 
                 return result;
@@ -504,18 +470,14 @@
             }
 
 
-
             // =================================
             // 終了だけ指定
-            //
-            // 00:00:00 ～ 終了時間
             // =================================
 
             if (
                 !startTime &&
                 endTime
             ) {
-
 
                 const result = {
 
@@ -528,18 +490,15 @@
                 };
 
 
-
                 console.log(
                     "[UTILS] TIME RANGE:",
                     result
                 );
 
 
-
                 return result;
 
             }
-
 
 
             // =================================
@@ -557,18 +516,15 @@
             };
 
 
-
             console.log(
                 "[UTILS] TIME RANGE:",
                 result
             );
 
 
-
             return result;
 
         }
-
 
 
         // =====================================
@@ -577,18 +533,12 @@
 
         function formatClock(date) {
 
-
             if (!date) {
 
                 return "";
 
             }
 
-
-
-            // ---------------------------------
-            // Date以外が渡された場合
-            // ---------------------------------
 
             if (
                 !(date instanceof Date)
@@ -602,7 +552,6 @@
             }
 
 
-
             if (
                 isNaN(
                     date.getTime()
@@ -612,7 +561,6 @@
                 return "";
 
             }
-
 
 
             return date.toLocaleTimeString(
@@ -637,13 +585,11 @@
         }
 
 
-
         // =====================================
         // 経過時間表示
         // =====================================
 
         function formatElapsed(seconds) {
-
 
             const totalSeconds =
                 Math.floor(
@@ -651,13 +597,11 @@
                 );
 
 
-
             const safeSeconds =
                 Math.max(
                     0,
                     totalSeconds
                 );
-
 
 
             const minutes =
@@ -670,7 +614,6 @@
                 safeSeconds % 60;
 
 
-
             if (
                 minutes === 0
             ) {
@@ -681,7 +624,6 @@
                 );
 
             }
-
 
 
             return (
@@ -697,13 +639,11 @@
         }
 
 
-
         // =====================================
         // 再生時間を HH:MM:SS にする
         // =====================================
 
         function formatDuration(duration) {
-
 
             if (
                 duration === null ||
@@ -716,16 +656,10 @@
             }
 
 
-
-            // =================================
-            // 文字列化
-            // =================================
-
             const value =
                 String(
                     duration
                 ).trim();
-
 
 
             if (!value) {
@@ -733,7 +667,6 @@
                 return "不明";
 
             }
-
 
 
             // =================================
@@ -744,20 +677,13 @@
                 value.includes(":")
             ) {
 
-
                 const parts =
                     value.split(":");
 
 
-
-                // ---------------------------------
-                // HH:MM:SS
-                // ---------------------------------
-
                 if (
                     parts.length === 3
                 ) {
-
 
                     const hours =
                         parseInt(
@@ -780,7 +706,6 @@
                         );
 
 
-
                     if (
                         Number.isNaN(hours) ||
                         Number.isNaN(minutes) ||
@@ -790,7 +715,6 @@
                         return "不明";
 
                     }
-
 
 
                     return (
@@ -844,7 +768,6 @@
             }
 
 
-
             // =================================
             // 秒数
             // =================================
@@ -856,7 +779,6 @@
                 );
 
 
-
             if (
                 isNaN(totalSeconds) ||
                 totalSeconds < 0
@@ -865,7 +787,6 @@
                 return "不明";
 
             }
-
 
 
             const hours =
@@ -882,7 +803,6 @@
 
             const seconds =
                 totalSeconds % 60;
-
 
 
             return (
@@ -919,13 +839,11 @@
         }
 
 
-
         // =====================================
         // HTMLエスケープ
         // =====================================
 
         function escapeHtml(value) {
-
 
             return String(
                 value === null ||
@@ -962,7 +880,6 @@
         }
 
 
-
         // =====================================
         // ダウンロードURL作成
         // =====================================
@@ -970,7 +887,6 @@
         function makeDownloadUrl(
             filename
         ) {
-
 
             if (
                 filename === null ||
@@ -981,7 +897,6 @@
                 return "";
 
             }
-
 
 
             return (
@@ -999,19 +914,16 @@
         }
 
 
-
         // =====================================
         // 選択されている出力形式
         // =====================================
 
         function getSelectedOutputs() {
 
-
             const selectedFormat =
                 document.querySelector(
                     'input[name="output-format"]:checked'
                 );
-
 
 
             const outputFormat =
@@ -1020,17 +932,11 @@
                     : "mp3";
 
 
-
             console.log(
                 "[UTILS] OUTPUT FORMAT:",
                 outputFormat
             );
 
-
-
-            // =================================
-            // MP3
-            // =================================
 
             if (
                 outputFormat === "mp3"
@@ -1043,11 +949,6 @@
             }
 
 
-
-            // =================================
-            // MP4
-            // =================================
-
             if (
                 outputFormat === "mp4"
             ) {
@@ -1058,11 +959,6 @@
 
             }
 
-
-
-            // =================================
-            // MP3 + MP4
-            // =================================
 
             if (
                 outputFormat === "mp3mp4"
@@ -1076,16 +972,10 @@
             }
 
 
-
-            // =================================
-            // 不明な場合
-            // =================================
-
             console.warn(
                 "[UTILS] Unknown output format:",
                 outputFormat
             );
-
 
 
             return [
@@ -1095,84 +985,44 @@
         }
 
 
-
         // =====================================
         // 共通オブジェクト
         // =====================================
 
         const utils = {
 
-            // ---------------------------------
-            // 初期化済みフラグ
-            // ---------------------------------
-
             __initialized:
                 true,
-
-
-            // ---------------------------------
-            // 数字入力
-            // ---------------------------------
 
             setupNumericInput:
                 setupNumericInput,
 
-
-            // ---------------------------------
-            // 時間入力
-            // ---------------------------------
-
             setupTimeInputs:
                 setupTimeInputs,
-
 
             makeTime:
                 makeTime,
 
-
             getTimeValue:
                 getTimeValue,
-
 
             getTimeRange:
                 getTimeRange,
 
-
-            // ---------------------------------
-            // 時間表示
-            // ---------------------------------
-
             formatClock:
                 formatClock,
-
 
             formatElapsed:
                 formatElapsed,
 
-
             formatDuration:
                 formatDuration,
-
-
-            // ---------------------------------
-            // HTML
-            // ---------------------------------
 
             escapeHtml:
                 escapeHtml,
 
-
-            // ---------------------------------
-            // ダウンロード
-            // ---------------------------------
-
             makeDownloadUrl:
                 makeDownloadUrl,
-
-
-            // ---------------------------------
-            // 出力形式
-            // ---------------------------------
 
             getSelectedOutputs:
                 getSelectedOutputs
@@ -1180,17 +1030,8 @@
         };
 
 
-
         // =====================================
         // グローバル公開
-        //
-        // 旧名：
-        // window.ConverterUtils
-        //
-        // 現在使用：
-        // window.converterUtils
-        //
-        // 同じオブジェクトを参照させる
         // =====================================
 
         window.ConverterUtils =
@@ -1201,13 +1042,11 @@
             utils;
 
 
-
         // =====================================
         // DOM上の時間入力を初期化
         // =====================================
 
         setupTimeInputs();
-
 
 
         // =====================================
@@ -1218,53 +1057,44 @@
             "======================================"
         );
 
-
         console.log(
             "converter-utils.js loaded"
         );
-
 
         console.log(
             "[UTILS] ConverterUtils:",
             window.ConverterUtils
         );
 
-
         console.log(
             "[UTILS] converterUtils:",
             window.converterUtils
         );
-
 
         console.log(
             "[UTILS] setupNumericInput:",
             typeof window.converterUtils.setupNumericInput
         );
 
-
         console.log(
             "[UTILS] makeTime:",
             typeof window.converterUtils.makeTime
         );
-
 
         console.log(
             "[UTILS] getTimeValue:",
             typeof window.converterUtils.getTimeValue
         );
 
-
         console.log(
             "[UTILS] getTimeRange:",
             typeof window.converterUtils.getTimeRange
         );
 
-
         console.log(
             "[UTILS] getSelectedOutputs:",
             typeof window.converterUtils.getSelectedOutputs
         );
-
 
         console.log(
             "======================================"
@@ -1273,12 +1103,8 @@
     }
 
 
-
     // =====================================
-    // DOMContentLoaded対応
-    //
-    // scriptの読み込みタイミングに関係なく
-    // Utilsを初期化する
+    // DOMContentLoaded
     // =====================================
 
     if (
@@ -1286,15 +1112,17 @@
         "loading"
     ) {
 
-
         document.addEventListener(
             "DOMContentLoaded",
-            initializeConverterUtils
+            initializeConverterUtils,
+            {
+                once:
+                    true
+            }
         );
 
     }
     else {
-
 
         initializeConverterUtils();
 
