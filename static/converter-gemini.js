@@ -8,7 +8,7 @@
 // ・SRTダウンロード
 // ・SRT変換情報表示
 // ・タイトル / 再生時間は converterState から取得
-// ・SRT実行時間を正しく計測
+// ・SRT実行時間をブラウザ実測
 //
 // 表示仕様
 // ・MP3 / MP4 / SRT のダウンロードボタンは横並び
@@ -16,17 +16,12 @@
 // ・SRT処理情報は「処理詳細」の中に表示
 //
 // 共通関数は converter-utils.js を使用
-//
-// 使用する共通関数
-// ・escapeHtml()
-// ・formatClock()
-// ・formatElapsed()
-// ・formatDuration()
-// ・makeDownloadUrl()
 // =====================================
 
 
 (function () {
+
+    "use strict";
 
 
     // =====================================
@@ -150,7 +145,6 @@
 
         function getCurrentVideoTitle() {
 
-
             if (
                 window.converterState
             ) {
@@ -169,7 +163,6 @@
 
 
         function getCurrentVideoDuration() {
-
 
             if (
                 window.converterState
@@ -196,7 +189,6 @@
             srtFile
         ) {
 
-
             if (
                 !window.converterState
             ) {
@@ -208,6 +200,34 @@
 
             window.converterState.currentSrtFile =
                 srtFile;
+
+        }
+
+
+        // =====================================
+        // SRT経過時間表示
+        // =====================================
+
+        function getSrtElapsedSeconds(
+            startTime
+        ) {
+
+            if (!startTime) {
+
+                return 0;
+
+            }
+
+
+            return Math.max(
+                0,
+                Math.floor(
+                    (
+                        Date.now() -
+                        startTime.getTime()
+                    ) / 1000
+                )
+            );
 
         }
 
@@ -295,11 +315,9 @@
                 "=========================================="
             );
 
-
             console.log(
                 "[GEMINI] 文字起こし開始"
             );
-
 
             console.log(
                 "[GEMINI] 開始時刻:",
@@ -308,24 +326,20 @@
                 )
             );
 
-
             console.log(
                 "[GEMINI] ファイル:",
                 file
             );
-
 
             console.log(
                 "[GEMINI] タイトル:",
                 getCurrentVideoTitle()
             );
 
-
             console.log(
                 "[GEMINI] 再生時間:",
                 getCurrentVideoDuration()
             );
-
 
             console.log(
                 "=========================================="
@@ -342,14 +356,6 @@
 
             geminiButton.textContent =
                 "文字起こし中...";
-
-
-            // =================================
-            // 経過時間
-            // =================================
-
-            let seconds =
-                0;
 
 
             // =================================
@@ -374,29 +380,42 @@
             // タイマー
             // =================================
 
-            const timer =
-                setInterval(
-                    function () {
-
-                        seconds++;
+            let timerId =
+                null;
 
 
-                        if (
-                            result
-                        ) {
+            function updateTimer() {
 
-                            result.textContent =
-                                "文字起こし中... "
-                                +
-                                seconds
-                                +
-                                "秒";
+                const elapsedSeconds =
+                    getSrtElapsedSeconds(
+                        srtStart
+                    );
 
-                        }
 
-                    },
-                    1000
-                );
+                if (
+                    result
+                ) {
+
+                    result.textContent =
+                        "文字起こし中... "
+                        +
+                        utils.formatElapsed(
+                            elapsedSeconds
+                        );
+
+                }
+
+
+                timerId =
+                    setTimeout(
+                        updateTimer,
+                        1000
+                    );
+
+            }
+
+
+            updateTimer();
 
 
             try {
@@ -506,7 +525,6 @@
                         error
                     );
 
-
                     console.error(
                         "[GEMINI] レスポンス:",
                         text
@@ -524,9 +542,20 @@
                 // タイマー停止
                 // =================================
 
-                clearInterval(
-                    timer
-                );
+                if (
+                    timerId !==
+                    null
+                ) {
+
+                    clearTimeout(
+                        timerId
+                    );
+
+
+                    timerId =
+                        null;
+
+                }
 
 
                 // =================================
@@ -575,8 +604,6 @@
 
                     // =================================
                     // 最終採用時間
-                    //
-                    // ブラウザ実測値を使用
                     // =================================
 
                     const finalSeconds =
@@ -591,11 +618,9 @@
                         "=========================================="
                     );
 
-
                     console.log(
                         "[GEMINI] 文字起こし完了"
                     );
-
 
                     console.log(
                         "[GEMINI] 開始:",
@@ -604,7 +629,6 @@
                         )
                     );
 
-
                     console.log(
                         "[GEMINI] 終了:",
                         utils.formatClock(
@@ -612,13 +636,11 @@
                         )
                     );
 
-
                     console.log(
                         "[GEMINI] 実測時間:",
                         actualElapsedSeconds,
                         "秒"
                     );
-
 
                     console.log(
                         "[GEMINI] サーバー報告時間:",
@@ -626,19 +648,16 @@
                         "秒"
                     );
 
-
                     console.log(
                         "[GEMINI] 採用時間:",
                         finalSeconds,
                         "秒"
                     );
 
-
                     console.log(
                         "[GEMINI] SRT:",
                         data.srt_file
                     );
-
 
                     console.log(
                         "=========================================="
@@ -720,9 +739,20 @@
                 // タイマー停止
                 // =================================
 
-                clearInterval(
-                    timer
-                );
+                if (
+                    timerId !==
+                    null
+                ) {
+
+                    clearTimeout(
+                        timerId
+                    );
+
+
+                    timerId =
+                        null;
+
+                }
 
 
                 // =================================
@@ -762,7 +792,12 @@
                     result.textContent =
                         "エラー: "
                         +
-                        error.message;
+                        (
+                            error &&
+                            error.message
+                                ? error.message
+                                : "不明なエラー"
+                        );
 
                 }
 
@@ -773,9 +808,6 @@
 
         // =====================================
         // SRT表示
-        //
-        // converter.js側の
-        // addSrtInfo()を使用
         // =====================================
 
         function showSrtDownload(
@@ -862,8 +894,6 @@
 
             // =================================
             // タイトル
-            //
-            // 基本はconverterState
             // =================================
 
             const title =
@@ -875,8 +905,6 @@
 
             // =================================
             // 再生時間
-            //
-            // 基本はconverterState
             // =================================
 
             const duration =
@@ -895,48 +923,35 @@
                 <div class="conversion-info srt-conversion-info">
 
                     <div class="conversion-info-title">
-
                         ★SRT変換
-
                     </div>
 
-
                     <div>
-
                         タイトル：
                         ${utils.escapeHtml(
                             title
                         )}
-
                     </div>
 
-
                     <div>
-
                         再生時間：
                         ${utils.escapeHtml(
                             utils.formatDuration(
                                 duration
                             )
                         )}
-
                     </div>
 
-
                     <div>
-
                         実行開始：
                         ${utils.escapeHtml(
                             utils.formatClock(
                                 srtStart
                             )
                         )}
-
                     </div>
 
-
                     <div>
-
                         実行終了：
                         ${utils.escapeHtml(
                             utils.formatClock(
@@ -958,9 +973,7 @@
 
 
             // =================================
-            // converter.js
-            //
-            // 処理詳細へSRT情報を追加
+            // converter.jsへ通知
             // =================================
 
             if (
@@ -991,10 +1004,20 @@
 
 
             // =================================
+            // converterStateへ保存
+            // =================================
+
+            saveCurrentSrtFile(
+                srtFile
+            );
+
+
+            // =================================
             // SRTダウンロードボタン
             //
-            // converter.js側で処理する場合でも
-            // HTMLが存在していれば更新する
+            // converterMain側で生成する。
+            // 念のため既存コンテナがあれば
+            // 直接更新する。
             // =================================
 
             const buttonContainer =
@@ -1004,7 +1027,8 @@
 
 
             if (
-                buttonContainer
+                buttonContainer &&
+                !window.converterMain
             ) {
 
                 buttonContainer.innerHTML = `
@@ -1025,15 +1049,6 @@
                 `;
 
             }
-
-
-            // =================================
-            // converterStateへ保存
-            // =================================
-
-            saveCurrentSrtFile(
-                srtFile
-            );
 
 
             // =================================
@@ -1077,8 +1092,14 @@
 
 
         if (
-            geminiButton
+            geminiButton &&
+            geminiButton.dataset.geminiInitialized !==
+                "true"
         ) {
+
+            geminiButton.dataset.geminiInitialized =
+                "true";
+
 
             geminiButton.addEventListener(
                 "click",
@@ -1144,31 +1165,24 @@
             "======================================"
         );
 
-
         console.log(
             "converter-gemini.js loaded"
         );
-
 
         console.log(
             "[GEMINI] converterUtils:",
             window.converterUtils
         );
 
-
         console.log(
             "[GEMINI] start:",
-            typeof
-                window.converterGemini.start
+            typeof window.converterGemini.start
         );
-
 
         console.log(
             "[GEMINI] showSrtDownload:",
-            typeof
-                window.converterGemini.showSrtDownload
+            typeof window.converterGemini.showSrtDownload
         );
-
 
         console.log(
             "======================================"
@@ -1178,7 +1192,7 @@
 
 
     // =====================================
-    // DOMContentLoaded対応
+    // DOMContentLoaded
     // =====================================
 
     if (
@@ -1188,7 +1202,11 @@
 
         document.addEventListener(
             "DOMContentLoaded",
-            initializeConverterGemini
+            initializeConverterGemini,
+            {
+                once:
+                    true
+            }
         );
 
     }
