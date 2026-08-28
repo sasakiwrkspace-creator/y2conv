@@ -24,7 +24,6 @@ DOWNLOAD_DIR = os.path.join(
     "downloads"
 )
 
-
 os.makedirs(
     DOWNLOAD_DIR,
     exist_ok=True
@@ -53,7 +52,9 @@ COOKIES_FILE = "/etc/secrets/cookies.txt"
 
 CHUNK_MINUTES = 15
 
-CHUNK_SECONDS = CHUNK_MINUTES * 60
+CHUNK_SECONDS = (
+    CHUNK_MINUTES * 60
+)
 
 
 # =====================================
@@ -67,7 +68,9 @@ print("DOWNLOAD_DIR:", DOWNLOAD_DIR)
 
 print(
     "DOWNLOAD_DIR exists:",
-    os.path.isdir(DOWNLOAD_DIR)
+    os.path.isdir(
+        DOWNLOAD_DIR
+    )
 )
 
 print(
@@ -77,7 +80,9 @@ print(
 
 print(
     "COOKIES_FILE exists:",
-    os.path.isfile(COOKIES_FILE)
+    os.path.isfile(
+        COOKIES_FILE
+    )
 )
 
 print("==========================================")
