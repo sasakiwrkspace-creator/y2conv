@@ -1,4 +1,6 @@
 from flask import jsonify
+import threading
+import time
 
 
 # ==========================================================
@@ -6,6 +8,8 @@ from flask import jsonify
 # ==========================================================
 
 jobs = {}
+
+jobs_lock = threading.RLock()
 
 
 # ==========================================================
@@ -22,54 +26,47 @@ def update_file_status(
     duration_text=None
 ):
 
-    if job_id not in jobs:
+    with jobs_lock:
 
-        return False
+        if job_id not in jobs:
 
-    job = jobs[job_id]
+            return False
 
-    # ------------------------------------------------------
-    # files が存在しなければ作成
-    # ------------------------------------------------------
+        job = jobs[job_id]
 
-    if "files" not in job:
+        if "files" not in job:
 
-        job["files"] = {}
+            job["files"] = {}
 
-    # ------------------------------------------------------
-    # ファイル情報
-    # ------------------------------------------------------
+        file_info = {
 
-    file_info = {
+            "status":
+                status,
 
-        "status":
-            status
+            "updated_at":
+                time.time()
 
-    }
+        }
 
-    if filename is not None:
+        if filename is not None:
 
-        file_info["filename"] = filename
+            file_info["filename"] = filename
 
-    if message is not None:
+        if message is not None:
 
-        file_info["message"] = message
+            file_info["message"] = message
 
-    if duration is not None:
+        if duration is not None:
 
-        file_info["duration"] = duration
+            file_info["duration"] = duration
 
-    if duration_text is not None:
+        if duration_text is not None:
 
-        file_info["duration_text"] = duration_text
+            file_info["duration_text"] = duration_text
 
-    # ------------------------------------------------------
-    # 更新
-    # ------------------------------------------------------
+        job["files"][file_type] = file_info
 
-    job["files"][file_type] = file_info
-
-    return True
+        return True
 
 
 # ==========================================================
@@ -82,17 +79,21 @@ def update_job_status(
     **kwargs
 ):
 
-    if job_id not in jobs:
+    with jobs_lock:
 
-        return False
+        if job_id not in jobs:
 
-    jobs[job_id]["status"] = status
+            return False
 
-    for key, value in kwargs.items():
+        jobs[job_id]["status"] = status
 
-        jobs[job_id][key] = value
+        jobs[job_id]["updated_at"] = time.time()
 
-    return True
+        for key, value in kwargs.items():
+
+            jobs[job_id][key] = value
+
+        return True
 
 
 # ==========================================================
@@ -101,11 +102,13 @@ def update_job_status(
 
 def get_job_status(job_id):
 
-    if job_id not in jobs:
+    with jobs_lock:
 
-        return None
+        if job_id not in jobs:
 
-    return jobs[job_id]
+            return None
+
+        return jobs[job_id]
 
 
 # ==========================================================
@@ -120,26 +123,35 @@ def register_status(app):
     )
     def status(job_id):
 
-        # --------------------------------------------------
-        # Jobなし
-        # --------------------------------------------------
+        with jobs_lock:
 
-        if job_id not in jobs:
+            if job_id not in jobs:
 
-            return jsonify({
+                return jsonify({
 
-                "status":
-                    "error",
+                    "status":
+                        "error",
 
-                "message":
-                    "jobなし"
+                    "message":
+                        "jobなし"
 
-            }), 404
+                }), 404
 
-        # --------------------------------------------------
-        # Job情報
-        # --------------------------------------------------
+            # コピーして返す
+            result = dict(
+                jobs[job_id]
+            )
 
-        return jsonify(
-            jobs[job_id]
-        )
+            if "files" in jobs[job_id]:
+
+                result["files"] = {}
+
+                for file_type, file_info in jobs[job_id]["files"].items():
+
+                    result["files"][file_type] = dict(
+                        file_info
+                    )
+
+            return jsonify(
+                result
+            )
