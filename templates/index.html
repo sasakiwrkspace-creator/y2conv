@@ -1,926 +1,791 @@
-<!DOCTYPE html>
-<html lang="ja">
+<!DOCTYPE html> <html lang="ja"> <head>
+<meta charset="UTF-8">
 
-<head>
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
-    <meta charset="UTF-8">
+<title>YouTube Converter</title>
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
+<link
+    rel="stylesheet"
+    href="/static/style.css"
+>
+
+</head> <body> <div class="container">
+<!-- =========================================
+     タイトル
+========================================== -->
+
+<h1>
+
+    <a
+        href="/files"
+        class="converter-link"
     >
+        YouTube Converter
+    </a>
 
-    <title>YouTube Converter</title>
+</h1>
 
-    <link
-        rel="stylesheet"
-        href="/static/style.css"
-    >
+<!-- =========================================
+     メインタブ
+========================================== -->
 
-</head>
+<div class="main-tabs">
 
-
-<body>
-
-<div class="container">
-
-
-    <!-- =========================================
-         タイトル
-    ========================================== -->
-
-    <h1>
-
-        <a
-            href="/files"
-            class="converter-link"
-        >
-            YouTube Converter
-        </a>
-
-    </h1>
-
-
-    <!-- =========================================
-         メインタブ
-    ========================================== -->
-
-    <div class="main-tabs">
-
-
-        <!-- =====================================
-             YouTube変換タブ
-        ====================================== -->
-
-        <button
-            type="button"
-            class="main-tab-button active"
-            data-tab="youtube-tab"
-        >
-            YouTube変換
-        </button>
-
-
-        <!-- =====================================
-             字幕作成タブ
-        ====================================== -->
-
-        <button
-            type="button"
-            class="main-tab-button"
-            data-tab="subtitle-tab"
-        >
-            字幕作成
-        </button>
-
-    </div>
-
-
-    <!-- =========================================
+    <!-- =====================================
          YouTube変換タブ
-    ========================================== -->
+    ====================================== -->
 
-    <div
-        id="youtube-tab"
-        class="tab-content active"
+    <button
+        type="button"
+        class="main-tab-button active"
+        data-tab="youtube-tab"
     >
+        YouTube変換
+    </button>
 
-
-        <!-- =====================================
-             説明
-        ====================================== -->
-
-        <div class="tab-title">
-
-            YouTube動画のアドレスを入力
-
-        </div>
-
-
-        <!-- =====================================
-             URL + 実行
-        ====================================== -->
-
-        <div class="url-row">
-
-
-            <input
-                id="youtube-url"
-                class="url-input"
-                type="text"
-                placeholder="https://www.youtube.com/watch?v=..."
-                autocomplete="off"
-            >
-
-
-            <button
-                id="convertBtn"
-                class="execute-button"
-                type="button"
-            >
-                実行
-            </button>
-
-
-        </div>
-
-
-        <!-- =====================================
-             時間指定
-        ====================================== -->
-
-        <div class="time-area">
-
-
-            <!-- =================================
-                 開始・終了ラベル
-            ================================== -->
-
-            <div class="time-label-row">
-
-
-                <span class="time-title">
-                    開始
-                </span>
-
-
-                <span class="time-title">
-                    終了
-                </span>
-
-
-            </div>
-
-
-            <!-- =================================
-                 時間入力
-            ================================== -->
-
-            <div class="time-input-row">
-
-
-                <!-- =============================
-                     開始
-                ============================== -->
-
-                <div class="time-group">
-
-
-                    <input
-                        id="start-hour"
-                        class="time-input"
-                        type="text"
-                        inputmode="numeric"
-                        maxlength="2"
-                        pattern="[0-9]*"
-                        aria-label="開始 時"
-                        placeholder="00"
-                    >
-
-
-                    <span class="time-unit">
-                        時
-                    </span>
-
-
-                    <input
-                        id="start-minute"
-                        class="time-input"
-                        type="text"
-                        inputmode="numeric"
-                        maxlength="2"
-                        pattern="[0-9]*"
-                        aria-label="開始 分"
-                        placeholder="00"
-                    >
-
-
-                    <span class="time-unit">
-                        分
-                    </span>
-
-
-                    <input
-                        id="start-second"
-                        class="time-input"
-                        type="text"
-                        inputmode="numeric"
-                        maxlength="2"
-                        pattern="[0-9]*"
-                        aria-label="開始 秒"
-                        placeholder="00"
-                    >
-
-
-                    <span class="time-unit">
-                        秒
-                    </span>
-
-
-                </div>
-
-
-                <!-- =============================
-                     区切り
-                ============================== -->
-
-                <span class="time-separator">
-                    ～
-                </span>
-
-
-                <!-- =============================
-                     終了
-                ============================== -->
-
-                <div class="time-group">
-
-
-                    <input
-                        id="end-hour"
-                        class="time-input"
-                        type="text"
-                        inputmode="numeric"
-                        maxlength="2"
-                        pattern="[0-9]*"
-                        aria-label="終了 時"
-                        placeholder="00"
-                    >
-
-
-                    <span class="time-unit">
-                        時
-                    </span>
-
-
-                    <input
-                        id="end-minute"
-                        class="time-input"
-                        type="text"
-                        inputmode="numeric"
-                        maxlength="2"
-                        pattern="[0-9]*"
-                        aria-label="終了 分"
-                        placeholder="00"
-                    >
-
-
-                    <span class="time-unit">
-                        分
-                    </span>
-
-
-                    <input
-                        id="end-second"
-                        class="time-input"
-                        type="text"
-                        inputmode="numeric"
-                        maxlength="2"
-                        pattern="[0-9]*"
-                        aria-label="終了 秒"
-                        placeholder="00"
-                    >
-
-
-                    <span class="time-unit">
-                        秒
-                    </span>
-
-
-                </div>
-
-
-            </div>
-
-
-        </div>
-
-
-        <!-- =========================================
-             出力形式
-        ========================================== -->
-
-        <div class="output-format-group">
-
-
-            <!-- =====================================
-                 MP3
-            ====================================== -->
-
-            <label class="output-format-option">
-
-
-                <input
-                    type="radio"
-                    name="output-format"
-                    value="mp3"
-                    checked
-                >
-
-
-                <span>
-                    mp3
-                </span>
-
-
-            </label>
-
-
-            <!-- =====================================
-                 MP4
-            ====================================== -->
-
-            <label class="output-format-option">
-
-
-                <input
-                    type="radio"
-                    name="output-format"
-                    value="mp4"
-                >
-
-
-                <span>
-                    mp4
-                </span>
-
-
-            </label>
-
-
-            <!-- =====================================
-                 字幕MP4
-            ====================================== -->
-
-            <label class="output-format-option">
-
-
-                <input
-                    type="radio"
-                    name="output-format"
-                    value="subtitle_mp4"
-                >
-
-
-                <span>
-                    字幕MP4
-                </span>
-
-
-            </label>
-
-
-        </div>
-
-
-        <!-- =========================================
-             YouTube変換ステータス
-        ========================================== -->
-
-        <div
-            id="status"
-            class="status"
-        ></div>
-
-
-        <!-- =========================================
-             途中経過ステータス
-        ========================================== -->
-
-        <div
-            id="conversion-status-area"
-            class="conversion-status-area"
-            style="display:none;"
-            aria-live="polite"
-        ></div>
-
-
-        <!-- =========================================
-             Gemini用ファイル名
-
-             converter.js がMP3作成後に設定する
-        ========================================== -->
-
-        <input
-            id="gemini-file"
-            type="hidden"
-            value=""
-        >
-
-
-        <!-- =========================================
-             ダウンロード結果
-
-             MP3
-             MP4
-             SRT
-             字幕MP4
-
-             すべてここを基準に表示する
-        ========================================== -->
-
-        <div
-            id="downloadArea"
-            class="download-area"
-        ></div>
-
-
-        <!-- =========================================
-             Gemini文字起こしエリア
-
-             MP3選択時：
-             手動Geminiボタンを表示可能
-
-             字幕MP4選択時：
-             自動処理のため基本的に
-             converter.js / converter-gemini.js
-             から制御する
-        ========================================== -->
-
-        <div
-            id="srtArea"
-            style="display:none;"
-        >
-
-
-            <!-- =====================================
-                 Gemini手動実行エリア
-            ====================================== -->
-
-            <div
-                id="gemini-manual-area"
-                class="gemini-manual-area"
-            >
-
-
-                <!-- =================================
-                     折り畳み見出し
-                ================================== -->
-
-                <button
-                    id="gemini-toggle-button"
-                    class="gemini-toggle-button"
-                    type="button"
-                    aria-expanded="false"
-                    aria-controls="gemini-content"
-                >
-                    ▲ Geminiで文字起こし
-                </button>
-
-
-                <!-- =================================
-                     Gemini内容
-                ================================== -->
-
-                <div
-                    id="gemini-content"
-                    class="gemini-content"
-                    style="display:none;"
-                >
-
-
-                    <!-- =============================
-                         Gemini文字起こしボタン
-                    ============================== -->
-
-                    <button
-                        id="gemini-button"
-                        class="gemini-button"
-                        type="button"
-                    >
-                        Geminiで文字起こし
-                    </button>
-
-
-                    <!-- =============================
-                         Gemini処理結果
-                    ============================== -->
-
-                    <div
-                        id="gemini-result"
-                    ></div>
-
-
-                    <!-- =============================
-                         SRTコンテンツ
-                    ============================== -->
-
-                    <div
-                        id="srt-content"
-                        style="display:none;"
-                    ></div>
-
-
-                    <!-- =============================
-                         SRTダウンロード
-                    ============================== -->
-
-                    <div
-                        id="srt-download-area"
-                    ></div>
-
-
-                    <!-- =============================
-                         SRTダウンロード用
-                         converter.jsとの互換領域
-                    ============================== -->
-
-                    <div
-                        id="srt-download-button-container"
-                    ></div>
-
-
-                </div>
-
-
-            </div>
-
-
-        </div>
-
-
-        <!-- =========================================
-             字幕MP4処理結果
-
-             字幕MP4選択時のみ使用
-
-             最終的な字幕MP4ボタンを
-             ダウンロードボタン群の左側に
-             暖色系で表示する
-        ========================================== -->
-
-        <div
-            id="subtitle-mp4-area"
-            class="subtitle-mp4-area"
-            style="display:none;"
-        >
-
-
-            <!-- =====================================
-                 字幕MP4情報
-            ====================================== -->
-
-            <div
-                id="subtitle-mp4-info"
-                class="subtitle-mp4-info"
-            ></div>
-
-
-            <!-- =====================================
-                 字幕MP4ダウンロード
-            ====================================== -->
-
-            <div
-                id="subtitle-mp4-download-container"
-                class="subtitle-mp4-download-container"
-            ></div>
-
-
-        </div>
-
-
-    </div>
-
-
-    <!-- =========================================
+    <!-- =====================================
          字幕作成タブ
-    ========================================== -->
+    ====================================== -->
 
-    <div
-        id="subtitle-tab"
-        class="tab-content"
+    <button
+        type="button"
+        class="main-tab-button"
+        data-tab="subtitle-tab"
     >
-
-
-        <!-- =====================================
-             説明
-        ====================================== -->
-
-        <div class="tab-title">
-
-            動画ファイルに字幕を付ける
-
-        </div>
-
-
-        <!-- =====================================
-             字幕埋め込み
-        ====================================== -->
-
-        <div
-            id="sub-embed-area"
-            class="sub-embed-area"
-        >
-
-
-            <div class="sub-embed-content">
-
-
-                <!-- =================================
-                     MP4
-                ================================== -->
-
-                <div class="sub-embed-file-row">
-
-
-                    <label
-                        for="sub-embed-mp4"
-                        class="sub-embed-file-label"
-                    >
-                        MP4
-                    </label>
-
-
-                    <input
-                        id="sub-embed-mp4"
-                        class="sub-embed-file-input"
-                        type="file"
-                        accept=".mp4,video/mp4"
-                    >
-
-
-                </div>
-
-
-                <!-- =================================
-                     SRT
-                ================================== -->
-
-                <div class="sub-embed-file-row">
-
-
-                    <label
-                        for="sub-embed-srt"
-                        class="sub-embed-file-label"
-                    >
-                        SRT
-                    </label>
-
-
-                    <input
-                        id="sub-embed-srt"
-                        class="sub-embed-file-input"
-                        type="file"
-                        accept=".srt,text/plain"
-                    >
-
-
-                </div>
-
-
-                <!-- =================================
-                     アップロードボタン
-                ================================== -->
-
-                <div class="sub-embed-button-row">
-
-
-                    <button
-                        id="sub-embed-upload-button"
-                        class="sub-embed-upload-button"
-                        type="button"
-                    >
-                        アップロード
-                    </button>
-
-
-                </div>
-
-
-                <!-- =================================
-                     字幕ステータス
-                ================================== -->
-
-                <div
-                    id="sub-embed-status"
-                    class="sub-embed-status"
-                ></div>
-
-
-                <!-- =================================
-                     ファイル一覧
-                ================================== -->
-
-                <div
-                    id="sub-embed-files"
-                    class="sub-embed-files"
-                ></div>
-
-
-            </div>
-
-
-        </div>
-
-
-    </div>
-
+        字幕作成
+    </button>
 
 </div>
 
-
 <!-- =========================================
-     JavaScript
-
-     読み込み順序重要
+     YouTube変換タブ
 ========================================== -->
 
-<script src="/static/converter-utils.js"></script>
+<div
+    id="youtube-tab"
+    class="tab-content active"
+>
 
-<script src="/static/converter-status.js"></script>
+    <!-- =====================================
+         説明
+    ====================================== -->
 
-<script src="/static/converter-gemini.js"></script>
+    <div class="tab-title">
 
-<script src="/static/converter.js"></script>
+        YouTube動画のアドレスを入力
 
-<script src="/static/sub_embed.js"></script>
+    </div>
 
+    <!-- =====================================
+         URL + 実行
+    ====================================== -->
+
+    <div class="url-row">
+
+        <input
+            id="youtube-url"
+            class="url-input"
+            type="text"
+            placeholder="https://www.youtube.com/watch?v=..."
+            autocomplete="off"
+        >
+
+        <button
+            id="convertBtn"
+            class="execute-button"
+            type="button"
+        >
+            実行
+        </button>
+
+    </div>
+
+    <!-- =====================================
+         時間指定
+    ====================================== -->
+
+    <div class="time-area">
+
+        <!-- =================================
+             開始・終了ラベル
+        ================================== -->
+
+        <div class="time-label-row">
+
+            <span class="time-title">
+                開始
+            </span>
+
+            <span class="time-title">
+                終了
+            </span>
+
+        </div>
+
+        <!-- =================================
+             時間入力
+        ================================== -->
+
+        <div class="time-input-row">
+
+            <!-- =============================
+                 開始
+            ============================== -->
+
+            <div class="time-group">
+
+                <input
+                    id="start-hour"
+                    class="time-input"
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="2"
+                    pattern="[0-9]*"
+                    aria-label="開始 時"
+                    placeholder="00"
+                >
+
+                <span class="time-unit">
+                    時
+                </span>
+
+                <input
+                    id="start-minute"
+                    class="time-input"
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="2"
+                    pattern="[0-9]*"
+                    aria-label="開始 分"
+                    placeholder="00"
+                >
+
+                <span class="time-unit">
+                    分
+                </span>
+
+                <input
+                    id="start-second"
+                    class="time-input"
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="2"
+                    pattern="[0-9]*"
+                    aria-label="開始 秒"
+                    placeholder="00"
+                >
+
+                <span class="time-unit">
+                    秒
+                </span>
+
+            </div>
+
+            <!-- =============================
+                 区切り
+            ============================== -->
+
+            <span class="time-separator">
+                ～
+            </span>
+
+            <!-- =============================
+                 終了
+            ============================== -->
+
+            <div class="time-group">
+
+                <input
+                    id="end-hour"
+                    class="time-input"
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="2"
+                    pattern="[0-9]*"
+                    aria-label="終了 時"
+                    placeholder="00"
+                >
+
+                <span class="time-unit">
+                    時
+                </span>
+
+                <input
+                    id="end-minute"
+                    class="time-input"
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="2"
+                    pattern="[0-9]*"
+                    aria-label="終了 分"
+                    placeholder="00"
+                >
+
+                <span class="time-unit">
+                    分
+                </span>
+
+                <input
+                    id="end-second"
+                    class="time-input"
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="2"
+                    pattern="[0-9]*"
+                    aria-label="終了 秒"
+                    placeholder="00"
+                >
+
+                <span class="time-unit">
+                    秒
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- =========================================
+         出力形式
+    ========================================== -->
+
+    <div class="output-format-group">
+
+        <!-- =====================================
+             MP3
+        ====================================== -->
+
+        <label class="output-format-option">
+
+            <input
+                type="radio"
+                name="output-format"
+                value="mp3"
+            >
+
+            <span>
+                mp3
+            </span>
+
+        </label>
+
+        <!-- =====================================
+             MP4
+        ====================================== -->
+
+        <label class="output-format-option">
+
+            <input
+                type="radio"
+                name="output-format"
+                value="mp4"
+            >
+
+            <span>
+                mp4
+            </span>
+
+        </label>
+
+        <!-- =====================================
+             MP3 + MP4
+        ====================================== -->
+
+        <label class="output-format-option">
+
+            <input
+                type="radio"
+                name="output-format"
+                value="mp3mp4"
+                checked
+            >
+
+            <span>
+                mp3 + mp4
+            </span>
+
+        </label>
+
+        <!-- =====================================
+             字幕MP4
+        ====================================== -->
+
+        <label class="output-format-option">
+
+            <input
+                type="radio"
+                name="output-format"
+                value="subtitle_mp4"
+            >
+
+            <span>
+                字幕MP4
+            </span>
+
+        </label>
+
+    </div>
+
+    <!-- =========================================
+         YouTube変換ステータス
+    ========================================== -->
+
+    <div
+        id="status"
+        class="status"
+    ></div>
+
+    <!-- =========================================
+         途中経過ステータス
+    ========================================== -->
+
+    <div
+        id="conversion-status-area"
+        class="conversion-status-area"
+        style="display:none;"
+        aria-live="polite"
+    ></div>
+
+    <!-- =========================================
+         Gemini用ファイル名
+
+         converter.js がMP3作成後に設定する
+    ========================================== -->
+
+    <input
+        id="gemini-file"
+        type="hidden"
+        value=""
+    >
+
+    <!-- =========================================
+         ダウンロード結果
+
+         MP3
+         MP4
+         SRT
+         字幕MP4
+
+         すべてここを基準に表示する
+    ========================================= -->
+
+    <div
+        id="downloadArea"
+        class="download-area"
+    ></div>
+
+    <!-- =========================================
+         Gemini文字起こしエリア
+
+         MP3選択時：
+         手動Geminiボタンを表示可能
+
+         字幕MP4選択時：
+         自動処理のため基本的に
+         converter.js / converter-gemini.js
+         から制御する
+    ========================================== -->
+
+    <div
+        id="srtArea"
+        style="display:none;"
+    >
+
+        <!-- =====================================
+             Gemini手動実行エリア
+        ====================================== -->
+
+        <div
+            id="gemini-manual-area"
+            class="gemini-manual-area"
+        >
+
+            <!-- =================================
+                 折り畳み見出し
+            ================================== -->
+
+            <button
+                id="gemini-toggle-button"
+                class="gemini-toggle-button"
+                type="button"
+                aria-expanded="false"
+                aria-controls="gemini-content"
+            >
+                ▲ Geminiで文字起こし
+            </button>
+
+            <!-- =================================
+                 Gemini内容
+            ================================== -->
+
+            <div
+                id="gemini-content"
+                class="gemini-content"
+                style="display:none;"
+            >
+
+                <!-- =============================
+                     Gemini文字起こしボタン
+                ============================== -->
+
+                <button
+                    id="gemini-button"
+                    class="gemini-button"
+                    type="button"
+                >
+                    Geminiで文字起こし
+                </button>
+
+                <!-- =============================
+                     Gemini処理結果
+                ============================== -->
+
+                <div
+                    id="gemini-result"
+                ></div>
+
+                <!-- =============================
+                     SRTコンテンツ
+                ============================== -->
+
+                <div
+                    id="srt-content"
+                    style="display:none;"
+                ></div>
+
+                <!-- =============================
+                     SRTダウンロード
+                ============================== -->
+
+                <div
+                    id="srt-download-area"
+                ></div>
+
+                <!-- =============================
+                     SRTダウンロード用
+                     converter.jsとの互換領域
+                ============================== -->
+
+                <div
+                    id="srt-download-button-container"
+                ></div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- =========================================
+         字幕MP4処理結果
+
+         字幕MP4選択時のみ使用
+
+         最終的な字幕MP4ボタンを
+         ダウンロードボタン群の左側に
+         暖色系で表示する
+    ========================================== -->
+
+    <div
+        id="subtitle-mp4-area"
+        class="subtitle-mp4-area"
+        style="display:none;"
+    >
+
+        <!-- =====================================
+             字幕MP4情報
+        ====================================== -->
+
+        <div
+            id="subtitle-mp4-info"
+            class="subtitle-mp4-info"
+        ></div>
+
+        <!-- =====================================
+             字幕MP4ダウンロード
+        ====================================== -->
+
+        <div
+            id="subtitle-mp4-download-container"
+            class="subtitle-mp4-download-container"
+        ></div>
+
+    </div>
+
+</div>
 
 <!-- =========================================
-     メインタブ切り替え
+     字幕作成タブ
 ========================================== -->
 
-<script>
+<div
+    id="subtitle-tab"
+    class="tab-content"
+>
 
+    <!-- =====================================
+         説明
+    ====================================== -->
+
+    <div class="tab-title">
+
+        動画ファイルに字幕を付ける
+
+    </div>
+
+    <!-- =====================================
+         字幕埋め込み
+    ====================================== -->
+
+    <div
+        id="sub-embed-area"
+        class="sub-embed-area"
+    >
+
+        <div class="sub-embed-content">
+
+            <!-- =================================
+                 MP4
+            ================================== -->
+
+            <div class="sub-embed-file-row">
+
+                <label
+                    for="sub-embed-mp4"
+                    class="sub-embed-file-label"
+                >
+                    MP4
+                </label>
+
+                <input
+                    id="sub-embed-mp4"
+                    class="sub-embed-file-input"
+                    type="file"
+                    accept=".mp4,video/mp4"
+                >
+
+            </div>
+
+            <!-- =================================
+                 SRT
+            ================================== -->
+
+            <div class="sub-embed-file-row">
+
+                <label
+                    for="sub-embed-srt"
+                    class="sub-embed-file-label"
+                >
+                    SRT
+                </label>
+
+                <input
+                    id="sub-embed-srt"
+                    class="sub-embed-file-input"
+                    type="file"
+                    accept=".srt,text/plain"
+                >
+
+            </div>
+
+            <!-- =================================
+                 アップロードボタン
+            ================================== -->
+
+            <div class="sub-embed-button-row">
+
+                <button
+                    id="sub-embed-upload-button"
+                    class="sub-embed-upload-button"
+                    type="button"
+                >
+                    アップロード
+                </button>
+
+            </div>
+
+            <!-- =================================
+                 字幕ステータス
+            ================================== -->
+
+            <div
+                id="sub-embed-status"
+                class="sub-embed-status"
+            ></div>
+
+            <!-- =================================
+                 ファイル一覧
+            ================================== -->
+
+            <div
+                id="sub-embed-files"
+                class="sub-embed-files"
+            ></div>
+
+        </div>
+
+    </div>
+
+</div>
+
+</div> <!-- ========================================= JavaScript
+ 読み込み順序重要
+
+========================================== -->
+
+<script src="/static/converter-utils.js"></script> <script src="/static/converter-status.js"></script> <script src="/static/converter-gemini.js"></script> <script src="/static/converter.js"></script> <script src="/static/sub_embed.js"></script> <!-- ========================================= メインタブ切り替え ========================================== --> <script>
 document.addEventListener(
-    "DOMContentLoaded",
-    function () {
+"DOMContentLoaded",
+function () {
 
+    const tabButtons =
+        document.querySelectorAll(
+            ".main-tab-button"
+        );
 
-        const tabButtons =
-            document.querySelectorAll(
-                ".main-tab-button"
-            );
+    const tabContents =
+        document.querySelectorAll(
+            ".tab-content"
+        );
 
+    tabButtons.forEach(
+        function (button) {
 
-        const tabContents =
-            document.querySelectorAll(
-                ".tab-content"
-            );
+            button.addEventListener(
+                "click",
+                function () {
 
-
-        tabButtons.forEach(
-            function (button) {
-
-
-                button.addEventListener(
-                    "click",
-                    function () {
-
-
-                        const targetId =
-                            button.getAttribute(
-                                "data-tab"
-                            );
-
-
-                        /* =========================
-                           タブボタン切り替え
-                        ========================== */
-
-                        tabButtons.forEach(
-                            function (item) {
-
-                                item.classList.remove(
-                                    "active"
-                                );
-
-                            }
+                    const targetId =
+                        button.getAttribute(
+                            "data-tab"
                         );
 
+                    /* =========================
+                       タブボタン切り替え
+                    ========================== */
 
-                        button.classList.add(
-                            "active"
-                        );
+                    tabButtons.forEach(
+                        function (item) {
 
-
-                        /* =========================
-                           タブ内容切り替え
-                        ========================== */
-
-                        tabContents.forEach(
-                            function (content) {
-
-                                content.classList.remove(
-                                    "active"
-                                );
-
-                            }
-                        );
-
-
-                        const target =
-                            document.getElementById(
-                                targetId
-                            );
-
-
-                        if (target) {
-
-                            target.classList.add(
+                            item.classList.remove(
                                 "active"
                             );
 
                         }
+                    );
 
+                    button.classList.add(
+                        "active"
+                    );
+
+                    /* =========================
+                       タブ内容切り替え
+                    ========================== */
+
+                    tabContents.forEach(
+                        function (content) {
+
+                            content.classList.remove(
+                                "active"
+                            );
+
+                        }
+                    );
+
+                    const target =
+                        document.getElementById(
+                            targetId
+                        );
+
+                    if (target) {
+
+                        target.classList.add(
+                            "active"
+                        );
 
                     }
-                );
 
-
-            }
-        );
-
-
-    }
-);
-
-</script>
-
-
-<!-- =========================================
-     Gemini折り畳み
-========================================== -->
-
-<script>
-
-document.addEventListener(
-    "DOMContentLoaded",
-    function () {
-
-
-        const toggleButton =
-            document.getElementById(
-                "gemini-toggle-button"
+                }
             );
-
-
-        const geminiContent =
-            document.getElementById(
-                "gemini-content"
-            );
-
-
-        if (
-            !toggleButton ||
-            !geminiContent
-        ) {
-
-            return;
 
         }
+    );
 
+}
 
-        toggleButton.addEventListener(
-            "click",
-            function () {
-
-
-                const isOpen =
-                    geminiContent.style.display !==
-                    "none";
-
-
-                if (isOpen) {
-
-                    geminiContent.style.display =
-                        "none";
-
-                    toggleButton.textContent =
-                        "▲ Geminiで文字起こし";
-
-                    toggleButton.setAttribute(
-                        "aria-expanded",
-                        "false"
-                    );
-
-                }
-                else {
-
-                    geminiContent.style.display =
-                        "block";
-
-                    toggleButton.textContent =
-                        "▼ Geminiで文字起こし";
-
-                    toggleButton.setAttribute(
-                        "aria-expanded",
-                        "true"
-                    );
-
-                }
-
-
-            }
-        );
-
-
-    }
 );
 
-</script>
+</script> <!-- ========================================= Gemini折り畳み ========================================== --> <script>
+document.addEventListener(
+"DOMContentLoaded",
+function () {
 
+    const toggleButton =
+        document.getElementById(
+            "gemini-toggle-button"
+        );
 
-</body>
+    const geminiContent =
+        document.getElementById(
+            "gemini-content"
+        );
 
-</html>
+    if (
+        !toggleButton ||
+        !geminiContent
+    ) {
+
+        return;
+
+    }
+
+    toggleButton.addEventListener(
+        "click",
+        function () {
+
+            const isOpen =
+                geminiContent.style.display !==
+                "none";
+
+            if (isOpen) {
+
+                geminiContent.style.display =
+                    "none";
+
+                toggleButton.textContent =
+                    "▲ Geminiで文字起こし";
+
+                toggleButton.setAttribute(
+                    "aria-expanded",
+                    "false"
+                );
+
+            }
+            else {
+
+                geminiContent.style.display =
+                    "block";
+
+                toggleButton.textContent =
+                    "▼ Geminiで文字起こし";
+
+                toggleButton.setAttribute(
+                    "aria-expanded",
+                    "true"
+                );
+
+            }
+
+        }
+    );
+
+}
+
+);
+
+</script> </body> </html>
