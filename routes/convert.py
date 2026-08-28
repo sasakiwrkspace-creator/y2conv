@@ -17,7 +17,6 @@ from urllib.parse import urlparse
 
 from routes.status import (
     jobs,
-    jobs_lock,
     update_file_status,
     update_job_status
 )
@@ -53,15 +52,12 @@ DENO_PATH = "/opt/render/project/src/.deno/bin/deno"
 
 
 # ==========================================================
-# Cookie file
+# Cookie file selection
 # ==========================================================
 
 if os.environ.get("RENDER") == "true":
-
     SOURCE_COOKIE_FILE = RENDER_COOKIE_FILE
-
 else:
-
     SOURCE_COOKIE_FILE = LOCAL_COOKIE_FILE
 
 
@@ -88,35 +84,33 @@ print(
 )
 
 print(
+    "DOWNLOAD_DIR:",
+    DOWNLOAD_DIR,
+    flush=True
+)
+
+print(
     "==========================================",
     flush=True
 )
 
 
 # ==========================================================
-# URL debug
+# Safe URL log
 # ==========================================================
 
 def debug_url(url):
 
     if url is None:
-
         return None
 
     try:
-
         text = str(url)
-
     except Exception:
-
         return "<URL文字列化失敗>"
 
     if len(text) > 500:
-
-        return (
-            text[:500]
-            + "... [truncated]"
-        )
+        return text[:500] + "... [truncated]"
 
     return text
 
@@ -128,127 +122,123 @@ def debug_url(url):
 def validate_youtube_url(url):
 
     if url is None:
-
         raise ValueError(
             "YouTube URLがありません"
         )
 
-    url = str(url).strip()
+    try:
+        url = str(url).strip()
+    except Exception as e:
+        raise ValueError(
+            "URLを文字列として処理できません"
+        ) from e
 
     if not url:
-
         raise ValueError(
             "YouTube URLが空です"
         )
 
     if len(url) > 2048:
-
         raise ValueError(
             "URLが長すぎます"
         )
 
     if "\x00" in url:
-
         raise ValueError(
             "URLに不正な文字が含まれています"
         )
 
     if "\r" in url or "\n" in url:
-
         raise ValueError(
             "URLに改行が含まれています"
         )
 
-    parsed_url = urlparse(url)
+    try:
+        parsed_url = urlparse(url)
+    except Exception as e:
+        raise ValueError(
+            "URL形式が正しくありません"
+        ) from e
 
     if parsed_url.scheme.lower() not in (
         "http",
         "https"
     ):
-
         raise ValueError(
             "httpまたはhttpsのURLを指定してください"
         )
 
     hostname = (
-        parsed_url.hostname
-        or ""
+        parsed_url.hostname or ""
     ).lower()
 
     valid_hosts = {
-
         "youtube.com",
         "www.youtube.com",
         "m.youtube.com",
         "music.youtube.com",
         "youtu.be",
         "www.youtu.be"
-
     }
 
     if hostname not in valid_hosts:
-
         raise ValueError(
             "YouTube URLではありません"
         )
 
     if hostname in {
-
         "youtube.com",
         "www.youtube.com",
         "m.youtube.com",
         "music.youtube.com"
-
     }:
 
         path = (
-            parsed_url.path
-            or ""
+            parsed_url.path or ""
         ).lower()
 
         if path == "/watch":
 
-            if "v=" not in parsed_url.query:
+            query = parsed_url.query
 
+            if "v=" not in query:
                 raise ValueError(
                     "YouTube動画URLのvパラメータがありません"
                 )
 
         elif path.startswith("/shorts/"):
-
             pass
 
         elif path.startswith("/live/"):
-
             pass
 
         elif path.startswith("/embed/"):
-
             pass
 
         else:
-
             raise ValueError(
                 "YouTube動画URLとして認識できません"
             )
 
     if hostname in {
-
         "youtu.be",
         "www.youtu.be"
-
     }:
 
         path = (
-            parsed_url.path
-            or ""
+            parsed_url.path or ""
         ).strip("/")
 
         if not path:
-
             raise ValueError(
                 "youtu.beの動画IDがありません"
             )
+
+    print(
+        "URL検証OK:",
+        debug_url(url),
+        flush=True
+    )
 
     return url
 
@@ -259,36 +249,54 @@ def validate_youtube_url(url):
 
 def check_cookie_file():
 
-    if not os.path.isfile(
+    if not os.path.exists(
         SOURCE_COOKIE_FILE
     ):
-
         raise Exception(
             "Cookieファイルが見つかりません: "
             + SOURCE_COOKIE_FILE
         )
 
-    size = os.path.getsize(
+    file_size = os.path.getsize(
         SOURCE_COOKIE_FILE
     )
 
-    if size <= 0:
-
-        raise Exception(
-            "Cookieファイルが空です"
-        )
+    print(
+        "==========================================",
+        flush=True
+    )
 
     print(
-        "Cookie OK:",
+        "Cookieファイル確認",
+        flush=True
+    )
+
+    print(
+        "ファイル:",
         SOURCE_COOKIE_FILE,
-        size,
+        flush=True
+    )
+
+    print(
+        "サイズ:",
+        file_size,
         "bytes",
         flush=True
     )
 
+    print(
+        "==========================================",
+        flush=True
+    )
+
+    if file_size == 0:
+        raise Exception(
+            "Cookieファイルが空です"
+        )
+
 
 # ==========================================================
-# Temporary Cookie
+# Temporary cookie
 # ==========================================================
 
 def create_temp_cookie_file():
@@ -312,6 +320,12 @@ def create_temp_cookie_file():
             temp_cookie
         )
 
+        print(
+            "一時Cookie作成:",
+            temp_cookie,
+            flush=True
+        )
+
         return temp_cookie
 
     except Exception:
@@ -323,23 +337,22 @@ def create_temp_cookie_file():
         ):
 
             try:
-
                 os.remove(
                     temp_cookie
                 )
-
             except Exception:
-
                 pass
 
         raise
 
 
 # ==========================================================
-# Remove temporary Cookie
+# Remove temporary cookie
 # ==========================================================
 
-def remove_temp_cookie_file(cookie_file):
+def remove_temp_cookie_file(
+    cookie_file
+):
 
     if (
         cookie_file
@@ -353,6 +366,12 @@ def remove_temp_cookie_file(cookie_file):
                 cookie_file
             )
 
+            print(
+                "一時Cookie削除:",
+                cookie_file,
+                flush=True
+            )
+
         except Exception as e:
 
             print(
@@ -363,21 +382,87 @@ def remove_temp_cookie_file(cookie_file):
 
 
 # ==========================================================
-# Deno
+# Deno check
 # ==========================================================
 
 def check_deno():
 
-    return (
+    if not os.path.isfile(
+        DENO_PATH
+    ):
 
-        os.path.isfile(DENO_PATH)
-        and
-        os.access(
+        print(
+            "Denoがありません:",
             DENO_PATH,
-            os.X_OK
+            flush=True
         )
 
-    )
+        return False
+
+    if not os.access(
+        DENO_PATH,
+        os.X_OK
+    ):
+
+        print(
+            "Deno実行権限なし:",
+            DENO_PATH,
+            flush=True
+        )
+
+        return False
+
+    return True
+
+
+# ==========================================================
+# FFmpeg
+# ==========================================================
+
+def check_ffmpeg():
+
+    try:
+
+        result = subprocess.run(
+            [
+                "ffmpeg",
+                "-version"
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=10
+        )
+
+        return result.returncode == 0
+
+    except Exception:
+
+        return False
+
+
+# ==========================================================
+# FFprobe
+# ==========================================================
+
+def check_ffprobe():
+
+    try:
+
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-version"
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=10
+        )
+
+        return result.returncode == 0
+
+    except Exception:
+
+        return False
 
 
 # ==========================================================
@@ -387,13 +472,13 @@ def check_deno():
 def time_to_seconds(value):
 
     if value is None:
-
         return None
 
-    value = str(value).strip()
+    value = str(
+        value
+    ).strip()
 
     if not value:
-
         return None
 
     parts = value.split(":")
@@ -402,26 +487,30 @@ def time_to_seconds(value):
 
         if len(parts) == 1:
 
-            seconds = float(parts[0])
+            seconds = float(
+                parts[0]
+            )
 
             if seconds < 0:
-
                 raise ValueError
 
             return seconds
 
         if len(parts) == 2:
 
-            minutes = float(parts[0])
+            minutes = float(
+                parts[0]
+            )
 
-            seconds = float(parts[1])
+            seconds = float(
+                parts[1]
+            )
 
             if (
                 minutes < 0
                 or seconds < 0
                 or seconds >= 60
             ):
-
                 raise ValueError
 
             return (
@@ -431,11 +520,17 @@ def time_to_seconds(value):
 
         if len(parts) == 3:
 
-            hours = float(parts[0])
+            hours = float(
+                parts[0]
+            )
 
-            minutes = float(parts[1])
+            minutes = float(
+                parts[1]
+            )
 
-            seconds = float(parts[2])
+            seconds = float(
+                parts[2]
+            )
 
             if (
                 hours < 0
@@ -444,7 +539,6 @@ def time_to_seconds(value):
                 or minutes >= 60
                 or seconds >= 60
             ):
-
                 raise ValueError
 
             return (
@@ -470,7 +564,6 @@ def time_to_seconds(value):
 def seconds_to_time(seconds):
 
     if seconds is None:
-
         return "00:00:00"
 
     try:
@@ -485,10 +578,8 @@ def seconds_to_time(seconds):
 
         return "00:00:00"
 
-    seconds = max(
-        0,
-        seconds
-    )
+    if seconds < 0:
+        seconds = 0
 
     hours = seconds // 3600
 
@@ -517,72 +608,24 @@ def get_current_time_text():
 
 
 # ==========================================================
-# FFmpeg
-# ==========================================================
-
-def check_ffmpeg():
-
-    try:
-
-        result = subprocess.run(
-
-            [
-                "ffmpeg",
-                "-version"
-            ],
-
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            timeout=10
-
-        )
-
-        return result.returncode == 0
-
-    except Exception:
-
-        return False
-
-
-# ==========================================================
-# FFprobe
-# ==========================================================
-
-def check_ffprobe():
-
-    try:
-
-        result = subprocess.run(
-
-            [
-                "ffprobe",
-                "-version"
-            ],
-
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            timeout=10
-
-        )
-
-        return result.returncode == 0
-
-    except Exception:
-
-        return False
-
-
-# ==========================================================
 # Media duration
 # ==========================================================
 
-def get_media_duration(file_path):
+def get_media_duration(
+    file_path
+):
 
-    if not os.path.isfile(file_path):
-
+    if not os.path.exists(
+        file_path
+    ):
         raise FileNotFoundError(
             "メディアファイルがありません: "
             + file_path
+        )
+
+    if not check_ffprobe():
+        raise Exception(
+            "ffprobeが利用できません"
         )
 
     command = [
@@ -637,7 +680,7 @@ def get_media_duration(file_path):
 
 
 # ==========================================================
-# yt-dlp base options
+# yt-dlp common options
 # ==========================================================
 
 def get_ydl_base_options(
@@ -668,17 +711,15 @@ def get_ydl_base_options(
         "restrictfilenames":
             False,
 
-        "continuedl":
-            False,
-
-        "retries":
-            3,
-
-        "fragment_retries":
-            3,
+        # ------------------------------------------
+        # メモリ削減
+        # ------------------------------------------
 
         "concurrent_fragment_downloads":
-            1
+            1,
+
+        "buffersize":
+            "1M"
 
     }
 
@@ -687,19 +728,13 @@ def get_ydl_base_options(
         options["js_runtimes"] = {
 
             "deno": {
-
-                "path":
-                    DENO_PATH
-
+                "path": DENO_PATH
             }
 
         }
 
         options["remote_components"] = {
-
-            "ejs":
-                "github"
-
+            "ejs": "github"
         }
 
     return options
@@ -730,10 +765,7 @@ def get_video_info(
             True,
 
         "no_warnings":
-            False,
-
-        "skip_download":
-            True
+            False
 
     }
 
@@ -742,23 +774,23 @@ def get_video_info(
         options["js_runtimes"] = {
 
             "deno": {
-
-                "path":
-                    DENO_PATH
-
+                "path": DENO_PATH
             }
 
         }
 
         options["remote_components"] = {
-
-            "ejs":
-                "github"
-
+            "ejs": "github"
         }
 
     print(
         "DEBUG: get_video_info START",
+        flush=True
+    )
+
+    print(
+        "DEBUG: URL:",
+        debug_url(url),
         flush=True
     )
 
@@ -771,22 +803,22 @@ def get_video_info(
             download=False
         )
 
+    print(
+        "DEBUG: get_video_info END",
+        flush=True
+    )
+
     if not info:
 
         raise Exception(
             "YouTube情報を取得できませんでした"
         )
 
-    print(
-        "DEBUG: get_video_info END",
-        flush=True
-    )
-
     return info
 
 
 # ==========================================================
-# Source download
+# Download source
 # ==========================================================
 
 def download_source(
@@ -798,10 +830,29 @@ def download_source(
     end_seconds=None
 ):
 
+    url = validate_youtube_url(
+        url
+    )
+
     os.makedirs(
         source_dir,
         exist_ok=True
     )
+
+    print(
+        "==========================================",
+        flush=True
+    )
+
+    print(
+        "元ファイルディレクトリ:",
+        source_dir,
+        flush=True
+    )
+
+    # ======================================================
+    # 出力テンプレート
+    # ======================================================
 
     source_template = os.path.join(
         source_dir,
@@ -813,16 +864,19 @@ def download_source(
         source_template
     )
 
-    # ------------------------------------------------------
+    # ======================================================
     # MP4
-    # ------------------------------------------------------
+    #
+    # メモリ削減のため720p固定ではなく、
+    # 720p以下のmp4を優先。
+    # ======================================================
 
     if need_video:
 
-        # メモリ節約のため720p以下
         options["format"] = (
-            "bestvideo[height<=720]+"
-            "bestaudio/"
+            "bestvideo[height<=720][ext=mp4]+"
+            "bestaudio[ext=m4a]/"
+            "best[height<=720][ext=mp4]/"
             "best[height<=720]/"
             "best"
         )
@@ -830,33 +884,36 @@ def download_source(
         options["merge_output_format"] = "mp4"
 
         print(
-            "MP4 download format: <=720p",
+            "MP4フォーマット選択",
             flush=True
         )
-
-    # ------------------------------------------------------
-    # MP3 only
-    # ------------------------------------------------------
 
     else:
 
         options["format"] = (
+            "bestaudio[ext=m4a]/"
             "bestaudio/best"
         )
 
         print(
-            "MP3 download format: audio",
+            "MP3用音声フォーマット選択",
             flush=True
         )
 
-    # ------------------------------------------------------
+    # ======================================================
     # Range
-    # ------------------------------------------------------
+    # ======================================================
 
     if (
         start_seconds is not None
         and end_seconds is not None
     ):
+
+        if end_seconds <= start_seconds:
+
+            raise Exception(
+                "ダウンロード範囲が正しくありません"
+            )
 
         options["download_ranges"] = (
             download_range_func(
@@ -872,13 +929,27 @@ def download_source(
 
         options["force_keyframes_at_cuts"] = False
 
+        print(
+            "ダウンロード範囲:",
+            start_seconds,
+            "->",
+            end_seconds,
+            flush=True
+        )
+
     print(
         "==========================================",
         flush=True
     )
 
     print(
-        "YouTube download START",
+        "YouTube元データダウンロード開始",
+        flush=True
+    )
+
+    print(
+        "URL:",
+        debug_url(url),
         flush=True
     )
 
@@ -893,14 +964,26 @@ def download_source(
         flush=True
     )
 
-    with yt_dlp.YoutubeDL(
-        options
-    ) as ydl:
+    try:
 
-        info = ydl.extract_info(
-            url,
-            download=True
+        with yt_dlp.YoutubeDL(
+            options
+        ) as ydl:
+
+            info = ydl.extract_info(
+                url,
+                download=True
+            )
+
+    except Exception as e:
+
+        print(
+            "DEBUG: yt-dlp EXCEPTION:",
+            repr(e),
+            flush=True
         )
+
+        raise
 
     if not info:
 
@@ -908,11 +991,29 @@ def download_source(
             "YouTubeダウンロード情報を取得できませんでした"
         )
 
+    # ======================================================
+    # ファイル検索
+    # ======================================================
+
     files = []
 
-    for filename in os.listdir(
-        source_dir
-    ):
+    try:
+
+        directory_files = os.listdir(
+            source_dir
+        )
+
+    except Exception as e:
+
+        print(
+            "DEBUG: source_dir list error:",
+            repr(e),
+            flush=True
+        )
+
+        raise
+
+    for filename in directory_files:
 
         full_path = os.path.join(
             source_dir,
@@ -922,31 +1023,31 @@ def download_source(
         if not os.path.isfile(
             full_path
         ):
-
             continue
 
         if not filename.startswith(
             "source_"
         ):
-
             continue
 
         if filename.endswith(
             ".part"
         ):
-
             continue
 
         if filename.endswith(
             ".ytdl"
         ):
-
             continue
 
-        if os.path.getsize(
-            full_path
-        ) <= 0:
+        try:
+            size = os.path.getsize(
+                full_path
+            )
+        except Exception:
+            continue
 
+        if size <= 0:
             continue
 
         files.append(
@@ -954,6 +1055,12 @@ def download_source(
         )
 
     if not files:
+
+        print(
+            "source_dir files:",
+            directory_files,
+            flush=True
+        )
 
         raise Exception(
             "YouTube元ファイルが作成されませんでした"
@@ -964,14 +1071,22 @@ def download_source(
         key=os.path.getmtime
     )
 
+    if os.path.getsize(
+        source_file
+    ) <= 0:
+
+        raise Exception(
+            "YouTube元ファイルが0 bytesです"
+        )
+
     print(
-        "YouTube source:",
+        "YouTube元データダウンロード完了:",
         source_file,
         flush=True
     )
 
     print(
-        "Source size:",
+        "サイズ:",
         os.path.getsize(source_file),
         "bytes",
         flush=True
@@ -987,7 +1102,6 @@ def download_source(
 def safe_filename(title):
 
     if not title:
-
         title = "youtube"
 
     title = str(
@@ -1015,8 +1129,11 @@ def safe_filename(title):
     )
 
     if not title:
-
         title = "youtube"
+
+    # Windows/一般的なファイル名の長さ対策
+    if len(title) > 150:
+        title = title[:150].rstrip()
 
     return title
 
@@ -1029,28 +1146,29 @@ def remove_existing_file(
     file_path
 ):
 
-    if os.path.exists(
+    if not os.path.exists(
         file_path
     ):
+        return
 
-        try:
+    try:
 
-            os.remove(
-                file_path
-            )
+        os.remove(
+            file_path
+        )
 
-            print(
-                "既存ファイル削除:",
-                file_path,
-                flush=True
-            )
+        print(
+            "既存ファイル削除:",
+            file_path,
+            flush=True
+        )
 
-        except Exception as e:
+    except Exception as e:
 
-            raise Exception(
-                "既存ファイルを削除できません: "
-                + str(e)
-            )
+        raise Exception(
+            "既存ファイルを削除できません: "
+            + str(e)
+        )
 
 
 # ==========================================================
@@ -1070,53 +1188,72 @@ def create_mp3(
             "ffmpegが利用できません"
         )
 
+    if not os.path.exists(
+        source_file
+    ):
+
+        raise Exception(
+            "MP3入力ファイルがありません: "
+            + source_file
+        )
+
     remove_existing_file(
         output_file
     )
 
     command = [
-
         "ffmpeg",
-
-        "-y",
-
-        "-i",
-        source_file,
-
-        "-vn",
-
-        "-codec:a",
-        "libmp3lame",
-
-        "-b:a",
-        "128k",
-
-        "-map_metadata",
-        "-1"
-
+        "-y"
     ]
 
-    if (
-        start_seconds is not None
-        and end_seconds is not None
-    ):
+    # ------------------------------------------------------
+    # 入力
+    # ------------------------------------------------------
 
-        command.extend([
+    command.extend([
+        "-i",
+        source_file
+    ])
 
-            "-ss",
-            str(start_seconds),
+    # ------------------------------------------------------
+    # 音声
+    # ------------------------------------------------------
 
-            "-to",
-            str(end_seconds)
-
-        ])
-
-    command.append(
+    command.extend([
+        "-vn",
+        "-codec:a",
+        "libmp3lame",
+        "-b:a",
+        "128k",
+        "-map_metadata",
+        "-1",
         output_file
+    ])
+
+    print(
+        "==========================================",
+        flush=True
     )
 
     print(
         "DEBUG: FFmpeg MP3 START",
+        flush=True
+    )
+
+    print(
+        "SOURCE:",
+        source_file,
+        flush=True
+    )
+
+    print(
+        "OUTPUT:",
+        output_file,
+        flush=True
+    )
+
+    print(
+        "==========================================",
         flush=True
     )
 
@@ -1135,11 +1272,22 @@ def create_mp3(
 
     if result.returncode != 0:
 
+        if os.path.exists(
+            output_file
+        ):
+
+            try:
+                os.remove(
+                    output_file
+                )
+            except Exception:
+                pass
+
         raise Exception(
             "MP3作成に失敗しました"
         )
 
-    if not os.path.isfile(
+    if not os.path.exists(
         output_file
     ):
 
@@ -1154,6 +1302,19 @@ def create_mp3(
         raise Exception(
             "MP3ファイルが0 bytesです"
         )
+
+    print(
+        "MP3作成完了:",
+        output_file,
+        flush=True
+    )
+
+    print(
+        "MP3サイズ:",
+        os.path.getsize(output_file),
+        "bytes",
+        flush=True
+    )
 
     return get_media_duration(
         output_file
@@ -1171,98 +1332,59 @@ def create_mp4(
     end_seconds=None
 ):
 
-    if not check_ffmpeg():
+    if not os.path.exists(
+        source_file
+    ):
 
         raise Exception(
-            "ffmpegが利用できません"
+            "MP4入力ファイルがありません: "
+            + source_file
         )
 
     remove_existing_file(
         output_file
     )
 
-    command = [
-
-        "ffmpeg",
-
-        "-y",
-
-        "-i",
-        source_file
-
-    ]
-
     # ------------------------------------------------------
-    # 範囲指定
+    # まずコピー
+    #
+    # YouTubeから取得した時点でMP4なら再エンコードしない。
+    # これによりFFmpegによる巨大な再エンコードを避ける。
     # ------------------------------------------------------
 
-    if (
-        start_seconds is not None
-        and end_seconds is not None
-    ):
+    print(
+        "==========================================",
+        flush=True
+    )
 
-        duration = (
-            end_seconds
-            - start_seconds
-        )
+    print(
+        "MP4作成開始",
+        flush=True
+    )
 
-        command.extend([
+    print(
+        "SOURCE:",
+        source_file,
+        flush=True
+    )
 
-            "-ss",
-            str(start_seconds),
+    print(
+        "OUTPUT:",
+        output_file,
+        flush=True
+    )
 
-            "-t",
-            str(duration)
+    print(
+        "==========================================",
+        flush=True
+    )
 
-        ])
-
-    # ------------------------------------------------------
-    # MP4出力
-    # ------------------------------------------------------
-
-    command.extend([
-
-        "-c:v",
-        "copy",
-
-        "-c:a",
-        "aac",
-
-        "-b:a",
-        "128k",
-
-        "-movflags",
-        "+faststart",
-
+    shutil.copyfile(
+        source_file,
         output_file
-
-    ])
-
-    print(
-        "DEBUG: FFmpeg MP4 START",
-        flush=True
     )
 
-    result = subprocess.run(
-        command,
-        stdout=subprocess.DEVNULL,
-        stderr=None,
-        timeout=600
-    )
-
-    print(
-        "DEBUG: FFmpeg MP4 END:",
-        result.returncode,
-        flush=True
-    )
-
-    if result.returncode != 0:
-
-        raise Exception(
-            "MP4作成に失敗しました"
-        )
-
-    if not os.path.isfile(
+    if not os.path.exists(
         output_file
     ):
 
@@ -1277,6 +1399,19 @@ def create_mp4(
         raise Exception(
             "MP4ファイルが0 bytesです"
         )
+
+    print(
+        "MP4作成完了:",
+        output_file,
+        flush=True
+    )
+
+    print(
+        "MP4サイズ:",
+        os.path.getsize(output_file),
+        "bytes",
+        flush=True
+    )
 
     return get_media_duration(
         output_file
@@ -1299,29 +1434,61 @@ def mark_file_complete(
     )
 
     update_file_status(
-
         job_id,
-
         file_type,
-
         "complete",
-
         filename=filename,
-
         duration=duration,
-
         duration_text=(
             seconds_to_time(duration)
             if duration is not None
             else None
         )
-
     )
 
     print(
-        "FILE COMPLETE:",
+        "==========================================",
+        flush=True
+    )
+
+    print(
+        "FILE COMPLETE",
+        flush=True
+    )
+
+    print(
+        "JOB:",
+        job_id,
+        flush=True
+    )
+
+    print(
+        "TYPE:",
         file_type,
+        flush=True
+    )
+
+    print(
+        "FILE:",
         filename,
+        flush=True
+    )
+
+    print(
+        "PATH:",
+        file_path,
+        flush=True
+    )
+
+    print(
+        "SIZE:",
+        os.path.getsize(file_path),
+        "bytes",
+        flush=True
+    )
+
+    print(
+        "==========================================",
         flush=True
     )
 
@@ -1349,38 +1516,39 @@ def convert_task(
 
     try:
 
-        update_job_status(
+        # ==================================================
+        # URL
+        # ==================================================
 
-            job_id,
-
-            "running",
-
-            execution_start=
-                execution_start_text
-
+        url = validate_youtube_url(
+            url
         )
+
+        # ==================================================
+        # running
+        # ==================================================
+
+        update_job_status(
+            job_id,
+            "running",
+            execution_start=execution_start_text
+        )
+
+        # ==================================================
+        # File status
+        # ==================================================
 
         for file_type in outputs:
 
             update_file_status(
-
                 job_id,
-
                 file_type,
-
                 "pending"
-
             )
 
-        # --------------------------------------------------
-        # Tool check
-        # --------------------------------------------------
-
-        if not check_ffmpeg():
-
-            raise Exception(
-                "ffmpegが利用できません"
-            )
+        # ==================================================
+        # FFmpeg / FFprobe
+        # ==================================================
 
         if not check_ffprobe():
 
@@ -1388,9 +1556,36 @@ def convert_task(
                 "ffprobeが利用できません"
             )
 
-        # --------------------------------------------------
+        if "mp3" in outputs:
+
+            if not check_ffmpeg():
+
+                raise Exception(
+                    "ffmpegが利用できません"
+                )
+
+        # ==================================================
+        # Cookie
+        # ==================================================
+
+        temp_cookie = (
+            create_temp_cookie_file()
+        )
+
+        # ==================================================
+        # Output dir
+        # ==================================================
+
+        output_dir = DOWNLOAD_DIR
+
+        os.makedirs(
+            output_dir,
+            exist_ok=True
+        )
+
+        # ==================================================
         # Time
-        # --------------------------------------------------
+        # ==================================================
 
         start_seconds = time_to_seconds(
             start_time
@@ -1400,27 +1595,37 @@ def convert_task(
             end_time
         )
 
-        # --------------------------------------------------
-        # Cookie
-        # --------------------------------------------------
+        if (
+            start_seconds is not None
+            and end_seconds is None
+        ):
 
-        temp_cookie = (
-            create_temp_cookie_file()
-        )
+            raise Exception(
+                "終了時間を入力してください"
+            )
 
-        # --------------------------------------------------
+        if (
+            start_seconds is None
+            and end_seconds is not None
+        ):
+
+            start_seconds = 0
+            start_time = "00:00:00"
+
+        if (
+            start_seconds is not None
+            and end_seconds is not None
+        ):
+
+            if end_seconds <= start_seconds:
+
+                raise Exception(
+                    "終了時間は開始時間より後にしてください"
+                )
+
+        # ==================================================
         # Video info
-        # --------------------------------------------------
-
-        set_message = (
-            "動画情報を取得しています..."
-        )
-
-        update_job_status(
-            job_id,
-            "running",
-            progress_message=set_message
-        )
+        # ==================================================
 
         info = get_video_info(
             url,
@@ -1448,36 +1653,19 @@ def convert_task(
             full_duration
         )
 
-        # --------------------------------------------------
-        # Validate range
-        # --------------------------------------------------
+        # ==================================================
+        # Range validation
+        # ==================================================
 
-        if (
-            start_seconds is not None
-            and end_seconds is None
-        ):
+        if end_seconds is not None:
 
-            raise Exception(
-                "終了時間を入力してください"
-            )
-
-        if (
-            start_seconds is None
-            and end_seconds is not None
-        ):
-
-            start_seconds = 0
-
-        if (
-            start_seconds is not None
-            and end_seconds is not None
-        ):
-
-            if end_seconds <= start_seconds:
+            if end_seconds > full_duration:
 
                 raise Exception(
-                    "終了時間は開始時間より後にしてください"
+                    "終了時間が動画の再生時間を超えています"
                 )
+
+        if start_seconds is not None:
 
             if start_seconds >= full_duration:
 
@@ -1485,11 +1673,10 @@ def convert_task(
                     "開始時間が動画の再生時間を超えています"
                 )
 
-            if end_seconds > full_duration:
-
-                raise Exception(
-                    "終了時間が動画の再生時間を超えています"
-                )
+        if (
+            start_seconds is not None
+            and end_seconds is not None
+        ):
 
             requested_duration = (
                 end_seconds
@@ -1498,13 +1685,11 @@ def convert_task(
 
         else:
 
-            requested_duration = (
-                full_duration
-            )
+            requested_duration = full_duration
 
-        # --------------------------------------------------
+        # ==================================================
         # Job info
-        # --------------------------------------------------
+        # ==================================================
 
         update_job_status(
 
@@ -1530,14 +1715,17 @@ def convert_task(
 
             end_time=end_time or "",
 
-            progress_message=
-                "YouTube動画をダウンロードしています..."
+            progress=0,
+
+            progress_text="0%",
+
+            current_step="ダウンロード準備"
 
         )
 
-        # --------------------------------------------------
-        # Source
-        # --------------------------------------------------
+        # ==================================================
+        # Temporary source directory
+        # ==================================================
 
         temp_source_dir = tempfile.mkdtemp(
             prefix="y2conv_source_"
@@ -1545,6 +1733,24 @@ def convert_task(
 
         need_video = (
             "mp4" in outputs
+        )
+
+        # ==================================================
+        # Download
+        # ==================================================
+
+        update_job_status(
+
+            job_id,
+
+            "running",
+
+            progress=10,
+
+            progress_text="10%",
+
+            current_step="YouTubeからダウンロード中"
+
         )
 
         source_file, downloaded_info = (
@@ -1565,16 +1771,9 @@ def convert_task(
             )
         )
 
-        # --------------------------------------------------
-        # Output paths
-        # --------------------------------------------------
-
-        output_dir = DOWNLOAD_DIR
-
-        os.makedirs(
-            output_dir,
-            exist_ok=True
-        )
+        # ==================================================
+        # Output files
+        # ==================================================
 
         mp3_file = os.path.join(
             output_dir,
@@ -1596,13 +1795,9 @@ def convert_task(
         if "mp3" in outputs:
 
             update_file_status(
-
                 job_id,
-
                 "mp3",
-
                 "running"
-
             )
 
             update_job_status(
@@ -1611,8 +1806,11 @@ def convert_task(
 
                 "running",
 
-                progress_message=
-                    "MP3を作成しています..."
+                progress=50,
+
+                progress_text="50%",
+
+                current_step="MP3作成中"
 
             )
 
@@ -1665,13 +1863,9 @@ def convert_task(
         if "mp4" in outputs:
 
             update_file_status(
-
                 job_id,
-
                 "mp4",
-
                 "running"
-
             )
 
             update_job_status(
@@ -1680,8 +1874,11 @@ def convert_task(
 
                 "running",
 
-                progress_message=
-                    "MP4を作成しています..."
+                progress=75,
+
+                progress_text="75%",
+
+                current_step="MP4作成中"
 
             )
 
@@ -1694,6 +1891,7 @@ def convert_task(
                     mp4_file,
 
                     start_seconds,
+
                     end_seconds
 
                 )
@@ -1727,7 +1925,7 @@ def convert_task(
                 raise
 
         # ==================================================
-        # Complete
+        # End
         # ==================================================
 
         execution_end_timestamp = time.time()
@@ -1749,6 +1947,10 @@ def convert_task(
             else actual_mp4_duration
         )
 
+        # ==================================================
+        # Check all files
+        # ==================================================
+
         all_complete = True
 
         for file_type in outputs:
@@ -1767,6 +1969,10 @@ def convert_task(
 
                 all_complete = False
 
+        # ==================================================
+        # Complete
+        # ==================================================
+
         if all_complete:
 
             update_job_status(
@@ -1775,40 +1981,37 @@ def convert_task(
 
                 "complete",
 
+                progress=100,
+
+                progress_text="100%",
+
+                current_step="完了",
+
                 actual_duration=actual_duration,
 
-                actual_duration_text=
-                    seconds_to_time(
-                        actual_duration
-                    ),
+                actual_duration_text=seconds_to_time(
+                    actual_duration
+                ),
 
-                mp3_duration=
-                    actual_mp3_duration,
+                mp3_duration=actual_mp3_duration,
 
-                mp3_duration_text=
-                    seconds_to_time(
-                        actual_mp3_duration
-                    ),
+                mp3_duration_text=seconds_to_time(
+                    actual_mp3_duration
+                ),
 
-                mp4_duration=
-                    actual_mp4_duration,
+                mp4_duration=actual_mp4_duration,
 
-                mp4_duration_text=
-                    seconds_to_time(
-                        actual_mp4_duration
-                    ),
+                mp4_duration_text=seconds_to_time(
+                    actual_mp4_duration
+                ),
 
-                execution_end=
-                    execution_end_text,
+                execution_end=execution_end_text,
 
-                execution_seconds=
-                    execution_seconds,
+                execution_seconds=execution_seconds,
 
-                execution_seconds_text=
-                    f"{execution_seconds}秒",
-
-                progress_message=
-                    "変換が完了しました。"
+                execution_seconds_text=(
+                    f"{execution_seconds}秒"
+                )
 
             )
 
@@ -1818,7 +2021,12 @@ def convert_task(
             )
 
             print(
-                "JOB COMPLETE:",
+                "JOB COMPLETE",
+                flush=True
+            )
+
+            print(
+                "JOB:",
                 job_id,
                 flush=True
             )
@@ -1859,14 +2067,19 @@ def convert_task(
         )
 
         print(
-            "CONVERT ERROR:",
-            repr(e),
+            "変換エラー",
             flush=True
         )
 
         print(
             "JOB:",
             job_id,
+            flush=True
+        )
+
+        print(
+            "ERROR:",
+            repr(e),
             flush=True
         )
 
@@ -1885,15 +2098,15 @@ def convert_task(
 
             error_type=type(e).__name__,
 
+            current_step="エラー",
+
             execution_end=execution_end_text,
 
             execution_seconds=execution_seconds,
 
-            execution_seconds_text=
-                f"{execution_seconds}秒",
-
-            progress_message=
-                "変換に失敗しました。"
+            execution_seconds_text=(
+                f"{execution_seconds}秒"
+            )
 
         )
 
@@ -1907,7 +2120,6 @@ def convert_task(
             )
 
             if not file_info:
-
                 continue
 
             if file_info.get(
@@ -1952,7 +2164,8 @@ def convert_task(
             except Exception as e:
 
                 print(
-                    "WARNING: source cleanup:",
+                    "WARNING: "
+                    "一時元動画ディレクトリ削除失敗:",
                     repr(e),
                     flush=True
                 )
@@ -1968,6 +2181,7 @@ def register_convert(app):
         "/convert",
         methods=["POST"]
     )
+
     def convert():
 
         try:
@@ -1979,22 +2193,24 @@ def register_convert(app):
             if not data:
 
                 return jsonify({
-
-                    "success":
-                        False,
-
-                    "message":
-                        "JSONデータがありません"
-
+                    "success": False,
+                    "message": "JSONデータがありません"
                 }), 400
 
-            # --------------------------------------------------
+            # ==================================================
             # URL
-            # --------------------------------------------------
+            # ==================================================
 
             url = data.get(
                 "url"
             )
+
+            if not url:
+
+                return jsonify({
+                    "success": False,
+                    "message": "YouTube URLがありません"
+                }), 400
 
             try:
 
@@ -2005,18 +2221,13 @@ def register_convert(app):
             except ValueError as e:
 
                 return jsonify({
-
-                    "success":
-                        False,
-
-                    "message":
-                        str(e)
-
+                    "success": False,
+                    "message": str(e)
                 }), 400
 
-            # --------------------------------------------------
+            # ==================================================
             # Outputs
-            # --------------------------------------------------
+            # ==================================================
 
             outputs = data.get(
                 "outputs",
@@ -2029,25 +2240,18 @@ def register_convert(app):
             ):
 
                 return jsonify({
-
-                    "success":
-                        False,
-
-                    "message":
-                        "outputsが正しくありません"
-
+                    "success": False,
+                    "message": "outputsが正しくありません"
                 }), 400
 
             valid_outputs = []
 
             if "mp3" in outputs:
-
                 valid_outputs.append(
                     "mp3"
                 )
 
             if "mp4" in outputs:
-
                 valid_outputs.append(
                     "mp4"
                 )
@@ -2055,18 +2259,22 @@ def register_convert(app):
             if not valid_outputs:
 
                 return jsonify({
-
-                    "success":
-                        False,
-
-                    "message":
-                        "MP3またはMP4を指定してください"
-
+                    "success": False,
+                    "message": "MP3またはMP4を指定してください"
                 }), 400
 
-            # --------------------------------------------------
+            # ==================================================
             # Time
-            # --------------------------------------------------
+            #
+            # 新形式:
+            # start_time
+            # end_time
+            #
+            # 旧形式:
+            # time_range
+            #
+            # 両方に対応
+            # ==================================================
 
             start_time = data.get(
                 "start_time"
@@ -2076,43 +2284,46 @@ def register_convert(app):
                 "end_time"
             )
 
-            # --------------------------------------------------
-            # 新形式 time_range にも対応
-            # converter.jsからはこちらが来る
-            # --------------------------------------------------
-
             time_range = data.get(
                 "time_range"
             )
 
-            if isinstance(
-                time_range,
-                dict
+            # --------------------------------------------------
+            # time_range が送られてきた場合
+            # --------------------------------------------------
+
+            if (
+                start_time is None
+                and end_time is None
+                and isinstance(
+                    time_range,
+                    dict
+                )
             ):
 
-                if start_time is None:
-
-                    start_time = (
-                        time_range.get(
-                            "start_time"
-                        )
-                        or
-                        time_range.get(
-                            "start"
-                        )
+                start_time = (
+                    time_range.get(
+                        "start_time"
                     )
-
-                if end_time is None:
-
-                    end_time = (
-                        time_range.get(
-                            "end_time"
-                        )
-                        or
-                        time_range.get(
-                            "end"
-                        )
+                    or
+                    time_range.get(
+                        "start"
                     )
+                )
+
+                end_time = (
+                    time_range.get(
+                        "end_time"
+                    )
+                    or
+                    time_range.get(
+                        "end"
+                    )
+                )
+
+            # --------------------------------------------------
+            # 文字列化
+            # --------------------------------------------------
 
             if start_time is not None:
 
@@ -2127,11 +2338,9 @@ def register_convert(app):
                 ).strip()
 
             if start_time == "":
-
                 start_time = None
 
             if end_time == "":
-
                 end_time = None
 
             try:
@@ -2147,13 +2356,8 @@ def register_convert(app):
             except ValueError as e:
 
                 return jsonify({
-
-                    "success":
-                        False,
-
-                    "message":
-                        str(e)
-
+                    "success": False,
+                    "message": str(e)
                 }), 400
 
             if (
@@ -2162,13 +2366,8 @@ def register_convert(app):
             ):
 
                 return jsonify({
-
-                    "success":
-                        False,
-
-                    "message":
-                        "終了時間を入力してください"
-
+                    "success": False,
+                    "message": "終了時間を入力してください"
                 }), 400
 
             if (
@@ -2188,68 +2387,65 @@ def register_convert(app):
                 if end_seconds <= start_seconds:
 
                     return jsonify({
-
-                        "success":
-                            False,
-
+                        "success": False,
                         "message":
                             "終了時間は開始時間より後にしてください"
-
                     }), 400
 
-            # --------------------------------------------------
+            # ==================================================
             # Job ID
-            # --------------------------------------------------
+            # ==================================================
 
             job_id = str(
                 uuid.uuid4()
             )
 
-            # --------------------------------------------------
+            # ==================================================
             # File status
-            # --------------------------------------------------
+            # ==================================================
 
             file_status = {}
 
             for file_type in valid_outputs:
 
                 file_status[file_type] = {
-
-                    "status":
-                        "pending"
-
+                    "status": "pending"
                 }
 
-            # --------------------------------------------------
+            # ==================================================
             # Job
-            # --------------------------------------------------
+            # ==================================================
 
-            with jobs_lock:
+            jobs[job_id] = {
 
-                jobs[job_id] = {
+                "status":
+                    "queued",
 
-                    "status":
-                        "queued",
+                "files":
+                    file_status,
 
-                    "files":
-                        file_status,
+                "outputs":
+                    valid_outputs,
 
-                    "outputs":
-                        valid_outputs,
+                "start_time":
+                    start_time or "",
 
-                    "start_time":
-                        start_time or "",
+                "end_time":
+                    end_time or "",
 
-                    "end_time":
-                        end_time or "",
+                "created_at":
+                    get_current_time_text(),
 
-                    "created_at":
-                        get_current_time_text(),
+                "progress":
+                    0,
 
-                    "progress_message":
-                        "変換処理を開始しています..."
+                "progress_text":
+                    "0%",
 
-                }
+                "current_step":
+                    "待機中"
+
+            }
 
             print(
                 "==========================================",
@@ -2257,7 +2453,7 @@ def register_convert(app):
             )
 
             print(
-                "JOB REGISTER:",
+                "JOB登録:",
                 job_id,
                 flush=True
             )
@@ -2269,13 +2465,25 @@ def register_convert(app):
             )
 
             print(
+                "START:",
+                start_time,
+                flush=True
+            )
+
+            print(
+                "END:",
+                end_time,
+                flush=True
+            )
+
+            print(
                 "==========================================",
                 flush=True
             )
 
-            # --------------------------------------------------
-            # Background thread
-            # --------------------------------------------------
+            # ==================================================
+            # Thread
+            # ==================================================
 
             thread = threading.Thread(
 
@@ -2306,6 +2514,10 @@ def register_convert(app):
 
             thread.start()
 
+            # ==================================================
+            # Response
+            # ==================================================
+
             return jsonify({
 
                 "success":
@@ -2319,7 +2531,7 @@ def register_convert(app):
         except Exception as e:
 
             print(
-                "convert endpoint error:",
+                "convertエラー:",
                 repr(e),
                 flush=True
             )
