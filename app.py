@@ -3,7 +3,7 @@ import os
 from flask import Flask
 
 from routes.index import register_index
-from routes.check import register_check
+from routes.check import register_check, register_video_info
 from routes.convert import register_convert
 from routes.status import register_status
 from routes.download import register_download
@@ -52,6 +52,7 @@ print("================================")
 
 register_index(app)
 register_check(app)
+register_video_info(app)
 register_convert(app)
 register_status(app)
 register_download(app)
