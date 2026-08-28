@@ -15,7 +15,7 @@ from converter_ytdlp import create_mp3
 
 
 # =====================================
-# /convert 登録
+# Routes登録
 # =====================================
 
 def register_convert(app):
@@ -74,12 +74,9 @@ def register_convert(app):
             if not url:
 
                 return jsonify({
-
                     "success": False,
-
                     "message":
                         "YouTube URLが指定されていません。"
-
                 }), 400
 
             # =================================
@@ -91,13 +88,9 @@ def register_convert(app):
             )
 
             result = create_mp3(
-
                 url,
-
                 start_time=start_time,
-
                 end_time=end_time
-
             )
 
             print(
@@ -112,12 +105,9 @@ def register_convert(app):
             if not result:
 
                 return jsonify({
-
                     "success": False,
-
                     "message":
                         "MP3作成結果を取得できませんでした。"
-
                 }), 500
 
             # =================================
@@ -125,34 +115,24 @@ def register_convert(app):
             # =================================
 
             return jsonify({
-
                 "success": True,
-
                 "filename":
                     result["filename"]
-
             })
 
         except Exception as error:
 
-            print(
-                "=========================================="
-            )
+            print("==========================================")
 
             print(
                 "[CONVERT] エラー:",
                 error
             )
 
-            print(
-                "=========================================="
-            )
+            print("==========================================")
 
             return jsonify({
-
                 "success": False,
-
                 "message":
                     str(error)
-
             }), 500
