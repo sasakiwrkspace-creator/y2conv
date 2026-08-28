@@ -64,7 +64,9 @@ def remove_cookie_file(cookie_file):
 
     try:
 
-        if os.path.exists(cookie_file):
+        if os.path.exists(
+            cookie_file
+        ):
 
             os.remove(
                 cookie_file
@@ -155,7 +157,9 @@ def prepare_cookie_file():
             dir="/tmp"
         )
 
-        os.close(fd)
+        os.close(
+            fd
+        )
 
         print(
             "一時Cookieファイル作成:",
@@ -236,9 +240,12 @@ def prepare_cookie_file():
                     not line
                     or line.startswith("#")
                 ):
+
                     continue
 
-                fields = line.split("\t")
+                fields = line.split(
+                    "\t"
+                )
 
                 # Netscape cookie format
                 if len(fields) >= 7:
@@ -270,11 +277,16 @@ def prepare_cookie_file():
         )
 
     print("==========================================")
-    print("Cookieデータ行数:", cookie_count)
+    print(
+        "Cookieデータ行数:",
+        cookie_count
+    )
+
     print(
         "YouTube/Google Cookie数:",
         youtube_cookie_count
     )
+
     print("==========================================")
 
     # ------------------------------------------------------
@@ -395,7 +407,9 @@ def test_deno():
                 "Deno単体テストOK"
             )
 
-            print("==========================================")
+            print(
+                "=========================================="
+            )
 
             return True
 
@@ -403,7 +417,9 @@ def test_deno():
             "Deno単体テスト失敗"
         )
 
-        print("==========================================")
+        print(
+            "=========================================="
+        )
 
         return False
 
@@ -413,7 +429,9 @@ def test_deno():
             "Deno単体テストTIMEOUT"
         )
 
-        print("==========================================")
+        print(
+            "=========================================="
+        )
 
         return False
 
@@ -424,7 +442,9 @@ def test_deno():
             repr(e)
         )
 
-        print("==========================================")
+        print(
+            "=========================================="
+        )
 
         return False
 
@@ -468,14 +488,14 @@ def get_ydl_base_options():
         # --------------------------------------------------
 
         "cookiefile":
-        cookie_file,
+            cookie_file,
 
         # --------------------------------------------------
         # Playlist無効
         # --------------------------------------------------
 
         "noplaylist":
-        True,
+            True,
 
         # --------------------------------------------------
         # JavaScript Runtime
@@ -486,7 +506,7 @@ def get_ydl_base_options():
             "deno": {
 
                 "path":
-                DENO_PATH
+                    DENO_PATH
 
             }
 
@@ -521,7 +541,9 @@ def get_ydl_base_options():
         "ejs:github"
     )
 
-    print("==========================================")
+    print(
+        "=========================================="
+    )
 
     return ydl_opts
 
@@ -582,16 +604,16 @@ def get_youtube_info(url):
         ydl_opts.update({
 
             "skip_download":
-            True,
+                True,
 
             "quiet":
-            False,
+                False,
 
             "no_warnings":
-            False,
+                False,
 
             "verbose":
-            True
+                True
 
         })
 
@@ -614,7 +636,9 @@ def get_youtube_info(url):
             "ejs:github"
         )
 
-        print("==========================================")
+        print(
+            "=========================================="
+        )
 
         # ==================================================
         # YoutubeDL
@@ -663,7 +687,9 @@ def get_youtube_info(url):
                     repr(e)
                 )
 
-                print("==========================================")
+                print(
+                    "=========================================="
+                )
 
                 raise
 
@@ -709,7 +735,9 @@ def get_youtube_info(url):
             info.get("extractor")
         )
 
-        print("==========================================")
+        print(
+            "=========================================="
+        )
 
         return info
 
@@ -849,7 +877,10 @@ def diagnose_formats(info):
         "音声format数:",
         len(audio_formats)
     )
-    print("==========================================")
+
+    print(
+        "=========================================="
+    )
 
     # ======================================================
     # 動画
@@ -916,7 +947,10 @@ def diagnose_formats(info):
         "動画format数:",
         len(video_formats)
     )
-    print("==========================================")
+
+    print(
+        "=========================================="
+    )
 
     # ======================================================
     # 代表format
@@ -973,7 +1007,9 @@ def diagnose_formats(info):
         "あり" if format_18 else "なし"
     )
 
-    print("==========================================")
+    print(
+        "=========================================="
+    )
 
     if len(audio_formats) == 0:
 
@@ -1006,40 +1042,279 @@ def diagnose_formats(info):
     return {
 
         "title":
-        title,
+            title,
 
         "duration":
-        duration,
+            duration,
 
         "video_id":
-        video_id,
+            video_id,
 
         "format_count":
-        len(formats),
+            len(formats),
 
         "audio_format_count":
-        len(audio_formats),
+            len(audio_formats),
 
         "video_format_count":
-        len(video_formats),
+            len(video_formats),
 
         "has_140":
-        format_140 is not None,
+            format_140 is not None,
 
         "has_251":
-        format_251 is not None,
+            format_251 is not None,
 
         "has_249":
-        format_249 is not None,
+            format_249 is not None,
 
         "has_18":
-        format_18 is not None
+            format_18 is not None
 
     }
 
 
 # ==========================================================
+# /video-info
+#
+# タブ1 YouTube Converter専用
+#
+# converter.jsから
+#
+# POST /video-info
+#
+# {
+#     "url": "https://www.youtube.com/..."
+# }
+#
+# を受け取り、
+#
+# {
+#     "success": true,
+#     "title": "...",
+#     "video_title": "...",
+#     "duration": 123,
+#     "video_duration": 123,
+#     "video_id": "..."
+# }
+#
+# を返す
+# ==========================================================
+
+def register_video_info(app):
+
+    @app.route(
+        "/video-info",
+        methods=["POST"]
+    )
+    def video_info():
+
+        print("==========================================")
+        print("/video-info 呼び出し")
+        print("==========================================")
+
+        try:
+
+            # ==================================================
+            # JSON
+            # ==================================================
+
+            data = request.get_json(
+                silent=True
+            )
+
+            if not data:
+
+                print(
+                    "/video-info JSONデータなし"
+                )
+
+                return jsonify({
+
+                    "success":
+                        False,
+
+                    "message":
+                        "JSONデータがありません"
+
+                }), 400
+
+            # ==================================================
+            # URL
+            # ==================================================
+
+            url = data.get(
+                "url"
+            )
+
+            if not url:
+
+                print(
+                    "/video-info URLなし"
+                )
+
+                return jsonify({
+
+                    "success":
+                        False,
+
+                    "message":
+                        "YouTube URLを入力してください"
+
+                }), 400
+
+            print(
+                "受信URL:",
+                url
+            )
+
+            # ==================================================
+            # YouTube情報取得
+            # ==================================================
+
+            print("==========================================")
+            print("/video-info YouTube情報取得開始")
+            print("==========================================")
+
+            info = get_youtube_info(
+                url
+            )
+
+            if not info:
+
+                raise Exception(
+                    "YouTube情報を取得できませんでした"
+                )
+
+            # ==================================================
+            # タイトル
+            # ==================================================
+
+            title = (
+                info.get("title")
+                or "不明"
+            )
+
+            # ==================================================
+            # 再生時間
+            # ==================================================
+
+            duration = (
+                info.get("duration")
+                or 0
+            )
+
+            try:
+
+                duration = int(
+                    duration
+                )
+
+            except (
+                TypeError,
+                ValueError
+            ):
+
+                duration = 0
+
+            # ==================================================
+            # Video ID
+            # ==================================================
+
+            video_id = (
+                info.get("id")
+                or ""
+            )
+
+            # ==================================================
+            # 完了
+            # ==================================================
+
+            print("==========================================")
+            print("/video-info 正常完了")
+            print("==========================================")
+
+            print(
+                "タイトル:",
+                title
+            )
+
+            print(
+                "再生時間:",
+                duration
+            )
+
+            print(
+                "Video ID:",
+                video_id
+            )
+
+            print(
+                "=========================================="
+            )
+
+            return jsonify({
+
+                "success":
+                    True,
+
+                "title":
+                    title,
+
+                "video_title":
+                    title,
+
+                "duration":
+                    duration,
+
+                "video_duration":
+                    duration,
+
+                "video_id":
+                    video_id
+
+            })
+
+        except Exception as e:
+
+            print("==========================================")
+            print("/video-info エラー")
+            print("==========================================")
+
+            print(
+                "ERROR TYPE:",
+                type(e).__name__
+            )
+
+            print(
+                "ERROR:",
+                repr(e)
+            )
+
+            print(
+                "ERROR MESSAGE:",
+                str(e)
+            )
+
+            print(
+                "=========================================="
+            )
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "message":
+                    str(e)
+
+            }), 500
+
+
+# ==========================================================
 # /check
+#
+# 詳細診断用
 # ==========================================================
 
 def register_check(app):
@@ -1069,12 +1344,12 @@ def register_check(app):
                 return jsonify({
 
                     "success":
-                    False,
+                        False,
 
                     "message":
-                    "JSONデータがありません"
+                        "JSONデータがありません"
 
-                })
+                }), 400
 
             # ==================================================
             # URL
@@ -1089,12 +1364,12 @@ def register_check(app):
                 return jsonify({
 
                     "success":
-                    False,
+                        False,
 
                     "message":
-                    "YouTube URLを入力してください"
+                        "YouTube URLを入力してください"
 
-                })
+                }), 400
 
             print(
                 "受信URL:",
@@ -1116,10 +1391,10 @@ def register_check(app):
                 return jsonify({
 
                     "success":
-                    False,
+                        False,
 
                     "message":
-                    "Denoが正常に起動できません"
+                        "Denoが正常に起動できません"
 
                 }), 500
 
@@ -1211,37 +1486,37 @@ def register_check(app):
             return jsonify({
 
                 "success":
-                True,
+                    True,
 
                 "filename":
-                title,
+                    title,
 
                 "duration":
-                duration,
+                    duration,
 
                 "video_id":
-                diagnosis["video_id"],
+                    diagnosis["video_id"],
 
                 "format_count":
-                diagnosis["format_count"],
+                    diagnosis["format_count"],
 
                 "audio_format_count":
-                diagnosis["audio_format_count"],
+                    diagnosis["audio_format_count"],
 
                 "video_format_count":
-                diagnosis["video_format_count"],
+                    diagnosis["video_format_count"],
 
                 "has_140":
-                diagnosis["has_140"],
+                    diagnosis["has_140"],
 
                 "has_251":
-                diagnosis["has_251"],
+                    diagnosis["has_251"],
 
                 "has_249":
-                diagnosis["has_249"],
+                    diagnosis["has_249"],
 
                 "has_18":
-                diagnosis["has_18"]
+                    diagnosis["has_18"]
 
             })
 
@@ -1261,15 +1536,17 @@ def register_check(app):
                 repr(e)
             )
 
-            print("==========================================")
+            print(
+                "=========================================="
+            )
 
             return jsonify({
 
                 "success":
-                False,
+                    False,
 
                 "message":
-                str(e)
+                    str(e)
 
             }), 500
 
