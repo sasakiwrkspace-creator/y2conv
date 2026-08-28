@@ -8,6 +8,7 @@
 // ・YouTube URL受付
 // ・動画情報取得
 // ・変換API実行
+// ・job_idによる処理状況監視
 // ・MP3 / MP4ダウンロード表示
 // ・処理詳細表示
 // ・converterState管理
@@ -103,10 +104,6 @@
 
         const converterState = {
 
-            // ---------------------------------
-            // 動画情報
-            // ---------------------------------
-
             currentVideoTitle:
                 "",
 
@@ -115,11 +112,6 @@
 
             currentVideoUrl:
                 "",
-
-
-            // ---------------------------------
-            // 変換ファイル
-            // ---------------------------------
 
             currentMp3File:
                 "",
@@ -133,13 +125,17 @@
             currentSubtitleEmbedFile:
                 "",
 
-
-            // ---------------------------------
-            // 処理状態
-            // ---------------------------------
-
             isProcessing:
-                false
+                false,
+
+            currentJobId:
+                "",
+
+            currentJobStatus:
+                "",
+
+            currentJob:
+                null
 
         };
 
@@ -148,14 +144,9 @@
             converterState;
 
 
-
         // =====================================
         // DOM
         // =====================================
-
-        // -------------------------------------
-        // タブ1：YouTube URL
-        // -------------------------------------
 
         const urlInput =
             document.getElementById(
@@ -163,21 +154,11 @@
             );
 
 
-        // -------------------------------------
-        // タブ1：実行ボタン
-        //
-        // HTMLでは id="convertBtn"
-        // -------------------------------------
-
         const convertButton =
             document.getElementById(
                 "convertBtn"
             );
 
-
-        // -------------------------------------
-        // タブ1：ステータス
-        // -------------------------------------
 
         const statusElement =
             document.getElementById(
@@ -185,31 +166,17 @@
             );
 
 
-        // -------------------------------------
-        // タブ1：途中経過
-        // -------------------------------------
-
         const conversionStatusArea =
             document.getElementById(
                 "conversion-status-area"
             );
 
 
-        // -------------------------------------
-        // タブ1：ダウンロード
-        //
-        // HTMLでは downloadArea
-        // -------------------------------------
-
         const downloadArea =
             document.getElementById(
                 "downloadArea"
             );
 
-
-        // -------------------------------------
-        // タブ1：字幕MP4エリア
-        // -------------------------------------
 
         const subtitleMp4Area =
             document.getElementById(
@@ -228,10 +195,6 @@
                 "subtitle-mp4-download-container"
             );
 
-
-        // -------------------------------------
-        // デバッグ
-        // -------------------------------------
 
         console.log(
             "[CONVERTER] urlInput =",
@@ -276,8 +239,7 @@
         if (!urlInput) {
 
             console.error(
-                "[CONVERTER] " +
-                "youtube-url が見つかりません"
+                "[CONVERTER] youtube-url が見つかりません"
             );
 
         }
@@ -286,8 +248,7 @@
         if (!convertButton) {
 
             console.error(
-                "[CONVERTER] " +
-                "convertBtn が見つかりません"
+                "[CONVERTER] convertBtn が見つかりません"
             );
 
         }
@@ -331,7 +292,6 @@
         }
 
 
-
         // =====================================
         // ダウンロードボタン追加
         // =====================================
@@ -344,8 +304,7 @@
             if (!downloadArea) {
 
                 console.warn(
-                    "[CONVERTER] " +
-                    "downloadArea がありません"
+                    "[CONVERTER] downloadArea がありません"
                 );
 
                 return;
@@ -356,8 +315,7 @@
             if (!filename) {
 
                 console.warn(
-                    "[CONVERTER] " +
-                    "ダウンロードファイル名がありません"
+                    "[CONVERTER] ダウンロードファイル名がありません"
                 );
 
                 return;
@@ -366,8 +324,23 @@
 
 
             // ---------------------------------
-            // リンク作成
+            // 同じファイルの重複防止
             // ---------------------------------
+
+            const existing =
+                downloadArea.querySelector(
+                    `[data-filename="${CSS.escape(
+                        String(filename)
+                    )}"]`
+                );
+
+
+            if (existing) {
+
+                return;
+
+            }
+
 
             const link =
                 document.createElement(
@@ -389,13 +362,13 @@
                 "download-button";
 
 
+            link.dataset.filename =
+                filename;
+
+
             link.textContent =
                 label;
 
-
-            // ---------------------------------
-            // 追加
-            // ---------------------------------
 
             downloadArea.appendChild(
                 link
@@ -416,7 +389,6 @@
         }
 
 
-
         // =====================================
         // 処理詳細追加
         // =====================================
@@ -432,19 +404,10 @@
             }
 
 
-            // ---------------------------------
-            // 既存のHTML構造に対応
-            //
-            // conversion-details は
-            // 現在のHTMLには存在しないため、
-            // downloadAreaへ追加する。
-            // ---------------------------------
-
             if (!downloadArea) {
 
                 console.warn(
-                    "[CONVERTER] " +
-                    "downloadArea がありません"
+                    "[CONVERTER] downloadArea がありません"
                 );
 
                 return;
@@ -478,21 +441,14 @@
         }
 
 
-
         // =====================================
         // SRT情報追加
-        //
-        // converter-gemini.jsから使用
         // =====================================
 
         function addSrtInfo(
             html,
             srtFile
         ) {
-
-            // ---------------------------------
-            // SRTファイル保存
-            // ---------------------------------
 
             if (srtFile) {
 
@@ -501,10 +457,6 @@
 
             }
 
-
-            // ---------------------------------
-            // 処理詳細
-            // ---------------------------------
 
             addConversionInfo(
                 html
@@ -519,11 +471,8 @@
         }
 
 
-
         // =====================================
         // 字幕付きMP4追加
-        //
-        // sub_embed.jsから使用
         // =====================================
 
         function addSubtitleEmbedFile(
@@ -537,18 +486,9 @@
             }
 
 
-            // ---------------------------------
-            // State保存
-            // ---------------------------------
-
             converterState.currentSubtitleEmbedFile =
                 filename;
 
-
-            // ---------------------------------
-            // タブ1側には
-            // 字幕付きMP4を追加表示
-            // ---------------------------------
 
             addSubtitleMp4DownloadButton(
                 filename
@@ -556,19 +496,15 @@
 
 
             console.log(
-                "[CONVERTER] " +
-                "字幕付きMP4を追加:",
+                "[CONVERTER] 字幕付きMP4を追加:",
                 filename
             );
 
         }
 
 
-
         // =====================================
         // 字幕付きMP4処理詳細
-        //
-        // sub_embed.jsから使用
         // =====================================
 
         function addSubtitleEmbedInfo(
@@ -582,14 +518,11 @@
             }
 
 
-            // ---------------------------------
-            // 字幕MP4専用エリア
-            // ---------------------------------
-
             if (subtitleMp4Info) {
 
                 subtitleMp4Info.innerHTML =
                     html;
+
 
                 if (subtitleMp4Area) {
 
@@ -601,10 +534,6 @@
             }
             else {
 
-                // ---------------------------------
-                // 念のため通常エリアへ
-                // ---------------------------------
-
                 addConversionInfo(
                     html
                 );
@@ -613,12 +542,10 @@
 
 
             console.log(
-                "[CONVERTER] " +
-                "字幕付きMP4情報を追加"
+                "[CONVERTER] 字幕付きMP4情報を追加"
             );
 
         }
-
 
 
         // =====================================
@@ -650,27 +577,15 @@
             }
 
 
-            // ---------------------------------
-            // 既存ボタン削除
-            // ---------------------------------
-
             subtitleMp4DownloadContainer.innerHTML =
                 "";
 
-
-            // ---------------------------------
-            // URL
-            // ---------------------------------
 
             const downloadUrl =
                 makeDownloadUrl(
                     filename
                 );
 
-
-            // ---------------------------------
-            // ボタン
-            // ---------------------------------
 
             const link =
                 document.createElement(
@@ -699,10 +614,6 @@
             );
 
 
-            // ---------------------------------
-            // エリア表示
-            // ---------------------------------
-
             if (subtitleMp4Area) {
 
                 subtitleMp4Area.style.display =
@@ -712,13 +623,11 @@
 
 
             console.log(
-                "[CONVERTER] " +
-                "字幕付きMP4ダウンロードボタン追加:",
+                "[CONVERTER] 字幕付きMP4ダウンロードボタン追加:",
                 filename
             );
 
         }
-
 
 
         // =====================================
@@ -727,10 +636,6 @@
 
         function clearResults() {
 
-            // ---------------------------------
-            // ダウンロード欄
-            // ---------------------------------
-
             if (downloadArea) {
 
                 downloadArea.innerHTML =
@@ -738,10 +643,6 @@
 
             }
 
-
-            // ---------------------------------
-            // 字幕MP4
-            // ---------------------------------
 
             if (subtitleMp4Info) {
 
@@ -769,10 +670,6 @@
             }
 
 
-            // ---------------------------------
-            // State
-            // ---------------------------------
-
             converterState.currentMp3File =
                 "";
 
@@ -785,13 +682,21 @@
             converterState.currentSubtitleEmbedFile =
                 "";
 
+            converterState.currentJobId =
+                "";
+
+            converterState.currentJobStatus =
+                "";
+
+            converterState.currentJob =
+                null;
+
 
             console.log(
                 "[CONVERTER] 結果をクリアしました"
             );
 
         }
-
 
 
         // =====================================
@@ -802,10 +707,6 @@
             message,
             type
         ) {
-
-            // ---------------------------------
-            // converter-status.jsを優先
-            // ---------------------------------
 
             if (type === "error") {
 
@@ -860,10 +761,6 @@
             }
 
 
-            // ---------------------------------
-            // fallback
-            // ---------------------------------
-
             if (statusElement) {
 
                 statusElement.textContent =
@@ -872,7 +769,6 @@
             }
 
         }
-
 
 
         // =====================================
@@ -906,7 +802,6 @@
             );
 
         }
-
 
 
         // =====================================
@@ -994,9 +889,13 @@
         }
 
 
-
         // =====================================
         // 変換API
+        //
+        // ★重要
+        //
+        // /convert はファイルを直接返さず、
+        // job_id を返す。
         // =====================================
 
         async function convertVideo(
@@ -1020,6 +919,75 @@
             );
 
 
+            // ---------------------------------
+            // 時間範囲をAPI形式へ変換
+            // ---------------------------------
+
+            let startTime = null;
+            let endTime = null;
+
+
+            if (timeRange) {
+
+                if (
+                    typeof timeRange ===
+                        "object"
+                ) {
+
+                    startTime =
+                        timeRange.start_time ??
+                        timeRange.start ??
+                        null;
+
+                    endTime =
+                        timeRange.end_time ??
+                        timeRange.end ??
+                        null;
+
+                }
+
+            }
+
+
+            console.log(
+                "[CONVERTER] API時間:",
+                {
+                    start_time:
+                        startTime,
+
+                    end_time:
+                        endTime
+                }
+            );
+
+
+            // ---------------------------------
+            // JSON
+            // ---------------------------------
+
+            const requestBody = {
+
+                url:
+                    url,
+
+                outputs:
+                    outputs,
+
+                start_time:
+                    startTime,
+
+                end_time:
+                    endTime
+
+            };
+
+
+            console.log(
+                "[CONVERTER] /convert request:",
+                requestBody
+            );
+
+
             const response =
                 await fetch(
                     "/convert",
@@ -1036,18 +1004,9 @@
                         },
 
                         body:
-                            JSON.stringify({
-
-                                url:
-                                    url,
-
-                                outputs:
-                                    outputs,
-
-                                time_range:
-                                    timeRange
-
-                            })
+                            JSON.stringify(
+                                requestBody
+                            )
 
                     }
                 );
@@ -1071,6 +1030,12 @@
             }
 
 
+            console.log(
+                "[CONVERTER] /convert response:",
+                data
+            );
+
+
             if (
                 !response.ok ||
                 !data.success
@@ -1086,9 +1051,22 @@
             }
 
 
+            if (!data.job_id) {
+
+                throw new Error(
+                    "変換APIからjob_idが返されませんでした。"
+                );
+
+            }
+
+
+            converterState.currentJobId =
+                data.job_id;
+
+
             console.log(
-                "[CONVERTER] 変換完了:",
-                data
+                "[CONVERTER] JOB ID:",
+                data.job_id
             );
 
 
@@ -1096,6 +1074,405 @@
 
         }
 
+
+        // =====================================
+        // Job Status取得
+        // =====================================
+
+        async function getJobStatus(
+            jobId
+        ) {
+
+            const response =
+                await fetch(
+                    "/status/" +
+                    encodeURIComponent(
+                        jobId
+                    ),
+                    {
+
+                        method:
+                            "GET",
+
+                        cache:
+                            "no-store"
+
+                    }
+                );
+
+
+            let data;
+
+
+            try {
+
+                data =
+                    await response.json();
+
+            }
+            catch (error) {
+
+                throw new Error(
+                    "ステータスAPIからJSONを取得できませんでした。"
+                );
+
+            }
+
+
+            if (!response.ok) {
+
+                throw new Error(
+
+                    data.message ||
+                    "ジョブステータス取得に失敗しました。"
+
+                );
+
+            }
+
+
+            return data;
+
+        }
+
+
+        // =====================================
+        // Job Status表示
+        // =====================================
+
+        function renderJobStatus(
+            job
+        ) {
+
+            if (!job) {
+
+                return;
+
+            }
+
+
+            converterState.currentJob =
+                job;
+
+
+            converterState.currentJobStatus =
+                job.status || "";
+
+
+            const files =
+                job.files || {};
+
+
+            const lines = [];
+
+
+            // ---------------------------------
+            // Job全体
+            // ---------------------------------
+
+            if (job.status) {
+
+                lines.push(
+                    "処理状態: " +
+                    job.status
+                );
+
+            }
+
+
+            // ---------------------------------
+            // タイトル
+            // ---------------------------------
+
+            if (job.title) {
+
+                lines.push(
+                    "タイトル: " +
+                    job.title
+                );
+
+            }
+
+
+            // ---------------------------------
+            // 再生時間
+            // ---------------------------------
+
+            if (job.duration_text) {
+
+                lines.push(
+                    "処理対象時間: " +
+                    job.duration_text
+                );
+
+            }
+
+
+            // ---------------------------------
+            // MP3
+            // ---------------------------------
+
+            if (files.mp3) {
+
+                let text =
+                    "MP3: " +
+                    (
+                        files.mp3.status ||
+                        "unknown"
+                    );
+
+
+                if (
+                    files.mp3.filename
+                ) {
+
+                    text +=
+                        " (" +
+                        files.mp3.filename +
+                        ")";
+
+                }
+
+
+                lines.push(
+                    text
+                );
+
+            }
+
+
+            // ---------------------------------
+            // MP4
+            // ---------------------------------
+
+            if (files.mp4) {
+
+                let text =
+                    "MP4: " +
+                    (
+                        files.mp4.status ||
+                        "unknown"
+                    );
+
+
+                if (
+                    files.mp4.filename
+                ) {
+
+                    text +=
+                        " (" +
+                        files.mp4.filename +
+                        ")";
+
+                }
+
+
+                lines.push(
+                    text
+                );
+
+            }
+
+
+            // ---------------------------------
+            // 実行時間
+            // ---------------------------------
+
+            if (
+                job.execution_seconds_text
+            ) {
+
+                lines.push(
+                    "処理時間: " +
+                    job.execution_seconds_text
+                );
+
+            }
+
+
+            // ---------------------------------
+            // エラー
+            // ---------------------------------
+
+            if (job.message) {
+
+                lines.push(
+                    "メッセージ: " +
+                    job.message
+                );
+
+            }
+
+
+            // ---------------------------------
+            // 画面表示
+            // ---------------------------------
+
+            setConversionProgress(
+                lines.join("\n")
+            );
+
+
+            // =================================
+            // 完成ファイル
+            // =================================
+
+            if (
+                files.mp3 &&
+                files.mp3.status ===
+                    "complete" &&
+                files.mp3.filename
+            ) {
+
+                handleMp3Result(
+                    files.mp3.filename
+                );
+
+            }
+
+
+            if (
+                files.mp4 &&
+                files.mp4.status ===
+                    "complete" &&
+                files.mp4.filename
+            ) {
+
+                handleMp4Result(
+                    files.mp4.filename
+                );
+
+            }
+
+        }
+
+
+        // =====================================
+        // Job完了待ち
+        // =====================================
+
+        async function waitForJob(
+            jobId
+        ) {
+
+            const maxWaitMs =
+                30 * 60 * 1000;
+
+
+            const intervalMs =
+                2000;
+
+
+            const startedAt =
+                Date.now();
+
+
+            let lastStatus =
+                "";
+
+
+            console.log(
+                "[CONVERTER] Job監視開始:",
+                jobId
+            );
+
+
+            while (
+                Date.now() -
+                startedAt <
+                maxWaitMs
+            ) {
+
+                const job =
+                    await getJobStatus(
+                        jobId
+                    );
+
+
+                renderJobStatus(
+                    job
+                );
+
+
+                if (
+                    job.status !==
+                    lastStatus
+                ) {
+
+                    console.log(
+                        "[CONVERTER] Job status:",
+                        job.status
+                    );
+
+
+                    lastStatus =
+                        job.status;
+
+                }
+
+
+                // ---------------------------------
+                // 完了
+                // ---------------------------------
+
+                if (
+                    job.status ===
+                        "complete"
+                ) {
+
+                    console.log(
+                        "[CONVERTER] Job COMPLETE:",
+                        job
+                    );
+
+
+                    return job;
+
+                }
+
+
+                // ---------------------------------
+                // エラー
+                // ---------------------------------
+
+                if (
+                    job.status ===
+                        "error"
+                ) {
+
+                    throw new Error(
+
+                        job.message ||
+                        "変換処理中にエラーが発生しました。"
+
+                    );
+
+                }
+
+
+                // ---------------------------------
+                // 待機
+                // ---------------------------------
+
+                await new Promise(
+                    function (resolve) {
+
+                        setTimeout(
+                            resolve,
+                            intervalMs
+                        );
+
+                    }
+                );
+
+            }
+
+
+            throw new Error(
+                "変換処理がタイムアウトしました。"
+            );
+
+        }
 
 
         // =====================================
@@ -1119,7 +1496,7 @@
 
             addDownloadButton(
                 filename,
-                "mp3"
+                "MP3をダウンロード"
             );
 
 
@@ -1129,7 +1506,6 @@
             );
 
         }
-
 
 
         // =====================================
@@ -1153,7 +1529,7 @@
 
             addDownloadButton(
                 filename,
-                "mp4"
+                "MP4をダウンロード"
             );
 
 
@@ -1163,7 +1539,6 @@
             );
 
         }
-
 
 
         // =====================================
@@ -1271,11 +1646,8 @@
         }
 
 
-
         // =====================================
         // 変換開始
-        //
-        // ★タブ1のメイン関数
         // =====================================
 
         async function startConversion() {
@@ -1294,8 +1666,7 @@
             ) {
 
                 console.warn(
-                    "[CONVERTER] " +
-                    "既に変換処理中です"
+                    "[CONVERTER] 既に変換処理中です"
                 );
 
                 return;
@@ -1304,7 +1675,7 @@
 
 
             // =================================
-            // URL取得
+            // URL
             // =================================
 
             const url =
@@ -1312,10 +1683,6 @@
                     ? urlInput.value.trim()
                     : "";
 
-
-            // =================================
-            // URL確認
-            // =================================
 
             if (!url) {
 
@@ -1344,10 +1711,6 @@
             clearResults();
 
 
-            // =================================
-            // ボタン無効化
-            // =================================
-
             if (convertButton) {
 
                 convertButton.disabled =
@@ -1355,10 +1718,6 @@
 
             }
 
-
-            // =================================
-            // 開始時間
-            // =================================
 
             const startTime =
                 new Date();
@@ -1393,10 +1752,6 @@
             );
 
 
-            // =================================
-            // 初期ステータス
-            // =================================
-
             setConversionProgress(
                 "動画情報を取得しています..."
             );
@@ -1414,10 +1769,6 @@
                         url
                     );
 
-
-                // =================================
-                // Stateへ保存
-                // =================================
 
                 converterState.currentVideoTitle =
                     info.title ||
@@ -1468,13 +1819,25 @@
                 );
 
 
+                if (
+                    !Array.isArray(outputs) ||
+                    outputs.length === 0
+                ) {
+
+                    throw new Error(
+                        "MP3またはMP4の出力形式を選択してください。"
+                    );
+
+                }
+
+
                 // =================================
                 // STEP 3
-                // 変換
+                // Job開始
                 // =================================
 
                 setConversionProgress(
-                    "動画を変換しています..."
+                    "変換ジョブを開始しています..."
                 );
 
 
@@ -1490,28 +1853,110 @@
                     );
 
 
+                const jobId =
+                    data.job_id;
+
+
+                converterState.currentJobId =
+                    jobId;
+
+
                 // =================================
                 // STEP 4
-                // MP3
+                // Job監視
                 // =================================
 
-                handleMp3Result(
-                    data.mp3_file
+                setConversionProgress(
+
+                    "変換処理中...\n" +
+                    "Job ID: " +
+                    jobId +
+                    "\n" +
+                    "状態を確認しています..."
+
                 );
+
+
+                const completedJob =
+                    await waitForJob(
+                        jobId
+                    );
 
 
                 // =================================
                 // STEP 5
-                // MP4
+                // 最終ファイル取得
                 // =================================
 
-                handleMp4Result(
-                    data.mp4_file
-                );
+                const finalFiles =
+                    completedJob.files ||
+                    {};
+
+
+                if (
+                    finalFiles.mp3 &&
+                    finalFiles.mp3.filename
+                ) {
+
+                    handleMp3Result(
+                        finalFiles.mp3.filename
+                    );
+
+                }
+
+
+                if (
+                    finalFiles.mp4 &&
+                    finalFiles.mp4.filename
+                ) {
+
+                    handleMp4Result(
+                        finalFiles.mp4.filename
+                    );
+
+                }
 
 
                 // =================================
                 // STEP 6
+                // 完成ファイル確認
+                // =================================
+
+                let hasFile =
+                    false;
+
+
+                if (
+                    converterState.currentMp3File
+                ) {
+
+                    hasFile =
+                        true;
+
+                }
+
+
+                if (
+                    converterState.currentMp4File
+                ) {
+
+                    hasFile =
+                        true;
+
+                }
+
+
+                if (!hasFile) {
+
+                    throw new Error(
+                        "変換は完了しましたが、ダウンロード可能なファイル名が返されませんでした。"
+                    );
+
+                }
+
+
+                // =================================
+                // STEP 7
                 // 終了時間
                 // =================================
 
@@ -1520,7 +1965,7 @@
 
 
                 // =================================
-                // STEP 7
+                // STEP 8
                 // 処理詳細
                 // =================================
 
@@ -1540,7 +1985,7 @@
 
 
                 // =================================
-                // STEP 8
+                // STEP 9
                 // 完了
                 // =================================
 
@@ -1555,7 +2000,11 @@
                 ) {
 
                     conversionStatusArea.textContent =
-                        "変換が完了しました。";
+                        "変換が完了しました。\n" +
+                        (
+                            completedJob.execution_seconds_text ||
+                            ""
+                        );
 
                 }
 
@@ -1588,6 +2037,12 @@
 
                 console.log(
                     "[CONVERTER] 変換処理完了"
+                );
+
+
+                console.log(
+                    "[CONVERTER] Job ID:",
+                    jobId
                 );
 
 
@@ -1628,17 +2083,17 @@
 
 
                 console.log(
+                    "[CONVERTER] Job:",
+                    completedJob
+                );
+
+
+                console.log(
                     "=========================================="
                 );
 
             }
-            catch (
-                error
-            ) {
-
-                // =================================
-                // エラー
-                // =================================
+            catch (error) {
 
                 console.error(
                     "[CONVERTER] エラー:",
@@ -1678,17 +2133,9 @@
             }
             finally {
 
-                // =================================
-                // 処理状態解除
-                // =================================
-
                 converterState.isProcessing =
                     false;
 
-
-                // =================================
-                // ボタン復帰
-                // =================================
 
                 if (convertButton) {
 
@@ -1707,19 +2154,8 @@
         }
 
 
-
         // =====================================
         // タブ1：変換ボタン
-        //
-        // ★重要
-        //
-        // HTML:
-        // id="convertBtn"
-        //
-        // タブ2:
-        // id="sub-embed-upload-button"
-        //
-        // 完全に別のイベント
         // =====================================
 
         if (convertButton) {
@@ -1741,8 +2177,7 @@
 
 
             console.log(
-                "[CONVERTER] " +
-                "YouTube変換ボタンのクリック待機中"
+                "[CONVERTER] YouTube変換ボタンのクリック待機中"
             );
 
 
@@ -1754,12 +2189,10 @@
         else {
 
             console.error(
-                "[CONVERTER] " +
-                "convertBtn がありません"
+                "[CONVERTER] convertBtn がありません"
             );
 
         }
-
 
 
         // =====================================
@@ -1768,61 +2201,26 @@
 
         const main = {
 
-            // ---------------------------------
-            // 初期化済み
-            // ---------------------------------
-
             __initialized:
                 true,
-
-
-            // ---------------------------------
-            // タブ1メイン処理
-            // ---------------------------------
 
             start:
                 startConversion,
 
-
-            // ---------------------------------
-            // SRT
-            // ---------------------------------
-
             addSrtInfo:
                 addSrtInfo,
-
-
-            // ---------------------------------
-            // 字幕付きMP4
-            // ---------------------------------
 
             addSubtitleEmbedFile:
                 addSubtitleEmbedFile,
 
-
             addSubtitleEmbedInfo:
                 addSubtitleEmbedInfo,
-
-
-            // ---------------------------------
-            // 処理詳細
-            // ---------------------------------
 
             addConversionInfo:
                 addConversionInfo,
 
-
-            // ---------------------------------
-            // 結果クリア
-            // ---------------------------------
-
             clearResults:
                 clearResults,
-
-
-            // ---------------------------------
-            // State取得
-            // ---------------------------------
 
             getState:
                 function () {
@@ -1832,7 +2230,6 @@
                 }
 
         };
-
 
 
         // =====================================
@@ -1845,7 +2242,6 @@
 
         window.ConverterMain =
             main;
-
 
 
         // =====================================
@@ -1913,7 +2309,6 @@
         );
 
     }
-
 
 
     // =====================================
