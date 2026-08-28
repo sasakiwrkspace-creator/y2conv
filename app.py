@@ -1,76 +1,93 @@
+# =====================================
+# YouTube Converter
+# app.py
+#
+# アプリケーションの入口
+#
+# 役割:
+# ・Flaskアプリ起動
+# ・index.html表示
+# ・staticファイル提供
+# ・downloadsファイル提供
+# =====================================
+
 import os
 
-from flask import Flask
+from flask import Flask, render_template, send_from_directory
 
-from routes.index import register_index
-from routes.check import register_check, register_video_info
-from routes.convert import register_convert
-from routes.status import register_status
-from routes.download import register_download
-from routes.gemini import register_gemini
-from routes.files import register_files
-from routes.sub_embed_routes import register_sub_embed
+import config
 
+
+# =====================================
+# Flask
+# =====================================
 
 app = Flask(__name__)
 
-app.secret_key = "y2conv-secret-key"
+
+# =====================================
+# プロジェクト設定
+# =====================================
+
+BASE_DIR = config.BASE_DIR
+DOWNLOAD_DIR = config.DOWNLOAD_DIR
 
 
 # =====================================
-# downloadsフォルダ
+# トップページ
 # =====================================
 
-BASE_DIR = os.path.dirname(
-    os.path.abspath(__file__)
-)
-
-DOWNLOAD_FOLDER = os.path.join(
-    BASE_DIR,
-    "downloads"
-)
-
-os.makedirs(
-    DOWNLOAD_FOLDER,
-    exist_ok=True
-)
-
-
-print("================================")
-print("DOWNLOAD FOLDER")
-print(DOWNLOAD_FOLDER)
-print(
-    "exists:",
-    os.path.isdir(DOWNLOAD_FOLDER)
-)
-print("================================")
+@app.route("/")
+def index():
+    return render_template(
+        "index.html"
+    )
 
 
 # =====================================
-# Routes
+# downloads
+#
+# 作成したMP3 / MP4 / SRTを
+# ブラウザからダウンロードする
 # =====================================
 
-register_index(app)
-register_check(app)
-register_video_info(app)
-register_convert(app)
-register_status(app)
-register_download(app)
-register_gemini(app)
-register_files(app)
-register_sub_embed(app)
+@app.route("/download/<path:filename>")
+def download_file(filename):
+
+    return send_from_directory(
+        DOWNLOAD_DIR,
+        filename,
+        as_attachment=True
+    )
+
 
 # =====================================
-# 起動
+# 起動確認
+# =====================================
+
+@app.route("/health")
+def health():
+
+    return {
+        "status": "ok"
+    }
+
+
+# =====================================
+# アプリ起動
 # =====================================
 
 if __name__ == "__main__":
 
-    print("Flask起動します")
+    print("==========================================")
+    print("YouTube Converter")
+    print("==========================================")
+    print("BASE_DIR:", BASE_DIR)
+    print("DOWNLOAD_DIR:", DOWNLOAD_DIR)
+    print("==========================================")
 
     app.run(
-        host="127.0.0.1",
-        port=5000,
-        debug=False,
-        use_reloader=False,
+        host="0.0.0.0",
+        port=10000,
+        debug=False
     )
