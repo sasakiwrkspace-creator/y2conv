@@ -1,4 +1,5 @@
 import os
+
 from dotenv import load_dotenv
 
 
@@ -40,6 +41,13 @@ GEMINI_API_KEY = os.environ.get(
 
 
 # =====================================
+# YouTube cookies
+# =====================================
+
+COOKIES_FILE = "/etc/secrets/cookies.txt"
+
+
+# =====================================
 # 音声分割設定
 # =====================================
 
@@ -56,8 +64,20 @@ print("==========================================")
 print("CONFIG")
 print("BASE_DIR:", BASE_DIR)
 print("DOWNLOAD_DIR:", DOWNLOAD_DIR)
+
 print(
     "DOWNLOAD_DIR exists:",
     os.path.isdir(DOWNLOAD_DIR)
 )
+
+print(
+    "COOKIES_FILE:",
+    COOKIES_FILE
+)
+
+print(
+    "COOKIES_FILE exists:",
+    os.path.isfile(COOKIES_FILE)
+)
+
 print("==========================================")
