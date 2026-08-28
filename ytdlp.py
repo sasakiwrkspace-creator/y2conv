@@ -6,6 +6,8 @@
 # =====================================
 
 import os
+import shutil
+import tempfile
 
 import yt_dlp
 
@@ -50,307 +52,367 @@ def create_mp3(
 
 
     # =================================
-    # 開始ログ
+    # Secret File確認
     # =================================
 
-    print("==========================================")
-
-    print(
-        "[YTDLP] MP3作成開始"
-    )
-
-    print(
-        "[YTDLP] URL:",
-        url
-    )
-
-    print(
-        "[YTDLP] start_time:",
-        start_time
-    )
-
-    print(
-        "[YTDLP] end_time:",
-        end_time
-    )
-
-    print(
-        "[YTDLP] DOWNLOAD_DIR:",
-        DOWNLOAD_DIR
-    )
-
-    print(
-        "[YTDLP] COOKIES_FILE:",
+    if not os.path.isfile(
         COOKIES_FILE
-    )
+    ):
 
-    print(
-        "[YTDLP] cookies exists:",
-        os.path.isfile(
-            COOKIES_FILE
+        raise RuntimeError(
+            "Renderのcookies.txtが見つかりません。"
         )
-    )
 
+
+    print("==========================================")
+    print("[YTDLP] MP3作成開始")
+    print("[YTDLP] URL:", url)
+    print("[YTDLP] start_time:", start_time)
+    print("[YTDLP] end_time:", end_time)
+    print("[YTDLP] DOWNLOAD_DIR:", DOWNLOAD_DIR)
+    print("[YTDLP] COOKIES_FILE:", COOKIES_FILE)
+    print("[YTDLP] cookies exists: True")
     print("==========================================")
 
 
     # =====================================
-    # yt-dlp設定
+    # 一時Cookie
     # =====================================
 
-    ydl_opts = {
+    temporary_cookie = None
 
-        "format":
-            "bestaudio/best",
-
-        "outtmpl":
-            os.path.join(
-                DOWNLOAD_DIR,
-                "%(title)s.%(ext)s"
-            ),
-
-        "cookiefile":
-            COOKIES_FILE,
-
-        "postprocessors": [
-
-            {
-                "key":
-                    "FFmpegExtractAudio",
-
-                "preferredcodec":
-                    "mp3",
-
-                "preferredquality":
-                    "192"
-            }
-
-        ],
-
-        "quiet":
-            False,
-
-        "no_warnings":
-            False,
-
-        "overwrites":
-            True
-    }
-
-
-    # =====================================
-    # 時間範囲
-    # =====================================
-
-    if start_time or end_time:
-
-        start = (
-            start_time
-            if start_time
-            else "00:00:00"
-        )
-
-        end = (
-            end_time
-            if end_time
-            else "inf"
-        )
-
-
-        ydl_opts[
-            "download_sections"
-        ] = [
-
-            f"*{start}-{end}"
-
-        ]
-
-
-        ydl_opts[
-            "force_keyframes_at_cuts"
-        ] = True
-
-
-        print(
-            "[YTDLP] download section:",
-            f"{start}-{end}"
-        )
-
-
-    # =====================================
-    # yt-dlp実行
-    # =====================================
 
     try:
 
-        with yt_dlp.YoutubeDL(
-            ydl_opts
-        ) as ydl:
+        # =================================
+        # 一時ファイル作成
+        # =================================
 
-            info = ydl.extract_info(
-                url,
-                download=True
+        temporary_file = tempfile.NamedTemporaryFile(
+            mode="wb",
+            suffix=".txt",
+            prefix="y2conv_cookies_",
+            delete=False
+        )
+
+        temporary_cookie = (
+            temporary_file.name
+        )
+
+        temporary_file.close()
+
+
+        print(
+            "[YTDLP] temporary cookie:",
+            temporary_cookie
+        )
+
+
+        # =================================
+        # Secret File → 一時ファイル
+        # =================================
+
+        shutil.copyfile(
+            COOKIES_FILE,
+            temporary_cookie
+        )
+
+
+        print(
+            "[YTDLP] cookies.txtを一時コピーしました"
+        )
+
+
+        # =================================
+        # yt-dlp設定
+        # =================================
+
+        ydl_opts = {
+
+            "format":
+                "bestaudio/best",
+
+            "outtmpl":
+                os.path.join(
+                    DOWNLOAD_DIR,
+                    "%(title)s.%(ext)s"
+                ),
+
+            "cookiefile":
+                temporary_cookie,
+
+            "postprocessors": [
+
+                {
+                    "key":
+                        "FFmpegExtractAudio",
+
+                    "preferredcodec":
+                        "mp3",
+
+                    "preferredquality":
+                        "192"
+                }
+
+            ],
+
+            "quiet":
+                False,
+
+            "no_warnings":
+                False,
+
+            "overwrites":
+                True
+        }
+
+
+        # =================================
+        # 時間範囲
+        # =================================
+
+        if start_time or end_time:
+
+            start = (
+                start_time
+                if start_time
+                else "00:00:00"
+            )
+
+            end = (
+                end_time
+                if end_time
+                else "inf"
             )
 
 
-            title = info.get(
-                "title",
-                "output"
-            )
+            ydl_opts[
+                "download_sections"
+            ] = [
+
+                f"*{start}-{end}"
+
+            ]
+
+
+            ydl_opts[
+                "force_keyframes_at_cuts"
+            ] = True
 
 
             print(
-                "[YTDLP] title:",
-                title
+                "[YTDLP] download section:",
+                f"{start}-{end}"
             )
 
 
-    except Exception as error:
+        # =================================
+        # yt-dlp実行
+        # =================================
 
-        print(
-            "=========================================="
-        )
+        try:
 
-        print(
-            "[YTDLP] MP3作成エラー"
-        )
+            with yt_dlp.YoutubeDL(
+                ydl_opts
+            ) as ydl:
 
-        print(
-            "[YTDLP] error:",
-            error
-        )
-
-        print(
-            "=========================================="
-        )
-
-        raise
-
-
-    # =====================================
-    # MP3ファイル確認
-    # =====================================
-
-    mp3_files = []
-
-
-    for filename in os.listdir(
-        DOWNLOAD_DIR
-    ):
-
-        if filename.lower().endswith(
-            ".mp3"
-        ):
-
-            filepath = os.path.join(
-                DOWNLOAD_DIR,
-                filename
-            )
-
-            if os.path.isfile(
-                filepath
-            ):
-
-                mp3_files.append(
-                    filename
+                info = ydl.extract_info(
+                    url,
+                    download=True
                 )
 
 
-    # =====================================
-    # MP3がない場合
-    # =====================================
-
-    if not mp3_files:
-
-        raise RuntimeError(
-            "MP3ファイルが作成されませんでした。"
-        )
+                title = info.get(
+                    "title",
+                    "output"
+                )
 
 
-    # =====================================
-    # 最新MP3を取得
-    # =====================================
+                print(
+                    "[YTDLP] title:",
+                    title
+                )
 
-    mp3_files.sort(
 
-        key=lambda filename:
-            os.path.getmtime(
-                os.path.join(
+        except Exception as error:
+
+            print(
+                "=========================================="
+            )
+
+            print(
+                "[YTDLP] MP3作成エラー"
+            )
+
+            print(
+                "[YTDLP] error:",
+                error
+            )
+
+            print(
+                "=========================================="
+            )
+
+            raise
+
+
+        # =================================
+        # MP3確認
+        # =================================
+
+        mp3_files = []
+
+
+        for filename in os.listdir(
+            DOWNLOAD_DIR
+        ):
+
+            if filename.lower().endswith(
+                ".mp3"
+            ):
+
+                filepath = os.path.join(
                     DOWNLOAD_DIR,
                     filename
                 )
-            ),
-
-        reverse=True
-    )
 
 
-    filename = mp3_files[0]
+                if os.path.isfile(
+                    filepath
+                ):
+
+                    mp3_files.append(
+                        filename
+                    )
 
 
-    filepath = os.path.join(
-        DOWNLOAD_DIR,
-        filename
-    )
+        # =================================
+        # MP3なし
+        # =================================
+
+        if not mp3_files:
+
+            raise RuntimeError(
+                "MP3ファイルが作成されませんでした。"
+            )
 
 
-    # =====================================
-    # ファイル確認
-    # =====================================
+        # =================================
+        # 最新MP3
+        # =================================
 
-    if not os.path.isfile(
-        filepath
-    ):
+        mp3_files.sort(
 
-        raise RuntimeError(
-            "MP3ファイルの確認に失敗しました。"
+            key=lambda filename:
+                os.path.getmtime(
+                    os.path.join(
+                        DOWNLOAD_DIR,
+                        filename
+                    )
+                ),
+
+            reverse=True
         )
 
 
-    # =====================================
-    # 完了ログ
-    # =====================================
+        filename = mp3_files[0]
 
-    print("==========================================")
 
-    print(
-        "[YTDLP] MP3作成完了"
-    )
+        filepath = os.path.join(
+            DOWNLOAD_DIR,
+            filename
+        )
 
-    print(
-        "[YTDLP] filename:",
-        filename
-    )
 
-    print(
-        "[YTDLP] path:",
-        filepath
-    )
+        # =================================
+        # ファイル確認
+        # =================================
 
-    print(
-        "[YTDLP] size:",
-        os.path.getsize(
+        if not os.path.isfile(
             filepath
-        ),
-        "bytes"
-    )
+        ):
 
-    print("==========================================")
+            raise RuntimeError(
+                "MP3ファイルの確認に失敗しました。"
+            )
 
 
-    # =====================================
-    # 結果
-    # =====================================
+        # =================================
+        # 完了ログ
+        # =================================
 
-    return {
+        print("==========================================")
 
-        "success":
-            True,
+        print(
+            "[YTDLP] MP3作成完了"
+        )
 
-        "filename":
-            filename,
+        print(
+            "[YTDLP] filename:",
+            filename
+        )
 
-        "path":
+        print(
+            "[YTDLP] path:",
             filepath
+        )
 
-    }
+        print(
+            "[YTDLP] size:",
+            os.path.getsize(
+                filepath
+            ),
+            "bytes"
+        )
+
+        print("==========================================")
+
+
+        # =================================
+        # 結果
+        # =================================
+
+        return {
+
+            "success":
+                True,
+
+            "filename":
+                filename,
+
+            "path":
+                filepath
+
+        }
+
+
+    finally:
+
+        # =================================
+        # 一時Cookie削除
+        # =================================
+
+        if (
+            temporary_cookie
+            and
+            os.path.exists(
+                temporary_cookie
+            )
+        ):
+
+            try:
+
+                os.remove(
+                    temporary_cookie
+                )
+
+                print(
+                    "[YTDLP] 一時cookies.txtを削除しました"
+                )
+
+            except Exception as error:
+
+                print(
+                    "[YTDLP] 一時cookies.txt削除エラー:",
+                    error
+                )
