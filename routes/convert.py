@@ -1,5 +1,3 @@
-from flask import request, jsonify
-from converter_ytdlp import create_mp3
 
 def register_convert(app):
 
@@ -44,12 +42,19 @@ def convert():
             end_time
         )
 
+        # =================================
+        # URL確認
+        # =================================
+
         if not url:
 
             return jsonify({
+
                 "success": False,
+
                 "message":
                     "YouTube URLが指定されていません。"
+
             }), 400
 
         # =================================
