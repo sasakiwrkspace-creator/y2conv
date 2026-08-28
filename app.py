@@ -1,93 +1,68 @@
-# =====================================
-# YouTube Converter
-# app.py
-#
-# アプリケーションの入口
-#
-# 役割:
-# ・Flaskアプリ起動
-# ・index.html表示
-# ・staticファイル提供
-# ・downloadsファイル提供
-# =====================================
+=====================================
+YouTube Converter
+app.py
+アプリケーションの入口
+役割:
+・Flaskアプリ起動
+・各routes登録
+・設定読み込み
+=====================================
 
-import os
-
-from flask import Flask, render_template, send_from_directory
+from flask import Flask
 
 import config
 
+from routes.index import register_index
+from routes.files import register_files
+from routes.convert import register_convert
 
-# =====================================
-# Flask
-# =====================================
+=====================================
+Flask
+=====================================
 
-app = Flask(__name__)
+app = Flask(name)
 
-
-# =====================================
-# プロジェクト設定
-# =====================================
+=====================================
+プロジェクト設定
+=====================================
 
 BASE_DIR = config.BASE_DIR
 DOWNLOAD_DIR = config.DOWNLOAD_DIR
 
+=====================================
+Routes登録
+=====================================
 
-# =====================================
-# トップページ
-# =====================================
+register_index(app)
 
-@app.route("/")
-def index():
-    return render_template(
-        "index.html"
-    )
+register_files(app)
 
+register_convert(app)
 
-# =====================================
-# downloads
-#
-# 作成したMP3 / MP4 / SRTを
-# ブラウザからダウンロードする
-# =====================================
+=====================================
+起動確認
+=====================================
 
-@app.route("/download/<path:filename>")
-def download_file(filename):
+if name == "main":
 
-    return send_from_directory(
-        DOWNLOAD_DIR,
-        filename,
-        as_attachment=True
-    )
+print("==========================================")
+print("YouTube Converter")
+print("==========================================")
 
+print(
+    "BASE_DIR:",
+    BASE_DIR
+)
 
-# =====================================
-# 起動確認
-# =====================================
+print(
+    "DOWNLOAD_DIR:",
+    DOWNLOAD_DIR
+)
 
-@app.route("/health")
-def health():
+print("==========================================")
 
-    return {
-        "status": "ok"
-    }
-
-
-# =====================================
-# アプリ起動
-# =====================================
-
-if __name__ == "__main__":
-
-    print("==========================================")
-    print("YouTube Converter")
-    print("==========================================")
-    print("BASE_DIR:", BASE_DIR)
-    print("DOWNLOAD_DIR:", DOWNLOAD_DIR)
-    print("==========================================")
-
-    app.run(
-        host="0.0.0.0",
-        port=10000,
-        debug=False
-    )
+app.run(
+    host="0.0.0.0",
+    port=10000,
+    debug=False
+)
