@@ -233,11 +233,13 @@
 
         <!-- =========================================
              出力形式
-             
-             現在はMP3のみ
-             ========================================= -->
+        ========================================== -->
 
         <div class="output-format-group">
+
+            <!-- =============================
+                 MP3
+            ============================== -->
 
             <label class="output-format-option">
 
@@ -250,6 +252,25 @@
 
                 <span>
                     mp3
+                </span>
+
+            </label>
+
+
+            <!-- =============================
+                 MP4
+            ============================== -->
+
+            <label class="output-format-option">
+
+                <input
+                    type="radio"
+                    name="output-format"
+                    value="mp4"
+                >
+
+                <span>
+                    mp4
                 </span>
 
             </label>
@@ -283,10 +304,10 @@
 
 
 <!-- =========================================
-     MP3変換JavaScript
+     JavaScript
 
-     今回はconverter.jsを使用しない。
-     MP3単体の動作確認用。
+     今回はMP3 / MP4の動作確認用。
+     SRT / Gemini / 字幕MP4はまだ使用しない。
 ========================================== -->
 
 <script>
@@ -342,6 +363,34 @@ document.addEventListener(
         console.log(
             "[INDEX] urlInput:",
             urlInput
+        );
+
+
+        // =====================================
+        // ラジオボタン確認
+        // =====================================
+
+        const outputTypeInputs =
+            document.querySelectorAll(
+                'input[name="output-format"]'
+            );
+
+
+        console.log(
+            "[INDEX] output format radio buttons:",
+            outputTypeInputs
+        );
+
+
+        outputTypeInputs.forEach(
+            function (input) {
+
+                console.log(
+                    "[INDEX] output format option:",
+                    input.value
+                );
+
+            }
         );
 
 
@@ -504,6 +553,41 @@ document.addEventListener(
 
 
                 // =================================
+                // 出力形式取得
+                // =================================
+
+                const selectedOutput =
+                    document.querySelector(
+                        'input[name="output-format"]:checked'
+                    );
+
+
+                if (!selectedOutput) {
+
+                    console.error(
+                        "[INDEX] 出力形式が選択されていません"
+                    );
+
+
+                    statusElement.textContent =
+                        "出力形式を選択してください。";
+
+                    return;
+
+                }
+
+
+                const outputType =
+                    selectedOutput.value;
+
+
+                console.log(
+                    "[INDEX] output_type:",
+                    outputType
+                );
+
+
+                // =================================
                 // 時間
                 // =================================
 
@@ -541,6 +625,12 @@ document.addEventListener(
                 );
 
 
+                console.log(
+                    "[INDEX] output_type:",
+                    outputType
+                );
+
+
                 // =================================
                 // 結果クリア
                 // =================================
@@ -557,8 +647,22 @@ document.addEventListener(
                     true;
 
 
-                statusElement.textContent =
-                    "MP3を作成しています・・・";
+                // =================================
+                // ステータス
+                // =================================
+
+                if (outputType === "mp4") {
+
+                    statusElement.textContent =
+                        "MP4を作成しています・・・";
+
+                }
+                else {
+
+                    statusElement.textContent =
+                        "MP3を作成しています・・・";
+
+                }
 
 
                 // =================================
@@ -568,7 +672,23 @@ document.addEventListener(
                 try {
 
                     console.log(
+                        "=========================================="
+                    );
+
+
+                    console.log(
                         "[INDEX] /convert 呼び出し"
+                    );
+
+
+                    console.log(
+                        "[INDEX] request output_type:",
+                        outputType
+                    );
+
+
+                    console.log(
+                        "=========================================="
                     );
 
 
@@ -590,16 +710,33 @@ document.addEventListener(
                                 body:
                                     JSON.stringify({
 
+                                        // =====================
+                                        // YouTube URL
+                                        // =====================
+
                                         url:
                                             url,
 
-                                        outputs:
-                                            [
-                                                "mp3"
-                                            ],
+
+                                        // =====================
+                                        // 出力形式
+                                        // =====================
+
+                                        output_type:
+                                            outputType,
+
+
+                                        // =====================
+                                        // 開始時間
+                                        // =====================
 
                                         start_time:
                                             startTime,
+
+
+                                        // =====================
+                                        // 終了時間
+                                        // =====================
 
                                         end_time:
                                             endTime
@@ -616,6 +753,10 @@ document.addEventListener(
                     );
 
 
+                    // =================================
+                    // JSON
+                    // =================================
+
                     let data;
 
 
@@ -626,6 +767,12 @@ document.addEventListener(
 
                     }
                     catch (jsonError) {
+
+                        console.error(
+                            "[INDEX] JSON parse error:",
+                            jsonError
+                        );
+
 
                         throw new Error(
                             "サーバーからJSONを取得できませんでした。"
@@ -652,7 +799,12 @@ document.addEventListener(
                         throw new Error(
 
                             data.message ||
-                            "MP3作成に失敗しました。"
+
+                            (
+                                outputType === "mp4"
+                                    ? "MP4作成に失敗しました。"
+                                    : "MP3作成に失敗しました。"
+                            )
 
                         );
 
@@ -666,7 +818,11 @@ document.addEventListener(
                     if (!data.filename) {
 
                         throw new Error(
-                            "MP3ファイル名が返されませんでした。"
+
+                            outputType === "mp4"
+                                ? "MP4ファイル名が返されませんでした。"
+                                : "MP3ファイル名が返されませんでした。"
+
                         );
 
                     }
@@ -676,8 +832,24 @@ document.addEventListener(
                     // 成功
                     // =================================
 
-                    statusElement.textContent =
-                        "MP3の作成が完了しました。";
+                    if (outputType === "mp4") {
+
+                        statusElement.textContent =
+                            "MP4の作成が完了しました。";
+
+                    }
+                    else {
+
+                        statusElement.textContent =
+                            "MP3の作成が完了しました。";
+
+                    }
+
+
+                    console.log(
+                        "[INDEX] 作成成功:",
+                        data.filename
+                    );
 
 
                     // =================================
@@ -705,8 +877,22 @@ document.addEventListener(
                         "download-button";
 
 
-                    link.textContent =
-                        "[mp3]";
+                    // =================================
+                    // ボタン表示
+                    // =================================
+
+                    if (outputType === "mp4") {
+
+                        link.textContent =
+                            "[mp4]";
+
+                    }
+                    else {
+
+                        link.textContent =
+                            "[mp3]";
+
+                    }
 
 
                     downloadArea.appendChild(
@@ -715,7 +901,8 @@ document.addEventListener(
 
 
                     console.log(
-                        "[INDEX] MP3ダウンロードボタン追加:",
+                        "[INDEX] ダウンロードボタン追加:",
+                        outputType,
                         data.filename
                     );
 
@@ -723,13 +910,21 @@ document.addEventListener(
                 catch (error) {
 
                     console.error(
-                        "[INDEX] MP3変換エラー:",
+                        "[INDEX] 変換エラー:",
                         error
                     );
 
 
                     statusElement.textContent =
-                        "MP3作成中にエラーが発生しました。\n" +
+
+                        (
+                            outputType === "mp4"
+                                ? "MP4作成中にエラーが発生しました。\n"
+                                : "MP3作成中にエラーが発生しました。\n"
+                        )
+
+                        +
+
                         error.message;
 
                 }
@@ -745,6 +940,11 @@ document.addEventListener(
 
                     console.log(
                         "[INDEX] 処理終了"
+                    );
+
+
+                    console.log(
+                        "=========================================="
                     );
 
                 }
