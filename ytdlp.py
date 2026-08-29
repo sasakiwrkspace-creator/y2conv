@@ -1,1243 +1,469 @@
 import os
-import re
 import shutil
-import subprocess
 import tempfile
+from pathlib import Path
 
 import yt_dlp
 
-from yt_dlp.utils import download_range_func
-
 from config import (
-BASE_DIR,
 DOWNLOAD_DIR,
-COOKIES_FILE
+COOKIES_FILE,
 )
 
-==========================================================
-Cookie
-==========================================================
-RENDER_COOKIE_FILE = COOKIES_FILE
+============================================================
+環境設定
+============================================================
 
-LOCAL_COOKIE_FILE = os.path.join(
-BASE_DIR,
-"cookies.txt"
-)
-
-if os.path.exists(RENDER_COOKIE_FILE):
-
-SOURCE_COOKIE_FILE = RENDER_COOKIE_FILE
-
-else:
-
-SOURCE_COOKIE_FILE = LOCAL_COOKIE_FILE
-
-==========================================================
-Deno
-==========================================================
 DENO_PATH = "/root/.deno/bin/deno"
 
-==========================================================
-起動時確認
-==========================================================
-print("==========================================", flush=True)
+DOWNLOAD_PATH = Path(DOWNLOAD_DIR)
+COOKIES_PATH = Path(COOKIES_FILE)
 
-print(
-"[YTDLP] 設定",
-flush=True
-)
+print("==========================================")
+print("[YTDLP] 設定")
+print("[YTDLP] DOWNLOAD_DIR:", DOWNLOAD_DIR)
+print("[YTDLP] COOKIES_FILE:", COOKIES_FILE)
+print("[YTDLP] cookies exists:", COOKIES_PATH.is_file())
+print("[YTDLP] Deno:", DENO_PATH)
+print("[YTDLP] Deno exists:", os.path.isfile(DENO_PATH))
+print("==========================================")
 
-print(
-"[YTDLP] BASE_DIR:",
-BASE_DIR,
-flush=True
-)
+============================================================
+Denoの確認
+============================================================
 
-print(
-"[YTDLP] DOWNLOAD_DIR:",
-DOWNLOAD_DIR,
-flush=True
-)
+def check_deno():
+"""
+Denoが存在するか確認する。
+DenoそのもののインストールはDockerfileで行う。
+"""
 
-print(
-"[YTDLP] COOKIES_FILE:",
-SOURCE_COOKIE_FILE,
-flush=True
-)
+if not os.path.isfile(DENO_PATH):
+    print("[YTDLP] WARNING: Denoが見つかりません")
+    return False
 
-print(
-"[YTDLP] cookies exists:",
-os.path.exists(SOURCE_COOKIE_FILE),
-flush=True
-)
+if not os.access(DENO_PATH, os.X_OK):
+    print("[YTDLP] WARNING: Denoに実行権限がありません")
+    return False
 
-print(
-"[YTDLP] Deno:",
-DENO_PATH,
-flush=True
-)
+print("[YTDLP] Deno OK:", DENO_PATH)
+return True
 
-print(
-"[YTDLP] Deno exists:",
-os.path.isfile(DENO_PATH),
-flush=True
-)
+============================================================
+Cookie一時ファイル作成
+============================================================
 
-print("==========================================", flush=True)
-
-==========================================================
-Cookie確認
-==========================================================
-def check_cookie_file():
-
-if not os.path.exists(
-    SOURCE_COOKIE_FILE
-):
-
-    raise Exception(
-        "Cookieファイルが見つかりません: "
-        + SOURCE_COOKIE_FILE
-    )
-
-if os.path.getsize(
-    SOURCE_COOKIE_FILE
-) <= 0:
-
-    raise Exception(
-        "Cookieファイルが空です"
-    )
-
-==========================================================
-一時Cookie作成
-==========================================================
 def create_temp_cookie_file():
+"""
+Render Secret File:
+/etc/secrets/cookies.txt
 
-check_cookie_file()
+を一時ファイルへコピーする。
 
-temp_cookie = None
+yt-dlp終了後に必ず削除する。
+"""
+
+if not COOKIES_PATH.is_file():
+    print("[YTDLP] Cookieファイルがありません:", COOKIES_FILE)
+    return None
+
+temp_path = None
 
 try:
-
-    fd, temp_cookie = tempfile.mkstemp(
+    fd, temp_path = tempfile.mkstemp(
         prefix="y2conv_cookies_",
         suffix=".txt",
-        dir="/tmp"
     )
 
     os.close(fd)
 
     shutil.copyfile(
-        SOURCE_COOKIE_FILE,
-        temp_cookie
+        str(COOKIES_PATH),
+        temp_path,
     )
 
+    os.chmod(
+        temp_path,
+        0o600,
+    )
+
+    print("[YTDLP] 一時Cookie作成:", temp_path)
     print(
-        "[YTDLP] 一時Cookie作成:",
-        temp_cookie,
-        flush=True
+        "[YTDLP] 一時Cookieサイズ:",
+        os.path.getsize(temp_path),
     )
 
-    return temp_cookie
+    return temp_path
 
-except Exception:
+except Exception as e:
+    print("[YTDLP] Cookie一時ファイル作成失敗:", repr(e))
 
-    if (
-        temp_cookie
-        and
-        os.path.exists(temp_cookie)
-    ):
-
+    if temp_path and os.path.exists(temp_path):
         try:
-
-            os.remove(
-                temp_cookie
-            )
-
+            os.remove(temp_path)
         except Exception:
-
             pass
 
-    raise
+    return None
 
-==========================================================
-一時Cookie削除
-==========================================================
-def remove_temp_cookie_file(
-cookie_file
-):
+============================================================
+時間指定
+============================================================
 
-if (
-    cookie_file
-    and
-    os.path.exists(cookie_file)
-):
+def time_to_seconds(value):
+"""
+00:00:10
+00:01:30
+01:02:03
 
-    try:
-
-        os.remove(
-            cookie_file
-        )
-
-        print(
-            "[YTDLP] 一時Cookie削除:",
-            cookie_file,
-            flush=True
-        )
-
-    except Exception as error:
-
-        print(
-            "[YTDLP] Cookie削除失敗:",
-            repr(error),
-            flush=True
-        )
-
-==========================================================
-Deno確認
-==========================================================
-def check_deno():
-
-if not os.path.isfile(
-    DENO_PATH
-):
-
-    print(
-        "[YTDLP] Denoがありません:",
-        DENO_PATH,
-        flush=True
-    )
-
-    return False
-
-if not os.access(
-    DENO_PATH,
-    os.X_OK
-):
-
-    print(
-        "[YTDLP] Deno実行権限がありません:",
-        DENO_PATH,
-        flush=True
-    )
-
-    return False
-
-return True
-
-==========================================================
-時間を秒へ変換
-==========================================================
-def time_to_seconds(
-value
-):
+などを秒へ変換する。
+"""
 
 if value is None:
-
     return None
 
-value = str(
-    value
-).strip()
+if isinstance(value, (int, float)):
+    return float(value)
+
+value = str(value).strip()
 
 if not value:
-
     return None
 
-parts = value.split(":")
-
 try:
+    parts = value.split(":")
 
     if len(parts) == 1:
-
-        seconds = float(
-            parts[0]
-        )
-
-        if seconds < 0:
-
-            raise ValueError
-
-        return seconds
+        return float(parts[0])
 
     if len(parts) == 2:
+        minutes = float(parts[0])
+        seconds = float(parts[1])
 
-        minutes = float(
-            parts[0]
-        )
-
-        seconds = float(
-            parts[1]
-        )
-
-        if (
-            minutes < 0
-            or
-            seconds < 0
-            or
-            seconds >= 60
-        ):
-
-            raise ValueError
-
-        return (
-            minutes * 60
-            + seconds
-        )
+        return minutes * 60 + seconds
 
     if len(parts) == 3:
+        hours = float(parts[0])
+        minutes = float(parts[1])
+        seconds = float(parts[2])
 
-        hours = float(
-            parts[0]
-        )
+        return hours * 3600 + minutes * 60 + seconds
 
-        minutes = float(
-            parts[1]
-        )
+except Exception:
+    pass
 
-        seconds = float(
-            parts[2]
-        )
+return None
 
-        if (
-            hours < 0
-            or
-            minutes < 0
-            or
-            seconds < 0
-            or
-            minutes >= 60
-            or
-            seconds >= 60
-        ):
+============================================================
+yt-dlpオプション作成
+============================================================
 
-            raise ValueError
-
-        return (
-            hours * 3600
-            + minutes * 60
-            + seconds
-        )
-
-    raise ValueError
-
-except Exception as error:
-
-    raise ValueError(
-        "時間形式が正しくありません: "
-        + value
-    ) from error
-
-==========================================================
-安全なファイル名
-==========================================================
-def safe_filename(
-title
+def build_ydl_options(
+cookie_file=None,
+start_time=None,
+end_time=None,
 ):
-
-if not title:
-
-    title = "youtube"
-
-title = str(
-    title
-).strip()
-
-title = re.sub(
-    r'[\\/:*?"<>|]+',
-    "_",
-    title
-)
-
-title = title.replace(
-    "\r",
-    " "
-)
-
-title = title.replace(
-    "\n",
-    " "
-)
-
-title = title.strip(
-    " ."
-)
-
-if not title:
-
-    title = "youtube"
-
-return title
-
-==========================================================
-yt-dlpオプション
-==========================================================
-def get_ydl_options(
-cookie_file,
-output_template
-):
+"""
+yt-dlpの設定を作成する。
+"""
 
 options = {
+    # 音声取得
+    "format": "bestaudio/best",
 
-    "cookiefile":
-        cookie_file,
+    # 出力先
+    "outtmpl": str(
+        DOWNLOAD_PATH / "%(id)s.%(ext)s"
+    ),
 
-    "noplaylist":
-        True,
+    # FFmpegでMP3化
+    "postprocessors": [
+        {
+            "key": "FFmpegExtractAudio",
+            "preferredcodec": "mp3",
+            "preferredquality": "192",
+        }
+    ],
 
-    "outtmpl":
-        output_template,
+    # HTTPS / YouTube対策
+    "nocheckcertificate": True,
 
-    "format":
-        "bestaudio/best",
+    # ログ
+    "quiet": False,
+    "no_warnings": False,
 
-    "quiet":
-        False,
+    # プレイリストではなく指定動画のみ
+    "noplaylist": True,
 
-    "no_warnings":
-        False,
+    # リトライ
+    "retries": 5,
+    "fragment_retries": 5,
 
-    "noprogress":
-        True,
+    # タイムアウト
+    "socket_timeout": 30,
 
-    "restrictfilenames":
-        False
+    # EJS
+    "js_runtimes": {
+        "deno": {
+            "path": DENO_PATH,
+        }
+    },
 
+    # YouTubeクライアント
+    "extractor_args": {
+        "youtube": {
+            "player_client": [
+                "web",
+                "web_safari",
+                "android",
+            ],
+        }
+    },
 }
 
-# ======================================================
-# Deno + EJS
-# ======================================================
+# --------------------------------------------------------
+# Cookie
+# --------------------------------------------------------
 
-deno_available = check_deno()
-
-if deno_available:
-
-    options["js_runtimes"] = {
-
-        "deno": {
-
-            "path":
-                DENO_PATH
-
-        }
-
-    }
-
-    options["remote_components"] = {
-
-        "ejs":
-            "github"
-
-    }
-
-    print(
-        "[YTDLP] Deno使用:",
-        DENO_PATH,
-        flush=True
-    )
-
-    print(
-        "[YTDLP] EJS remote component:",
-        "github",
-        flush=True
-    )
-
+if cookie_file:
+    options["cookiefile"] = cookie_file
+    print("[YTDLP] cookiefile:", cookie_file)
 else:
+    print("[YTDLP] cookiefile: 使用なし")
 
-    print(
-        "[YTDLP] Denoなし",
-        flush=True
+# --------------------------------------------------------
+# 時間範囲
+# --------------------------------------------------------
+
+start_seconds = time_to_seconds(start_time)
+end_seconds = time_to_seconds(end_time)
+
+print("[YTDLP] start_seconds:", start_seconds)
+print("[YTDLP] end_seconds:", end_seconds)
+
+if start_seconds is not None:
+    options["download_ranges"] = yt_dlp.utils.download_range_func(
+        None,
+        start_time=start_seconds,
+        end_time=end_seconds,
     )
 
-# ======================================================
-# EJS DEBUG
-# ======================================================
+    options["force_keyframes_at_cuts"] = True
 
-print(
-    "[YTDLP] ===== EJS DEBUG =====",
-    flush=True
-)
+elif end_seconds is not None:
+    options["download_ranges"] = yt_dlp.utils.download_range_func(
+        None,
+        start_time=0,
+        end_time=end_seconds,
+    )
 
-print(
-    "[YTDLP] yt-dlp version:",
-    yt_dlp.version.__version__,
-    flush=True
-)
-
-print(
-    "[YTDLP] Deno available:",
-    deno_available,
-    flush=True
-)
-
-print(
-    "[YTDLP] js_runtimes:",
-    options.get("js_runtimes"),
-    flush=True
-)
-
-print(
-    "[YTDLP] remote_components:",
-    options.get("remote_components"),
-    flush=True
-)
-
-print(
-    "[YTDLP] cookiefile:",
-    cookie_file,
-    flush=True
-)
-
-print(
-    "[YTDLP] =======================",
-    flush=True
-)
+    options["force_keyframes_at_cuts"] = True
 
 return options
 
-==========================================================
-YouTube情報取得
-==========================================================
-def get_video_info(
-url,
-cookie_file
-):
-
-options = get_ydl_options(
-    cookie_file,
-    os.path.join(
-        DOWNLOAD_DIR,
-        "%(id)s.%(ext)s"
-    )
-)
-
-print(
-    "[YTDLP] YouTube情報取得開始",
-    flush=True
-)
-
-with yt_dlp.YoutubeDL(
-    options
-) as ydl:
-
-    info = ydl.extract_info(
-        url,
-        download=False
-    )
-
-if not info:
-
-    raise Exception(
-        "YouTube情報を取得できませんでした"
-    )
-
-print(
-    "[YTDLP] YouTube情報取得完了",
-    flush=True
-)
-
-return info
-
-==========================================================
-YouTube音声ダウンロード
-==========================================================
-def download_audio(
-url,
-cookie_file,
-source_dir,
-start_seconds=None,
-end_seconds=None
-):
-
-os.makedirs(
-    source_dir,
-    exist_ok=True
-)
-
-output_template = os.path.join(
-    source_dir,
-    "source_%(id)s.%(ext)s"
-)
-
-options = get_ydl_options(
-    cookie_file,
-    output_template
-)
-
-# ======================================================
-# 時間範囲
-# ======================================================
-
-if (
-    start_seconds is not None
-    and
-    end_seconds is not None
-):
-
-    if end_seconds <= start_seconds:
-
-        raise Exception(
-            "終了時間は開始時間より後にしてください"
-        )
-
-    options["download_ranges"] = (
-        download_range_func(
-            None,
-            [
-                (
-                    start_seconds,
-                    end_seconds
-                )
-            ]
-        )
-    )
-
-    print(
-        "[YTDLP] download section:",
-        f"{start_seconds}-{end_seconds}",
-        flush=True
-    )
-
-else:
-
-    print(
-        "[YTDLP] download section: FULL",
-        flush=True
-    )
-
-# ======================================================
-# YouTube取得
-# ======================================================
-
-print(
-    "[YTDLP] YouTube取得開始",
-    flush=True
-)
-
-try:
-
-    with yt_dlp.YoutubeDL(
-        options
-    ) as ydl:
-
-        info = ydl.extract_info(
-            url,
-            download=True
-        )
-
-except Exception as error:
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    print(
-        "[YTDLP] yt-dlp ERROR:",
-        repr(error),
-        flush=True
-    )
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    raise
-
-if not info:
-
-    raise Exception(
-        "YouTube音声を取得できませんでした"
-    )
-
-# ======================================================
-# ダウンロードファイル検索
-# ======================================================
-
-files = []
-
-for filename in os.listdir(
-    source_dir
-):
-
-    full_path = os.path.join(
-        source_dir,
-        filename
-    )
-
-    if not os.path.isfile(
-        full_path
-    ):
-
-        continue
-
-    if not filename.startswith(
-        "source_"
-    ):
-
-        continue
-
-    if filename.endswith(
-        ".part"
-    ):
-
-        continue
-
-    if os.path.getsize(
-        full_path
-    ) <= 0:
-
-        continue
-
-    files.append(
-        full_path
-    )
-
-if not files:
-
-    raise Exception(
-        "YouTube音声ファイルが作成されませんでした"
-    )
-
-source_file = max(
-    files,
-    key=os.path.getmtime
-)
-
-print(
-    "==========================================",
-    flush=True
-)
-
-print(
-    "[YTDLP] ダウンロード完了",
-    flush=True
-)
-
-print(
-    "[YTDLP] source:",
-    source_file,
-    flush=True
-)
-
-print(
-    "[YTDLP] size:",
-    os.path.getsize(source_file),
-    "bytes",
-    flush=True
-)
-
-print(
-    "==========================================",
-    flush=True
-)
-
-return source_file, info
-
-==========================================================
-FFmpeg確認
-==========================================================
-def check_ffmpeg():
-
-try:
-
-    result = subprocess.run(
-        [
-            "ffmpeg",
-            "-version"
-        ],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        timeout=10
-    )
-
-    return result.returncode == 0
-
-except Exception:
-
-    return False
-
-==========================================================
+============================================================
 MP3作成
-==========================================================
+============================================================
+
 def create_mp3(
 url,
 start_time=None,
-end_time=None
+end_time=None,
 ):
+"""
+YouTube URLからMP3を作成する。
 
-print(
-    "==========================================",
-    flush=True
+戻り値:
+    作成されたMP3ファイルのパス
+"""
+
+print("==========================================")
+print("[YTDLP] MP3作成開始")
+print("[YTDLP] URL:", url)
+print("[YTDLP] start_time:", start_time)
+print("[YTDLP] end_time:", end_time)
+print("[YTDLP] DOWNLOAD_DIR:", DOWNLOAD_DIR)
+print("[YTDLP] COOKIES_FILE:", COOKIES_FILE)
+print("==========================================")
+
+DOWNLOAD_PATH.mkdir(
+    parents=True,
+    exist_ok=True,
 )
 
-print(
-    "[YTDLP] MP3作成開始",
-    flush=True
-)
+check_deno()
 
-print(
-    "[YTDLP] URL:",
-    url,
-    flush=True
-)
+# --------------------------------------------------------
+# Cookie一時ファイル
+# --------------------------------------------------------
 
-print(
-    "[YTDLP] start_time:",
-    start_time,
-    flush=True
-)
-
-print(
-    "[YTDLP] end_time:",
-    end_time,
-    flush=True
-)
-
-print(
-    "[YTDLP] DOWNLOAD_DIR:",
-    DOWNLOAD_DIR,
-    flush=True
-)
-
-print(
-    "[YTDLP] COOKIES_FILE:",
-    SOURCE_COOKIE_FILE,
-    flush=True
-)
-
-print(
-    "[YTDLP] cookies exists:",
-    os.path.exists(
-        SOURCE_COOKIE_FILE
-    ),
-    flush=True
-)
-
-print(
-    "[YTDLP] Deno:",
-    DENO_PATH,
-    flush=True
-)
-
-print(
-    "[YTDLP] Deno exists:",
-    os.path.isfile(DENO_PATH),
-    flush=True
-)
-
-print(
-    "==========================================",
-    flush=True
-)
-
-# ======================================================
-# URL
-# ======================================================
-
-if not url:
-
-    raise Exception(
-        "YouTube URLが指定されていません"
-    )
-
-url = str(
-    url
-).strip()
-
-# ======================================================
-# FFmpeg
-# ======================================================
-
-if not check_ffmpeg():
-
-    raise Exception(
-        "ffmpegが利用できません"
-    )
-
-# ======================================================
-# 出力ディレクトリ
-# ======================================================
-
-os.makedirs(
-    DOWNLOAD_DIR,
-    exist_ok=True
-)
-
-# ======================================================
-# 時間
-# ======================================================
-
-start_seconds = time_to_seconds(
-    start_time
-)
-
-end_seconds = time_to_seconds(
-    end_time
-)
-
-if (
-    start_seconds is not None
-    and
-    end_seconds is None
-):
-
-    raise Exception(
-        "終了時間を入力してください"
-    )
-
-if (
-    start_seconds is None
-    and
-    end_seconds is not None
-):
-
-    start_seconds = 0
-
-if (
-    start_seconds is not None
-    and
-    end_seconds is not None
-):
-
-    if end_seconds <= start_seconds:
-
-        raise Exception(
-            "終了時間は開始時間より後にしてください"
-        )
-
-temp_cookie = None
-source_dir = None
+temp_cookie_file = create_temp_cookie_file()
 
 try:
+    # ----------------------------------------------------
+    # yt-dlp設定
+    # ----------------------------------------------------
 
-    # ==================================================
-
-    # Cookie
-
-    # ==================================================
-
-    temp_cookie = create_temp_cookie_file()
-
-    # ==================================================
-    # YouTube情報取得
-    # ==================================================
-
-    info = get_video_info(
-        url,
-        temp_cookie
+    ydl_opts = build_ydl_options(
+        cookie_file=temp_cookie_file,
+        start_time=start_time,
+        end_time=end_time,
     )
 
-    # ==================================================
-    # タイトル
-    # ==================================================
+    print("==========================================")
+    print("[YTDLP] yt-dlp実行")
+    print("[YTDLP] version:", yt_dlp.version.__version__)
+    print("[YTDLP] EJS: yt-dlp-ejsを使用")
+    print("[YTDLP] Deno:", DENO_PATH)
+    print("[YTDLP] Cookie:", bool(temp_cookie_file))
+    print("==========================================")
 
-    title = safe_filename(
-        info.get(
-            "title",
-            "youtube"
-        )
-    )
+    # ----------------------------------------------------
+    # 情報取得
+    # ----------------------------------------------------
 
-    print(
-        "[YTDLP] タイトル:",
-        title,
-        flush=True
-    )
+    print("[YTDLP] YouTube情報取得開始")
 
-    # ==================================================
-    # 動画時間
-    # ==================================================
-
-    duration = info.get(
-        "duration"
-    )
-
-    if duration is not None:
-
-        duration = float(
-            duration
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(
+            url,
+            download=False,
         )
 
-    print(
-        "[YTDLP] 動画時間:",
-        duration,
-        flush=True
-    )
+        print("[YTDLP] 情報取得成功")
+        print("[YTDLP] title:", info.get("title"))
+        print("[YTDLP] id:", info.get("id"))
+        print("[YTDLP] extractor:", info.get("extractor"))
 
-    # ==================================================
-    # 時間範囲確認
-    # ======================================================
+        # ------------------------------------------------
+        # ダウンロード
+        # ------------------------------------------------
 
-    if (
-        duration is not None
-        and
-        end_seconds is not None
-        and
-        end_seconds > duration
-    ):
+        print("[YTDLP] ダウンロード開始")
 
-        raise Exception(
-            "終了時間が動画の再生時間を超えています"
+        ydl.download([url])
+
+    # ----------------------------------------------------
+    # MP3検索
+    # ----------------------------------------------------
+
+    video_id = info.get("id")
+
+    if video_id:
+        candidates = [
+            DOWNLOAD_PATH / f"{video_id}.mp3",
+        ]
+    else:
+        candidates = []
+
+    # 念のためディレクトリ内も検索
+    if not candidates:
+        candidates = list(
+            DOWNLOAD_PATH.glob("*.mp3")
         )
 
-    if (
-        duration is not None
-        and
-        start_seconds is not None
-        and
-        start_seconds >= duration
-    ):
+    mp3_file = None
 
-        raise Exception(
-            "開始時間が動画の再生時間を超えています"
+    for candidate in candidates:
+        if candidate.is_file():
+            mp3_file = candidate
+            break
+
+    if mp3_file is None:
+        # 最終確認
+        mp3_files = sorted(
+            DOWNLOAD_PATH.glob("*.mp3"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
         )
 
-    # ==================================================
-    # 一時保存ディレクトリ
-    # ==================================================
+        if mp3_files:
+            mp3_file = mp3_files[0]
 
-    source_dir = tempfile.mkdtemp(
-        prefix="y2conv_source_"
-    )
-
-    print(
-        "[YTDLP] 一時保存先:",
-        source_dir,
-        flush=True
-    )
-
-    # ==================================================
-    # YouTube音声取得
-    # ==================================================
-
-    source_file, downloaded_info = download_audio(
-        url,
-        temp_cookie,
-        source_dir,
-        start_seconds,
-        end_seconds
-    )
-
-    # ==================================================
-    # MP3出力先
-    # ==================================================
-
-    output_file = os.path.join(
-        DOWNLOAD_DIR,
-        title + ".mp3"
-    )
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    print(
-        "[YTDLP] MP3変換開始",
-        flush=True
-    )
-
-    print(
-        "[YTDLP] 入力:",
-        source_file,
-        flush=True
-    )
-
-    print(
-        "[YTDLP] 出力:",
-        output_file,
-        flush=True
-    )
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    # ==================================================
-    # FFmpeg
-    # ==================================================
-
-    command = [
-
-        "ffmpeg",
-
-        "-y",
-
-        "-i",
-        source_file,
-
-        "-vn",
-
-        "-codec:a",
-        "libmp3lame",
-
-        "-b:a",
-        "128k",
-
-        "-map_metadata",
-        "-1",
-
-        output_file
-
-    ]
-
-    print(
-        "[YTDLP] FFmpeg:",
-        command,
-        flush=True
-    )
-
-    try:
-
-        result = subprocess.run(
-            command,
-            stdout=None,
-            stderr=None,
-            timeout=300
-        )
-
-    except subprocess.TimeoutExpired:
-
-        raise Exception(
-            "MP3作成が5分以内に終了しませんでした"
-        )
-
-    print(
-        "[YTDLP] FFmpeg returncode:",
-        result.returncode,
-        flush=True
-    )
-
-    if result.returncode != 0:
-
-        if os.path.exists(
-            output_file
-        ):
-
-            try:
-
-                os.remove(
-                    output_file
-                )
-
-            except Exception:
-
-                pass
-
-        raise Exception(
-            "MP3作成に失敗しました"
-        )
-
-    # ==================================================
-    # MP3確認
-    # ==================================================
-
-    if not os.path.exists(
-        output_file
-    ):
-
-        raise Exception(
+    if mp3_file is None:
+        raise RuntimeError(
             "MP3ファイルが作成されませんでした"
         )
 
-    file_size = os.path.getsize(
-        output_file
-    )
+    print("==========================================")
+    print("[YTDLP] MP3作成成功")
+    print("[YTDLP] file:", str(mp3_file))
+    print("[YTDLP] size:", mp3_file.stat().st_size)
+    print("==========================================")
 
-    if file_size <= 0:
-
-        raise Exception(
-            "MP3ファイルが0 bytesです"
-        )
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    print(
-        "[YTDLP] MP3作成完了",
-        flush=True
-    )
-
-    print(
-        "[YTDLP] filename:",
-        os.path.basename(
-            output_file
-        ),
-        flush=True
-    )
-
-    print(
-        "[YTDLP] path:",
-        output_file,
-        flush=True
-    )
-
-    print(
-        "[YTDLP] size:",
-        file_size,
-        "bytes",
-        flush=True
-    )
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    return {
-        "filename":
-            os.path.basename(output_file),
-
-        "path":
-            output_file,
-
-        "title":
-            title
-    }
+    return str(mp3_file)
 
 finally:
+    # ----------------------------------------------------
+    # 一時Cookie削除
+    # ----------------------------------------------------
 
-    # ==================================================
-
-    # Cookie削除
-
-    # ==================================================
-
-    remove_temp_cookie_file(
-        temp_cookie
-    )
-
-    # ==================================================
-    # 一時音声削除
-    # ==================================================
-
-    if (
-        source_dir
-        and
-        os.path.exists(source_dir)
-    ):
-
+    if temp_cookie_file:
         try:
-
-            shutil.rmtree(
-                source_dir
-            )
-
+            if os.path.exists(temp_cookie_file):
+                os.remove(temp_cookie_file)
+                print(
+                    "[YTDLP] 一時Cookie削除:",
+                    temp_cookie_file,
+                )
+        except Exception as e:
             print(
-                "[YTDLP] 一時ファイル削除:",
-                source_dir,
-                flush=True
+                "[YTDLP] 一時Cookie削除失敗:",
+                repr(e),
             )
 
-        except Exception as error:
+============================================================
+互換用関数
+============================================================
 
-            print(
-                "[YTDLP] 一時ファイル削除失敗:",
-                repr(error),
-                flush=True
-            )
+def download_mp3(
+url,
+start_time=None,
+end_time=None,
+):
+"""
+既存コードがdownload_mp3()を呼んでいる場合の互換用。
+"""
+
+return create_mp3(
+    url=url,
+    start_time=start_time,
+    end_time=end_time,
+)
+
+
+def convert_to_mp3(
+url,
+start_time=None,
+end_time=None,
+):
+"""
+既存コードがconvert_to_mp3()を呼んでいる場合の互換用。
+"""
+
+return create_mp3(
+    url=url,
+    start_time=start_time,
+    end_time=end_time,
+)
+
+============================================================
+直接実行時のテスト
+============================================================
+
+if name == "main":
+
+print("==========================================")
+print("[YTDLP] TEST MODE")
+print("==========================================")
+
+print("Python:", os.sys.version)
+print("yt-dlp:", yt_dlp.version.__version__)
+print("Deno:", DENO_PATH)
+print("Deno exists:", os.path.isfile(DENO_PATH))
+print("Cookie:", COOKIES_FILE)
+print("Cookie exists:", COOKIES_PATH.is_file())
+
+print("==========================================")
+print("[YTDLP] TEST END")
+print("==========================================")
