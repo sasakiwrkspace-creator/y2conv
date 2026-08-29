@@ -2,7 +2,7 @@
 # YouTube Converter
 # ytdlp.py
 #
-# YouTube → MP3変換
+# YouTube → MP3 / MP4変換
 # =====================================
 
 import os
@@ -11,10 +11,61 @@ import tempfile
 
 import yt_dlp
 
+from yt_dlp.utils import download_range_func
+
 from config import (
     DOWNLOAD_DIR,
     COOKIES_FILE
 )
+
+
+# =====================================
+# Deno
+# =====================================
+#
+# Render上で実際に使用していたDeno
+#
+
+DENO_PATH = "/opt/render/project/src/.deno/bin/deno"
+
+
+# =====================================
+# Deno確認
+# =====================================
+
+def check_deno():
+
+    if not os.path.isfile(
+        DENO_PATH
+    ):
+
+        print(
+            "[YTDLP] Denoがありません:",
+            DENO_PATH
+        )
+
+        return False
+
+
+    if not os.access(
+        DENO_PATH,
+        os.X_OK
+    ):
+
+        print(
+            "[YTDLP] Deno実行権限なし:",
+            DENO_PATH
+        )
+
+        return False
+
+
+    print(
+        "[YTDLP] Deno確認OK:",
+        DENO_PATH
+    )
+
+    return True
 
 
 # =====================================
@@ -74,6 +125,14 @@ def create_mp3(
     print(
         "[YTDLP] cookies exists:",
         os.path.isfile(COOKIES_FILE)
+    )
+    print(
+        "[YTDLP] DENO_PATH:",
+        DENO_PATH
+    )
+    print(
+        "[YTDLP] Deno exists:",
+        os.path.isfile(DENO_PATH)
     )
     print("==========================================")
 
@@ -163,12 +222,17 @@ def create_mp3(
             # YouTube EJS Challenge対策
             # =================================
             #
-            # Render上のDenoを明示的に指定
+            # 以前Render上で動作していた設定
             #
 
             "js_runtimes": {
 
-                "deno": {}
+                "deno": {
+
+                    "path":
+                        DENO_PATH
+
+                }
 
             },
 
@@ -176,12 +240,16 @@ def create_mp3(
             # =================================
             # EJS remote component
             # =================================
+            #
+            # 以前動作していたGitHub方式
+            #
 
-            "remote_components": [
+            "remote_components": {
 
-                "ejs:npm"
+                "ejs":
+                    "github"
 
-            ],
+            },
 
 
             # =================================
@@ -232,21 +300,20 @@ def create_mp3(
         # =====================================
 
         # 空文字をNoneとして扱う
+
         if start_time == "":
+
             start_time = None
 
+
         if end_time == "":
+
             end_time = None
 
 
         # =====================================
         # 00:00:00だけの場合は未指定扱い
         # =====================================
-        #
-        # フロントエンドから
-        # end_time=00:00:00
-        # が送られてくるケースを考慮
-        #
 
         if (
             start_time is None
@@ -300,6 +367,16 @@ def create_mp3(
             print(
                 "[YTDLP] download section: FULL"
             )
+
+
+        # =====================================
+        # Deno確認
+        # =====================================
+
+        print(
+            "[YTDLP] Deno:",
+            check_deno()
+        )
 
 
         # =====================================
