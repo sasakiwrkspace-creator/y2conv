@@ -1,964 +1,289 @@
-<!DOCTYPE html>
-<html lang="ja">
+<!DOCTYPE html> <html lang="ja"> <head>
+<meta charset="UTF-8">
 
-<head>
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
-    <meta charset="UTF-8">
+<title>YouTube Converter</title>
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
+<link
+    rel="stylesheet"
+    href="/static/style.css"
+>
+
+</head> <body> <div class="container">
+<!-- =========================================
+     タイトル
+========================================== -->
+
+<h1>
+    YouTube Converter
+</h1>
+
+
+<!-- =========================================
+     ファイル一覧
+========================================== -->
+
+<div>
+
+    <a
+        href="/files"
+        class="converter-link"
     >
-
-    <title>YouTube Converter</title>
-
-    <link
-        rel="stylesheet"
-        href="/static/style.css"
-    >
-
-</head>
-
-
-<body>
-
-<div class="container">
-
-    <!-- =========================================
-         タイトル
-    ========================================== -->
-
-    <h1>
-        YouTube Converter
-    </h1>
-
-
-    <!-- =========================================
-         ファイル一覧
-    ========================================== -->
-
-    <div>
-
-        <a
-            href="/files"
-            class="converter-link"
-        >
-            保存ファイルを確認
-        </a>
-
-    </div>
-
-
-    <!-- =========================================
-         YouTube変換
-    ========================================== -->
-
-    <div class="tab-content active">
-
-        <!-- =====================================
-             説明
-        ====================================== -->
-
-        <div class="tab-title">
-
-            YouTube動画のアドレスを入力
-
-        </div>
-
-
-        <!-- =====================================
-             URL + 実行
-        ====================================== -->
-
-        <div class="url-row">
-
-            <input
-                id="youtube-url"
-                class="url-input"
-                type="text"
-                placeholder="https://www.youtube.com/watch?v=..."
-                autocomplete="off"
-            >
-
-            <button
-                id="convertBtn"
-                class="execute-button"
-                type="button"
-            >
-                実行
-            </button>
-
-        </div>
-
-
-        <!-- =====================================
-             時間指定
-        ====================================== -->
-
-        <div class="time-area">
-
-            <div class="time-label-row">
-
-                <span class="time-title">
-                    開始
-                </span>
-
-                <span class="time-title">
-                    終了
-                </span>
-
-            </div>
-
-
-            <div class="time-input-row">
-
-                <!-- =============================
-                     開始
-                ============================== -->
-
-                <div class="time-group">
-
-                    <input
-                        id="start-hour"
-                        class="time-input"
-                        type="text"
-                        inputmode="numeric"
-                        maxlength="2"
-                        pattern="[0-9]*"
-                        placeholder="00"
-                    >
-
-                    <span class="time-unit">
-                        時
-                    </span>
-
-
-                    <input
-                        id="start-minute"
-                        class="time-input"
-                        type="text"
-                        inputmode="numeric"
-                        maxlength="2"
-                        pattern="[0-9]*"
-                        placeholder="00"
-                    >
-
-                    <span class="time-unit">
-                        分
-                    </span>
-
-
-                    <input
-                        id="start-second"
-                        class="time-input"
-                        type="text"
-                        inputmode="numeric"
-                        maxlength="2"
-                        pattern="[0-9]*"
-                        placeholder="00"
-                    >
-
-                    <span class="time-unit">
-                        秒
-                    </span>
-
-                </div>
-
-
-                <!-- =============================
-                     区切り
-                ============================== -->
-
-                <span class="time-separator">
-                    ～
-                </span>
-
-
-                <!-- =============================
-                     終了
-                ============================== -->
-
-                <div class="time-group">
-
-                    <input
-                        id="end-hour"
-                        class="time-input"
-                        type="text"
-                        inputmode="numeric"
-                        maxlength="2"
-                        pattern="[0-9]*"
-                        placeholder="00"
-                    >
-
-                    <span class="time-unit">
-                        時
-                    </span>
-
-
-                    <input
-                        id="end-minute"
-                        class="time-input"
-                        type="text"
-                        inputmode="numeric"
-                        maxlength="2"
-                        pattern="[0-9]*"
-                        placeholder="00"
-                    >
-
-                    <span class="time-unit">
-                        分
-                    </span>
-
-
-                    <input
-                        id="end-second"
-                        class="time-input"
-                        type="text"
-                        inputmode="numeric"
-                        maxlength="2"
-                        pattern="[0-9]*"
-                        placeholder="00"
-                    >
-
-                    <span class="time-unit">
-                        秒
-                    </span>
-
-                </div>
-
-            </div>
-
-        </div>
-
-
-        <!-- =========================================
-             出力形式
-        ========================================== -->
-
-        <div class="output-format-group">
-
-            <!-- =============================
-                 MP3
-            ============================== -->
-
-            <label class="output-format-option">
-
-                <input
-                    type="radio"
-                    name="output-format"
-                    value="mp3"
-                    checked
-                >
-
-                <span>
-                    mp3
-                </span>
-
-            </label>
-
-
-            <!-- =============================
-                 MP4
-            ============================== -->
-
-            <label class="output-format-option">
-
-                <input
-                    type="radio"
-                    name="output-format"
-                    value="mp4"
-                >
-
-                <span>
-                    mp4
-                </span>
-
-            </label>
-
-        </div>
-
-
-        <!-- =========================================
-             ステータス
-        ========================================== -->
-
-        <div
-            id="status"
-            class="status"
-            aria-live="polite"
-        ></div>
-
-
-        <!-- =========================================
-             ダウンロード結果
-        ========================================== -->
-
-        <div
-            id="downloadArea"
-            class="download-area"
-        ></div>
-
-    </div>
+        保存ファイルを確認
+    </a>
 
 </div>
 
 
 <!-- =========================================
-     JavaScript
-
-     今回はMP3 / MP4の動作確認用。
-     SRT / Gemini / 字幕MP4はまだ使用しない。
+     YouTube変換
 ========================================== -->
 
-<script>
+<div class="tab-content active">
 
-document.addEventListener(
-    "DOMContentLoaded",
-    function () {
+    <!-- =====================================
+         説明
+    ====================================== -->
 
+    <div class="tab-title">
 
-        // =====================================
-        // DOM
-        // =====================================
+        YouTube動画のアドレスを入力
 
-        const convertButton =
-            document.getElementById(
-                "convertBtn"
-            );
+    </div>
 
 
-        const urlInput =
-            document.getElementById(
-                "youtube-url"
-            );
+    <!-- =====================================
+         URL + 実行
+    ====================================== -->
 
+    <div class="url-row">
 
-        const statusElement =
-            document.getElementById(
-                "status"
-            );
+        <input
+            id="youtube-url"
+            class="url-input"
+            type="text"
+            placeholder="https://www.youtube.com/watch?v=..."
+            autocomplete="off"
+        >
 
+        <button
+            id="convertBtn"
+            class="execute-button"
+            type="button"
+        >
+            実行
+        </button>
 
-        const downloadArea =
-            document.getElementById(
-                "downloadArea"
-            );
+    </div>
 
 
-        // =====================================
-        // DOM確認
-        // =====================================
+    <!-- =====================================
+         時間指定
+    ====================================== -->
 
-        console.log(
-            "[INDEX] index.html initialized"
-        );
+    <div class="time-area">
 
+        <div class="time-label-row">
 
-        console.log(
-            "[INDEX] convertButton:",
-            convertButton
-        );
+            <span class="time-title">
+                開始
+            </span>
 
+            <span class="time-title">
+                終了
+            </span>
 
-        console.log(
-            "[INDEX] urlInput:",
-            urlInput
-        );
+        </div>
 
 
-        // =====================================
-        // ラジオボタン確認
-        // =====================================
+        <div class="time-input-row">
 
-        const outputTypeInputs =
-            document.querySelectorAll(
-                'input[name="output-format"]'
-            );
+            <!-- =============================
+                 開始
+            ============================== -->
 
+            <div class="time-group">
 
-        console.log(
-            "[INDEX] output format radio buttons:",
-            outputTypeInputs
-        );
+                <input
+                    id="start-hour"
+                    class="time-input"
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="2"
+                    pattern="[0-9]*"
+                    placeholder="00"
+                >
 
+                <span class="time-unit">
+                    時
+                </span>
 
-        outputTypeInputs.forEach(
-            function (input) {
 
-                console.log(
-                    "[INDEX] output format option:",
-                    input.value
-                );
+                <input
+                    id="start-minute"
+                    class="time-input"
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="2"
+                    pattern="[0-9]*"
+                    placeholder="00"
+                >
 
-            }
-        );
+                <span class="time-unit">
+                    分
+                </span>
 
 
-        // =====================================
-        // 数字入力
-        // =====================================
+                <input
+                    id="start-second"
+                    class="time-input"
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="2"
+                    pattern="[0-9]*"
+                    placeholder="00"
+                >
 
-        const timeInputs =
-            document.querySelectorAll(
-                ".time-input"
-            );
+                <span class="time-unit">
+                    秒
+                </span>
 
+            </div>
 
-        timeInputs.forEach(
-            function (input) {
 
-                input.addEventListener(
-                    "input",
-                    function () {
+            <!-- =============================
+                 区切り
+            ============================== -->
 
-                        this.value =
-                            this.value.replace(
-                                /[^0-9]/g,
-                                ""
-                            );
+            <span class="time-separator">
+                ～
+            </span>
 
-                    }
-                );
 
-            }
-        );
+            <!-- =============================
+                 終了
+            ============================== -->
 
+            <div class="time-group">
 
-        // =====================================
-        // 時間取得
-        // =====================================
+                <input
+                    id="end-hour"
+                    class="time-input"
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="2"
+                    pattern="[0-9]*"
+                    placeholder="00"
+                >
 
-        function getTime(
-            hourId,
-            minuteId,
-            secondId
-        ) {
+                <span class="time-unit">
+                    時
+                </span>
 
-            const hourElement =
-                document.getElementById(
-                    hourId
-                );
 
+                <input
+                    id="end-minute"
+                    class="time-input"
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="2"
+                    pattern="[0-9]*"
+                    placeholder="00"
+                >
 
-            const minuteElement =
-                document.getElementById(
-                    minuteId
-                );
+                <span class="time-unit">
+                    分
+                </span>
 
 
-            const secondElement =
-                document.getElementById(
-                    secondId
-                );
+                <input
+                    id="end-second"
+                    class="time-input"
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="2"
+                    pattern="[0-9]*"
+                    placeholder="00"
+                >
 
+                <span class="time-unit">
+                    秒
+                </span>
 
-            const hour =
-                hourElement
-                    ? hourElement.value.trim()
-                    : "";
+            </div>
 
+        </div>
 
-            const minute =
-                minuteElement
-                    ? minuteElement.value.trim()
-                    : "";
+    </div>
 
 
-            const second =
-                secondElement
-                    ? secondElement.value.trim()
-                    : "";
+    <!-- =========================================
+         出力形式
+    ========================================== -->
 
+    <div class="output-format-group">
 
-            // =================================
-            // 全部空欄
-            // =================================
+        <!-- MP3 -->
 
-            if (
-                !hour &&
-                !minute &&
-                !second
-            ) {
+        <label class="output-format-option">
 
-                return null;
+            <input
+                type="radio"
+                name="output-format"
+                value="mp3"
+                checked
+            >
 
-            }
+            <span>
+                mp3
+            </span>
 
+        </label>
 
-            return (
 
-                String(
-                    hour || "0"
-                ).padStart(2, "0")
+        <!-- MP4 -->
 
-                + ":"
+        <label class="output-format-option">
 
-                + String(
-                    minute || "0"
-                ).padStart(2, "0")
+            <input
+                type="radio"
+                name="output-format"
+                value="mp4"
+            >
 
-                + ":"
+            <span>
+                mp4
+            </span>
 
-                + String(
-                    second || "0"
-                ).padStart(2, "0")
+        </label>
 
-            );
+    </div>
 
-        }
 
+    <!-- =========================================
+         ステータス
+    ========================================== -->
 
-        // =====================================
-        // 実行ボタン
-        // =====================================
+    <div
+        id="status"
+        class="status"
+        aria-live="polite"
+    ></div>
 
-        if (!convertButton) {
 
-            console.error(
-                "[INDEX] convertBtn がありません"
-            );
+    <!-- =========================================
+         ダウンロード結果
+    ========================================== -->
 
-            return;
+    <div
+        id="downloadArea"
+        class="download-area"
+    ></div>
 
-        }
+</div>
 
-
-        convertButton.addEventListener(
-            "click",
-            async function () {
-
-                console.log(
-                    "[INDEX] 実行ボタンが押されました"
-                );
-
-
-                // =================================
-                // URL
-                // =================================
-
-                const url =
-                    urlInput
-                        ? urlInput.value.trim()
-                        : "";
-
-
-                if (!url) {
-
-                    statusElement.textContent =
-                        "YouTube URLを入力してください。";
-
-                    return;
-
-                }
-
-
-                // =================================
-                // 出力形式取得
-                // =================================
-
-                const selectedOutput =
-                    document.querySelector(
-                        'input[name="output-format"]:checked'
-                    );
-
-
-                if (!selectedOutput) {
-
-                    console.error(
-                        "[INDEX] 出力形式が選択されていません"
-                    );
-
-
-                    statusElement.textContent =
-                        "出力形式を選択してください。";
-
-                    return;
-
-                }
-
-
-                const outputType =
-                    selectedOutput.value;
-
-
-                console.log(
-                    "[INDEX] output_type:",
-                    outputType
-                );
-
-
-                // =================================
-                // 時間
-                // =================================
-
-                const startTime =
-                    getTime(
-                        "start-hour",
-                        "start-minute",
-                        "start-second"
-                    );
-
-
-                const endTime =
-                    getTime(
-                        "end-hour",
-                        "end-minute",
-                        "end-second"
-                    );
-
-
-                console.log(
-                    "[INDEX] URL:",
-                    url
-                );
-
-
-                console.log(
-                    "[INDEX] start_time:",
-                    startTime
-                );
-
-
-                console.log(
-                    "[INDEX] end_time:",
-                    endTime
-                );
-
-
-                console.log(
-                    "[INDEX] output_type:",
-                    outputType
-                );
-
-
-                // =================================
-                // 結果クリア
-                // =================================
-
-                downloadArea.innerHTML =
-                    "";
-
-
-                // =================================
-                // ボタン無効化
-                // =================================
-
-                convertButton.disabled =
-                    true;
-
-
-                // =================================
-                // ステータス
-                // =================================
-
-                if (outputType === "mp4") {
-
-                    statusElement.textContent =
-                        "MP4を作成しています・・・";
-
-                }
-                else {
-
-                    statusElement.textContent =
-                        "MP3を作成しています・・・";
-
-                }
-
-
-                // =================================
-                // /convert
-                // =================================
-
-                try {
-
-                    console.log(
-                        "=========================================="
-                    );
-
-
-                    console.log(
-                        "[INDEX] /convert 呼び出し"
-                    );
-
-
-                    console.log(
-                        "[INDEX] request output_type:",
-                        outputType
-                    );
-
-
-                    console.log(
-                        "=========================================="
-                    );
-
-
-                    const response =
-                        await fetch(
-                            "/convert",
-                            {
-
-                                method:
-                                    "POST",
-
-                                headers: {
-
-                                    "Content-Type":
-                                        "application/json"
-
-                                },
-
-                                body:
-                                    JSON.stringify({
-
-                                        // =====================
-                                        // YouTube URL
-                                        // =====================
-
-                                        url:
-                                            url,
-
-
-                                        // =====================
-                                        // 出力形式
-                                        // =====================
-
-                                        output_type:
-                                            outputType,
-
-
-                                        // =====================
-                                        // 開始時間
-                                        // =====================
-
-                                        start_time:
-                                            startTime,
-
-
-                                        // =====================
-                                        // 終了時間
-                                        // =====================
-
-                                        end_time:
-                                            endTime
-
-                                    })
-
-                            }
-                        );
-
-
-                    console.log(
-                        "[INDEX] response status:",
-                        response.status
-                    );
-
-
-                    // =================================
-                    // JSON
-                    // =================================
-
-                    let data;
-
-
-                    try {
-
-                        data =
-                            await response.json();
-
-                    }
-                    catch (jsonError) {
-
-                        console.error(
-                            "[INDEX] JSON parse error:",
-                            jsonError
-                        );
-
-
-                        throw new Error(
-                            "サーバーからJSONを取得できませんでした。"
-                        );
-
-                    }
-
-
-                    console.log(
-                        "[INDEX] response data:",
-                        data
-                    );
-
-
-                    // =================================
-                    // エラー
-                    // =================================
-
-                    if (
-                        !response.ok ||
-                        !data.success
-                    ) {
-
-                        throw new Error(
-
-                            data.message ||
-
-                            (
-                                outputType === "mp4"
-                                    ? "MP4作成に失敗しました。"
-                                    : "MP3作成に失敗しました。"
-                            )
-
-                        );
-
-                    }
-
-
-                    // =================================
-                    // ファイル名確認
-                    // =================================
-
-                    if (!data.filename) {
-
-                        throw new Error(
-
-                            outputType === "mp4"
-                                ? "MP4ファイル名が返されませんでした。"
-                                : "MP3ファイル名が返されませんでした。"
-
-                        );
-
-                    }
-
-
-                    // =================================
-                    // 成功
-                    // =================================
-
-                    if (outputType === "mp4") {
-
-                        statusElement.textContent =
-                            "MP4の作成が完了しました。";
-
-                    }
-                    else {
-
-                        statusElement.textContent =
-                            "MP3の作成が完了しました。";
-
-                    }
-
-
-                    console.log(
-                        "[INDEX] 作成成功:",
-                        data.filename
-                    );
-
-
-                    // =================================
-                    // ダウンロードボタン
-                    // =================================
-
-                    const link =
-                        document.createElement(
-                            "a"
-                        );
-
-
-                    link.href =
-                        "/download/" +
-                        encodeURIComponent(
-                            data.filename
-                        );
-
-
-                    link.download =
-                        data.filename;
-
-
-                    link.className =
-                        "download-button";
-
-
-                    // =================================
-                    // ボタン表示
-                    // =================================
-
-                    if (outputType === "mp4") {
-
-                        link.textContent =
-                            "[mp4]";
-
-                    }
-                    else {
-
-                        link.textContent =
-                            "[mp3]";
-
-                    }
-
-
-                    downloadArea.appendChild(
-                        link
-                    );
-
-
-                    console.log(
-                        "[INDEX] ダウンロードボタン追加:",
-                        outputType,
-                        data.filename
-                    );
-
-                }
-                catch (error) {
-
-                    console.error(
-                        "[INDEX] 変換エラー:",
-                        error
-                    );
-
-
-                    statusElement.textContent =
-
-                        (
-                            outputType === "mp4"
-                                ? "MP4作成中にエラーが発生しました。\n"
-                                : "MP3作成中にエラーが発生しました。\n"
-                        )
-
-                        +
-
-                        error.message;
-
-                }
-                finally {
-
-                    // =============================
-                    // ボタン復帰
-                    // =============================
-
-                    convertButton.disabled =
-                        false;
-
-
-                    console.log(
-                        "[INDEX] 処理終了"
-                    );
-
-
-                    console.log(
-                        "=========================================="
-                    );
-
-                }
-
-            }
-        );
-
-
-    }
-);
-
-</script>
-
-
-</body>
-
-</html>
+</div> <script> document.addEventListener( "DOMContentLoaded", function () { // ===================================== // DOM // ===================================== const convertButton = document.getElementById( "convertBtn" ); const urlInput = document.getElementById( "youtube-url" ); const statusElement = document.getElementById( "status" ); const downloadArea = document.getElementById( "downloadArea" ); // ===================================== // DOM確認 // ===================================== console.log( "[INDEX] index.html initialized" ); console.log( "[INDEX] convertButton:", convertButton ); console.log( "[INDEX] urlInput:", urlInput ); // ===================================== // 数字入力 // ===================================== const timeInputs = document.querySelectorAll( ".time-input" ); timeInputs.forEach( function (input) { input.addEventListener( "input", function () { this.value = this.value.replace( /[^0-9]/g, "" ); } );
