@@ -1,22 +1,7 @@
-# =====================================
-# YouTube Converter
-# routes/convert.py
-#
-# 役割:
-# ・/convert の受付
-# ・YouTube URLの受け取り
-# ・converter_ytdlp.pyへMP3作成を依頼
-# ・作成結果をJSONで返す
-# =====================================
-
 from flask import request, jsonify
 
 from ytdlp import create_mp3
 
-
-# =====================================
-# Routes登録
-# =====================================
 
 def register_convert(app):
 
@@ -26,15 +11,11 @@ def register_convert(app):
     )
     def convert():
 
-        print("==========================================")
-        print("[CONVERT] /convert 呼び出し")
-        print("==========================================")
+        print("==========================================", flush=True)
+        print("[CONVERT] /convert 呼び出し", flush=True)
+        print("==========================================", flush=True)
 
         try:
-
-            # =================================
-            # JSON取得
-            # =================================
 
             data = request.get_json(
                 silent=True
@@ -54,22 +35,21 @@ def register_convert(app):
 
             print(
                 "[CONVERT] URL:",
-                url
+                url,
+                flush=True
             )
 
             print(
                 "[CONVERT] start_time:",
-                start_time
+                start_time,
+                flush=True
             )
 
             print(
                 "[CONVERT] end_time:",
-                end_time
+                end_time,
+                flush=True
             )
-
-            # =================================
-            # URL確認
-            # =================================
 
             if not url:
 
@@ -79,28 +59,22 @@ def register_convert(app):
                         "YouTube URLが指定されていません。"
                 }), 400
 
-            # =================================
-            # MP3作成
-            # =================================
-
             print(
-                "[CONVERT] MP3作成開始"
+                "[CONVERT] MP3作成開始",
+                flush=True
             )
 
             result = create_mp3(
-                url,
+                url=url,
                 start_time=start_time,
                 end_time=end_time
             )
 
             print(
                 "[CONVERT] MP3作成完了:",
-                result
+                result,
+                flush=True
             )
-
-            # =================================
-            # 結果確認
-            # =================================
 
             if not result:
 
@@ -110,10 +84,6 @@ def register_convert(app):
                         "MP3作成結果を取得できませんでした。"
                 }), 500
 
-            # =================================
-            # JSON返却
-            # =================================
-
             return jsonify({
                 "success": True,
                 "filename":
@@ -122,14 +92,21 @@ def register_convert(app):
 
         except Exception as error:
 
-            print("==========================================")
+            print(
+                "==========================================",
+                flush=True
+            )
 
             print(
                 "[CONVERT] エラー:",
-                error
+                repr(error),
+                flush=True
             )
 
-            print("==========================================")
+            print(
+                "==========================================",
+                flush=True
+            )
 
             return jsonify({
                 "success": False,
