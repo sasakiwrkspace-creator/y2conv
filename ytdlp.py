@@ -37,24 +37,18 @@ else:
 
 # ==========================================================
 # Deno
+#
+# Dockerfileでは /root/.deno/bin/deno にインストールしている
 # ==========================================================
 
-DENO_PATH = os.path.join(
-    BASE_DIR,
-    ".deno",
-    "bin",
-    "deno"
-)
+DENO_PATH = "/root/.deno/bin/deno"
 
 
 # ==========================================================
 # 起動時確認
 # ==========================================================
 
-print(
-    "==========================================",
-    flush=True
-)
+print("==========================================", flush=True)
 
 print(
     "[YTDLP] 設定",
@@ -62,49 +56,42 @@ print(
 )
 
 print(
-    "BASE_DIR:",
+    "[YTDLP] BASE_DIR:",
     BASE_DIR,
     flush=True
 )
 
 print(
-    "DOWNLOAD_DIR:",
+    "[YTDLP] DOWNLOAD_DIR:",
     DOWNLOAD_DIR,
     flush=True
 )
 
 print(
-    "COOKIES_FILE:",
+    "[YTDLP] COOKIES_FILE:",
     SOURCE_COOKIE_FILE,
     flush=True
 )
 
 print(
-    "cookies exists:",
-    os.path.exists(
-        SOURCE_COOKIE_FILE
-    ),
+    "[YTDLP] cookies exists:",
+    os.path.exists(SOURCE_COOKIE_FILE),
     flush=True
 )
 
 print(
-    "Deno:",
+    "[YTDLP] Deno:",
     DENO_PATH,
     flush=True
 )
 
 print(
-    "Deno exists:",
-    os.path.exists(
-        DENO_PATH
-    ),
+    "[YTDLP] Deno exists:",
+    os.path.isfile(DENO_PATH),
     flush=True
 )
 
-print(
-    "==========================================",
-    flush=True
-)
+print("==========================================", flush=True)
 
 
 # ==========================================================
@@ -149,9 +136,7 @@ def create_temp_cookie_file():
             dir="/tmp"
         )
 
-        os.close(
-            fd
-        )
+        os.close(fd)
 
         shutil.copyfile(
             SOURCE_COOKIE_FILE,
@@ -171,19 +156,12 @@ def create_temp_cookie_file():
         if (
             temp_cookie
             and
-            os.path.exists(
-                temp_cookie
-            )
+            os.path.exists(temp_cookie)
         ):
 
             try:
-
-                os.remove(
-                    temp_cookie
-                )
-
+                os.remove(temp_cookie)
             except Exception:
-
                 pass
 
         raise
@@ -200,9 +178,7 @@ def remove_temp_cookie_file(
     if (
         cookie_file
         and
-        os.path.exists(
-            cookie_file
-        )
+        os.path.exists(cookie_file)
     ):
 
         try:
@@ -236,6 +212,12 @@ def check_deno():
         DENO_PATH
     ):
 
+        print(
+            "[YTDLP] Denoがありません:",
+            DENO_PATH,
+            flush=True
+        )
+
         return False
 
     if not os.access(
@@ -243,21 +225,19 @@ def check_deno():
         os.X_OK
     ):
 
+        print(
+            "[YTDLP] Deno実行権限がありません:",
+            DENO_PATH,
+            flush=True
+        )
+
         return False
 
     return True
 
 
 # ==========================================================
-# 時間文字列を秒へ変換
-#
-# 対応:
-#
-# 10
-# 1:30
-# 01:30
-# 1:02:30
-# 00:00:10
+# 時間を秒へ変換
 # ==========================================================
 
 def time_to_seconds(
@@ -280,10 +260,6 @@ def time_to_seconds(
 
     try:
 
-        # --------------------------------------------------
-        # 秒
-        # --------------------------------------------------
-
         if len(parts) == 1:
 
             seconds = float(
@@ -291,14 +267,9 @@ def time_to_seconds(
             )
 
             if seconds < 0:
-
                 raise ValueError
 
             return seconds
-
-        # --------------------------------------------------
-        # 分:秒
-        # --------------------------------------------------
 
         if len(parts) == 2:
 
@@ -322,10 +293,6 @@ def time_to_seconds(
                 minutes * 60
                 + seconds
             )
-
-        # --------------------------------------------------
-        # 時:分:秒
-        # --------------------------------------------------
 
         if len(parts) == 3:
 
@@ -430,6 +397,9 @@ def get_ydl_options(
         "outtmpl":
             output_template,
 
+        "format":
+            "bestaudio/best",
+
         "quiet":
             False,
 
@@ -440,16 +410,13 @@ def get_ydl_options(
             True,
 
         "restrictfilenames":
-            False,
-
-        "format":
-            "bestaudio/best"
+            False
 
     }
 
 
     # ======================================================
-    # Deno
+    # Deno + EJS
     # ======================================================
 
     if check_deno():
@@ -498,22 +465,18 @@ def get_video_info(
     cookie_file
 ):
 
-    output_template = os.path.join(
-        DOWNLOAD_DIR,
-        "%(id)s.%(ext)s"
-    )
-
     options = get_ydl_options(
         cookie_file,
-        output_template
+        os.path.join(
+            DOWNLOAD_DIR,
+            "%(id)s.%(ext)s"
+        )
     )
-
 
     print(
         "[YTDLP] YouTube情報取得開始",
         flush=True
     )
-
 
     with yt_dlp.YoutubeDL(
         options
@@ -524,19 +487,16 @@ def get_video_info(
             download=False
         )
 
-
     if not info:
 
         raise Exception(
             "YouTube情報を取得できませんでした"
         )
 
-
     print(
         "[YTDLP] YouTube情報取得完了",
         flush=True
     )
-
 
     return info
 
@@ -558,12 +518,10 @@ def download_audio(
         exist_ok=True
     )
 
-
     output_template = os.path.join(
         source_dir,
         "source_%(id)s.%(ext)s"
     )
-
 
     options = get_ydl_options(
         cookie_file,
@@ -586,7 +544,6 @@ def download_audio(
                 "終了時間は開始時間より後にしてください"
             )
 
-
         options["download_ranges"] = (
             download_range_func(
                 None,
@@ -598,7 +555,6 @@ def download_audio(
                 ]
             )
         )
-
 
         print(
             "[YTDLP] download section:",
@@ -614,11 +570,14 @@ def download_audio(
         )
 
 
+    # ======================================================
+    # YouTube取得
+    # ======================================================
+
     print(
         "[YTDLP] YouTube取得開始",
         flush=True
     )
-
 
     try:
 
@@ -665,7 +624,6 @@ def download_audio(
 
     files = []
 
-
     for filename in os.listdir(
         source_dir
     ):
@@ -675,13 +633,11 @@ def download_audio(
             filename
         )
 
-
         if not os.path.isfile(
             full_path
         ):
 
             continue
-
 
         if not filename.startswith(
             "source_"
@@ -689,20 +645,17 @@ def download_audio(
 
             continue
 
-
         if filename.endswith(
             ".part"
         ):
 
             continue
 
-
         if os.path.getsize(
             full_path
         ) <= 0:
 
             continue
-
 
         files.append(
             full_path
@@ -740,9 +693,7 @@ def download_audio(
 
     print(
         "[YTDLP] size:",
-        os.path.getsize(
-            source_file
-        ),
+        os.path.getsize(source_file),
         "bytes",
         flush=True
     )
@@ -774,9 +725,7 @@ def check_ffmpeg():
             timeout=10
         )
 
-        return (
-            result.returncode == 0
-        )
+        return result.returncode == 0
 
     except Exception:
 
@@ -786,7 +735,7 @@ def check_ffmpeg():
 # ==========================================================
 # MP3作成
 #
-# YouTube URLを直接受け取る
+# URLを直接受け取る
 # ==========================================================
 
 def create_mp3(
@@ -844,13 +793,27 @@ def create_mp3(
     )
 
     print(
+        "[YTDLP] Deno:",
+        DENO_PATH,
+        flush=True
+    )
+
+    print(
+        "[YTDLP] Deno exists:",
+        os.path.isfile(
+            DENO_PATH
+        ),
+        flush=True
+    )
+
+    print(
         "==========================================",
         flush=True
     )
 
 
     # ======================================================
-    # URL確認
+    # URL
     # ======================================================
 
     if not url:
@@ -860,8 +823,13 @@ def create_mp3(
         )
 
 
+    url = str(
+        url
+    ).strip()
+
+
     # ======================================================
-    # FFmpeg確認
+    # FFmpeg
     # ======================================================
 
     if not check_ffmpeg():
@@ -882,7 +850,7 @@ def create_mp3(
 
 
     # ======================================================
-    # 時間変換
+    # 時間
     # ======================================================
 
     start_seconds = time_to_seconds(
@@ -893,10 +861,6 @@ def create_mp3(
         end_time
     )
 
-
-    # ======================================================
-    # 時間チェック
-    # ======================================================
 
     if (
         start_seconds is not None
@@ -910,7 +874,6 @@ def create_mp3(
 
     # ======================================================
     # 終了時間だけ指定
-    #
     # 00:00:00 ～ end
     # ======================================================
 
@@ -921,10 +884,6 @@ def create_mp3(
 
         start_seconds = 0
 
-
-    # ======================================================
-    # 開始・終了両方
-    # ======================================================
 
     if (
         start_seconds is not None
@@ -939,7 +898,6 @@ def create_mp3(
 
 
     temp_cookie = None
-
     source_dir = None
 
 
@@ -949,9 +907,7 @@ def create_mp3(
         # Cookie
         # ==================================================
 
-        temp_cookie = (
-            create_temp_cookie_file()
-        )
+        temp_cookie = create_temp_cookie_file()
 
 
         # ==================================================
@@ -1008,30 +964,28 @@ def create_mp3(
 
         # ==================================================
         # 時間範囲確認
-        # ======================================================
+        # ==================================================
 
         if (
             duration is not None
             and end_seconds is not None
+            and end_seconds > duration
         ):
 
-            if end_seconds > duration:
-
-                raise Exception(
-                    "終了時間が動画の再生時間を超えています"
-                )
+            raise Exception(
+                "終了時間が動画の再生時間を超えています"
+            )
 
 
         if (
             duration is not None
             and start_seconds is not None
+            and start_seconds >= duration
         ):
 
-            if start_seconds >= duration:
-
-                raise Exception(
-                    "開始時間が動画の再生時間を超えています"
-                )
+            raise Exception(
+                "開始時間が動画の再生時間を超えています"
+            )
 
 
         # ==================================================
@@ -1054,14 +1008,12 @@ def create_mp3(
         # YouTube音声取得
         # ==================================================
 
-        source_file, downloaded_info = (
-            download_audio(
-                url,
-                temp_cookie,
-                source_dir,
-                start_seconds,
-                end_seconds
-            )
+        source_file, downloaded_info = download_audio(
+            url,
+            temp_cookie,
+            source_dir,
+            start_seconds,
+            end_seconds
         )
 
 
@@ -1105,6 +1057,9 @@ def create_mp3(
 
         # ==================================================
         # FFmpeg
+        #
+        # yt-dlp側ですでに時間範囲を指定しているので、
+        # ここでは -ss / -t を使わない。
         # ==================================================
 
         command = [
@@ -1142,15 +1097,10 @@ def create_mp3(
         try:
 
             result = subprocess.run(
-
                 command,
-
                 stdout=None,
-
                 stderr=None,
-
                 timeout=300
-
             )
 
         except subprocess.TimeoutExpired:
@@ -1174,15 +1124,11 @@ def create_mp3(
             ):
 
                 try:
-
                     os.remove(
                         output_file
                     )
-
                 except Exception:
-
                     pass
-
 
             raise Exception(
                 "MP3作成に失敗しました"
@@ -1252,25 +1198,16 @@ def create_mp3(
 
 
         return {
-
-            "filename":
-                os.path.basename(
-                    output_file
-                ),
-
-            "path":
-                output_file,
-
-            "title":
-                title
-
+            "filename": os.path.basename(output_file),
+            "path": output_file,
+            "title": title
         }
 
 
     finally:
 
         # ==================================================
-        # 一時Cookie削除
+        # Cookie削除
         # ==================================================
 
         remove_temp_cookie_file(
@@ -1285,9 +1222,7 @@ def create_mp3(
         if (
             source_dir
             and
-            os.path.exists(
-                source_dir
-            )
+            os.path.exists(source_dir)
         ):
 
             try:
