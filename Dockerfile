@@ -5,7 +5,6 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-
 # ==========================================
 # OSパッケージ
 # ==========================================
@@ -14,9 +13,9 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     ffmpeg \
     curl \
+    unzip \
     ca-certificates && \
     rm -rf /var/lib/apt/lists/*
-
 
 # ==========================================
 # Deno
@@ -25,7 +24,6 @@ RUN apt-get update && \
 RUN curl -fsSL https://deno.land/install.sh | sh
 
 ENV PATH="/root/.deno/bin:${PATH}"
-
 
 # ==========================================
 # Python dependencies
@@ -36,16 +34,14 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-
 # ==========================================
 # アプリ
 # ==========================================
 
 COPY . .
 
-
 # ==========================================
-# 起動
+# 実行環境確認 + 起動
 # ==========================================
 
-CMD ["gunicorn", "--bind", "0.0.0.0:10000", "--timeout", "1800", "app:app"]
+CMD ["sh", "-c", "echo '===== ENVIRONMENT =====' && python --version && pip show yt-dlp && echo '===== DENO =====' && /root/.deno/bin/deno --version && echo '===== FFMPEG =====' && ffmpeg -version | head -n 1 && echo '===== APP =====' && pwd && ls -la && echo '========================' && gunicorn --bind 0.0.0.0:10000 app:app"]
