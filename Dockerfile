@@ -15,12 +15,14 @@ RUN apt-get update && \
     ffmpeg \
     curl \
     unzip \
-    ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 
 # ==========================================================
 # Deno
+#
+# yt-dlp の JavaScript challenge 対策
 # ==========================================================
 
 RUN curl -fsSL https://deno.land/install.sh | sh
@@ -46,31 +48,43 @@ COPY . .
 
 
 # ==========================================================
-# 起動前の環境確認 + Gunicorn
+# 起動前確認
+#
+# ここで以下を確認する
+# - Python
+# - yt-dlp
+# - yt-dlp-ejs
+# - Deno
+# - FFmpeg
+# - ファイル配置
 # ==========================================================
 
 CMD ["sh", "-c", "\
 echo '==========================================' && \
-echo 'DOCKER ENVIRONMENT' && \
+echo 'ENVIRONMENT' && \
 echo '==========================================' && \
-echo 'Python:' && \
 python --version && \
+echo '' && \
 echo '------------------------------------------' && \
 echo 'yt-dlp:' && \
-pip show yt-dlp && \
-echo '------------------------------------------' && \
+yt-dlp --version && \
+echo '' && \
 echo 'yt-dlp-ejs:' && \
-pip show yt-dlp-ejs && \
+pip show yt-dlp-ejs || true && \
+echo '' && \
 echo '------------------------------------------' && \
 echo 'Deno:' && \
 /root/.deno/bin/deno --version && \
+echo '' && \
 echo '------------------------------------------' && \
 echo 'FFmpeg:' && \
 ffmpeg -version | head -n 1 && \
+echo '' && \
 echo '------------------------------------------' && \
 echo 'APP:' && \
 pwd && \
 ls -la && \
+echo '' && \
 echo '==========================================' && \
 echo 'Starting Gunicorn...' && \
 echo '==========================================' && \
