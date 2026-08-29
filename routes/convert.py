@@ -1,6 +1,6 @@
 from flask import request, jsonify
 
-from ytdlp import create_mp3
+from ytdlp import create_mp3, create_mp4
 
 
 def register_convert(app):
@@ -21,10 +21,25 @@ def register_convert(app):
                 silent=True
             ) or {}
 
+            print(
+                "[CONVERT] request data:",
+                data,
+                flush=True
+            )
+
             url = data.get("url")
 
             start_time = data.get("start_time")
             end_time = data.get("end_time")
+
+            # ★ ラジオボタンから送られる値
+            # 例:
+            # "mp3"
+            # "mp4"
+            output_type = data.get(
+                "output_type",
+                "mp3"
+            )
 
             print(
                 "[CONVERT] URL:",
@@ -44,6 +59,12 @@ def register_convert(app):
                 flush=True
             )
 
+            print(
+                "[CONVERT] output_type:",
+                output_type,
+                flush=True
+            )
+
             if not url:
 
                 return jsonify({
@@ -51,33 +72,101 @@ def register_convert(app):
                     "message": "YouTube URLが指定されていません。"
                 }), 400
 
-            print(
-                "[CONVERT] MP3作成開始",
-                flush=True
-            )
+            # ==========================================
+            # MP3
+            # ==========================================
 
-            result = create_mp3(
-                url,
-                start_time=start_time,
-                end_time=end_time
-            )
+            if output_type == "mp3":
 
-            print(
-                "[CONVERT] MP3作成完了:",
-                result,
-                flush=True
-            )
+                print(
+                    "[CONVERT] MP3作成開始",
+                    flush=True
+                )
 
-            if not result:
+                result = create_mp3(
+                    url,
+                    start_time=start_time,
+                    end_time=end_time
+                )
+
+                print(
+                    "[CONVERT] MP3作成完了:",
+                    result,
+                    flush=True
+                )
+
+            # ==========================================
+            # MP4
+            # ==========================================
+
+            elif output_type == "mp4":
+
+                print(
+                    "[CONVERT] MP4作成開始",
+                    flush=True
+                )
+
+                result = create_mp4(
+                    url
+                )
+
+                print(
+                    "[CONVERT] MP4作成完了:",
+                    result,
+                    flush=True
+                )
+
+            else:
+
+                print(
+                    "[CONVERT] 未対応のoutput_type:",
+                    output_type,
+                    flush=True
+                )
 
                 return jsonify({
                     "success": False,
-                    "message": "MP3作成結果を取得できませんでした。"
+                    "message": (
+                        "未対応の出力形式です: "
+                        + str(output_type)
+                    )
+                }), 400
+
+            # ==========================================
+            # 結果確認
+            # ==========================================
+
+            if not result:
+
+                print(
+                    "[CONVERT] 結果が空です",
+                    flush=True
+                )
+
+                return jsonify({
+                    "success": False,
+                    "message": "ファイル作成結果を取得できませんでした。"
                 }), 500
+
+            print(
+                "[CONVERT] result:",
+                repr(result),
+                flush=True
+            )
+
+            print(
+                "[CONVERT] result type:",
+                type(result).__name__,
+                flush=True
+            )
+
+            # ==========================================
+            # ファイルパスをそのまま返す
+            # ==========================================
 
             return jsonify({
                 "success": True,
-                "filename": result["filename"]
+                "filename": result
             })
 
         except Exception as error:
@@ -92,6 +181,16 @@ def register_convert(app):
                 repr(error),
                 flush=True
             )
+
+            print(
+                "[CONVERT] exception type:",
+                type(error).__name__,
+                flush=True
+            )
+
+            import traceback
+
+            traceback.print_exc()
 
             print(
                 "==========================================",
