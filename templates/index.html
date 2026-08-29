@@ -1,3 +1,6 @@
+ChatGPT:
+もちろんです。現在の段階では MP3 / MP4 の2択だけにして、convert.py が受け取る output_type と一致するようにした index.html 全文です。
+
 <!DOCTYPE html> <html lang="ja"> <head>
 <meta charset="UTF-8">
 
@@ -22,7 +25,6 @@
     YouTube Converter
 </h1>
 
-
 <!-- =========================================
      ファイル一覧
 ========================================== -->
@@ -37,7 +39,6 @@
     </a>
 
 </div>
-
 
 <!-- =========================================
      YouTube変換
@@ -54,7 +55,6 @@
         YouTube動画のアドレスを入力
 
     </div>
-
 
     <!-- =====================================
          URL + 実行
@@ -80,7 +80,6 @@
 
     </div>
 
-
     <!-- =====================================
          時間指定
     ====================================== -->
@@ -98,7 +97,6 @@
             </span>
 
         </div>
-
 
         <div class="time-input-row">
 
@@ -122,7 +120,6 @@
                     時
                 </span>
 
-
                 <input
                     id="start-minute"
                     class="time-input"
@@ -136,7 +133,6 @@
                 <span class="time-unit">
                     分
                 </span>
-
 
                 <input
                     id="start-second"
@@ -154,7 +150,6 @@
 
             </div>
 
-
             <!-- =============================
                  区切り
             ============================== -->
@@ -162,7 +157,6 @@
             <span class="time-separator">
                 ～
             </span>
-
 
             <!-- =============================
                  終了
@@ -184,7 +178,6 @@
                     時
                 </span>
 
-
                 <input
                     id="end-minute"
                     class="time-input"
@@ -198,7 +191,6 @@
                 <span class="time-unit">
                     分
                 </span>
-
 
                 <input
                     id="end-second"
@@ -219,7 +211,6 @@
         </div>
 
     </div>
-
 
     <!-- =========================================
          出力形式
@@ -244,7 +235,6 @@
 
         </label>
 
-
         <!-- MP4 -->
 
         <label class="output-format-option">
@@ -263,7 +253,6 @@
 
     </div>
 
-
     <!-- =========================================
          ステータス
     ========================================== -->
@@ -273,7 +262,6 @@
         class="status"
         aria-live="polite"
     ></div>
-
 
     <!-- =========================================
          ダウンロード結果
@@ -286,4 +274,610 @@
 
 </div>
 
-</div> <script> document.addEventListener( "DOMContentLoaded", function () { // ===================================== // DOM // ===================================== const convertButton = document.getElementById( "convertBtn" ); const urlInput = document.getElementById( "youtube-url" ); const statusElement = document.getElementById( "status" ); const downloadArea = document.getElementById( "downloadArea" ); // ===================================== // DOM確認 // ===================================== console.log( "[INDEX] index.html initialized" ); console.log( "[INDEX] convertButton:", convertButton ); console.log( "[INDEX] urlInput:", urlInput ); // ===================================== // 数字入力 // ===================================== const timeInputs = document.querySelectorAll( ".time-input" ); timeInputs.forEach( function (input) { input.addEventListener( "input", function () { this.value = this.value.replace( /[^0-9]/g, "" ); } );
+</div> <!-- ========================================= JavaScript ========================================== --> <script>
+document.addEventListener(
+"DOMContentLoaded",
+function () {
+
+    console.log(
+        "=========================================="
+    );
+
+    console.log(
+        "[INDEX] index.html initialized"
+    );
+
+    console.log(
+        "=========================================="
+    );
+
+    // =====================================
+    // DOM
+    // =====================================
+
+    const convertButton =
+        document.getElementById(
+            "convertBtn"
+        );
+
+    const urlInput =
+        document.getElementById(
+            "youtube-url"
+        );
+
+    const statusElement =
+        document.getElementById(
+            "status"
+        );
+
+    const downloadArea =
+        document.getElementById(
+            "downloadArea"
+        );
+
+    // =====================================
+    // DOM確認
+    // =====================================
+
+    console.log(
+        "[INDEX] convertButton:",
+        convertButton
+    );
+
+    console.log(
+        "[INDEX] urlInput:",
+        urlInput
+    );
+
+    console.log(
+        "[INDEX] statusElement:",
+        statusElement
+    );
+
+    console.log(
+        "[INDEX] downloadArea:",
+        downloadArea
+    );
+
+    // =====================================
+    // ラジオボタン確認
+    // =====================================
+
+    const outputRadios =
+        document.querySelectorAll(
+            'input[name="output-format"]'
+        );
+
+    console.log(
+        "[INDEX] output radios:",
+        outputRadios
+    );
+
+    outputRadios.forEach(
+        function (radio) {
+
+            console.log(
+                "[INDEX] output option:",
+                radio.value
+            );
+
+        }
+    );
+
+    // =====================================
+    // 数字入力
+    // =====================================
+
+    const timeInputs =
+        document.querySelectorAll(
+            ".time-input"
+        );
+
+    timeInputs.forEach(
+        function (input) {
+
+            input.addEventListener(
+                "input",
+                function () {
+
+                    this.value =
+                        this.value.replace(
+                            /[^0-9]/g,
+                            ""
+                        );
+
+                }
+            );
+
+        }
+    );
+
+    // =====================================
+    // 時間取得
+    // =====================================
+
+    function getTime(
+        hourId,
+        minuteId,
+        secondId
+    ) {
+
+        const hourElement =
+            document.getElementById(
+                hourId
+            );
+
+        const minuteElement =
+            document.getElementById(
+                minuteId
+            );
+
+        const secondElement =
+            document.getElementById(
+                secondId
+            );
+
+        const hour =
+            hourElement
+                ? hourElement.value.trim()
+                : "";
+
+        const minute =
+            minuteElement
+                ? minuteElement.value.trim()
+                : "";
+
+        const second =
+            secondElement
+                ? secondElement.value.trim()
+                : "";
+
+        // =================================
+        // 全部空欄
+        // =================================
+
+        if (
+            !hour &&
+            !minute &&
+            !second
+        ) {
+
+            return null;
+
+        }
+
+        return (
+
+            String(
+                hour || "0"
+            ).padStart(2, "0")
+
+            + ":"
+
+            + String(
+                minute || "0"
+            ).padStart(2, "0")
+
+            + ":"
+
+            + String(
+                second || "0"
+            ).padStart(2, "0")
+
+        );
+
+    }
+
+    // =====================================
+    // 実行ボタン確認
+    // =====================================
+
+    if (!convertButton) {
+
+        console.error(
+            "[INDEX] convertBtn がありません"
+        );
+
+        return;
+
+    }
+
+    // =====================================
+    // 実行ボタン
+    // =====================================
+
+    convertButton.addEventListener(
+        "click",
+        async function () {
+
+            console.log(
+                "=========================================="
+            );
+
+            console.log(
+                "[INDEX] 実行ボタンが押されました"
+            );
+
+            // =================================
+            // URL
+            // =================================
+
+            const url =
+                urlInput
+                    ? urlInput.value.trim()
+                    : "";
+
+            console.log(
+                "[INDEX] URL:",
+                url
+            );
+
+            if (!url) {
+
+                console.log(
+                    "[INDEX] URLが空です"
+                );
+
+                statusElement.textContent =
+                    "YouTube URLを入力してください。";
+
+                return;
+
+            }
+
+            // =================================
+            // ラジオボタン
+            // =================================
+
+            const selectedRadio =
+                document.querySelector(
+                    'input[name="output-format"]:checked'
+                );
+
+            console.log(
+                "[INDEX] selected radio:",
+                selectedRadio
+            );
+
+            if (!selectedRadio) {
+
+                console.error(
+                    "[INDEX] 出力形式が選択されていません"
+                );
+
+                statusElement.textContent =
+                    "出力形式を選択してください。";
+
+                return;
+
+            }
+
+            const outputType =
+                selectedRadio.value;
+
+            console.log(
+                "[INDEX] output_type:",
+                outputType
+            );
+
+            // =================================
+            // 時間
+            // =================================
+
+            const startTime =
+                getTime(
+                    "start-hour",
+                    "start-minute",
+                    "start-second"
+                );
+
+            const endTime =
+                getTime(
+                    "end-hour",
+                    "end-minute",
+                    "end-second"
+                );
+
+            console.log(
+                "[INDEX] start_time:",
+                startTime
+            );
+
+            console.log(
+                "[INDEX] end_time:",
+                endTime
+            );
+
+            // =================================
+            // 結果クリア
+            // =================================
+
+            downloadArea.innerHTML =
+                "";
+
+            // =================================
+            // ボタン無効化
+            // =================================
+
+            convertButton.disabled =
+                true;
+
+            // =================================
+            // ステータス
+            // =================================
+
+            if (outputType === "mp4") {
+
+                statusElement.textContent =
+                    "MP4を作成しています・・・";
+
+            }
+            else {
+
+                statusElement.textContent =
+                    "MP3を作成しています・・・";
+
+            }
+
+            // =================================
+            // 送信データ
+            // =================================
+
+            const requestData = {
+
+                url:
+                    url,
+
+                output_type:
+                    outputType,
+
+                start_time:
+                    startTime,
+
+                end_time:
+                    endTime
+
+            };
+
+            console.log(
+                "[INDEX] /convert 送信データ:",
+                requestData
+            );
+
+            // =================================
+            // /convert
+            // =================================
+
+            try {
+
+                console.log(
+                    "[INDEX] /convert 呼び出し開始"
+                );
+
+                const response =
+                    await fetch(
+                        "/convert",
+                        {
+
+                            method:
+                                "POST",
+
+                            headers: {
+
+                                "Content-Type":
+                                    "application/json"
+
+                            },
+
+                            body:
+                                JSON.stringify(
+                                    requestData
+                                )
+
+                        }
+                    );
+
+                console.log(
+                    "[INDEX] /convert 呼び出し完了"
+                );
+
+                console.log(
+                    "[INDEX] response status:",
+                    response.status
+                );
+
+                console.log(
+                    "[INDEX] response ok:",
+                    response.ok
+                );
+
+                // =================================
+                // JSON
+                // =================================
+
+                let data;
+
+                try {
+
+                    data =
+                        await response.json();
+
+                }
+                catch (jsonError) {
+
+                    console.error(
+                        "[INDEX] JSON解析エラー:",
+                        jsonError
+                    );
+
+                    throw new Error(
+                        "サーバーからJSONを取得できませんでした。"
+                    );
+
+                }
+
+                console.log(
+                    "[INDEX] response data:",
+                    data
+                );
+
+                // =================================
+                // サーバーエラー
+                // =================================
+
+                if (
+                    !response.ok ||
+                    !data.success
+                ) {
+
+                    throw new Error(
+
+                        data.message ||
+                        (
+                            outputType === "mp4"
+                                ? "MP4作成に失敗しました。"
+                                : "MP3作成に失敗しました。"
+                        )
+
+                    );
+
+                }
+
+                // =================================
+                // ファイル名確認
+                // =================================
+
+                if (!data.filename) {
+
+                    console.error(
+                        "[INDEX] filename がありません:",
+                        data
+                    );
+
+                    throw new Error(
+                        "作成したファイル名が返されませんでした。"
+                    );
+
+                }
+
+                console.log(
+                    "[INDEX] filename:",
+                    data.filename
+                );
+
+                // =================================
+                // 成功
+                // =================================
+
+                if (outputType === "mp4") {
+
+                    statusElement.textContent =
+                        "MP4の作成が完了しました。";
+
+                }
+                else {
+
+                    statusElement.textContent =
+                        "MP3の作成が完了しました。";
+
+                }
+
+                // =================================
+                // ダウンロードボタン
+                // =================================
+
+                const link =
+                    document.createElement(
+                        "a"
+                    );
+
+                link.href =
+                    "/download/" +
+                    encodeURIComponent(
+                        data.filename
+                    );
+
+                link.download =
+                    data.filename;
+
+                link.className =
+                    "download-button";
+
+                link.textContent =
+                    outputType === "mp4"
+                        ? "[mp4]"
+                        : "[mp3]";
+
+                downloadArea.appendChild(
+                    link
+                );
+
+                console.log(
+                    "[INDEX] ダウンロードボタン追加:",
+                    data.filename
+                );
+
+            }
+            catch (error) {
+
+                console.error(
+                    "=========================================="
+                );
+
+                console.error(
+                    "[INDEX] 変換エラー:",
+                    error
+                );
+
+                console.error(
+                    "[INDEX] exception type:",
+                    error
+                        ? error.constructor.name
+                        : "unknown"
+                );
+
+                console.error(
+                    "=========================================="
+                );
+
+                statusElement.textContent =
+                    (
+                        outputType === "mp4"
+                            ? "MP4"
+                            : "MP3"
+                    )
+                    + "作成中にエラーが発生しました。\n"
+                    + error.message;
+
+            }
+            finally {
+
+                // =============================
+                // ボタン復帰
+                // =============================
+
+                convertButton.disabled =
+                    false;
+
+                console.log(
+                    "[INDEX] 処理終了"
+                );
+
+                console.log(
+                    "=========================================="
+                );
+
+            }
+
+        }
+    );
+
+    console.log(
+        "[INDEX] clickイベント登録完了"
+    );
+
+}
+
+);
+
+</script> </body> </html>
