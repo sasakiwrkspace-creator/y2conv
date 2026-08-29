@@ -8,7 +8,7 @@ import yt_dlp
 
 from yt_dlp.utils import download_range_func
 
-from paths import (
+from config import (
     BASE_DIR,
     DOWNLOAD_DIR
 )
