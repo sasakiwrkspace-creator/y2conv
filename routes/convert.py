@@ -21,17 +21,10 @@ def register_convert(app):
                 silent=True
             ) or {}
 
-            url = data.get(
-                "url"
-            )
+            url = data.get("url")
 
-            start_time = data.get(
-                "start_time"
-            )
-
-            end_time = data.get(
-                "end_time"
-            )
+            start_time = data.get("start_time")
+            end_time = data.get("end_time")
 
             print(
                 "[CONVERT] URL:",
@@ -55,8 +48,7 @@ def register_convert(app):
 
                 return jsonify({
                     "success": False,
-                    "message":
-                        "YouTube URLが指定されていません。"
+                    "message": "YouTube URLが指定されていません。"
                 }), 400
 
             print(
@@ -65,7 +57,7 @@ def register_convert(app):
             )
 
             result = create_mp3(
-                url=url,
+                url,
                 start_time=start_time,
                 end_time=end_time
             )
@@ -80,14 +72,12 @@ def register_convert(app):
 
                 return jsonify({
                     "success": False,
-                    "message":
-                        "MP3作成結果を取得できませんでした。"
+                    "message": "MP3作成結果を取得できませんでした。"
                 }), 500
 
             return jsonify({
                 "success": True,
-                "filename":
-                    result["filename"]
+                "filename": result["filename"]
             })
 
         except Exception as error:
@@ -110,6 +100,5 @@ def register_convert(app):
 
             return jsonify({
                 "success": False,
-                "message":
-                    str(error)
+                "message": str(error)
             }), 500
