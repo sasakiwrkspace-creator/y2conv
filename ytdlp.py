@@ -168,8 +168,7 @@ def create_mp3(
 
             "js_runtimes": {
 
-                "deno":
-                    "/root/.deno/bin/deno"
+                "deno": {}
 
             },
 
