@@ -10,7 +10,8 @@ from yt_dlp.utils import download_range_func
 
 from config import (
     BASE_DIR,
-    DOWNLOAD_DIR
+    DOWNLOAD_DIR,
+    COOKIES_FILE
 )
 
 
@@ -18,7 +19,7 @@ from config import (
 # Cookie
 # ==========================================================
 
-RENDER_COOKIE_FILE = "/etc/secrets/cookies.txt"
+RENDER_COOKIE_FILE = COOKIES_FILE
 
 LOCAL_COOKIE_FILE = os.path.join(
     BASE_DIR,
@@ -32,13 +33,17 @@ if os.environ.get("RENDER") == "true":
 
 else:
 
-    SOURCE_COOKIE_FILE = LOCAL_COOKIE_FILE
+    if os.path.exists(RENDER_COOKIE_FILE):
+
+        SOURCE_COOKIE_FILE = RENDER_COOKIE_FILE
+
+    else:
+
+        SOURCE_COOKIE_FILE = LOCAL_COOKIE_FILE
 
 
 # ==========================================================
 # Deno
-#
-# Dockerfileでは /root/.deno/bin/deno にインストールしている
 # ==========================================================
 
 DENO_PATH = "/root/.deno/bin/deno"
@@ -142,6 +147,16 @@ def create_temp_cookie_file():
             SOURCE_COOKIE_FILE,
             temp_cookie
         )
+
+        try:
+
+            os.chmod(
+                temp_cookie,
+                0o600
+            )
+
+        except Exception:
+            pass
 
         print(
             "[YTDLP] 一時Cookie作成:",
@@ -410,7 +425,26 @@ def get_ydl_options(
             True,
 
         "restrictfilenames":
-            False
+            False,
+
+        "retries":
+            3,
+
+        "fragment_retries":
+            3,
+
+        "extractor_args": {
+
+            "youtube": {
+
+                "player_client": [
+                    "default",
+                    "web_embedded"
+                ]
+
+            }
+
+        }
 
     }
 
@@ -445,12 +479,28 @@ def get_ydl_options(
             flush=True
         )
 
+        print(
+            "[YTDLP] EJS remote components: github",
+            flush=True
+        )
+
     else:
 
         print(
             "[YTDLP] Denoなし",
             flush=True
         )
+
+
+    # ======================================================
+    # YouTube client確認
+    # ======================================================
+
+    print(
+        "[YTDLP] YouTube player client:",
+        "default, web_embedded",
+        flush=True
+    )
 
 
     return options
@@ -734,8 +784,6 @@ def check_ffmpeg():
 
 # ==========================================================
 # MP3作成
-#
-# URLを直接受け取る
 # ==========================================================
 
 def create_mp3(
@@ -1057,9 +1105,6 @@ def create_mp3(
 
         # ==================================================
         # FFmpeg
-        #
-        # yt-dlp側ですでに時間範囲を指定しているので、
-        # ここでは -ss / -t を使わない。
         # ==================================================
 
         command = [
@@ -1124,9 +1169,7 @@ def create_mp3(
             ):
 
                 try:
-                    os.remove(
-                        output_file
-                    )
+                    os.remove(output_file)
                 except Exception:
                     pass
 
