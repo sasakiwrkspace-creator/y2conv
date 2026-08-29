@@ -35,13 +35,14 @@ def create_mp3(
     # =================================
 
     if not url:
+
         raise ValueError(
             "YouTube URLが指定されていません。"
         )
 
 
     # =================================
-    # 出力ディレクトリ確認
+    # downloads確認
     # =================================
 
     os.makedirs(
@@ -57,80 +58,52 @@ def create_mp3(
     if not os.path.isfile(
         COOKIES_FILE
     ):
+
         raise RuntimeError(
-            "Cookieファイルが見つかりません: "
-            + COOKIES_FILE
+            "Renderのcookies.txtが見つかりません。"
         )
 
-
-    if os.path.getsize(
-        COOKIES_FILE
-    ) == 0:
-        raise RuntimeError(
-            "Cookieファイルが空です: "
-            + COOKIES_FILE
-        )
-
-
-    # =================================
-    # ログ
-    # =================================
 
     print(
-        "==========================================",
-        flush=True
+        "=========================================="
     )
 
     print(
-        "[YTDLP] MP3作成開始",
-        flush=True
+        "[YTDLP] MP3作成開始"
     )
 
     print(
         "[YTDLP] URL:",
-        url,
-        flush=True
+        url
     )
 
     print(
         "[YTDLP] start_time:",
-        start_time,
-        flush=True
+        start_time
     )
 
     print(
         "[YTDLP] end_time:",
-        end_time,
-        flush=True
+        end_time
     )
 
     print(
         "[YTDLP] DOWNLOAD_DIR:",
-        DOWNLOAD_DIR,
-        flush=True
+        DOWNLOAD_DIR
     )
 
     print(
         "[YTDLP] COOKIES_FILE:",
-        COOKIES_FILE,
-        flush=True
+        COOKIES_FILE
     )
 
     print(
         "[YTDLP] cookies exists:",
-        os.path.isfile(COOKIES_FILE),
-        flush=True
+        os.path.isfile(COOKIES_FILE)
     )
 
     print(
-        "[YTDLP] yt-dlp version:",
-        yt_dlp.version.__version__,
-        flush=True
-    )
-
-    print(
-        "==========================================",
-        flush=True
+        "=========================================="
     )
 
 
@@ -145,10 +118,13 @@ def create_mp3(
 
         fd, temporary_cookie = tempfile.mkstemp(
             prefix="y2conv_cookies_",
-            suffix=".txt"
+            suffix=".txt",
+            dir="/tmp"
         )
 
-        os.close(fd)
+        os.close(
+            fd
+        )
 
 
         shutil.copyfile(
@@ -159,97 +135,12 @@ def create_mp3(
 
         print(
             "[YTDLP] 一時Cookie作成:",
-            temporary_cookie,
-            flush=True
+            temporary_cookie
         )
 
 
         # =================================
-        # yt-dlp設定
-        # =================================
-
-        ydl_opts = {
-
-            "format":
-                "bestaudio/best",
-
-            "outtmpl":
-                os.path.join(
-                    DOWNLOAD_DIR,
-                    "%(title)s.%(ext)s"
-                ),
-
-            "cookiefile":
-                temporary_cookie,
-
-            "noplaylist":
-                True,
-
-            "quiet":
-                False,
-
-            "no_warnings":
-                False,
-
-            "overwrites":
-                True
-
-        }
-
-
-        # =================================
-        # Deno
-        # =================================
-
-        deno_path = (
-            "/opt/render/project/src/.deno/bin/deno"
-        )
-
-
-        if (
-            os.path.isfile(deno_path)
-            and
-            os.access(deno_path, os.X_OK)
-        ):
-
-            print(
-                "[YTDLP] Deno:",
-                deno_path,
-                flush=True
-            )
-
-
-            ydl_opts["js_runtimes"] = {
-
-                "deno": {
-
-                    "path":
-                        deno_path
-
-                }
-
-            }
-
-
-            ydl_opts["remote_components"] = {
-
-                "ejs":
-                    "github"
-
-            }
-
-
-        else:
-
-            print(
-                "[YTDLP] Denoが利用できません:",
-                deno_path,
-                flush=True
-            )
-
-
-        # =================================
-        # 時間指定の整理
+        # 時間指定整理
         # =================================
 
         if start_time == "":
@@ -262,6 +153,8 @@ def create_mp3(
 
         # =================================
         # 終了時間だけ指定された場合
+        #
+        # 00:00:00 ～ end_time
         # =================================
 
         if (
@@ -274,49 +167,180 @@ def create_mp3(
 
 
         # =================================
-        # 時間範囲確認
+        # yt-dlp設定
+        # =================================
+
+        ydl_opts = {
+
+            # ---------------------------------
+            # 音声
+            # ---------------------------------
+
+            "format":
+                "bestaudio/best",
+
+
+            # ---------------------------------
+            # 出力先
+            # ---------------------------------
+
+            "outtmpl":
+                os.path.join(
+                    DOWNLOAD_DIR,
+                    "%(title)s.%(ext)s"
+                ),
+
+
+            # ---------------------------------
+            # Cookie
+            # ---------------------------------
+
+            "cookiefile":
+                temporary_cookie,
+
+
+            # ---------------------------------
+            # プレイリスト無効
+            # ---------------------------------
+
+            "noplaylist":
+                True,
+
+
+            # ---------------------------------
+            # Deno
+            # ---------------------------------
+
+            "js_runtimes": {
+
+                "deno": {}
+
+            },
+
+
+            # ---------------------------------
+            # EJS
+            #
+            # 重要:
+            # ejs:github を使用する。
+            # ---------------------------------
+
+            "remote_components": {
+
+                "ejs":
+                    "github"
+
+            },
+
+
+            # ---------------------------------
+            # ログ
+            # ---------------------------------
+
+            "quiet":
+                False,
+
+            "no_warnings":
+                False,
+
+
+            # ---------------------------------
+            # 上書き
+            # ---------------------------------
+
+            "overwrites":
+                True
+
+        }
+
+
+        # =================================
+        # 時間範囲
         # =================================
 
         if (
             start_time is not None
-            and
+            or
             end_time is not None
         ):
 
-            ydl_opts["download_sections"] = [
+            start = (
+                start_time
+                if start_time
+                else "00:00:00"
+            )
 
-                f"*{start_time}-{end_time}"
+
+            end = (
+                end_time
+                if end_time
+                else "inf"
+            )
+
+
+            ydl_opts[
+                "download_sections"
+            ] = [
+
+                f"*{start}-{end}"
 
             ]
 
 
-            ydl_opts[
-                "force_keyframes_at_cuts"
-            ] = False
-
-
             print(
                 "[YTDLP] download section:",
-                f"{start_time}-{end_time}",
-                flush=True
+                f"{start}-{end}"
             )
-
 
         else:
 
             print(
-                "[YTDLP] download section: FULL",
-                flush=True
+                "[YTDLP] download section: FULL"
             )
 
 
         # =================================
-        # YouTubeダウンロード
+        # yt-dlpバージョン
         # =================================
 
         print(
-            "[YTDLP] YouTube取得開始",
-            flush=True
+            "[YTDLP] yt-dlp version:",
+            yt_dlp.version.__version__
+        )
+
+
+        # =================================
+        # Deno確認
+        # =================================
+
+        deno_path = None
+
+
+        try:
+
+            import shutil as _shutil
+
+            deno_path = _shutil.which(
+                "deno"
+            )
+
+        except Exception:
+
+            deno_path = None
+
+
+        print(
+            "[YTDLP] Deno:",
+            deno_path
+        )
+
+
+        # =================================
+        # YouTube取得
+        # =================================
+
+        print(
+            "[YTDLP] YouTube取得開始"
         )
 
 
@@ -335,23 +359,24 @@ def create_mp3(
         except Exception as error:
 
             print(
-                "==========================================",
-                flush=True
+                "=========================================="
             )
 
             print(
                 "[YTDLP] yt-dlp ERROR:",
-                repr(error),
-                flush=True
+                repr(error)
             )
 
             print(
-                "==========================================",
-                flush=True
+                "=========================================="
             )
 
             raise
 
+
+        # =================================
+        # 情報確認
+        # =================================
 
         if not info:
 
@@ -361,7 +386,23 @@ def create_mp3(
 
 
         # =================================
-        # MP3検索
+        # タイトル
+        # =================================
+
+        title = info.get(
+            "title",
+            "output"
+        )
+
+
+        print(
+            "[YTDLP] title:",
+            title
+        )
+
+
+        # =================================
+        # MP3確認
         # =================================
 
         mp3_files = []
@@ -374,6 +415,7 @@ def create_mp3(
             if not filename.lower().endswith(
                 ".mp3"
             ):
+
                 continue
 
 
@@ -383,13 +425,23 @@ def create_mp3(
             )
 
 
-            if os.path.isfile(
+            if not os.path.isfile(
                 filepath
             ):
 
-                mp3_files.append(
-                    filepath
-                )
+                continue
+
+
+            if os.path.getsize(
+                filepath
+            ) <= 0:
+
+                continue
+
+
+            mp3_files.append(
+                filepath
+            )
 
 
         # =================================
@@ -404,87 +456,52 @@ def create_mp3(
 
 
         # =================================
-        # 最新MP3取得
+        # 最新MP3
         # =================================
 
-        output_file = max(
+        filepath = max(
             mp3_files,
             key=os.path.getmtime
         )
 
 
         filename = os.path.basename(
-            output_file
+            filepath
         )
 
 
         # =================================
-        # ファイル確認
-        # =================================
-
-        if not os.path.isfile(
-            output_file
-        ):
-
-            raise RuntimeError(
-                "MP3ファイルの確認に失敗しました。"
-            )
-
-
-        file_size = os.path.getsize(
-            output_file
-        )
-
-
-        if file_size <= 0:
-
-            raise RuntimeError(
-                "MP3ファイルが0 bytesです。"
-            )
-
-
-        # =================================
-        # 完了ログ
+        # 完了
         # =================================
 
         print(
-            "==========================================",
-            flush=True
+            "=========================================="
         )
 
         print(
-            "[YTDLP] MP3作成完了",
-            flush=True
+            "[YTDLP] MP3作成完了"
         )
 
         print(
             "[YTDLP] filename:",
-            filename,
-            flush=True
+            filename
         )
 
         print(
             "[YTDLP] path:",
-            output_file,
-            flush=True
+            filepath
         )
 
         print(
             "[YTDLP] size:",
-            file_size,
-            "bytes",
-            flush=True
+            os.path.getsize(filepath),
+            "bytes"
         )
 
         print(
-            "==========================================",
-            flush=True
+            "=========================================="
         )
 
-
-        # =================================
-        # 結果
-        # =================================
 
         return {
 
@@ -495,7 +512,7 @@ def create_mp3(
                 filename,
 
             "path":
-                output_file
+                filepath
 
         }
 
@@ -522,14 +539,13 @@ def create_mp3(
 
                 print(
                     "[YTDLP] 一時Cookie削除:",
-                    temporary_cookie,
-                    flush=True
+                    temporary_cookie
                 )
 
             except Exception as error:
 
                 print(
-                    "[YTDLP] 一時Cookie削除エラー:",
-                    repr(error),
-                    flush=True
+                    "[YTDLP] "
+                    "一時Cookie削除エラー:",
+                    repr(error)
                 )
