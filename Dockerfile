@@ -23,7 +23,6 @@ RUN apt-get update && \
 
 RUN curl -fsSL https://deno.land/install.sh | sh
 
-ENV DENO_DIR="/root/.cache/deno"
 ENV PATH="/root/.deno/bin:${PATH}"
 
 # ==========================================
@@ -45,4 +44,4 @@ COPY . .
 # 起動
 # ==========================================
 
-CMD ["sh", "-c", "echo '===== ENVIRONMENT =====' && python --version && pip show yt-dlp && echo '===== DENO =====' && /root/.deno/bin/deno --version && echo '===== FFMPEG =====' && ffmpeg -version | head -n 1 && echo '===== APP =====' && pwd && ls -la && echo '========================' && gunicorn --bind 0.0.0.0:10000 app:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:10000", "app:app"]
