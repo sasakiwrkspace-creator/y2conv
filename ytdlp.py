@@ -1617,11 +1617,16 @@ def create_mp3(
 
 def create_mp4(
     url,
-    output_dir=None
+    output_dir=None,
+    start_time=None,
+    end_time=None
 ):
 
     print("==========================================", flush=True)
     print("[DEBUG] create_mp4 START", flush=True)
+
+    downloaded_file = None
+    temporary_mp4_file = None
 
     try:
 
@@ -1659,20 +1664,53 @@ def create_mp4(
             flush=True
         )
 
+        print(
+            "[DEBUG] MP4 start_time:",
+            start_time,
+            flush=True
+        )
+
+        print(
+            "[DEBUG] MP4 end_time:",
+            end_time,
+            flush=True
+        )
+
         # --------------------------------------------------
-        # yt-dlpで動画＋音声
+        # yt-dlp
         # --------------------------------------------------
 
         download_result = _download_with_ytdlp(
+
             url=url,
+
             output_dir=output_dir,
+
             format_string="bv*+ba/b",
+
             merge_output_format="mp4",
+
             mode_name="MP4"
+
         )
 
         downloaded_file = Path(
             download_result["path"]
+        )
+
+        info = (
+            download_result.get("info")
+            or {}
+        )
+
+        video_id = (
+            info.get("id")
+            or download_result.get("video_id")
+        )
+
+        video_title = (
+            info.get("title")
+            or "YouTube Video"
         )
 
         print(
@@ -1687,31 +1725,433 @@ def create_mp4(
             flush=True
         )
 
+        print(
+            "[DEBUG] MP4 video id:",
+            video_id,
+            flush=True
+        )
+
+        print(
+            "[DEBUG] MP4 title:",
+            video_title,
+            flush=True
+        )
+
         # --------------------------------------------------
-        # MP4確認
+        # 時間指定なし
+        #
+        # そのままMP4を返す
         # --------------------------------------------------
 
-        if downloaded_file.suffix.lower() != ".mp4":
+        if (
+            start_time is None
+            and end_time is None
+        ):
 
             print(
-                "[DEBUG] WARNING: MP4 file is not .mp4:",
-                downloaded_file.suffix,
+                "[DEBUG] MP4 no time range specified",
                 flush=True
+            )
+
+            if not downloaded_file.exists():
+
+                raise FileNotFoundError(
+                    "MP4ファイルが作成されませんでした"
+                )
+
+            file_size = (
+                downloaded_file.stat().st_size
+            )
+
+            if file_size <= 0:
+
+                raise RuntimeError(
+                    "MP4ファイルのサイズが0です"
+                )
+
+            result = {
+
+                "path":
+                    str(downloaded_file),
+
+                "filename":
+                    downloaded_file.name
+
+            }
+
+            print(
+                "[DEBUG] MP4 result:",
+                result,
+                flush=True
+            )
+
+            print(
+                "[DEBUG] create_mp4 SUCCESS",
+                flush=True
+            )
+
+            return result
+
+        # --------------------------------------------------
+        # 時間指定あり
+        # --------------------------------------------------
+
+        start_seconds = 0
+
+        if start_time is not None:
+
+            start_seconds = _time_to_seconds(
+                start_time
+            )
+
+        if start_seconds < 0:
+
+            raise ValueError(
+                "開始時間は0秒以上にしてください。"
+            )
+
+        duration = None
+
+        if end_time is not None:
+
+            end_seconds = _time_to_seconds(
+                end_time
+            )
+
+            if end_seconds <= start_seconds:
+
+                raise ValueError(
+                    "終了時間は開始時間より後にしてください。"
+                )
+
+            duration = (
+                end_seconds -
+                start_seconds
+            )
+
+        print(
+            "[DEBUG] MP4 start seconds:",
+            start_seconds,
+            flush=True
+        )
+
+        print(
+            "[DEBUG] MP4 duration:",
+            duration,
+            flush=True
+        )
+
+        # --------------------------------------------------
+        # 最終MP4
+        # --------------------------------------------------
+
+        if video_id:
+
+            mp4_file = (
+                output_dir
+                / f"{video_id}.mp4"
             )
 
         else:
 
+            mp4_file = (
+                downloaded_file.with_suffix(
+                    ".mp4"
+                )
+            )
+
+        print(
+            "[DEBUG] MP4 target:",
+            mp4_file,
+            flush=True
+        )
+
+        # --------------------------------------------------
+        # 入力と出力が同じ場合
+        #
+        # FFmpegで同じファイルを
+        # 入出力に使用しない。
+        # --------------------------------------------------
+
+        if (
+            downloaded_file.resolve()
+            ==
+            mp4_file.resolve()
+        ):
+
+            temporary_mp4_file = (
+
+                output_dir
+                /
+                (
+                    f"{video_id or 'video'}"
+                    "_trim_temp.mp4"
+                )
+
+            )
+
+            ffmpeg_output = (
+                temporary_mp4_file
+            )
+
+        else:
+
+            ffmpeg_output = (
+                mp4_file
+            )
+
+        # --------------------------------------------------
+        # FFmpeg
+        #
+        # MP4は時間指定時に再エンコード。
+        #
+        # -ss:
+        #   開始位置
+        #
+        # -t:
+        #   指定区間の長さ
+        # --------------------------------------------------
+
+        ffmpeg_command = [
+
+            "ffmpeg",
+
+            "-y"
+
+        ]
+
+        if start_seconds > 0:
+
+            ffmpeg_command.extend([
+
+                "-ss",
+
+                str(start_seconds)
+
+            ])
+
+        ffmpeg_command.extend([
+
+            "-i",
+
+            str(downloaded_file)
+
+        ])
+
+        if duration is not None:
+
+            ffmpeg_command.extend([
+
+                "-t",
+
+                str(duration)
+
+            ])
+
+        ffmpeg_command.extend([
+
+            "-c:v",
+
+            "libx264",
+
+            "-preset",
+
+            "medium",
+
+            "-crf",
+
+            "23",
+
+            "-c:a",
+
+            "aac",
+
+            "-b:a",
+
+            "192k",
+
+            "-movflags",
+
+            "+faststart",
+
+            "-metadata",
+
+            "title=" + str(video_title),
+
+            "-metadata",
+
+            "comment=YouTube Converter",
+
+            str(ffmpeg_output)
+
+        ])
+
+        print(
+            "[DEBUG] MP4 FFmpeg command:",
+            " ".join(
+                ffmpeg_command
+            ),
+            flush=True
+        )
+
+        print(
+            "[DEBUG] MP4 Starting FFmpeg...",
+            flush=True
+        )
+
+        ffmpeg_result = subprocess.run(
+
+            ffmpeg_command,
+
+            capture_output=True,
+
+            text=True,
+
+            encoding="utf-8",
+
+            errors="replace"
+
+        )
+
+        print(
+            "[DEBUG] MP4 FFmpeg returncode:",
+            ffmpeg_result.returncode,
+            flush=True
+        )
+
+        if ffmpeg_result.stdout:
+
             print(
-                "[DEBUG] MP4 extension confirmed",
+                "[DEBUG] MP4 FFmpeg stdout:",
+                ffmpeg_result.stdout,
+                flush=True
+            )
+
+        if ffmpeg_result.stderr:
+
+            print(
+                "[DEBUG] MP4 FFmpeg stderr:",
+                ffmpeg_result.stderr,
+                flush=True
+            )
+
+        # --------------------------------------------------
+        # FFmpegエラー
+        # --------------------------------------------------
+
+        if ffmpeg_result.returncode != 0:
+
+            error_detail = (
+
+                ffmpeg_result.stderr.strip()
+
+                if ffmpeg_result.stderr
+
+                else
+
+                "FFmpegからエラー内容が返されませんでした。"
+
+            )
+
+            raise RuntimeError(
+
+                "MP4 FFmpeg conversion failed\n"
+                + error_detail
+
+            )
+
+        # --------------------------------------------------
+        # 一時ファイル → 最終ファイル
+        # --------------------------------------------------
+
+        if temporary_mp4_file:
+
+            print(
+                "[DEBUG] Moving temporary MP4 to final MP4...",
+                flush=True
+            )
+
+            if mp4_file.exists():
+
+                print(
+                    "[DEBUG] Removing old MP4:",
+                    mp4_file,
+                    flush=True
+                )
+
+                mp4_file.unlink()
+
+            temporary_mp4_file.replace(
+                mp4_file
+            )
+
+            temporary_mp4_file = None
+
+        # --------------------------------------------------
+        # 完成確認
+        # --------------------------------------------------
+
+        if not mp4_file.exists():
+
+            raise FileNotFoundError(
+                "MP4ファイルが作成されませんでした"
+            )
+
+        mp4_size = (
+            mp4_file.stat().st_size
+        )
+
+        print(
+            "[DEBUG] MP4 final file:",
+            mp4_file,
+            flush=True
+        )
+
+        print(
+            "[DEBUG] MP4 final size:",
+            mp4_size,
+            flush=True
+        )
+
+        if mp4_size <= 0:
+
+            raise RuntimeError(
+                "MP4ファイルのサイズが0です"
+            )
+
+        # --------------------------------------------------
+        # 元ファイル削除
+        # --------------------------------------------------
+
+        if (
+            downloaded_file.exists()
+            and
+            downloaded_file.resolve()
+            !=
+            mp4_file.resolve()
+        ):
+
+            print(
+                "[DEBUG] Removing MP4 source:",
+                downloaded_file,
+                flush=True
+            )
+
+            downloaded_file.unlink()
+
+            print(
+                "[DEBUG] MP4 source removed",
                 flush=True
             )
 
         result = {
+
             "path":
-                str(downloaded_file),
+                str(mp4_file),
 
             "filename":
-                downloaded_file.name
+                mp4_file.name
+
         }
 
         print(
@@ -1751,6 +2191,27 @@ def create_mp4(
         raise
 
     finally:
+
+        if temporary_mp4_file:
+
+            try:
+
+                if temporary_mp4_file.exists():
+
+                    temporary_mp4_file.unlink()
+
+                    print(
+                        "[DEBUG] temporary MP4 removed",
+                        flush=True
+                    )
+
+            except Exception as cleanup_error:
+
+                print(
+                    "[DEBUG] temporary MP4 cleanup ERROR:",
+                    repr(cleanup_error),
+                    flush=True
+                )
 
         print(
             "[DEBUG] create_mp4 END",
