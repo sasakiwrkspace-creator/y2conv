@@ -432,12 +432,6 @@ def _build_ydl_options(
 
 # ==========================================================
 # 共通：yt-dlpでダウンロード
-#
-# ★重要
-# 今回の処理では、既存ファイルを glob で拾わない。
-#
-# YoutubeDL.prepare_filename() を利用して、
-# 今回のダウンロード対象ファイルを特定する。
 # ==========================================================
 
 def _download_with_ytdlp(
@@ -724,10 +718,6 @@ def _download_with_ytdlp(
 
         # ==================================================
         # 2. merge_output_format がある場合
-        #
-        #    yt-dlpのマージ後ファイルは
-        #    prepare_filename() と拡張子が
-        #    異なる場合があるため確認する。
         # ==================================================
 
         if (
@@ -765,9 +755,6 @@ def _download_with_ytdlp(
 
         # ==================================================
         # 3. 最終手段
-        #
-        #    今回作成時刻に近いファイルだけを確認。
-        #    既存ファイルを無条件で拾わない。
         # ==================================================
 
         if downloaded_file is None:
@@ -1208,13 +1195,7 @@ def create_mp3(
         )
 
         # --------------------------------------------------
-        # ★重要
-        #
-        # 入力ファイルと出力ファイルを
-        # 絶対に同じにしない。
-        #
-        # 既に同名MP3が存在していても、
-        # そのファイルをFFmpegの入力には使わない。
+        # 入力と出力が同じ場合
         # --------------------------------------------------
 
         if (
@@ -1247,8 +1228,6 @@ def create_mp3(
 
         else:
 
-            # 既存の最終MP3があっても、
-            # 入力が別形式なら直接上書きできる。
             ffmpeg_output = mp3_file
 
         # --------------------------------------------------
@@ -1353,8 +1332,6 @@ def create_mp3(
 
         # --------------------------------------------------
         # MP3
-        #
-        # 日本語タイトルをメタデータに設定
         # --------------------------------------------------
 
         ffmpeg_command.extend([
@@ -1382,10 +1359,6 @@ def create_mp3(
             ),
             flush=True
         )
-
-        # --------------------------------------------------
-        # FFmpeg実行
-        # --------------------------------------------------
 
         print(
             "[DEBUG] MP3 Starting FFmpeg...",
@@ -1506,8 +1479,6 @@ def create_mp3(
 
         # --------------------------------------------------
         # 元ファイル削除
-        #
-        # 最終MP3と入力が別の場合のみ削除
         # --------------------------------------------------
 
         if (
@@ -1681,17 +1652,11 @@ def create_mp4(
         # --------------------------------------------------
 
         download_result = _download_with_ytdlp(
-
             url=url,
-
             output_dir=output_dir,
-
             format_string="bv*+ba/b",
-
             merge_output_format="mp4",
-
             mode_name="MP4"
-
         )
 
         downloaded_file = Path(
@@ -1737,11 +1702,9 @@ def create_mp4(
             flush=True
         )
 
-        # --------------------------------------------------
+        # ==================================================
         # 時間指定なし
-        #
-        # そのままMP4を返す
-        # --------------------------------------------------
+        # ==================================================
 
         if (
             start_time is None
@@ -1770,13 +1733,11 @@ def create_mp4(
                 )
 
             result = {
-
                 "path":
                     str(downloaded_file),
 
                 "filename":
                     downloaded_file.name
-
             }
 
             print(
@@ -1792,9 +1753,9 @@ def create_mp4(
 
             return result
 
-        # --------------------------------------------------
+        # ==================================================
         # 時間指定あり
-        # --------------------------------------------------
+        # ==================================================
 
         start_seconds = 0
 
@@ -1825,8 +1786,8 @@ def create_mp4(
                 )
 
             duration = (
-                end_seconds -
-                start_seconds
+                end_seconds
+                - start_seconds
             )
 
         print(
@@ -1868,9 +1829,6 @@ def create_mp4(
 
         # --------------------------------------------------
         # 入力と出力が同じ場合
-        #
-        # FFmpegで同じファイルを
-        # 入出力に使用しない。
         # --------------------------------------------------
 
         if (
@@ -1880,18 +1838,27 @@ def create_mp4(
         ):
 
             temporary_mp4_file = (
-
                 output_dir
                 /
                 (
                     f"{video_id or 'video'}"
                     "_trim_temp.mp4"
                 )
-
             )
 
             ffmpeg_output = (
                 temporary_mp4_file
+            )
+
+            print(
+                "[DEBUG] MP4 source == target",
+                flush=True
+            )
+
+            print(
+                "[DEBUG] MP4 using temporary output:",
+                ffmpeg_output,
+                flush=True
             )
 
         else:
@@ -1900,86 +1867,76 @@ def create_mp4(
                 mp4_file
             )
 
-        # --------------------------------------------------
+        # ==================================================
         # FFmpeg
         #
         # MP4は時間指定時に再エンコード。
-        #
-        # -ss:
-        #   開始位置
-        #
-        # -t:
-        #   指定区間の長さ
-        # --------------------------------------------------
+        # ==================================================
 
         ffmpeg_command = [
-
             "ffmpeg",
-
             "-y"
-
         ]
+
+        # --------------------------------------------------
+        # 開始位置
+        # --------------------------------------------------
 
         if start_seconds > 0:
 
             ffmpeg_command.extend([
-
                 "-ss",
-
                 str(start_seconds)
-
             ])
 
+        # --------------------------------------------------
+        # 入力
+        # --------------------------------------------------
+
         ffmpeg_command.extend([
-
             "-i",
-
             str(downloaded_file)
-
         ])
+
+        # --------------------------------------------------
+        # 長さ
+        # --------------------------------------------------
 
         if duration is not None:
 
             ffmpeg_command.extend([
-
                 "-t",
-
                 str(duration)
-
             ])
+
+        # --------------------------------------------------
+        # MP4出力設定
+        # --------------------------------------------------
 
         ffmpeg_command.extend([
 
             "-c:v",
-
             "libx264",
 
             "-preset",
-
             "medium",
 
             "-crf",
-
             "23",
 
             "-c:a",
-
             "aac",
 
             "-b:a",
-
             "192k",
 
             "-movflags",
-
             "+faststart",
 
             "-metadata",
-
             "title=" + str(video_title),
 
             "-metadata",
-
             "comment=YouTube Converter",
 
             str(ffmpeg_output)
@@ -2000,17 +1957,11 @@ def create_mp4(
         )
 
         ffmpeg_result = subprocess.run(
-
             ffmpeg_command,
-
             capture_output=True,
-
             text=True,
-
             encoding="utf-8",
-
             errors="replace"
-
         )
 
         print(
@@ -2042,22 +1993,15 @@ def create_mp4(
         if ffmpeg_result.returncode != 0:
 
             error_detail = (
-
                 ffmpeg_result.stderr.strip()
-
                 if ffmpeg_result.stderr
-
                 else
-
                 "FFmpegからエラー内容が返されませんでした。"
-
             )
 
             raise RuntimeError(
-
                 "MP4 FFmpeg conversion failed\n"
                 + error_detail
-
             )
 
         # --------------------------------------------------
@@ -2086,6 +2030,11 @@ def create_mp4(
             )
 
             temporary_mp4_file = None
+
+            print(
+                "[DEBUG] Temporary MP4 moved successfully",
+                flush=True
+            )
 
         # --------------------------------------------------
         # 完成確認
@@ -2145,13 +2094,11 @@ def create_mp4(
             )
 
         result = {
-
             "path":
                 str(mp4_file),
 
             "filename":
                 mp4_file.name
-
         }
 
         print(
@@ -2191,6 +2138,10 @@ def create_mp4(
         raise
 
     finally:
+
+        # --------------------------------------------------
+        # 一時MP4削除
+        # --------------------------------------------------
 
         if temporary_mp4_file:
 
