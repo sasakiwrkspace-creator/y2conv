@@ -214,41 +214,72 @@
     ========================================== -->
 
     <div class="output-format-group">
-
+    
         <!-- MP3 -->
-
-        <label class="output-format-option">
-
-            <input
-                type="radio"
-                name="output-format"
-                value="mp3"
-                checked
+        <div class="output-format-row">
+    
+            <label class="output-format-option">
+    
+                <input
+                    type="radio"
+                    name="output-format"
+                    value="mp3"
+                    checked
+                >
+    
+                <span>
+                    mp3
+                </span>
+    
+            </label>
+    
+            <button
+                type="button"
+                id="geminiToggle"
+                class="gemini-toggle"
+                aria-expanded="false"
+                title="Gemini操作を表示"
             >
-
-            <span>
-                mp3
-            </span>
-
-        </label>
-
+                ▲
+            </button>
+    
+        </div>
+    
+        <!-- Gemini折り畳み部分 -->
+        <div
+            id="geminiPanel"
+            class="gemini-panel"
+            hidden
+        >
+            <div class="gemini-panel-title">
+                手動でGemini
+            </div>
+    
+            <button
+                type="button"
+                class="gemini-button"
+            >
+                Geminiへ送信
+            </button>
+        </div>
+    
         <!-- MP4 -->
-
         <label class="output-format-option">
-
+    
             <input
                 type="radio"
                 name="output-format"
                 value="mp4"
             >
-
+    
             <span>
                 mp4
             </span>
-
+    
         </label>
-
+    
     </div>
+
 
     <!-- =========================================
          ステータス
