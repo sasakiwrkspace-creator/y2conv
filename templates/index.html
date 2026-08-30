@@ -139,6 +139,15 @@
             >
 
 
+            <!--
+                重要:
+                この実行ボタンはタブ1専用。
+
+                converter.jsが使用する。
+
+                subtitle.jsからは操作しない。
+            -->
+
             <button
                 id="convertBtn"
                 class="execute-button"
@@ -421,7 +430,9 @@
             <div class="file-select-row">
 
 
-                <!-- 非表示ファイル選択 -->
+                <!-- =================================
+                     MP3ファイル選択
+                ================================== -->
 
                 <input
                     id="subtitle-mp3-input"
@@ -431,18 +442,30 @@
                 >
 
 
-                <!-- ファイル名表示 -->
+                <!--
+                    ここ自体をクリックして
+                    ファイル選択画面を開く。
+
+                    右側に別の選択ボタンは置かない。
+                -->
 
                 <button
                     id="subtitle-mp3-select"
                     class="file-select-display"
                     type="button"
+                    aria-label="MP3ファイルを選択"
                 >
-                    MP3ファイルを選択してください
+
+                    ファイルが選択されていません
+                    → mp3ファイルを選択してください
+
                 </button>
 
 
-                <!-- Gemini -->
+
+                <!-- =================================
+                     Gemini送信
+                ================================== -->
 
                 <button
                     id="gemini-send-button"
@@ -450,7 +473,9 @@
                     type="button"
                     disabled
                 >
+
                     Geminiへ送る
+
                 </button>
 
 
@@ -476,7 +501,9 @@
 
 
 
-            <!-- MP4 -->
+            <!-- =================================
+                 MP4
+            ================================== -->
 
             <div class="file-select-row">
 
@@ -489,12 +516,21 @@
                 >
 
 
+                <!--
+                    表示部分をクリックして
+                    MP4ファイルを選択する。
+                -->
+
                 <button
                     id="subtitle-mp4-select"
                     class="file-select-display"
                     type="button"
+                    aria-label="MP4ファイルを選択"
                 >
-                    MP4ファイルを選択してください
+
+                    ファイルが選択されていません
+                    → mp4ファイルを選択してください
+
                 </button>
 
 
@@ -502,7 +538,9 @@
 
 
 
-            <!-- SRT -->
+            <!-- =================================
+                 SRT
+            ================================== -->
 
             <div class="file-select-row">
 
@@ -515,12 +553,21 @@
                 >
 
 
+                <!--
+                    表示部分をクリックして
+                    SRTファイルを選択する。
+                -->
+
                 <button
                     id="subtitle-srt-select"
                     class="file-select-display"
                     type="button"
+                    aria-label="SRTファイルを選択"
                 >
-                    SRTファイルを選択してください
+
+                    ファイルが選択されていません
+                    → srtファイルを選択してください
+
                 </button>
 
 
@@ -528,7 +575,9 @@
 
 
 
-            <!-- 字幕MP4作成 -->
+            <!-- =================================
+                 字幕MP4作成
+            ================================== -->
 
             <div class="subtitle-create-row">
 
@@ -539,7 +588,9 @@
                     type="button"
                     disabled
                 >
+
                     字幕mp4を作成
+
                 </button>
 
 
@@ -620,6 +671,16 @@
 
 <!-- =========================================
      JavaScript
+
+     converter.js
+     -------------------------
+     タブ1のYouTube変換専用
+
+     subtitle.js
+     -------------------------
+     タブ2のファイル変換専用
+
+     両者を混在させない。
 ========================================== -->
 
 
@@ -652,6 +713,10 @@ document.addEventListener(
         );
 
 
+        // =====================================
+        // DOM
+        // =====================================
+
         const youtubeTabButton =
             document.getElementById(
                 "youtube-tab-button"
@@ -678,6 +743,35 @@ document.addEventListener(
 
 
         // =====================================
+        // DOM確認
+        // =====================================
+
+        console.log(
+            "[INDEX] youtubeTabButton:",
+            youtubeTabButton
+        );
+
+
+        console.log(
+            "[INDEX] fileTabButton:",
+            fileTabButton
+        );
+
+
+        console.log(
+            "[INDEX] youtubeTab:",
+            youtubeTab
+        );
+
+
+        console.log(
+            "[INDEX] fileTab:",
+            fileTab
+        );
+
+
+
+        // =====================================
         // タブ表示
         // =====================================
 
@@ -690,57 +784,70 @@ document.addEventListener(
                 target === "youtube";
 
 
-            // ---------------------------------
-            // ボタン
-            // ---------------------------------
+            // =================================
+            // タブボタン
+            // =================================
 
-            youtubeTabButton.classList.toggle(
-                "active",
-                isYoutube
-            );
+            if (youtubeTabButton) {
 
+                youtubeTabButton.classList.toggle(
+                    "active",
+                    isYoutube
+                );
 
-            fileTabButton.classList.toggle(
-                "active",
-                !isYoutube
-            );
+                youtubeTabButton.setAttribute(
+                    "aria-selected",
+                    String(isYoutube)
+                );
 
-
-            youtubeTabButton.setAttribute(
-                "aria-selected",
-                String(isYoutube)
-            );
+            }
 
 
-            fileTabButton.setAttribute(
-                "aria-selected",
-                String(!isYoutube)
-            );
+            if (fileTabButton) {
+
+                fileTabButton.classList.toggle(
+                    "active",
+                    !isYoutube
+                );
+
+                fileTabButton.setAttribute(
+                    "aria-selected",
+                    String(!isYoutube)
+                );
+
+            }
 
 
 
-            // ---------------------------------
-            // パネル
-            // ---------------------------------
+            // =================================
+            // タブパネル
+            // =================================
 
-            youtubeTab.classList.toggle(
-                "active",
-                isYoutube
-            );
+            if (youtubeTab) {
 
+                youtubeTab.classList.toggle(
+                    "active",
+                    isYoutube
+                );
 
-            fileTab.classList.toggle(
-                "active",
-                !isYoutube
-            );
+                youtubeTab.hidden =
+                    !isYoutube;
 
-
-            youtubeTab.hidden =
-                !isYoutube;
+            }
 
 
-            fileTab.hidden =
-                isYoutube;
+            if (fileTab) {
+
+                fileTab.classList.toggle(
+                    "active",
+                    !isYoutube
+                );
+
+                fileTab.hidden =
+                    isYoutube;
+
+            }
+
 
 
             console.log(
@@ -759,7 +866,6 @@ document.addEventListener(
 
         if (youtubeTabButton) {
 
-
             youtubeTabButton.addEventListener(
                 "click",
                 function () {
@@ -771,7 +877,6 @@ document.addEventListener(
                 }
             );
 
-
         }
 
 
@@ -781,7 +886,6 @@ document.addEventListener(
         // =====================================
 
         if (fileTabButton) {
-
 
             fileTabButton.addEventListener(
                 "click",
@@ -794,13 +898,15 @@ document.addEventListener(
                 }
             );
 
-
         }
 
 
 
         // =====================================
-        // 数字入力
+        // 時間入力
+        //
+        // converter.jsとは分離。
+        // 数字以外を入力できないようにする。
         // =====================================
 
         const timeInputs =
@@ -832,6 +938,15 @@ document.addEventListener(
             }
         );
 
+
+
+        // =====================================
+        // 初期状態
+        // =====================================
+
+        showTab(
+            "youtube"
+        );
 
 
         console.log(
