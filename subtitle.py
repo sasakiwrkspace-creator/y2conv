@@ -1,17 +1,17 @@
 # =====================================
-# Subtitle Embed - Low Memory Edition
-# sub_embed.py
+# Subtitle - Low Memory Edition
+# subtitle.py
 #
 # 512MB RAM環境向け
 #
 # MP4動画へSRT字幕を焼き込む
 #
 # 入力:
-#   downloads/xxx.mp4
-#   downloads/xxx.srt
+#   config.py の DOWNLOAD_DIR/xxx.mp4
+#   config.py の DOWNLOAD_DIR/xxx.srt
 #
 # 出力:
-#   downloads/xxx_sub_embed.mp4
+#   config.py の DOWNLOAD_DIR/xxx_sub_embed.mp4
 #
 # FFmpegを使用
 #
@@ -23,6 +23,7 @@
 #   - FFmpegを1スレッドに制限
 #   - ultrafastでメモリ負荷を抑制
 #   - FFmpegログを最大100行だけ保持
+#   - downloadsの場所はconfig.pyで管理
 # =====================================
 
 import os
@@ -30,17 +31,20 @@ import sys
 import time
 import shutil
 import subprocess
+
 from pathlib import Path
 from collections import deque
+
+from config import DOWNLOAD_DIR
 
 
 # =====================================
 # 設定
 # =====================================
 
-BASE_DIR = Path(__file__).resolve().parent
-
-DOWNLOADS_DIR = BASE_DIR / "downloads"
+DOWNLOADS_DIR = Path(
+    DOWNLOAD_DIR
+)
 
 # FFmpegログを保持する最大行数
 MAX_FFMPEG_LOG_LINES = 100
@@ -65,10 +69,12 @@ FFMPEG_CRF = "23"
 # ログ
 # =====================================
 
-def log(message):
+def log(
+    message
+):
 
     print(
-        "[SUB EMBED]",
+        "[SUBTITLE]",
         message,
         flush=True
     )
@@ -83,7 +89,9 @@ def validate_input_file(
     extension
 ):
 
-    path = Path(file_path)
+    path = Path(
+        file_path
+    )
 
     if not path.exists():
 
@@ -114,9 +122,15 @@ def make_output_path(
     mp4_path
 ):
 
-    mp4_path = Path(mp4_path)
+    mp4_path = Path(
+        mp4_path
+    )
 
     stem = mp4_path.stem
+
+    # =================================
+    # すでに字幕付きMP4の場合
+    # =================================
 
     if stem.lower().endswith(
         "_sub_embed"
@@ -203,9 +217,13 @@ def check_ffmpeg():
         )
 
     first_line = (
+
         result.stdout.splitlines()[0]
+
         if result.stdout
+
         else "FFmpeg"
+
     )
 
     log(
@@ -233,9 +251,13 @@ def validate_srt_encoding(
     try:
 
         with open(
+
             srt_path,
+
             "r",
+
             encoding="utf-8-sig"
+
         ) as file:
 
             # ---------------------------------
@@ -378,7 +400,13 @@ def find_japanese_font():
             "/opt/render/project/src/fonts"
         ),
 
-        BASE_DIR / "fonts",
+        Path(
+            "/app/fonts"
+        ),
+
+        Path(
+            "fonts"
+        ),
 
     ]
 
@@ -594,8 +622,11 @@ def command_to_string(
 ):
 
     return " ".join(
+
         str(item)
+
         for item in command
+
     )
 
 
@@ -617,13 +648,19 @@ def embed_subtitle(
     # =================================
 
     mp4_path = validate_input_file(
+
         mp4_path,
+
         ".mp4"
+
     )
 
     srt_path = validate_input_file(
+
         srt_path,
+
         ".srt"
+
     )
 
 
@@ -658,8 +695,11 @@ def embed_subtitle(
     # =================================
 
     output_path.parent.mkdir(
+
         parents=True,
+
         exist_ok=True
+
     )
 
 
@@ -681,10 +721,12 @@ def embed_subtitle(
         except Exception as error:
 
             raise RuntimeError(
+
                 "既存の出力ファイルを"
                 "削除できませんでした: "
                 +
                 str(error)
+
             )
 
 
@@ -707,8 +749,11 @@ def embed_subtitle(
     # =================================
 
     video_filter = make_subtitle_filter(
+
         srt_path,
+
         font_path
+
     )
 
 
@@ -881,9 +926,11 @@ def embed_subtitle(
     except Exception as error:
 
         raise RuntimeError(
+
             "FFmpeg実行中にエラーが発生しました: "
             +
             str(error)
+
         )
 
 
@@ -895,7 +942,9 @@ def embed_subtitle(
     # =================================
 
     ffmpeg_output_lines = deque(
+
         maxlen=MAX_FFMPEG_LOG_LINES
+
     )
 
 
@@ -944,9 +993,11 @@ def embed_subtitle(
             pass
 
         raise RuntimeError(
+
             "FFmpegログ取得中にエラーが発生しました: "
             +
             str(error)
+
         )
 
 
@@ -962,9 +1013,13 @@ def embed_subtitle(
     # =================================
 
     elapsed_time = (
+
         time.monotonic()
+
         -
+
         start_time
+
     )
 
 
@@ -982,29 +1037,42 @@ def embed_subtitle(
         if ffmpeg_output_lines:
 
             error_detail = (
+
                 "\n".join(
                     ffmpeg_output_lines
                 )
+
             )
 
         else:
 
             error_detail = (
+
                 "FFmpegからエラー内容が"
                 "返されませんでした。"
+
             )
 
         raise RuntimeError(
 
             "字幕焼き込みに失敗しました。"
+
             "\n\n"
+
             +
+
             error_detail
+
             +
+
             "\n\n"
+
             +
+
             "処理時間: "
+
             +
+
             format_elapsed_time(
                 elapsed_time
             )
@@ -1039,7 +1107,10 @@ def embed_subtitle(
     except OSError as error:
 
         raise RuntimeError(
-            f"出力ファイルを確認できませんでした: {error}"
+
+            f"出力ファイルを確認できませんでした: "
+            f"{error}"
+
         )
 
 
@@ -1109,14 +1180,18 @@ def format_elapsed_time(
     )
 
     return (
+
         f"{hours:02d}:"
         f"{minutes:02d}:"
         f"{secs:02d}"
+
     )
 
 
 # =====================================
 # downloads内から実行
+#
+# config.py の DOWNLOAD_DIR を使用
 # =====================================
 
 def embed_from_downloads(
@@ -1138,23 +1213,47 @@ def embed_from_downloads(
 
 
     # ---------------------------------
+    # downloadsディレクトリ確認
+    # ---------------------------------
+
+    DOWNLOADS_DIR.mkdir(
+
+        parents=True,
+
+        exist_ok=True
+
+    )
+
+
+    # ---------------------------------
     # パス
     # ---------------------------------
 
     mp4_path = (
+
         DOWNLOADS_DIR /
+
         mp4_filename
+
     )
 
     srt_path = (
+
         DOWNLOADS_DIR /
+
         srt_filename
+
     )
 
 
     # ---------------------------------
     # ログ
     # ---------------------------------
+
+    log(
+        f"DOWNLOAD_DIR: "
+        f"{DOWNLOADS_DIR}"
+    )
 
     log(
         f"downloads MP4: "
@@ -1195,7 +1294,7 @@ def main():
         )
 
         print(
-            "python sub_embed.py "
+            "python subtitle.py "
             "動画.mp4 字幕.srt"
         )
 
@@ -1219,17 +1318,26 @@ def main():
     try:
 
         output_path = (
+
             embed_from_downloads(
+
                 mp4_filename,
+
                 srt_filename
+
             )
+
         )
 
 
         elapsed_time = (
+
             time.monotonic()
+
             -
+
             start_time
+
         )
 
 
@@ -1285,9 +1393,13 @@ def main():
     except Exception as error:
 
         elapsed_time = (
+
             time.monotonic()
+
             -
+
             start_time
+
         )
 
 
@@ -1311,12 +1423,17 @@ def main():
         )
 
         print(
+
             "処理時間: "
+
             +
+
             format_elapsed_time(
                 elapsed_time
             ),
+
             file=sys.stderr
+
         )
 
         print(
