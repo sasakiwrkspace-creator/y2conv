@@ -1,3 +1,12 @@
+ChatGPT:
+はい。今回はまず タブ2の「MP3 → Gemini → SRT」テストだけに絞ります。
+
+converter.js と subtitle.js は変更しません。
+また、routes/gemini.py はいただいたものをそのまま利用できる構成にします。
+
+以下をそのままコピーしてください。
+
+1. templates/index.html
 <!DOCTYPE html>
 <html lang="ja">
 
@@ -30,12 +39,13 @@
          ヘッダー
     ========================================== -->
 
-    <header class="page-header">
-    
+    <div class="header-row">
+
         <h1>
             YouTube Converter
         </h1>
-    
+
+        <!-- 保存ファイル -->
         <a
             href="/files"
             class="files-link"
@@ -44,32 +54,28 @@
         >
             📁
         </a>
-    
-    </header>
 
+    </div>
 
 
     <!-- =========================================
          タブ
     ========================================== -->
 
-    <div class="converter-tabs">
+    <div class="tabs">
 
         <button
             type="button"
-            class="converter-tab active"
-            id="youtube-tab-button"
-            data-tab="youtube"
+            class="tab-button active"
+            data-tab="youtube-tab"
         >
             YouTube変換
         </button>
 
-
         <button
             type="button"
-            class="converter-tab"
-            id="file-tab-button"
-            data-tab="file"
+            class="tab-button"
+            data-tab="file-tab"
         >
             ファイル変換
         </button>
@@ -77,10 +83,10 @@
     </div>
 
 
-    <!-- =========================================
-         タブ1
+    <!-- ==================================================
+         TAB 1
          YouTube変換
-    ========================================== -->
+    =================================================== -->
 
     <div
         id="youtube-tab"
@@ -112,13 +118,6 @@
                 placeholder="https://www.youtube.com/watch?v=..."
                 autocomplete="off"
             >
-
-
-            <!--
-                タブ1専用の実行ボタン
-
-                converter.js が使用する
-            -->
 
             <button
                 id="convertBtn"
@@ -154,12 +153,9 @@
             <div class="time-input-row">
 
 
-                <!-- =============================
-                     開始
-                ============================== -->
+                <!-- 開始 -->
 
                 <div class="time-group">
-
 
                     <input
                         id="start-hour"
@@ -205,7 +201,6 @@
                         秒
                     </span>
 
-
                 </div>
 
 
@@ -216,12 +211,9 @@
                 </span>
 
 
-                <!-- =============================
-                     終了
-                ============================== -->
+                <!-- 終了 -->
 
                 <div class="time-group">
-
 
                     <input
                         id="end-hour"
@@ -267,7 +259,6 @@
                         秒
                     </span>
 
-
                 </div>
 
 
@@ -276,9 +267,9 @@
         </div>
 
 
-        <!-- =====================================
+        <!-- =========================================
              出力形式
-        ====================================== -->
+        ========================================== -->
 
         <div class="output-format-group">
 
@@ -318,19 +309,29 @@
             </label>
 
 
+            <!-- 字幕MP4 -->
+
+            <label class="output-format-option">
+
+                <input
+                    type="radio"
+                    name="output-format"
+                    value="subtitle-mp4"
+                >
+
+                <span>
+                    字幕MP4
+                </span>
+
+            </label>
+
+
         </div>
 
 
-        <!-- =====================================
-             処理状況
-        ====================================== -->
-
-        <div
-            id="conversion-status-area"
-            class="conversion-status-area"
-            aria-live="polite"
-        ></div>
-
+        <!-- =========================================
+             ステータス
+        ========================================== -->
 
         <div
             id="status"
@@ -339,9 +340,9 @@
         ></div>
 
 
-        <!-- =====================================
+        <!-- =========================================
              ダウンロード結果
-        ====================================== -->
+        ========================================== -->
 
         <div
             id="downloadArea"
@@ -349,16 +350,14 @@
         ></div>
 
 
-        <!-- =====================================
-             字幕付きMP4
-             
-             sub_embed.js から使用可能
-        ====================================== -->
+        <!-- =========================================
+             字幕MP4エリア
+        ========================================== -->
 
         <div
             id="subtitle-mp4-area"
             class="subtitle-mp4-area"
-            style="display: none;"
+            style="display:none;"
         >
 
             <div
@@ -366,27 +365,36 @@
                 class="subtitle-mp4-info"
             ></div>
 
-
             <div
                 id="subtitle-mp4-download-container"
-                class="subtitle-mp4-download-container"
             ></div>
 
         </div>
 
 
+        <!-- =========================================
+             変換詳細表示
+        ========================================== -->
+
+        <div
+            id="conversion-status-area"
+            class="conversion-status-area"
+            style="display:none;"
+        ></div>
+
+
     </div>
 
 
-    <!-- =========================================
-         タブ2
+
+    <!-- ==================================================
+         TAB 2
          ファイル変換
-    ========================================== -->
+    =================================================== -->
 
     <div
         id="file-tab"
         class="tab-content"
-        hidden
     >
 
 
@@ -396,69 +404,59 @@
 
         <div class="tab-title">
 
-            ファイルをアップロードしてください
+            MP3ファイルからSRTを作成
+
+        </div>
+
+
+        <div class="file-conversion-description">
+
+            MP3ファイルを選択してGeminiへ送信します。
 
         </div>
 
 
         <!-- =====================================
-             MP3ファイル選択
+             ファイル選択
         ====================================== -->
 
-        <div class="file-convert-row">
+        <input
+            id="gemini-mp3-file"
+            type="file"
+            accept=".mp3,audio/mpeg"
+            style="display:none;"
+        >
+
+
+        <!-- =====================================
+             ファイル名 + Geminiボタン
+        ====================================== -->
+
+        <div class="gemini-file-row">
 
 
             <!--
-                実際のファイル選択 input
+                ファイル名部分
 
-                画面上では非表示
-            -->
-
-            <input
-                type="file"
-                id="file-convert-input"
-                class="file-input-hidden"
-                accept=".mp3,audio/mpeg"
-            >
-
-
-            <!--
-                ファイル選択ボタン
-
-                クリックするとファイル選択画面が開く
-            -->
-
-            <label
-                for="file-convert-input"
-                id="file-select-button"
-                class="file-select-button"
-            >
-                MP3ファイルを選択
-            </label>
-
-
-            <!--
-                選択したファイル名
-            -->
-
-            <span
-                id="selected-file-name"
-                class="selected-file-name"
-            >
-                ファイル未選択
-            </span>
-
-
-            <!--
-                タブ2専用Geminiボタン
-
-                タブ1のconvertBtnとは完全に別
+                クリックすると
+                ファイル選択画面を開く
             -->
 
             <button
+                id="gemini-file-name"
+                class="gemini-file-name-button"
                 type="button"
-                id="fileGeminiButton"
-                class="gemini-button"
+            >
+                MP3ファイルを選択
+            </button>
+
+
+            <!-- Gemini -->
+
+            <button
+                id="gemini-send-button"
+                class="gemini-send-button"
+                type="button"
                 disabled
             >
                 Geminiへ送る
@@ -469,23 +467,33 @@
 
 
         <!-- =====================================
-             ファイル変換ステータス
+             ファイル情報
         ====================================== -->
 
         <div
-            id="file-convert-status"
+            id="gemini-file-info"
+            class="gemini-file-info"
+        ></div>
+
+
+        <!-- =====================================
+             ステータス
+        ====================================== -->
+
+        <div
+            id="gemini-status"
             class="status"
             aria-live="polite"
         ></div>
 
 
         <!-- =====================================
-             ファイル変換結果
+             SRT結果
         ====================================== -->
 
         <div
-            id="file-convert-result"
-            class="download-area"
+            id="gemini-result"
+            class="gemini-result"
         ></div>
 
 
@@ -495,39 +503,40 @@
 </div>
 
 
-<!-- =========================================
+
+<!-- ==================================================
      JavaScript
-========================================== -->
+================================================== -->
 
 
-<!-- =========================================
-     YouTube変換
+<!--
+    converter.js
 
-     タブ1の実行処理
-========================================== -->
+    YouTube変換専用。
 
-<script
-    src="/static/converter.js"
-></script>
+    タブ1の
+    #convertBtn
+    を担当。
+-->
 
-
-<!-- =========================================
-     字幕・Gemini処理
-
-     タブ1・タブ2の両方から利用可能
-========================================== -->
-
-<script
-    src="/static/sub_embed.js"
-></script>
+<script src="/static/converter.js"></script>
 
 
-<!-- =========================================
-     タブ・ファイル選択UI
+<!--
+    Gemini処理専用。
 
-     converter.jsとは分離
-     sub_embed.jsとも分離
-========================================== -->
+    タブ2の
+    MP3 → Gemini → SRT
+    を担当。
+-->
+
+<script src="/static/gemini.js"></script>
+
+
+
+<!-- ==================================================
+     タブ切り替え
+================================================== -->
 
 <script>
 
@@ -536,373 +545,105 @@
     "use strict";
 
 
-    // =====================================
-    // DOM
-    // =====================================
+    document.addEventListener(
+        "DOMContentLoaded",
+        function () {
 
-    const youtubeTabButton =
-        document.getElementById(
-            "youtube-tab-button"
-        );
 
-
-    const fileTabButton =
-        document.getElementById(
-            "file-tab-button"
-        );
-
-
-    const youtubeTab =
-        document.getElementById(
-            "youtube-tab"
-        );
-
-
-    const fileTab =
-        document.getElementById(
-            "file-tab"
-        );
-
-
-    const fileInput =
-        document.getElementById(
-            "file-convert-input"
-        );
-
-
-    const selectedFileName =
-        document.getElementById(
-            "selected-file-name"
-        );
-
-
-    const fileGeminiButton =
-        document.getElementById(
-            "fileGeminiButton"
-        );
-
-
-    const fileConvertStatus =
-        document.getElementById(
-            "file-convert-status"
-        );
-
-
-    // =====================================
-    // タブ切り替え
-    // =====================================
-
-    function activateTab(
-        tabName
-    ) {
-
-        const isYoutube =
-            tabName === "youtube";
-
-
-        // =================================
-        // YouTubeタブボタン
-        // =================================
-
-        if (youtubeTabButton) {
-
-            youtubeTabButton.classList.toggle(
-                "active",
-                isYoutube
-            );
-
-        }
-
-
-        // =================================
-        // ファイルタブボタン
-        // =================================
-
-        if (fileTabButton) {
-
-            fileTabButton.classList.toggle(
-                "active",
-                !isYoutube
-            );
-
-        }
-
-
-        // =================================
-        // YouTubeタブ本体
-        // =================================
-
-        if (youtubeTab) {
-
-            youtubeTab.classList.toggle(
-                "active",
-                isYoutube
-            );
-
-            youtubeTab.hidden =
-                !isYoutube;
-
-        }
-
-
-        // =================================
-        // ファイルタブ本体
-        // =================================
-
-        if (fileTab) {
-
-            fileTab.classList.toggle(
-                "active",
-                !isYoutube
-            );
-
-            fileTab.hidden =
-                isYoutube;
-
-        }
-
-
-        console.log(
-            "[INDEX] tab activated:",
-            tabName
-        );
-
-    }
-
-
-    // =====================================
-    // YouTubeタブ
-    // =====================================
-
-    if (youtubeTabButton) {
-
-        youtubeTabButton.addEventListener(
-            "click",
-            function () {
-
-                activateTab(
-                    "youtube"
-                );
-
-            }
-        );
-
-    }
-
-
-    // =====================================
-    // ファイルタブ
-    // =====================================
-
-    if (fileTabButton) {
-
-        fileTabButton.addEventListener(
-            "click",
-            function () {
-
-                activateTab(
-                    "file"
-                );
-
-            }
-        );
-
-    }
-
-
-    // =====================================
-    // ファイル選択
-    // =====================================
-
-    if (fileInput) {
-
-        fileInput.addEventListener(
-            "change",
-            function () {
-
-
-                const file =
-                    this.files &&
-                    this.files.length > 0
-                        ? this.files[0]
-                        : null;
-
-
-                // =================================
-                // ファイル未選択
-                // =================================
-
-                if (!file) {
-
-                    if (selectedFileName) {
-
-                        selectedFileName.textContent =
-                            "ファイル未選択";
-
-                    }
-
-
-                    if (fileGeminiButton) {
-
-                        fileGeminiButton.disabled =
-                            true;
-
-                    }
-
-
-                    return;
-
-                }
-
-
-                // =================================
-                // ファイル名表示
-                // =================================
-
-                if (selectedFileName) {
-
-                    selectedFileName.textContent =
-                        file.name;
-
-                }
-
-
-                // =================================
-                // Geminiボタン有効化
-                // =================================
-
-                if (fileGeminiButton) {
-
-                    fileGeminiButton.disabled =
-                        false;
-
-                }
-
-
-                if (fileConvertStatus) {
-
-                    fileConvertStatus.textContent =
-                        "MP3ファイルを選択しました。";
-
-                }
-
-
-                console.log(
-                    "[INDEX] file selected:",
-                    file.name
+            const tabButtons =
+                document.querySelectorAll(
+                    ".tab-button"
                 );
 
 
-                // =================================
-                // 共通イベント
-                //
-                // sub_embed.jsからも利用可能
-                // =================================
+            const tabContents =
+                document.querySelectorAll(
+                    ".tab-content"
+                );
 
-                document.dispatchEvent(
-                    new CustomEvent(
-                        "converter:file-selected",
-                        {
-                            detail: {
-                                file:
-                                    file
+
+            tabButtons.forEach(
+                function (button) {
+
+
+                    button.addEventListener(
+                        "click",
+                        function () {
+
+
+                            const targetId =
+                                button.dataset.tab;
+
+
+                            console.log(
+                                "[INDEX] タブ切り替え:",
+                                targetId
+                            );
+
+
+                            // -----------------------------
+                            // ボタン
+                            // -----------------------------
+
+                            tabButtons.forEach(
+                                function (item) {
+
+                                    item.classList.remove(
+                                        "active"
+                                    );
+
+                                }
+                            );
+
+
+                            button.classList.add(
+                                "active"
+                            );
+
+
+                            // -----------------------------
+                            // コンテンツ
+                            // -----------------------------
+
+                            tabContents.forEach(
+                                function (content) {
+
+                                    content.classList.remove(
+                                        "active"
+                                    );
+
+                                }
+                            );
+
+
+                            const target =
+                                document.getElementById(
+                                    targetId
+                                );
+
+
+                            if (target) {
+
+                                target.classList.add(
+                                    "active"
+                                );
+
                             }
+
                         }
-                    )
-                );
-
-            }
-        );
-
-    }
-
-
-    // =====================================
-    // Geminiへ送る
-    //
-    // タブ2専用ボタン
-    // =====================================
-
-    if (fileGeminiButton) {
-
-        fileGeminiButton.addEventListener(
-            "click",
-            function () {
-
-
-                const file =
-                    fileInput &&
-                    fileInput.files &&
-                    fileInput.files.length > 0
-                        ? fileInput.files[0]
-                        : null;
-
-
-                // =================================
-                // ファイル確認
-                // =================================
-
-                if (!file) {
-
-                    if (fileConvertStatus) {
-
-                        fileConvertStatus.textContent =
-                            "MP3ファイルを選択してください。";
-
-                    }
-
-                    return;
+                    );
 
                 }
+            );
 
 
-                console.log(
-                    "[INDEX] Gemini送信:",
-                    file.name
-                );
-
-
-                // =================================
-                // 共通イベント
-                //
-                // sub_embed.jsが処理を担当できる
-                // =================================
-
-                document.dispatchEvent(
-                    new CustomEvent(
-                        "converter:gemini-file-request",
-                        {
-                            detail: {
-                                file:
-                                    file
-                            }
-                        }
-                    )
-                );
-
-            }
-        );
-
-    }
-
-
-    // =====================================
-    // 初期状態
-    // =====================================
-
-    activateTab(
-        "youtube"
+        }
     );
-
-
-    console.log(
-        "[INDEX] index.html initialized"
-    );
-
 
 })();
 
 </script>
+
 
 
 </body>
