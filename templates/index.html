@@ -1,882 +1,911 @@
-<!DOCTYPE html> <html lang="ja"> <head>
-<meta charset="UTF-8">
+<!DOCTYPE html>
+<html lang="ja">
 
-<meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
->
+<head>
 
-<title>YouTube Converter</title>
+    <meta charset="UTF-8">
 
-<link
-    rel="stylesheet"
-    href="/static/style.css"
->
-
-</head> <body> <div class="container">
-<!-- =========================================
-     タイトル
-========================================== -->
-
-<h1>
-    YouTube Converter
-</h1>
-
-<!-- =========================================
-     ファイル一覧
-========================================== -->
-
-<div>
-
-    <a
-        href="/files"
-        class="converter-link"
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
     >
-        保存ファイルを確認
-    </a>
 
-</div>
+    <title>YouTube Converter</title>
 
-<!-- =========================================
-     YouTube変換
-========================================== -->
+    <link
+        rel="stylesheet"
+        href="/static/style.css"
+    >
 
-<div class="tab-content active">
+</head>
 
-    <!-- =====================================
-         説明
-    ====================================== -->
 
-    <div class="tab-title">
+<body>
 
-        YouTube動画のアドレスを入力
+
+<div class="container">
+
+
+    <!-- =========================================
+         ヘッダー
+    ========================================== -->
+
+    <div class="page-header">
+
+        <h1>
+            YouTube Converter
+        </h1>
+
+        <!-- 保存ファイル -->
+
+        <a
+            href="/files"
+            class="files-link"
+            title="保存ファイルを確認"
+            aria-label="保存ファイルを確認"
+        >
+            📁
+        </a>
 
     </div>
 
-    <!-- =====================================
-         URL + 実行
-    ====================================== -->
 
-    <div class="url-row">
+    <!-- =========================================
+         タブ
+    ========================================== -->
 
-        <input
-            id="youtube-url"
-            class="url-input"
-            type="text"
-            placeholder="https://www.youtube.com/watch?v=..."
-            autocomplete="off"
-        >
+    <div class="converter-tabs">
 
         <button
-            id="convertBtn"
-            class="execute-button"
             type="button"
+            class="converter-tab active"
+            id="youtube-tab-button"
+            data-tab="youtube"
         >
-            実行
+            YouTube変換
+        </button>
+
+
+        <button
+            type="button"
+            class="converter-tab"
+            id="file-tab-button"
+            data-tab="file"
+        >
+            ファイル変換
         </button>
 
     </div>
 
-    <!-- =====================================
-         時間指定
-    ====================================== -->
 
-    <div class="time-area">
+    <!-- =========================================
+         タブ1
+         YouTube変換
+    ========================================== -->
 
-        <div class="time-label-row">
+    <div
+        id="youtube-tab"
+        class="tab-content active"
+    >
 
-            <span class="time-title">
-                開始
-            </span>
 
-            <span class="time-title">
-                終了
-            </span>
+        <!-- =====================================
+             説明
+        ====================================== -->
+
+        <div class="tab-title">
+
+            YouTube動画のアドレスを入力
 
         </div>
 
-        <div class="time-input-row">
 
-            <!-- =============================
-                 開始
-            ============================== -->
+        <!-- =====================================
+             URL + 実行
+        ====================================== -->
 
-            <div class="time-group">
+        <div class="url-row">
 
-                <input
-                    id="start-hour"
-                    class="time-input"
-                    type="text"
-                    inputmode="numeric"
-                    maxlength="2"
-                    pattern="[0-9]*"
-                    placeholder="00"
-                >
+            <input
+                id="youtube-url"
+                class="url-input"
+                type="text"
+                placeholder="https://www.youtube.com/watch?v=..."
+                autocomplete="off"
+            >
 
-                <span class="time-unit">
-                    時
+
+            <!--
+                タブ1専用の実行ボタン
+
+                converter.js が使用する
+            -->
+
+            <button
+                id="convertBtn"
+                class="execute-button"
+                type="button"
+            >
+                実行
+            </button>
+
+        </div>
+
+
+        <!-- =====================================
+             時間指定
+        ====================================== -->
+
+        <div class="time-area">
+
+
+            <div class="time-label-row">
+
+                <span class="time-title">
+                    開始
                 </span>
 
-                <input
-                    id="start-minute"
-                    class="time-input"
-                    type="text"
-                    inputmode="numeric"
-                    maxlength="2"
-                    pattern="[0-9]*"
-                    placeholder="00"
-                >
-
-                <span class="time-unit">
-                    分
-                </span>
-
-                <input
-                    id="start-second"
-                    class="time-input"
-                    type="text"
-                    inputmode="numeric"
-                    maxlength="2"
-                    pattern="[0-9]*"
-                    placeholder="00"
-                >
-
-                <span class="time-unit">
-                    秒
+                <span class="time-title">
+                    終了
                 </span>
 
             </div>
 
-            <!-- =============================
-                 区切り
-            ============================== -->
 
-            <span class="time-separator">
-                ～
-            </span>
+            <div class="time-input-row">
 
-            <!-- =============================
-                 終了
-            ============================== -->
 
-            <div class="time-group">
+                <!-- =============================
+                     開始
+                ============================== -->
 
-                <input
-                    id="end-hour"
-                    class="time-input"
-                    type="text"
-                    inputmode="numeric"
-                    maxlength="2"
-                    pattern="[0-9]*"
-                    placeholder="00"
-                >
+                <div class="time-group">
 
-                <span class="time-unit">
-                    時
+
+                    <input
+                        id="start-hour"
+                        class="time-input"
+                        type="text"
+                        inputmode="numeric"
+                        maxlength="2"
+                        pattern="[0-9]*"
+                        placeholder="00"
+                    >
+
+                    <span class="time-unit">
+                        時
+                    </span>
+
+
+                    <input
+                        id="start-minute"
+                        class="time-input"
+                        type="text"
+                        inputmode="numeric"
+                        maxlength="2"
+                        pattern="[0-9]*"
+                        placeholder="00"
+                    >
+
+                    <span class="time-unit">
+                        分
+                    </span>
+
+
+                    <input
+                        id="start-second"
+                        class="time-input"
+                        type="text"
+                        inputmode="numeric"
+                        maxlength="2"
+                        pattern="[0-9]*"
+                        placeholder="00"
+                    >
+
+                    <span class="time-unit">
+                        秒
+                    </span>
+
+
+                </div>
+
+
+                <!-- 区切り -->
+
+                <span class="time-separator">
+                    ～
                 </span>
 
-                <input
-                    id="end-minute"
-                    class="time-input"
-                    type="text"
-                    inputmode="numeric"
-                    maxlength="2"
-                    pattern="[0-9]*"
-                    placeholder="00"
-                >
 
-                <span class="time-unit">
-                    分
-                </span>
+                <!-- =============================
+                     終了
+                ============================== -->
 
-                <input
-                    id="end-second"
-                    class="time-input"
-                    type="text"
-                    inputmode="numeric"
-                    maxlength="2"
-                    pattern="[0-9]*"
-                    placeholder="00"
-                >
+                <div class="time-group">
 
-                <span class="time-unit">
-                    秒
-                </span>
+
+                    <input
+                        id="end-hour"
+                        class="time-input"
+                        type="text"
+                        inputmode="numeric"
+                        maxlength="2"
+                        pattern="[0-9]*"
+                        placeholder="00"
+                    >
+
+                    <span class="time-unit">
+                        時
+                    </span>
+
+
+                    <input
+                        id="end-minute"
+                        class="time-input"
+                        type="text"
+                        inputmode="numeric"
+                        maxlength="2"
+                        pattern="[0-9]*"
+                        placeholder="00"
+                    >
+
+                    <span class="time-unit">
+                        分
+                    </span>
+
+
+                    <input
+                        id="end-second"
+                        class="time-input"
+                        type="text"
+                        inputmode="numeric"
+                        maxlength="2"
+                        pattern="[0-9]*"
+                        placeholder="00"
+                    >
+
+                    <span class="time-unit">
+                        秒
+                    </span>
+
+
+                </div>
+
 
             </div>
 
         </div>
 
+
+        <!-- =====================================
+             出力形式
+        ====================================== -->
+
+        <div class="output-format-group">
+
+
+            <!-- MP3 -->
+
+            <label class="output-format-option">
+
+                <input
+                    type="radio"
+                    name="output-format"
+                    value="mp3"
+                    checked
+                >
+
+                <span>
+                    mp3
+                </span>
+
+            </label>
+
+
+            <!-- MP4 -->
+
+            <label class="output-format-option">
+
+                <input
+                    type="radio"
+                    name="output-format"
+                    value="mp4"
+                >
+
+                <span>
+                    mp4
+                </span>
+
+            </label>
+
+
+        </div>
+
+
+        <!-- =====================================
+             処理状況
+        ====================================== -->
+
+        <div
+            id="conversion-status-area"
+            class="conversion-status-area"
+            aria-live="polite"
+        ></div>
+
+
+        <div
+            id="status"
+            class="status"
+            aria-live="polite"
+        ></div>
+
+
+        <!-- =====================================
+             ダウンロード結果
+        ====================================== -->
+
+        <div
+            id="downloadArea"
+            class="download-area"
+        ></div>
+
+
+        <!-- =====================================
+             字幕付きMP4
+             
+             sub_embed.js から使用可能
+        ====================================== -->
+
+        <div
+            id="subtitle-mp4-area"
+            class="subtitle-mp4-area"
+            style="display: none;"
+        >
+
+            <div
+                id="subtitle-mp4-info"
+                class="subtitle-mp4-info"
+            ></div>
+
+
+            <div
+                id="subtitle-mp4-download-container"
+                class="subtitle-mp4-download-container"
+            ></div>
+
+        </div>
+
+
     </div>
 
-    <!-- =========================================
-         出力形式
-    ========================================== -->
-
-    <div class="output-format-group">
-    
-        <!-- MP3 -->
-    
-        <label class="output-format-option">
-    
-            <input
-                type="radio"
-                name="output-format"
-                value="mp3"
-                checked
-            >
-    
-            <span>
-                mp3
-            </span>
-    
-        </label>
-    
-        <!-- MP4 -->
-    
-        <label class="output-format-option">
-    
-            <input
-                type="radio"
-                name="output-format"
-                value="mp4"
-            >
-    
-            <span>
-                mp4
-            </span>
-    
-        </label>
-    
-    </div>
-
-
 
     <!-- =========================================
-         ステータス
+         タブ2
+         ファイル変換
     ========================================== -->
 
     <div
-        id="status"
-        class="status"
-        aria-live="polite"
-    ></div>
+        id="file-tab"
+        class="tab-content"
+        hidden
+    >
 
-    <!-- =========================================
-         ダウンロード結果
-    ========================================== -->
 
-    <div
-        id="downloadArea"
-        class="download-area"
-    ></div>
+        <!-- =====================================
+             説明
+        ====================================== -->
+
+        <div class="tab-title">
+
+            ファイルをアップロードしてください
+
+        </div>
+
+
+        <!-- =====================================
+             MP3ファイル選択
+        ====================================== -->
+
+        <div class="file-convert-row">
+
+
+            <!--
+                実際のファイル選択 input
+
+                画面上では非表示
+            -->
+
+            <input
+                type="file"
+                id="file-convert-input"
+                class="file-input-hidden"
+                accept=".mp3,audio/mpeg"
+            >
+
+
+            <!--
+                ファイル選択ボタン
+
+                クリックするとファイル選択画面が開く
+            -->
+
+            <label
+                for="file-convert-input"
+                id="file-select-button"
+                class="file-select-button"
+            >
+                MP3ファイルを選択
+            </label>
+
+
+            <!--
+                選択したファイル名
+            -->
+
+            <span
+                id="selected-file-name"
+                class="selected-file-name"
+            >
+                ファイル未選択
+            </span>
+
+
+            <!--
+                タブ2専用Geminiボタン
+
+                タブ1のconvertBtnとは完全に別
+            -->
+
+            <button
+                type="button"
+                id="fileGeminiButton"
+                class="gemini-button"
+                disabled
+            >
+                Geminiへ送る
+            </button>
+
+
+        </div>
+
+
+        <!-- =====================================
+             ファイル変換ステータス
+        ====================================== -->
+
+        <div
+            id="file-convert-status"
+            class="status"
+            aria-live="polite"
+        ></div>
+
+
+        <!-- =====================================
+             ファイル変換結果
+        ====================================== -->
+
+        <div
+            id="file-convert-result"
+            class="download-area"
+        ></div>
+
+
+    </div>
+
 
 </div>
 
-</div> <!-- ========================================= JavaScript ========================================== --> <script>
-document.addEventListener(
-"DOMContentLoaded",
-function () {
 
-    console.log(
-        "=========================================="
-    );
+<!-- =========================================
+     JavaScript
+========================================== -->
 
-    console.log(
-        "[INDEX] index.html initialized"
-    );
 
-    console.log(
-        "=========================================="
-    );
+<!-- =========================================
+     YouTube変換
+
+     タブ1の実行処理
+========================================== -->
+
+<script
+    src="/static/converter.js"
+></script>
+
+
+<!-- =========================================
+     字幕・Gemini処理
+
+     タブ1・タブ2の両方から利用可能
+========================================== -->
+
+<script
+    src="/static/sub_embed.js"
+></script>
+
+
+<!-- =========================================
+     タブ・ファイル選択UI
+
+     converter.jsとは分離
+     sub_embed.jsとも分離
+========================================== -->
+
+<script>
+
+(function () {
+
+    "use strict";
+
 
     // =====================================
     // DOM
     // =====================================
 
-    const convertButton =
+    const youtubeTabButton =
         document.getElementById(
-            "convertBtn"
+            "youtube-tab-button"
         );
 
-    const urlInput =
+
+    const fileTabButton =
         document.getElementById(
-            "youtube-url"
+            "file-tab-button"
         );
 
-    const statusElement =
+
+    const youtubeTab =
         document.getElementById(
-            "status"
+            "youtube-tab"
         );
 
-    const downloadArea =
+
+    const fileTab =
         document.getElementById(
-            "downloadArea"
+            "file-tab"
         );
 
-    // =====================================
-    // DOM確認
-    // =====================================
 
-    console.log(
-        "[INDEX] convertButton:",
-        convertButton
-    );
-
-    console.log(
-        "[INDEX] urlInput:",
-        urlInput
-    );
-
-    console.log(
-        "[INDEX] statusElement:",
-        statusElement
-    );
-
-    console.log(
-        "[INDEX] downloadArea:",
-        downloadArea
-    );
-
-    // =====================================
-    // ラジオボタン確認
-    // =====================================
-
-    const outputRadios =
-        document.querySelectorAll(
-            'input[name="output-format"]'
+    const fileInput =
+        document.getElementById(
+            "file-convert-input"
         );
 
-    console.log(
-        "[INDEX] output radios:",
-        outputRadios
-    );
 
-    outputRadios.forEach(
-        function (radio) {
-
-            console.log(
-                "[INDEX] output option:",
-                radio.value
-            );
-
-        }
-    );
-
-    // =====================================
-    // 数字入力
-    // =====================================
-
-    const timeInputs =
-        document.querySelectorAll(
-            ".time-input"
+    const selectedFileName =
+        document.getElementById(
+            "selected-file-name"
         );
 
-    timeInputs.forEach(
-        function (input) {
 
-            input.addEventListener(
-                "input",
-                function () {
+    const fileGeminiButton =
+        document.getElementById(
+            "fileGeminiButton"
+        );
 
-                    this.value =
-                        this.value.replace(
-                            /[^0-9]/g,
-                            ""
-                        );
 
-                }
-            );
+    const fileConvertStatus =
+        document.getElementById(
+            "file-convert-status"
+        );
 
-        }
-    );
 
     // =====================================
-    // 時間取得
+    // タブ切り替え
     // =====================================
 
-    function getTime(
-        hourId,
-        minuteId,
-        secondId
+    function activateTab(
+        tabName
     ) {
 
-        const hourElement =
-            document.getElementById(
-                hourId
-            );
+        const isYoutube =
+            tabName === "youtube";
 
-        const minuteElement =
-            document.getElementById(
-                minuteId
-            );
-
-        const secondElement =
-            document.getElementById(
-                secondId
-            );
-
-        const hour =
-            hourElement
-                ? hourElement.value.trim()
-                : "";
-
-        const minute =
-            minuteElement
-                ? minuteElement.value.trim()
-                : "";
-
-        const second =
-            secondElement
-                ? secondElement.value.trim()
-                : "";
 
         // =================================
-        // 全部空欄
+        // YouTubeタブボタン
         // =================================
 
-        if (
-            !hour &&
-            !minute &&
-            !second
-        ) {
+        if (youtubeTabButton) {
 
-            return null;
+            youtubeTabButton.classList.toggle(
+                "active",
+                isYoutube
+            );
 
         }
 
-        return (
 
-            String(
-                hour || "0"
-            ).padStart(2, "0")
+        // =================================
+        // ファイルタブボタン
+        // =================================
 
-            + ":"
+        if (fileTabButton) {
 
-            + String(
-                minute || "0"
-            ).padStart(2, "0")
+            fileTabButton.classList.toggle(
+                "active",
+                !isYoutube
+            );
 
-            + ":"
+        }
 
-            + String(
-                second || "0"
-            ).padStart(2, "0")
 
+        // =================================
+        // YouTubeタブ本体
+        // =================================
+
+        if (youtubeTab) {
+
+            youtubeTab.classList.toggle(
+                "active",
+                isYoutube
+            );
+
+            youtubeTab.hidden =
+                !isYoutube;
+
+        }
+
+
+        // =================================
+        // ファイルタブ本体
+        // =================================
+
+        if (fileTab) {
+
+            fileTab.classList.toggle(
+                "active",
+                !isYoutube
+            );
+
+            fileTab.hidden =
+                isYoutube;
+
+        }
+
+
+        console.log(
+            "[INDEX] tab activated:",
+            tabName
         );
 
     }
 
+
     // =====================================
-    // 実行ボタン確認
+    // YouTubeタブ
     // =====================================
 
-    if (!convertButton) {
+    if (youtubeTabButton) {
 
-        console.error(
-            "[INDEX] convertBtn がありません"
+        youtubeTabButton.addEventListener(
+            "click",
+            function () {
+
+                activateTab(
+                    "youtube"
+                );
+
+            }
         );
-
-        return;
 
     }
 
+
     // =====================================
-    // 実行ボタン
+    // ファイルタブ
     // =====================================
 
-    convertButton.addEventListener(
-        "click",
-        async function () {
+    if (fileTabButton) {
 
-            console.log(
-                "=========================================="
-            );
+        fileTabButton.addEventListener(
+            "click",
+            function () {
 
-            console.log(
-                "[INDEX] 実行ボタンが押されました"
-            );
+                activateTab(
+                    "file"
+                );
 
-            // =================================
-            // URL
-            // =================================
+            }
+        );
 
-            const url =
-                urlInput
-                    ? urlInput.value.trim()
-                    : "";
+    }
 
-            console.log(
-                "[INDEX] URL:",
-                url
-            );
 
-            if (!url) {
+    // =====================================
+    // ファイル選択
+    // =====================================
+
+    if (fileInput) {
+
+        fileInput.addEventListener(
+            "change",
+            function () {
+
+
+                const file =
+                    this.files &&
+                    this.files.length > 0
+                        ? this.files[0]
+                        : null;
+
+
+                // =================================
+                // ファイル未選択
+                // =================================
+
+                if (!file) {
+
+                    if (selectedFileName) {
+
+                        selectedFileName.textContent =
+                            "ファイル未選択";
+
+                    }
+
+
+                    if (fileGeminiButton) {
+
+                        fileGeminiButton.disabled =
+                            true;
+
+                    }
+
+
+                    return;
+
+                }
+
+
+                // =================================
+                // ファイル名表示
+                // =================================
+
+                if (selectedFileName) {
+
+                    selectedFileName.textContent =
+                        file.name;
+
+                }
+
+
+                // =================================
+                // Geminiボタン有効化
+                // =================================
+
+                if (fileGeminiButton) {
+
+                    fileGeminiButton.disabled =
+                        false;
+
+                }
+
+
+                if (fileConvertStatus) {
+
+                    fileConvertStatus.textContent =
+                        "MP3ファイルを選択しました。";
+
+                }
+
 
                 console.log(
-                    "[INDEX] URLが空です"
+                    "[INDEX] file selected:",
+                    file.name
                 );
 
-                statusElement.textContent =
-                    "YouTube URLを入力してください。";
 
-                return;
+                // =================================
+                // 共通イベント
+                //
+                // sub_embed.jsからも利用可能
+                // =================================
 
-            }
-
-            // =================================
-            // ラジオボタン
-            // =================================
-
-            const selectedRadio =
-                document.querySelector(
-                    'input[name="output-format"]:checked'
-                );
-
-            console.log(
-                "[INDEX] selected radio:",
-                selectedRadio
-            );
-
-            if (!selectedRadio) {
-
-                console.error(
-                    "[INDEX] 出力形式が選択されていません"
-                );
-
-                statusElement.textContent =
-                    "出力形式を選択してください。";
-
-                return;
-
-            }
-
-            const outputType =
-                selectedRadio.value;
-
-            console.log(
-                "[INDEX] output_type:",
-                outputType
-            );
-
-            // =================================
-            // 時間
-            // =================================
-
-            const startTime =
-                getTime(
-                    "start-hour",
-                    "start-minute",
-                    "start-second"
-                );
-
-            const endTime =
-                getTime(
-                    "end-hour",
-                    "end-minute",
-                    "end-second"
-                );
-
-            console.log(
-                "[INDEX] start_time:",
-                startTime
-            );
-
-            console.log(
-                "[INDEX] end_time:",
-                endTime
-            );
-
-            // =================================
-            // 結果クリア
-            // =================================
-
-            downloadArea.innerHTML =
-                "";
-
-            // =================================
-            // ボタン無効化
-            // =================================
-
-            convertButton.disabled =
-                true;
-
-            // =================================
-            // ステータス
-            // =================================
-
-            if (outputType === "mp4") {
-
-                statusElement.textContent =
-                    "MP4を作成しています・・・";
-
-            }
-            else {
-
-                statusElement.textContent =
-                    "MP3を作成しています・・・";
-
-            }
-
-            // =================================
-            // 送信データ
-            // =================================
-
-            const requestData = {
-
-                url:
-                    url,
-
-                output_type:
-                    outputType,
-
-                start_time:
-                    startTime,
-
-                end_time:
-                    endTime
-
-            };
-
-            console.log(
-                "[INDEX] /convert 送信データ:",
-                requestData
-            );
-
-            // =================================
-            // /convert
-            // =================================
-
-            try {
-
-                console.log(
-                    "[INDEX] /convert 呼び出し開始"
-                );
-
-                const response =
-                    await fetch(
-                        "/convert",
+                document.dispatchEvent(
+                    new CustomEvent(
+                        "converter:file-selected",
                         {
-
-                            method:
-                                "POST",
-
-                            headers: {
-
-                                "Content-Type":
-                                    "application/json"
-
-                            },
-
-                            body:
-                                JSON.stringify(
-                                    requestData
-                                )
-
+                            detail: {
+                                file:
+                                    file
+                            }
                         }
-                    );
-
-                console.log(
-                    "[INDEX] /convert 呼び出し完了"
-                );
-
-                console.log(
-                    "[INDEX] response status:",
-                    response.status
-                );
-
-                console.log(
-                    "[INDEX] response ok:",
-                    response.ok
-                );
-
-                // =================================
-                // JSON
-                // =================================
-
-                let data;
-
-                try {
-
-                    data =
-                        await response.json();
-
-                }
-                catch (jsonError) {
-
-                    console.error(
-                        "[INDEX] JSON解析エラー:",
-                        jsonError
-                    );
-
-                    throw new Error(
-                        "サーバーからJSONを取得できませんでした。"
-                    );
-
-                }
-
-                console.log(
-                    "[INDEX] response data:",
-                    data
-                );
-
-                // =================================
-                // サーバーエラー
-                // =================================
-
-                if (
-                    !response.ok ||
-                    !data.success
-                ) {
-
-                    throw new Error(
-
-                        data.message ||
-                        (
-                            outputType === "mp4"
-                                ? "MP4作成に失敗しました。"
-                                : "MP3作成に失敗しました。"
-                        )
-
-                    );
-
-                }
-
-                // =================================
-                // ファイル名確認
-                // =================================
-
-                if (!data.filename) {
-
-                    console.error(
-                        "[INDEX] filename がありません:",
-                        data
-                    );
-
-                    throw new Error(
-                        "作成したファイル名が返されませんでした。"
-                    );
-
-                }
-
-                console.log(
-                    "[INDEX] filename:",
-                    data.filename
-                );
-
-                // =================================
-                // 成功
-                // =================================
-
-                if (outputType === "mp4") {
-
-                    statusElement.textContent =
-                        "MP4の作成が完了しました。";
-
-                }
-                else {
-
-                    statusElement.textContent =
-                        "MP3の作成が完了しました。";
-
-                }
-
-                // =================================
-                // ダウンロードボタン
-                // =================================
-
-                const link =
-                    document.createElement(
-                        "a"
-                    );
-
-                link.href =
-                    "/download/" +
-                    encodeURIComponent(
-                        data.filename
-                    );
-
-                link.download =
-                    data.filename;
-
-                link.className =
-                    "download-button";
-
-                link.textContent =
-                    outputType === "mp4"
-                        ? "[mp4]"
-                        : "[mp3]";
-
-                downloadArea.appendChild(
-                    link
-                );
-
-                console.log(
-                    "[INDEX] ダウンロードボタン追加:",
-                    data.filename
-                );
-
-            }
-            catch (error) {
-
-                console.error(
-                    "=========================================="
-                );
-
-                console.error(
-                    "[INDEX] 変換エラー:",
-                    error
-                );
-
-                console.error(
-                    "[INDEX] exception type:",
-                    error
-                        ? error.constructor.name
-                        : "unknown"
-                );
-
-                console.error(
-                    "=========================================="
-                );
-
-                statusElement.textContent =
-                    (
-                        outputType === "mp4"
-                            ? "MP4"
-                            : "MP3"
                     )
-                    + "作成中にエラーが発生しました。\n"
-                    + error.message;
-
-            }
-            finally {
-
-                // =============================
-                // ボタン復帰
-                // =============================
-
-                convertButton.disabled =
-                    false;
-
-                console.log(
-                    "[INDEX] 処理終了"
-                );
-
-                console.log(
-                    "=========================================="
                 );
 
             }
+        );
 
-        }
+    }
+
+
+    // =====================================
+    // Geminiへ送る
+    //
+    // タブ2専用ボタン
+    // =====================================
+
+    if (fileGeminiButton) {
+
+        fileGeminiButton.addEventListener(
+            "click",
+            function () {
+
+
+                const file =
+                    fileInput &&
+                    fileInput.files &&
+                    fileInput.files.length > 0
+                        ? fileInput.files[0]
+                        : null;
+
+
+                // =================================
+                // ファイル確認
+                // =================================
+
+                if (!file) {
+
+                    if (fileConvertStatus) {
+
+                        fileConvertStatus.textContent =
+                            "MP3ファイルを選択してください。";
+
+                    }
+
+                    return;
+
+                }
+
+
+                console.log(
+                    "[INDEX] Gemini送信:",
+                    file.name
+                );
+
+
+                // =================================
+                // 共通イベント
+                //
+                // sub_embed.jsが処理を担当できる
+                // =================================
+
+                document.dispatchEvent(
+                    new CustomEvent(
+                        "converter:gemini-file-request",
+                        {
+                            detail: {
+                                file:
+                                    file
+                            }
+                        }
+                    )
+                );
+
+            }
+        );
+
+    }
+
+
+    // =====================================
+    // 初期状態
+    // =====================================
+
+    activateTab(
+        "youtube"
     );
+
 
     console.log(
-        "[INDEX] clickイベント登録完了"
+        "[INDEX] index.html initialized"
     );
 
-}
 
-);
+})();
 
-</script> </body> </html>
+</script>
+
+
+</body>
+
+</html>
