@@ -349,10 +349,12 @@ def _build_ydl_options(
         "verbose":
             True,
 
+        # YouTube JavaScript challenge対応
         "js_runtimes": {
             "deno": {}
         },
 
+        # EJS challenge scripts取得
         "remote_components": {
             "ejs:github"
         },
@@ -1869,8 +1871,6 @@ def create_mp4(
 
         # ==================================================
         # FFmpeg
-        #
-        # MP4は時間指定時に再エンコード。
         # ==================================================
 
         ffmpeg_command = [
