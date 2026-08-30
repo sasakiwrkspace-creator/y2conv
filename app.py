@@ -17,6 +17,7 @@ import config
 from routes.index import register_index
 from routes.files import register_files
 from routes.convert import register_convert
+from routes.check import register_video_info, register_check
 
 
 # =====================================
@@ -43,6 +44,10 @@ register_index(app)
 register_files(app)
 
 register_convert(app)
+
+register_video_info(app)
+
+register_check(app)
 
 
 # =====================================
