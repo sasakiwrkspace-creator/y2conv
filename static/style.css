@@ -1,486 +1,92 @@
 /* =========================================
-YouTube Converter
+タブ
 ========================================= */
 
-/* =========================================
-全体
-========================================= */
-
-* {
-    box-sizing: border-box;
-}
-
-body {
-    margin: 0;
-    padding: 20px;
-
-    font-family:
-        Arial,
-        "Hiragino Kaku Gothic ProN",
-        "Yu Gothic",
-        sans-serif;
-
-    color: #222;
-    background: #f5f5f5;
-}
-
-.container {
-    max-width: 900px;
-    margin: 0 auto;
-}
-
-/* =========================================
-タイトル
-========================================= */
-
-h1 {
-    margin: 0 0 20px;
-}
-
-.converter-link {
-    color: #222;
-    text-decoration: none;
-}
-
-.page-header {
+.converter-tabs {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+
+    gap: 4px;
+
+    margin-bottom: 0;
+
+    border-bottom: 2px solid #d9d9d9;
 }
 
-.files-link {
-    text-decoration: none;
-    font-size: 1.4rem;
-}
+.converter-tab-button {
+    position: relative;
 
-/* =========================================
-メインタブ
-========================================= */
+    padding: 12px 28px;
 
-.main-tabs {
-    display: flex;
-    gap: 5px;
+    border: 1px solid #d5d5d5;
+    border-bottom: none;
 
-    margin-bottom: 20px;
-}
+    border-radius: 8px 8px 0 0;
 
-.main-tab-button {
-    padding: 10px 20px;
+    background: #e9e9e9;
 
-    border: 1px solid #ccc;
-    background: #e5e5e5;
+    color: #555;
+
+    font-size: 15px;
+    font-weight: 500;
 
     cursor: pointer;
+
+    transition:
+        background-color 0.15s ease,
+        color 0.15s ease;
 }
 
-.main-tab-button.active {
-    background: #fff;
-    font-weight: bold;
+.converter-tab-button:hover {
+    background: #f3f3f3;
+    color: #222;
 }
+
+.converter-tab-button.active {
+    z-index: 2;
+
+    background: #fff;
+
+    color: #222;
+
+    font-weight: bold;
+
+    border-color: #ccc;
+
+    margin-bottom: -2px;
+}
+
+.converter-tab-button.active::after {
+    content: "";
+
+    position: absolute;
+
+    left: 0;
+    right: 0;
+    bottom: -2px;
+
+    height: 2px;
+
+    background: #fff;
+}
+
 
 /* =========================================
-タブ
+タブ内容
 ========================================= */
 
 .tab-content {
     display: none;
 
-    padding: 20px;
+    padding: 24px;
 
     background: #fff;
+
     border: 1px solid #ccc;
+    border-top: none;
+
+    border-radius: 0 0 8px 8px;
 }
 
 .tab-content.active {
     display: block;
-}
-
-.tab-title {
-    margin-bottom: 15px;
-
-    font-weight: bold;
-}
-
-/* =========================================
-URL
-========================================= */
-
-.url-row {
-    display: flex;
-    gap: 10px;
-}
-
-.url-input {
-    flex: 1;
-
-    min-width: 0;
-    padding: 10px;
-
-    border: 1px solid #bbb;
-}
-
-.execute-button {
-    padding: 10px 25px;
-
-    border: 1px solid #999;
-    background: #eee;
-
-    cursor: pointer;
-}
-
-.execute-button:disabled {
-    cursor: default;
-    opacity: 0.6;
-}
-
-/* =========================================
-時間
-========================================= */
-
-.time-area {
-    margin-top: 20px;
-}
-
-/*
-    開始        終了
-    時 分 秒 ～ 時 分 秒
-*/
-
-.time-label-row {
-    display: flex;
-    justify-content: space-between;
-
-    max-width: 650px;
-    margin-bottom: 5px;
-}
-
-.time-input-row {
-    display: flex;
-
-    align-items: center;
-
-    gap: 15px;
-
-    /*
-        横幅がある限り横並びを維持
-    */
-    white-space: nowrap;
-}
-
-.time-group {
-    display: flex;
-
-    align-items: center;
-
-    gap: 3px;
-
-    white-space: nowrap;
-}
-
-.time-input {
-    width: 45px;
-    padding: 5px;
-
-    text-align: center;
-
-    border: 1px solid #bbb;
-}
-
-.time-separator {
-    flex: 0 0 auto;
-
-    font-size: 18px;
-}
-
-/* =========================================
-出力形式
-========================================= */
-
-.output-format-group {
-    display: flex;
-
-    flex-direction: row;
-
-    align-items: center;
-
-    gap: 20px;
-
-    margin-top: 20px;
-
-    /*
-        横並びを維持
-    */
-    white-space: nowrap;
-}
-
-.output-format-option {
-    display: inline-flex;
-
-    align-items: center;
-
-    gap: 5px;
-
-    cursor: pointer;
-}
-
-/* =========================================
-ステータス
-========================================= */
-
-.status {
-    margin-top: 20px;
-
-    white-space: pre-line;
-}
-
-.conversion-details {
-    margin-top: 15px;
-
-    padding: 10px;
-
-    border: 1px solid #ccc;
-}
-
-.conversion-details summary {
-    cursor: pointer;
-    font-weight: bold;
-}
-
-.conversion-status-area {
-    margin-top: 10px;
-
-    padding: 10px;
-
-    white-space: pre-line;
-
-    background: #f7f7f7;
-}
-
-/* =========================================
-ダウンロード
-========================================= */
-
-.download-area {
-    display: flex;
-
-    flex-wrap: wrap;
-
-    align-items: center;
-
-    gap: 10px;
-
-    margin-top: 20px;
-}
-
-.download-button {
-    display: inline-block;
-
-    padding: 8px 14px;
-
-    border: 1px solid #999;
-    background: #eee;
-
-    color: #222;
-    text-decoration: none;
-}
-
-.download-button:hover {
-    background: #ddd;
-}
-
-/* =========================================
-Gemini
-========================================= */
-
-.srt-area {
-    margin-top: 10px;
-}
-
-.gemini-button {
-    padding: 6px 10px;
-
-    border: 1px solid #999;
-    background: #eee;
-
-    cursor: pointer;
-}
-
-/* =========================================
-字幕MP4
-========================================= */
-
-.subtitle-mp4-area {
-    margin-top: 20px;
-
-    padding: 10px;
-
-    border: 1px solid #ccc;
-}
-
-/* =========================================
-字幕作成
-========================================= */
-
-.sub-embed-file-row {
-    display: flex;
-
-    align-items: center;
-
-    gap: 15px;
-
-    margin-bottom: 15px;
-}
-
-.sub-embed-file-row label {
-    width: 50px;
-
-    font-weight: bold;
-}
-
-.sub-embed-button-row {
-    margin-top: 10px;
-}
-
-.sub-embed-button-row button {
-    padding: 8px 20px;
-
-    border: 1px solid #999;
-    background: #eee;
-
-    cursor: pointer;
-}
-
-.sub-embed-status {
-    margin-top: 15px;
-
-    white-space: pre-line;
-}
-
-.sub-embed-files {
-    margin-top: 15px;
-}
-
-/* =========================================
-スマートフォン
-========================================= */
-
-@media (max-width: 600px) {
-
-    body {
-        padding: 10px;
-    }
-
-    .tab-content {
-        padding: 15px;
-    }
-
-    /* -----------------------------
-       URL
-    ----------------------------- */
-
-    .url-row {
-        flex-direction: column;
-    }
-
-    .execute-button {
-        width: 100%;
-    }
-
-    /* -----------------------------
-       時間
-       
-       スマホでも基本は横並び
-       
-       時 分 秒 ～ 時 分 秒
-    ----------------------------- */
-
-    .time-input-row {
-        flex-direction: row;
-
-        align-items: center;
-
-        gap: 8px;
-
-        overflow-x: auto;
-
-        padding-bottom: 3px;
-    }
-
-    .time-group {
-        flex: 0 0 auto;
-    }
-
-    .time-input {
-        width: 38px;
-        padding: 5px 2px;
-    }
-
-    .time-unit {
-        flex: 0 0 auto;
-    }
-
-    .time-separator {
-        flex: 0 0 auto;
-    }
-
-    /*
-        スマホでは「開始」「終了」の
-        見出しは省略
-    */
-
-    .time-label-row {
-        display: none;
-    }
-
-    /* -----------------------------
-       出力形式
-       
-       ◎mp3  〇mp4
-    ----------------------------- */
-
-    .output-format-group {
-        flex-direction: row;
-
-        align-items: center;
-
-        gap: 20px;
-
-        white-space: nowrap;
-    }
-
-    .output-format-option {
-        flex: 0 0 auto;
-    }
-
-}
-
-/* =========================================
-さらに狭いスマートフォン
-========================================= */
-
-@media (max-width: 380px) {
-
-    /*
-        ここまで狭い場合だけ、
-        時間入力を横スクロール可能にする。
-
-        無理に縦並びにはしない。
-    */
-
-    .time-input-row {
-        gap: 5px;
-    }
-
-    .time-input {
-        width: 34px;
-    }
-
-    .time-group {
-        gap: 2px;
-    }
-
-    .output-format-group {
-        gap: 15px;
-    }
-
 }
