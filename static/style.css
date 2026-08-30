@@ -1,72 +1,64 @@
 /* =========================================
+ヘッダー
+========================================= */
+
+.converter-header {
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    margin-bottom: 20px;
+}
+
+.converter-header h1 {
+    margin: 0;
+}
+
+.converter-link {
+    color: #222;
+    text-decoration: none;
+
+    font-size: 1.4rem;
+}
+
+
+/* =========================================
 タブ
 ========================================= */
 
 .converter-tabs {
     display: flex;
 
-    gap: 4px;
+    gap: 2px;
 
     margin-bottom: 0;
-
-    border-bottom: 2px solid #d9d9d9;
 }
 
 .converter-tab-button {
-    position: relative;
+    padding: 10px 25px;
 
-    padding: 12px 28px;
+    border: 1px solid #ccc;
 
-    border: 1px solid #d5d5d5;
-    border-bottom: none;
-
-    border-radius: 8px 8px 0 0;
-
-    background: #e9e9e9;
+    background: #e8e8e8;
 
     color: #555;
 
-    font-size: 15px;
-    font-weight: 500;
-
     cursor: pointer;
-
-    transition:
-        background-color 0.15s ease,
-        color 0.15s ease;
 }
 
 .converter-tab-button:hover {
-    background: #f3f3f3;
-    color: #222;
+    background: #ddd;
 }
 
 .converter-tab-button.active {
-    z-index: 2;
-
     background: #fff;
 
     color: #222;
 
     font-weight: bold;
 
-    border-color: #ccc;
-
-    margin-bottom: -2px;
-}
-
-.converter-tab-button.active::after {
-    content: "";
-
-    position: absolute;
-
-    left: 0;
-    right: 0;
-    bottom: -2px;
-
-    height: 2px;
-
-    background: #fff;
+    border-bottom-color: #fff;
 }
 
 
@@ -77,14 +69,11 @@
 .tab-content {
     display: none;
 
-    padding: 24px;
+    padding: 20px;
 
     background: #fff;
 
     border: 1px solid #ccc;
-    border-top: none;
-
-    border-radius: 0 0 8px 8px;
 }
 
 .tab-content.active {
