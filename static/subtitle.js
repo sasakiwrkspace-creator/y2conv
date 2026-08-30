@@ -1,6 +1,6 @@
 // =====================================
 // Subtitle Embed
-// sub_embed.js
+// subtitle.js
 //
 // MP4 + SRT
 // ↓
@@ -8,7 +8,7 @@
 // ↓
 // 字幕焼き込み
 // ↓
-// xxx_sub_embed.mp4
+// xxx_subtitle.mp4
 // ↓
 // ダウンロード
 //
