@@ -1,11 +1,11 @@
 # =====================================
-# Subtitle Embed Routes
-# routes/sub_embed_routes.py
+# Subtitle Routes
+# routes/title_routes.py
 #
 # 役割：
 #   1. MP4 / SRTをdownloadsへ保存
-#   2. downloads内のMP4 + SRTをsub_embed.pyへ渡す
-#   3. xxx_sub_embed.mp4を生成
+#   2. downloads内のMP4 + SRTをsubtitle.pyへ渡す
+#   3. xxx_subtitle.mp4を生成
 #
 # API：
 #   POST /subtitle-upload
