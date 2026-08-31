@@ -265,13 +265,16 @@ body {
 
 .time-area {
     margin-top: 25px;
+
+    width: 100%;
+
+    /* 横にはみ出さない */
+    overflow: hidden;
 }
 
 
 /* -----------------------------------------
    開始・終了ラベル
-
-   入力欄の位置に合わせる
 ----------------------------------------- */
 
 .time-label-row {
@@ -300,8 +303,6 @@ body {
 
 /* -----------------------------------------
    時間入力
-
-   [00]時[00]分[00]秒 ～ [00]時[00]分[00]秒
 ----------------------------------------- */
 
 .time-input-row {
@@ -309,9 +310,21 @@ body {
 
     align-items: center;
 
-    gap: 15px;
+    /*
+        画面幅が狭い場合でも、
+        中身を強制的に横へはみ出させない。
+    */
+    width: 100%;
 
-    white-space: nowrap;
+    max-width: 100%;
+
+    gap: 8px;
+
+    /*
+        PCでは1行表示。
+        必要に応じて下のメディアクエリで
+        スマホ時に2行へ変更する。
+    */
 }
 
 
@@ -324,9 +337,12 @@ body {
 
     align-items: center;
 
-    gap: 3px;
+    gap: 2px;
 
-    flex: 0 0 auto;
+    /*
+        グループ自体は縮められるようにする。
+    */
+    min-width: 0;
 
     white-space: nowrap;
 }
@@ -337,14 +353,16 @@ body {
 ----------------------------------------- */
 
 .time-input {
-    width: 45px;
+    width: 42px;
+
     height: 32px;
 
-    padding: 4px;
+    padding: 4px 2px;
 
     text-align: center;
 
     border: 1px solid #bbb;
+
     border-radius: 3px;
 
     background: #fff;
@@ -354,6 +372,11 @@ body {
     font-size: 14px;
 
     outline: none;
+
+    /*
+        flexによる縮小を許可
+    */
+    flex: 0 1 auto;
 }
 
 .time-input:focus {
@@ -384,14 +407,73 @@ body {
 .time-separator {
     flex: 0 0 auto;
 
-    margin: 0 2px;
+    margin: 0 1px;
 
     font-size: 18px;
+
     line-height: 1;
 
     color: #444;
 }
 
+
+/* =========================================
+   スマートフォン
+========================================= */
+
+@media (max-width: 600px) {
+
+    /*
+        開始と終了を縦に分ける。
+
+        開始
+        [00]時[00]分[00]秒
+
+        終了
+        [00]時[00]分[00]秒
+    */
+
+    .time-label-row {
+        display: grid;
+
+        grid-template-columns: 1fr 1fr;
+
+        width: 100%;
+    }
+
+    .time-label-row .time-title:first-child {
+        width: auto;
+    }
+
+
+    .time-input-row {
+        display: grid;
+
+        grid-template-columns: 1fr 1fr;
+
+        gap: 8px;
+
+        width: 100%;
+    }
+
+
+    .time-group {
+        min-width: 0;
+
+        width: 100%;
+    }
+
+
+    .time-input {
+        width: 38px;
+    }
+
+
+    .time-separator {
+        display: none;
+    }
+
+}
 
 /* =========================================
    出力形式
