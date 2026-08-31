@@ -20,6 +20,28 @@ print("[DEBUG] yt-dlp module loading...", flush=True)
 
 
 # ==========================================================
+# Deno PATH
+# ==========================================================
+
+DENO_PATH = os.environ.get(
+    "DENO_PATH",
+    "/app/.deno/bin/deno"
+)
+
+print(
+    "[DEBUG] DENO_PATH:",
+    DENO_PATH,
+    flush=True
+)
+
+print(
+    "[DEBUG] PATH:",
+    os.environ.get("PATH"),
+    flush=True
+)
+
+
+# ==========================================================
 # yt-dlp import
 # ==========================================================
 
@@ -58,49 +80,119 @@ except Exception as e:
 
 
 # ==========================================================
-# Deno確認
+# yt-dlp-ejs確認
 # ==========================================================
-
-print(
-    "[DEBUG] deno path:",
-    shutil.which("deno"),
-    flush=True
-)
 
 try:
 
-    result = subprocess.run(
-        ["deno", "--version"],
-        capture_output=True,
-        text=True,
-        timeout=10
-    )
+    import yt_dlp_ejs
 
     print(
-        "[DEBUG] deno returncode:",
-        result.returncode,
+        "[DEBUG] yt_dlp_ejs imported",
         flush=True
     )
 
     print(
-        "[DEBUG] deno stdout:",
-        result.stdout,
-        flush=True
-    )
-
-    print(
-        "[DEBUG] deno stderr:",
-        result.stderr,
+        "[DEBUG] yt_dlp_ejs location:",
+        yt_dlp_ejs.__file__,
         flush=True
     )
 
 except Exception as e:
 
     print(
-        "[DEBUG] deno execution ERROR:",
+        "[DEBUG] yt_dlp_ejs import ERROR:",
         repr(e),
         flush=True
     )
+
+    traceback.print_exc()
+
+
+# ==========================================================
+# Deno確認
+# ==========================================================
+
+print(
+    "[DEBUG] Deno configured path:",
+    DENO_PATH,
+    flush=True
+)
+
+print(
+    "[DEBUG] Deno exists:",
+    os.path.isfile(DENO_PATH),
+    flush=True
+)
+
+print(
+    "[DEBUG] Deno executable:",
+    os.access(DENO_PATH, os.X_OK),
+    flush=True
+)
+
+print(
+    "[DEBUG] Deno which:",
+    shutil.which("deno"),
+    flush=True
+)
+
+if not os.path.isfile(DENO_PATH):
+
+    print(
+        "[DEBUG] Deno NOT FOUND:",
+        DENO_PATH,
+        flush=True
+    )
+
+else:
+
+    try:
+
+        result = subprocess.run(
+            [
+                DENO_PATH,
+                "--version"
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+
+        print(
+            "[DEBUG] deno returncode:",
+            result.returncode,
+            flush=True
+        )
+
+        print(
+            "[DEBUG] deno stdout:",
+            result.stdout,
+            flush=True
+        )
+
+        print(
+            "[DEBUG] deno stderr:",
+            result.stderr,
+            flush=True
+        )
+
+        if result.returncode != 0:
+
+            print(
+                "[DEBUG] Deno execution failed",
+                flush=True
+            )
+
+    except Exception as e:
+
+        print(
+            "[DEBUG] deno execution ERROR:",
+            repr(e),
+            flush=True
+        )
+
+        traceback.print_exc()
 
 
 # ==========================================================
@@ -146,46 +238,10 @@ try:
             flush=True
         )
 
-    if result.stderr:
-
-        print(
-            "[DEBUG] ffmpeg stderr:",
-            result.stderr,
-            flush=True
-        )
-
 except Exception as e:
 
     print(
         "[DEBUG] ffmpeg execution ERROR:",
-        repr(e),
-        flush=True
-    )
-
-
-# ==========================================================
-# yt-dlp-ejs確認
-# ==========================================================
-
-try:
-
-    import yt_dlp_ejs
-
-    print(
-        "[DEBUG] yt_dlp_ejs imported",
-        flush=True
-    )
-
-    print(
-        "[DEBUG] yt_dlp_ejs location:",
-        yt_dlp_ejs.__file__,
-        flush=True
-    )
-
-except Exception as e:
-
-    print(
-        "[DEBUG] yt_dlp_ejs import ERROR:",
         repr(e),
         flush=True
     )
@@ -201,45 +257,47 @@ print("==========================================", flush=True)
 def _prepare_cookie_file():
 
     print(
-        "[DEBUG] Preparing cookie file...",
+        "==========================================",
+        flush=True
+    )
+
+    print(
+        "Cookieファイル準備開始",
         flush=True
     )
 
     cookies_source = "/etc/secrets/cookies.txt"
 
     print(
-        "[DEBUG] cookies source:",
+        "元Cookieファイル:",
         cookies_source,
         flush=True
     )
 
     print(
-        "[DEBUG] cookies exists:",
+        "Cookie exists:",
         os.path.isfile(cookies_source),
         flush=True
     )
 
-    temporary_cookie_path = None
-
     if not os.path.isfile(cookies_source):
 
-        print(
-            "[DEBUG] WARNING: cookies file does not exist",
-            flush=True
+        raise FileNotFoundError(
+            f"Cookieファイルが見つかりません: {cookies_source}"
         )
 
-        return None
+    temporary_cookie_path = None
 
     try:
 
-        print(
-            "[DEBUG] cookies file detected",
-            flush=True
+        cookie_size = os.path.getsize(
+            cookies_source
         )
 
         print(
-            "[DEBUG] cookies source size:",
-            os.path.getsize(cookies_source),
+            "元Cookieサイズ:",
+            cookie_size,
+            "bytes",
             flush=True
         )
 
@@ -262,14 +320,47 @@ def _prepare_cookie_file():
         )
 
         print(
-            "[DEBUG] temporary cookies created:",
+            "一時Cookieファイル作成:",
+            temporary_cookie_path,
+            flush=True
+        )
+
+        temporary_size = os.path.getsize(
+            temporary_cookie_path
+        )
+
+        print(
+            "一時Cookieサイズ:",
+            temporary_size,
+            "bytes",
+            flush=True
+        )
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+        print(
+            "yt-dlp用Cookieファイル作成OK",
+            flush=True
+        )
+
+        print(
+            "一時Cookie:",
             temporary_cookie_path,
             flush=True
         )
 
         print(
-            "[DEBUG] temporary cookies size:",
-            os.path.getsize(temporary_cookie_path),
+            "サイズ:",
+            temporary_size,
+            "bytes",
+            flush=True
+        )
+
+        print(
+            "==========================================",
             flush=True
         )
 
@@ -315,18 +406,12 @@ def _build_ydl_options(
 ):
 
     print(
-        "[DEBUG] Building yt-dlp options...",
+        "yt-dlp共通設定開始",
         flush=True
     )
 
     download_template = str(
-        output_dir / "%(id)s.%(ext)s"
-    )
-
-    print(
-        "[DEBUG] download template:",
-        download_template,
-        flush=True
+        Path(output_dir) / "%(id)s.%(ext)s"
     )
 
     ydl_opts = {
@@ -349,15 +434,30 @@ def _build_ydl_options(
         "verbose":
             True,
 
-        # YouTube JavaScript challenge対応
+        # ==================================================
+        # YouTube JavaScript challenge
+        # ==================================================
+
         "js_runtimes": {
-            "deno": {}
+
+            "deno": {
+
+                "path":
+                    DENO_PATH
+
+            }
+
         },
 
-        # EJS challenge scripts取得
+        # ==================================================
+        # EJS challenge scripts
+        # ==================================================
+
         "remote_components": {
+
             "ejs:github"
-        },
+
+        }
 
     }
 
@@ -373,45 +473,33 @@ def _build_ydl_options(
             temporary_cookie_path
         )
 
-        print(
-            "[DEBUG] cookiefile enabled:",
-            temporary_cookie_path,
-            flush=True
-        )
-
-    else:
-
-        print(
-            "[DEBUG] cookiefile NOT enabled",
-            flush=True
-        )
-
     print(
-        "[DEBUG] yt-dlp options:",
+        "[DEBUG] yt-dlp format:",
+        format_string,
         flush=True
     )
 
     print(
-        "[DEBUG] format:",
-        ydl_opts.get("format"),
+        "[DEBUG] yt-dlp output:",
+        download_template,
         flush=True
     )
 
     print(
-        "[DEBUG] merge_output_format:",
-        ydl_opts.get("merge_output_format"),
+        "[DEBUG] yt-dlp Deno:",
+        DENO_PATH,
         flush=True
     )
 
     print(
-        "[DEBUG] noplaylist:",
-        ydl_opts.get("noplaylist"),
+        "[DEBUG] Deno exists:",
+        os.path.isfile(DENO_PATH),
         flush=True
     )
 
     print(
-        "[DEBUG] js_runtimes:",
-        ydl_opts.get("js_runtimes"),
+        "[DEBUG] cookiefile:",
+        temporary_cookie_path,
         flush=True
     )
 
@@ -422,14 +510,312 @@ def _build_ydl_options(
     )
 
     print(
-        "[DEBUG] cookiefile configured:",
-        bool(
-            ydl_opts.get("cookiefile")
-        ),
+        "[DEBUG] js_runtimes:",
+        ydl_opts.get("js_runtimes"),
+        flush=True
+    )
+
+    print(
+        "==========================================",
         flush=True
     )
 
     return ydl_opts
+
+
+# ==========================================================
+# YouTube情報取得
+# ==========================================================
+
+def get_youtube_info(
+    url
+):
+
+    print("==========================================", flush=True)
+
+    print(
+        "YouTube情報取得開始",
+        flush=True
+    )
+
+    print(
+        "URL:",
+        url,
+        flush=True
+    )
+
+    print(
+        "Python:",
+        sys.version,
+        flush=True
+    )
+
+    print(
+        "yt-dlp:",
+        yt_dlp.version.__version__,
+        flush=True
+    )
+
+    print(
+        "Deno PATH:",
+        DENO_PATH,
+        flush=True
+    )
+
+    print(
+        "Deno exists:",
+        os.path.isfile(DENO_PATH),
+        flush=True
+    )
+
+    print(
+        "ffmpeg:",
+        shutil.which("ffmpeg"),
+        flush=True
+    )
+
+    print("==========================================", flush=True)
+
+    temporary_cookie_path = None
+
+    try:
+
+        if not url:
+
+            raise ValueError(
+                "YouTube URLが空です"
+            )
+
+        # ==================================================
+        # Deno確認
+        # ==================================================
+
+        print(
+            "Deno単体テスト開始",
+            flush=True
+        )
+
+        print(
+            "Deno PATH:",
+            DENO_PATH,
+            flush=True
+        )
+
+        if not os.path.isfile(DENO_PATH):
+
+            print(
+                "Denoが存在しません:",
+                DENO_PATH,
+                flush=True
+            )
+
+            raise Exception(
+                "Denoが利用できません"
+            )
+
+        if not os.access(
+            DENO_PATH,
+            os.X_OK
+        ):
+
+            raise Exception(
+                f"Denoに実行権限がありません: {DENO_PATH}"
+            )
+
+        deno_result = subprocess.run(
+            [
+                DENO_PATH,
+                "--version"
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+
+        print(
+            "Deno returncode:",
+            deno_result.returncode,
+            flush=True
+        )
+
+        print(
+            "Deno stdout:",
+            deno_result.stdout,
+            flush=True
+        )
+
+        print(
+            "Deno stderr:",
+            deno_result.stderr,
+            flush=True
+        )
+
+        if deno_result.returncode != 0:
+
+            raise Exception(
+                "Denoの実行に失敗しました"
+            )
+
+        print(
+            "Deno単体テスト成功",
+            flush=True
+        )
+
+        print("==========================================", flush=True)
+
+        # ==================================================
+        # Cookie
+        # ==================================================
+
+        temporary_cookie_path = (
+            _prepare_cookie_file()
+        )
+
+        # ==================================================
+        # output directory
+        # ==================================================
+
+        output_dir = Path(
+            os.getcwd()
+        ) / "downloads"
+
+        output_dir.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        # ==================================================
+        # yt-dlp options
+        # ==================================================
+
+        ydl_opts = _build_ydl_options(
+
+            output_dir=output_dir,
+
+            format_string="bestaudio/best",
+
+            temporary_cookie_path=
+                temporary_cookie_path
+
+        )
+
+        # ==================================================
+        # 情報取得
+        # ==================================================
+
+        print(
+            "yt-dlp extract_info開始",
+            flush=True
+        )
+
+        with yt_dlp.YoutubeDL(
+            ydl_opts
+        ) as ydl:
+
+            info = ydl.extract_info(
+                url,
+                download=False
+            )
+
+        if not info:
+
+            raise Exception(
+                "YouTube情報を取得できませんでした"
+            )
+
+        print(
+            "YouTube情報取得成功",
+            flush=True
+        )
+
+        print(
+            "Video ID:",
+            info.get("id"),
+            flush=True
+        )
+
+        print(
+            "Title:",
+            info.get("title"),
+            flush=True
+        )
+
+        print(
+            "Duration:",
+            info.get("duration"),
+            flush=True
+        )
+
+        print(
+            "Uploader:",
+            info.get("uploader"),
+            flush=True
+        )
+
+        print(
+            "Webpage URL:",
+            info.get("webpage_url"),
+            flush=True
+        )
+
+        print("==========================================", flush=True)
+
+        return info
+
+    except Exception as e:
+
+        print("==========================================", flush=True)
+
+        print(
+            "get_youtube_info ERROR:",
+            repr(e),
+            flush=True
+        )
+
+        print(
+            "ERROR TYPE:",
+            type(e).__name__,
+            flush=True
+        )
+
+        traceback.print_exc()
+
+        raise
+
+    finally:
+
+        if temporary_cookie_path:
+
+            try:
+
+                if os.path.exists(
+                    temporary_cookie_path
+                ):
+
+                    os.remove(
+                        temporary_cookie_path
+                    )
+
+                    print(
+                        "一時Cookieファイル削除OK:",
+                        temporary_cookie_path,
+                        flush=True
+                    )
+
+            except Exception as e:
+
+                print(
+                    "Cookie削除ERROR:",
+                    repr(e),
+                    flush=True
+                )
+
+        print(
+            "get_youtube_info終了処理",
+            flush=True
+        )
+
+        print("==========================================", flush=True)
 
 
 # ==========================================================
@@ -451,36 +837,6 @@ def _download_with_ytdlp(
         flush=True
     )
 
-    print(
-        "[DEBUG] URL:",
-        url,
-        flush=True
-    )
-
-    print(
-        "[DEBUG] output_dir:",
-        output_dir,
-        flush=True
-    )
-
-    print(
-        "[DEBUG] format_string:",
-        format_string,
-        flush=True
-    )
-
-    print(
-        "[DEBUG] merge_output_format:",
-        merge_output_format,
-        flush=True
-    )
-
-    if not url:
-
-        raise ValueError(
-            "YouTube URLが空です"
-        )
-
     output_dir = Path(
         output_dir
     )
@@ -490,42 +846,13 @@ def _download_with_ytdlp(
         exist_ok=True
     )
 
-    print(
-        "[DEBUG] output directory:",
-        output_dir,
-        flush=True
-    )
-
-    print(
-        "[DEBUG] output directory exists:",
-        output_dir.exists(),
-        flush=True
-    )
-
-    print(
-        "[DEBUG] output directory writable:",
-        os.access(
-            output_dir,
-            os.W_OK
-        ),
-        flush=True
-    )
-
     temporary_cookie_path = None
 
     try:
 
-        # --------------------------------------------------
-        # Cookie
-        # --------------------------------------------------
-
         temporary_cookie_path = (
             _prepare_cookie_file()
         )
-
-        # --------------------------------------------------
-        # yt-dlp設定
-        # --------------------------------------------------
 
         ydl_opts = _build_ydl_options(
             output_dir=output_dir,
@@ -534,33 +861,15 @@ def _download_with_ytdlp(
             temporary_cookie_path=temporary_cookie_path
         )
 
-        # --------------------------------------------------
-        # yt-dlp実行
-        # --------------------------------------------------
-
         info = None
         expected_filename = None
-
-        print(
-            f"[DEBUG] [{mode_name}] Creating YoutubeDL instance...",
-            flush=True
-        )
 
         with yt_dlp.YoutubeDL(
             ydl_opts
         ) as ydl:
 
             print(
-                f"[DEBUG] [{mode_name}] YoutubeDL instance created",
-                flush=True
-            )
-
-            # --------------------------------------------------
-            # 情報取得
-            # --------------------------------------------------
-
-            print(
-                f"[DEBUG] [{mode_name}] Extracting video information...",
+                f"[DEBUG] [{mode_name}] extract_info",
                 flush=True
             )
 
@@ -582,55 +891,15 @@ def _download_with_ytdlp(
             )
 
             print(
-                f"[DEBUG] [{mode_name}] video title:",
+                f"[DEBUG] [{mode_name}] title:",
                 info.get("title"),
                 flush=True
             )
-
-            print(
-                f"[DEBUG] [{mode_name}] duration:",
-                info.get("duration"),
-                flush=True
-            )
-
-            print(
-                f"[DEBUG] [{mode_name}] webpage_url:",
-                info.get("webpage_url"),
-                flush=True
-            )
-
-            print(
-                f"[DEBUG] [{mode_name}] extractor:",
-                info.get("extractor"),
-                flush=True
-            )
-
-            print(
-                f"[DEBUG] [{mode_name}] ext:",
-                info.get("ext"),
-                flush=True
-            )
-
-            print(
-                f"[DEBUG] [{mode_name}] format_id:",
-                info.get("format_id"),
-                flush=True
-            )
-
-            # --------------------------------------------------
-            # 今回のダウンロード予定ファイル
-            # --------------------------------------------------
 
             try:
 
                 expected_filename = (
                     ydl.prepare_filename(info)
-                )
-
-                print(
-                    f"[DEBUG] [{mode_name}] prepare_filename:",
-                    expected_filename,
-                    flush=True
                 )
 
             except Exception as e:
@@ -641,12 +910,8 @@ def _download_with_ytdlp(
                     flush=True
                 )
 
-            # --------------------------------------------------
-            # ダウンロード
-            # --------------------------------------------------
-
             print(
-                f"[DEBUG] [{mode_name}] Starting download...",
+                f"[DEBUG] [{mode_name}] download START",
                 flush=True
             )
 
@@ -659,40 +924,7 @@ def _download_with_ytdlp(
                 flush=True
             )
 
-            # --------------------------------------------------
-            # download後の情報
-            # --------------------------------------------------
-
-            try:
-
-                post_info = (
-                    ydl.extract_info(
-                        url,
-                        download=False
-                    )
-                )
-
-                if post_info:
-
-                    info = post_info
-
-            except Exception as e:
-
-                print(
-                    f"[DEBUG] [{mode_name}] post-download info ERROR:",
-                    repr(e),
-                    flush=True
-                )
-
-        # --------------------------------------------------
-        # 今回作成されたファイルを確認
-        # --------------------------------------------------
-
         downloaded_file = None
-
-        # ==================================================
-        # 1. prepare_filename() で特定
-        # ==================================================
 
         if expected_filename:
 
@@ -700,27 +932,11 @@ def _download_with_ytdlp(
                 expected_filename
             )
 
-            print(
-                f"[DEBUG] [{mode_name}] expected path:",
-                expected_path,
-                flush=True
-            )
-
             if expected_path.is_file():
 
                 downloaded_file = (
                     expected_path
                 )
-
-                print(
-                    f"[DEBUG] [{mode_name}] expected file found:",
-                    downloaded_file,
-                    flush=True
-                )
-
-        # ==================================================
-        # 2. merge_output_format がある場合
-        # ==================================================
 
         if (
             downloaded_file is None
@@ -734,13 +950,8 @@ def _download_with_ytdlp(
 
                 merged_path = (
                     output_dir
-                    / f"{video_id}.{merge_output_format}"
-                )
-
-                print(
-                    f"[DEBUG] [{mode_name}] checking merged file:",
-                    merged_path,
-                    flush=True
+                    /
+                    f"{video_id}.{merge_output_format}"
                 )
 
                 if merged_path.is_file():
@@ -749,32 +960,13 @@ def _download_with_ytdlp(
                         merged_path
                     )
 
-                    print(
-                        f"[DEBUG] [{mode_name}] merged file found:",
-                        downloaded_file,
-                        flush=True
-                    )
+        if downloaded_file is None and info:
 
-        # ==================================================
-        # 3. 最終手段
-        # ==================================================
-
-        if downloaded_file is None:
-
-            print(
-                f"[DEBUG] [{mode_name}] Expected file not found.",
-                flush=True
-            )
-
-            video_id = (
-                info.get("id")
-                if info
-                else None
-            )
-
-            possible_files = []
+            video_id = info.get("id")
 
             if video_id:
+
+                possible_files = []
 
                 for path in output_dir.glob(
                     video_id + ".*"
@@ -806,112 +998,32 @@ def _download_with_ytdlp(
                         path
                     )
 
-            if possible_files:
+                if possible_files:
 
-                possible_files.sort(
-                    key=lambda p: p.stat().st_mtime,
-                    reverse=True
-                )
+                    possible_files.sort(
+                        key=lambda p: p.stat().st_mtime,
+                        reverse=True
+                    )
 
-                downloaded_file = (
-                    possible_files[0]
-                )
-
-                print(
-                    f"[DEBUG] [{mode_name}] fallback selected:",
-                    downloaded_file,
-                    flush=True
-                )
-
-        # --------------------------------------------------
-        # ファイルが見つからない
-        # --------------------------------------------------
+                    downloaded_file = (
+                        possible_files[0]
+                    )
 
         if downloaded_file is None:
 
-            print(
-                f"[DEBUG] [{mode_name}] Files in output directory:",
-                flush=True
-            )
-
-            try:
-
-                for p in output_dir.iterdir():
-
-                    if not p.is_file():
-                        continue
-
-                    try:
-
-                        size = (
-                            p.stat().st_size
-                        )
-
-                    except Exception:
-
-                        size = -1
-
-                    print(
-                        f"[DEBUG] [{mode_name}] existing file:",
-                        p,
-                        "size=",
-                        size,
-                        flush=True
-                    )
-
-            except Exception as e:
-
-                print(
-                    f"[DEBUG] [{mode_name}] directory listing ERROR:",
-                    repr(e),
-                    flush=True
-                )
-
             raise FileNotFoundError(
-                f"yt-dlpでダウンロードした{mode_name}ファイルを確認できませんでした"
+                f"{mode_name}ダウンロードファイルを確認できませんでした"
             )
-
-        # --------------------------------------------------
-        # 最終確認
-        # --------------------------------------------------
 
         file_size = (
             downloaded_file.stat().st_size
         )
 
-        print(
-            f"[DEBUG] [{mode_name}] downloaded file:",
-            downloaded_file,
-            flush=True
-        )
-
-        print(
-            f"[DEBUG] [{mode_name}] downloaded file size:",
-            file_size,
-            flush=True
-        )
-
         if file_size <= 0:
 
             raise RuntimeError(
-                f"{mode_name}ダウンロードファイルのサイズが0です"
+                f"{mode_name}ファイルのサイズが0です"
             )
-
-        video_id = (
-            info.get("id")
-            if info
-            else None
-        )
-
-        print(
-            f"[DEBUG] _download_with_ytdlp SUCCESS [{mode_name}]",
-            flush=True
-        )
-
-        print(
-            "==========================================",
-            flush=True
-        )
 
         return {
 
@@ -922,7 +1034,9 @@ def _download_with_ytdlp(
                 downloaded_file.name,
 
             "video_id":
-                video_id,
+                info.get("id")
+                if info
+                else None,
 
             "info":
                 info
@@ -932,39 +1046,18 @@ def _download_with_ytdlp(
     except Exception as e:
 
         print(
-            "==========================================",
-            flush=True
-        )
-
-        print(
             f"[DEBUG] _download_with_ytdlp ERROR [{mode_name}]:",
             repr(e),
             flush=True
         )
 
-        print(
-            f"[DEBUG] [{mode_name}] exception type:",
-            type(e).__name__,
-            flush=True
-        )
-
         traceback.print_exc()
-
-        print(
-            "==========================================",
-            flush=True
-        )
 
         raise
 
     finally:
 
         if temporary_cookie_path:
-
-            print(
-                f"[DEBUG] [{mode_name}] Removing temporary cookies...",
-                flush=True
-            )
 
             try:
 
@@ -976,23 +1069,9 @@ def _download_with_ytdlp(
                         temporary_cookie_path
                     )
 
-                    print(
-                        f"[DEBUG] [{mode_name}] Temporary cookies removed",
-                        flush=True
-                    )
+            except Exception:
 
-            except Exception as e:
-
-                print(
-                    f"[DEBUG] [{mode_name}] Cookie removal ERROR:",
-                    repr(e),
-                    flush=True
-                )
-
-        print(
-            f"[DEBUG] _download_with_ytdlp END [{mode_name}]",
-            flush=True
-        )
+                pass
 
 
 # ==========================================================
@@ -1007,17 +1086,9 @@ def _time_to_seconds(value):
 
     if len(parts) == 3:
 
-        h = int(
-            parts[0]
-        )
-
-        m = int(
-            parts[1]
-        )
-
-        s = float(
-            parts[2]
-        )
+        h = int(parts[0])
+        m = int(parts[1])
+        s = float(parts[2])
 
         return (
             h * 3600
@@ -1027,22 +1098,15 @@ def _time_to_seconds(value):
 
     if len(parts) == 2:
 
-        m = int(
-            parts[0]
-        )
-
-        s = float(
-            parts[1]
-        )
+        m = int(parts[0])
+        s = float(parts[1])
 
         return (
             m * 60
             + s
         )
 
-    return float(
-        value
-    )
+    return float(value)
 
 
 # ==========================================================
@@ -1056,532 +1120,242 @@ def create_mp3(
     end_time=None
 ):
 
-    print("==========================================", flush=True)
-    print("[DEBUG] create_mp3 START", flush=True)
+    print(
+        "[DEBUG] create_mp3 START",
+        flush=True
+    )
 
-    downloaded_file = None
+    if output_dir is None:
+
+        output_dir = (
+            Path(os.getcwd())
+            / "downloads"
+        )
+
+    output_dir = Path(
+        output_dir
+    )
+
+    output_dir.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    download_result = _download_with_ytdlp(
+
+        url=url,
+
+        output_dir=output_dir,
+
+        format_string="bestaudio/best",
+
+        merge_output_format=None,
+
+        mode_name="MP3"
+
+    )
+
+    downloaded_file = Path(
+        download_result["path"]
+    )
+
+    info = (
+        download_result.get("info")
+        or {}
+    )
+
+    video_id = (
+        info.get("id")
+        or download_result.get("video_id")
+    )
+
+    video_title = (
+        info.get("title")
+        or "YouTube Audio"
+    )
+
+    if video_id:
+
+        mp3_file = (
+            output_dir
+            /
+            f"{video_id}.mp3"
+        )
+
+    else:
+
+        mp3_file = (
+            downloaded_file.with_suffix(
+                ".mp3"
+            )
+        )
+
     temporary_mp3_file = None
 
-    try:
+    if (
+        downloaded_file.resolve()
+        ==
+        mp3_file.resolve()
+    ):
 
-        if not url:
+        temporary_mp3_file = (
+            output_dir
+            /
+            f"{video_id or 'audio'}_converted_temp.mp3"
+        )
+
+        ffmpeg_output = (
+            temporary_mp3_file
+        )
+
+    else:
+
+        ffmpeg_output = mp3_file
+
+    ffmpeg_command = [
+        "ffmpeg",
+        "-y"
+    ]
+
+    if start_time:
+
+        ffmpeg_command.extend([
+            "-ss",
+            str(start_time)
+        ])
+
+    ffmpeg_command.extend([
+        "-i",
+        str(downloaded_file)
+    ])
+
+    if end_time and start_time:
+
+        start_seconds = (
+            _time_to_seconds(
+                start_time
+            )
+        )
+
+        end_seconds = (
+            _time_to_seconds(
+                end_time
+            )
+        )
+
+        duration = (
+            end_seconds
+            - start_seconds
+        )
+
+        if duration <= 0:
 
             raise ValueError(
-                "YouTube URLが空です"
+                "終了時間は開始時間より後にしてください。"
             )
-
-        if output_dir is None:
-
-            output_dir = os.path.join(
-                os.getcwd(),
-                "downloads"
-            )
-
-        output_dir = Path(
-            output_dir
-        )
-
-        output_dir.mkdir(
-            parents=True,
-            exist_ok=True
-        )
-
-        print(
-            "[DEBUG] MP3 URL:",
-            url,
-            flush=True
-        )
-
-        print(
-            "[DEBUG] MP3 output_dir:",
-            output_dir,
-            flush=True
-        )
-
-        print(
-            "[DEBUG] MP3 start_time:",
-            start_time,
-            flush=True
-        )
-
-        print(
-            "[DEBUG] MP3 end_time:",
-            end_time,
-            flush=True
-        )
-
-        # --------------------------------------------------
-        # yt-dlp
-        # --------------------------------------------------
-
-        download_result = _download_with_ytdlp(
-            url=url,
-            output_dir=output_dir,
-            format_string="bestaudio/best",
-            merge_output_format=None,
-            mode_name="MP3"
-        )
-
-        downloaded_file = Path(
-            download_result["path"]
-        )
-
-        info = (
-            download_result.get("info")
-            or {}
-        )
-
-        video_id = (
-            info.get("id")
-            or download_result.get("video_id")
-        )
-
-        video_title = (
-            info.get("title")
-            or "YouTube Audio"
-        )
-
-        print(
-            "[DEBUG] MP3 source:",
-            downloaded_file,
-            flush=True
-        )
-
-        print(
-            "[DEBUG] MP3 source suffix:",
-            downloaded_file.suffix,
-            flush=True
-        )
-
-        print(
-            "[DEBUG] MP3 source size:",
-            downloaded_file.stat().st_size,
-            flush=True
-        )
-
-        print(
-            "[DEBUG] MP3 YouTube title:",
-            video_title,
-            flush=True
-        )
-
-        print(
-            "[DEBUG] MP3 video id:",
-            video_id,
-            flush=True
-        )
-
-        # --------------------------------------------------
-        # 最終MP3
-        # --------------------------------------------------
-
-        if video_id:
-
-            mp3_file = (
-                output_dir
-                / f"{video_id}.mp3"
-            )
-
-        else:
-
-            mp3_file = (
-                downloaded_file.with_suffix(
-                    ".mp3"
-                )
-            )
-
-        print(
-            "[DEBUG] MP3 target:",
-            mp3_file,
-            flush=True
-        )
-
-        # --------------------------------------------------
-        # 入力と出力が同じ場合
-        # --------------------------------------------------
-
-        if (
-            downloaded_file.resolve()
-            == mp3_file.resolve()
-        ):
-
-            temporary_mp3_file = (
-                output_dir
-                / (
-                    f"{video_id or 'audio'}"
-                    "_converted_temp.mp3"
-                )
-            )
-
-            ffmpeg_output = (
-                temporary_mp3_file
-            )
-
-            print(
-                "[DEBUG] MP3 source == target",
-                flush=True
-            )
-
-            print(
-                "[DEBUG] MP3 using temporary output:",
-                ffmpeg_output,
-                flush=True
-            )
-
-        else:
-
-            ffmpeg_output = mp3_file
-
-        # --------------------------------------------------
-        # FFmpeg
-        # --------------------------------------------------
-
-        ffmpeg_command = [
-            "ffmpeg",
-            "-y"
-        ]
-
-        # --------------------------------------------------
-        # 開始時間
-        # --------------------------------------------------
-
-        if start_time:
-
-            print(
-                "[DEBUG] MP3 start_time detected:",
-                start_time,
-                flush=True
-            )
-
-            ffmpeg_command.extend([
-                "-ss",
-                str(start_time)
-            ])
-
-        # --------------------------------------------------
-        # 入力
-        # --------------------------------------------------
 
         ffmpeg_command.extend([
-            "-i",
-            str(downloaded_file)
+            "-t",
+            str(duration)
         ])
 
-        # --------------------------------------------------
-        # 終了時間
-        # --------------------------------------------------
-
-        if end_time and start_time:
-
-            start_seconds = (
-                _time_to_seconds(
-                    start_time
-                )
-            )
-
-            end_seconds = (
-                _time_to_seconds(
-                    end_time
-                )
-            )
-
-            duration = (
-                end_seconds
-                - start_seconds
-            )
-
-            print(
-                "[DEBUG] MP3 start seconds:",
-                start_seconds,
-                flush=True
-            )
-
-            print(
-                "[DEBUG] MP3 end seconds:",
-                end_seconds,
-                flush=True
-            )
-
-            print(
-                "[DEBUG] MP3 duration:",
-                duration,
-                flush=True
-            )
-
-            if duration <= 0:
-
-                raise ValueError(
-                    "終了時間は開始時間より後にしてください。"
-                )
-
-            ffmpeg_command.extend([
-                "-t",
-                str(duration)
-            ])
-
-        elif end_time:
-
-            print(
-                "[DEBUG] MP3 end_time specified:",
-                end_time,
-                flush=True
-            )
-
-            ffmpeg_command.extend([
-                "-to",
-                str(end_time)
-            ])
-
-        # --------------------------------------------------
-        # MP3
-        # --------------------------------------------------
+    elif end_time:
 
         ffmpeg_command.extend([
-            "-vn",
-
-            "-codec:a",
-            "libmp3lame",
-
-            "-q:a",
-            "2",
-
-            "-metadata",
-            "title=" + str(video_title),
-
-            "-metadata",
-            "comment=YouTube Converter",
-
-            str(ffmpeg_output)
+            "-to",
+            str(end_time)
         ])
 
-        print(
-            "[DEBUG] MP3 FFmpeg command:",
-            " ".join(
-                ffmpeg_command
-            ),
-            flush=True
+    ffmpeg_command.extend([
+
+        "-vn",
+
+        "-codec:a",
+        "libmp3lame",
+
+        "-q:a",
+        "2",
+
+        "-metadata",
+        "title=" + str(video_title),
+
+        "-metadata",
+        "comment=YouTube Converter",
+
+        str(ffmpeg_output)
+
+    ])
+
+    print(
+        "[DEBUG] MP3 FFmpeg:",
+        " ".join(ffmpeg_command),
+        flush=True
+    )
+
+    result = subprocess.run(
+        ffmpeg_command,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace"
+    )
+
+    print(
+        "[DEBUG] MP3 FFmpeg returncode:",
+        result.returncode,
+        flush=True
+    )
+
+    if result.returncode != 0:
+
+        raise RuntimeError(
+            "FFmpeg conversion failed\n"
+            + result.stderr
         )
 
-        print(
-            "[DEBUG] MP3 Starting FFmpeg...",
-            flush=True
+    if temporary_mp3_file:
+
+        if mp3_file.exists():
+
+            mp3_file.unlink()
+
+        temporary_mp3_file.replace(
+            mp3_file
         )
 
-        ffmpeg_result = subprocess.run(
-            ffmpeg_command,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace"
+        temporary_mp3_file = None
+
+    if not mp3_file.exists():
+
+        raise FileNotFoundError(
+            "MP3ファイルが作成されませんでした"
         )
 
-        print(
-            "[DEBUG] MP3 FFmpeg returncode:",
-            ffmpeg_result.returncode,
-            flush=True
+    if mp3_file.stat().st_size <= 0:
+
+        raise RuntimeError(
+            "MP3ファイルのサイズが0です"
         )
 
-        if ffmpeg_result.stdout:
+    if (
+        downloaded_file.exists()
+        and
+        downloaded_file.resolve()
+        !=
+        mp3_file.resolve()
+    ):
 
-            print(
-                "[DEBUG] MP3 FFmpeg stdout:",
-                ffmpeg_result.stdout,
-                flush=True
-            )
+        downloaded_file.unlink()
 
-        if ffmpeg_result.stderr:
+    return {
 
-            print(
-                "[DEBUG] MP3 FFmpeg stderr:",
-                ffmpeg_result.stderr,
-                flush=True
-            )
+        "path":
+            str(mp3_file),
 
-        # --------------------------------------------------
-        # FFmpegエラー
-        # --------------------------------------------------
+        "filename":
+            mp3_file.name
 
-        if ffmpeg_result.returncode != 0:
-
-            error_detail = (
-                ffmpeg_result.stderr.strip()
-                if ffmpeg_result.stderr
-                else
-                "FFmpegからエラー内容が返されませんでした。"
-            )
-
-            raise RuntimeError(
-                "FFmpeg conversion failed\n"
-                + error_detail
-            )
-
-        # --------------------------------------------------
-        # 一時MP3 → 最終MP3
-        # --------------------------------------------------
-
-        if temporary_mp3_file:
-
-            print(
-                "[DEBUG] Moving temporary MP3 to final MP3...",
-                flush=True
-            )
-
-            if mp3_file.exists():
-
-                print(
-                    "[DEBUG] Removing old MP3:",
-                    mp3_file,
-                    flush=True
-                )
-
-                mp3_file.unlink()
-
-            temporary_mp3_file.replace(
-                mp3_file
-            )
-
-            temporary_mp3_file = None
-
-            print(
-                "[DEBUG] Temporary MP3 moved successfully",
-                flush=True
-            )
-
-        # --------------------------------------------------
-        # 完成確認
-        # --------------------------------------------------
-
-        if not mp3_file.exists():
-
-            raise FileNotFoundError(
-                "MP3ファイルが作成されませんでした"
-            )
-
-        mp3_size = (
-            mp3_file.stat().st_size
-        )
-
-        print(
-            "[DEBUG] MP3 final file:",
-            mp3_file,
-            flush=True
-        )
-
-        print(
-            "[DEBUG] MP3 final size:",
-            mp3_size,
-            flush=True
-        )
-
-        if mp3_size <= 0:
-
-            raise RuntimeError(
-                "MP3ファイルのサイズが0です"
-            )
-
-        # --------------------------------------------------
-        # 元ファイル削除
-        # --------------------------------------------------
-
-        if (
-            downloaded_file.exists()
-            and downloaded_file.resolve()
-            != mp3_file.resolve()
-        ):
-
-            print(
-                "[DEBUG] Removing MP3 source:",
-                downloaded_file,
-                flush=True
-            )
-
-            downloaded_file.unlink()
-
-            print(
-                "[DEBUG] MP3 source removed",
-                flush=True
-            )
-
-        result = {
-            "path":
-                str(mp3_file),
-
-            "filename":
-                mp3_file.name
-        }
-
-        print(
-            "[DEBUG] MP3 result:",
-            result,
-            flush=True
-        )
-
-        print(
-            "[DEBUG] create_mp3 SUCCESS",
-            flush=True
-        )
-
-        return result
-
-    except Exception as e:
-
-        print(
-            "==========================================",
-            flush=True
-        )
-
-        print(
-            "[DEBUG] create_mp3 ERROR:",
-            repr(e),
-            flush=True
-        )
-
-        print(
-            "[DEBUG] MP3 exception type:",
-            type(e).__name__,
-            flush=True
-        )
-
-        traceback.print_exc()
-
-        raise
-
-    finally:
-
-        # --------------------------------------------------
-        # 一時MP3削除
-        # --------------------------------------------------
-
-        if temporary_mp3_file:
-
-            try:
-
-                if temporary_mp3_file.exists():
-
-                    temporary_mp3_file.unlink()
-
-                    print(
-                        "[DEBUG] temporary MP3 removed",
-                        flush=True
-                    )
-
-            except Exception as cleanup_error:
-
-                print(
-                    "[DEBUG] temporary MP3 cleanup ERROR:",
-                    repr(cleanup_error),
-                    flush=True
-                )
-
-        print(
-            "[DEBUG] create_mp3 END",
-            flush=True
-        )
-
-        print(
-            "==========================================",
-            flush=True
-        )
+    }
 
 
 # ==========================================================
@@ -1595,581 +1369,281 @@ def create_mp4(
     end_time=None
 ):
 
-    print("==========================================", flush=True)
-    print("[DEBUG] create_mp4 START", flush=True)
+    print(
+        "[DEBUG] create_mp4 START",
+        flush=True
+    )
 
-    downloaded_file = None
-    temporary_mp4_file = None
+    if output_dir is None:
 
-    try:
-
-        if not url:
-
-            raise ValueError(
-                "YouTube URLが空です"
-            )
-
-        if output_dir is None:
-
-            output_dir = os.path.join(
-                os.getcwd(),
-                "downloads"
-            )
-
-        output_dir = Path(
-            output_dir
+        output_dir = (
+            Path(os.getcwd())
+            / "downloads"
         )
 
-        output_dir.mkdir(
-            parents=True,
-            exist_ok=True
-        )
+    output_dir = Path(
+        output_dir
+    )
 
-        print(
-            "[DEBUG] MP4 URL:",
-            url,
-            flush=True
-        )
+    output_dir.mkdir(
+        parents=True,
+        exist_ok=True
+    )
 
-        print(
-            "[DEBUG] MP4 output_dir:",
-            output_dir,
-            flush=True
-        )
+    download_result = _download_with_ytdlp(
 
-        print(
-            "[DEBUG] MP4 start_time:",
-            start_time,
-            flush=True
-        )
+        url=url,
 
-        print(
-            "[DEBUG] MP4 end_time:",
-            end_time,
-            flush=True
-        )
+        output_dir=output_dir,
 
-        # --------------------------------------------------
-        # yt-dlp
-        # --------------------------------------------------
+        format_string="bv*+ba/b",
 
-        download_result = _download_with_ytdlp(
-            url=url,
-            output_dir=output_dir,
-            format_string="bv*+ba/b",
-            merge_output_format="mp4",
-            mode_name="MP4"
-        )
+        merge_output_format="mp4",
 
-        downloaded_file = Path(
-            download_result["path"]
-        )
+        mode_name="MP4"
 
-        info = (
-            download_result.get("info")
-            or {}
-        )
+    )
 
-        video_id = (
-            info.get("id")
-            or download_result.get("video_id")
-        )
+    downloaded_file = Path(
+        download_result["path"]
+    )
 
-        video_title = (
-            info.get("title")
-            or "YouTube Video"
-        )
+    info = (
+        download_result.get("info")
+        or {}
+    )
 
-        print(
-            "[DEBUG] MP4 downloaded file:",
-            downloaded_file,
-            flush=True
-        )
+    video_id = (
+        info.get("id")
+        or download_result.get("video_id")
+    )
 
-        print(
-            "[DEBUG] MP4 downloaded file size:",
-            downloaded_file.stat().st_size,
-            flush=True
-        )
+    video_title = (
+        info.get("title")
+        or "YouTube Video"
+    )
 
-        print(
-            "[DEBUG] MP4 video id:",
-            video_id,
-            flush=True
-        )
+    if (
+        start_time is None
+        and end_time is None
+    ):
 
-        print(
-            "[DEBUG] MP4 title:",
-            video_title,
-            flush=True
-        )
+        return {
 
-        # ==================================================
-        # 時間指定なし
-        # ==================================================
-
-        if (
-            start_time is None
-            and end_time is None
-        ):
-
-            print(
-                "[DEBUG] MP4 no time range specified",
-                flush=True
-            )
-
-            if not downloaded_file.exists():
-
-                raise FileNotFoundError(
-                    "MP4ファイルが作成されませんでした"
-                )
-
-            file_size = (
-                downloaded_file.stat().st_size
-            )
-
-            if file_size <= 0:
-
-                raise RuntimeError(
-                    "MP4ファイルのサイズが0です"
-                )
-
-            result = {
-                "path":
-                    str(downloaded_file),
-
-                "filename":
-                    downloaded_file.name
-            }
-
-            print(
-                "[DEBUG] MP4 result:",
-                result,
-                flush=True
-            )
-
-            print(
-                "[DEBUG] create_mp4 SUCCESS",
-                flush=True
-            )
-
-            return result
-
-        # ==================================================
-        # 時間指定あり
-        # ==================================================
-
-        start_seconds = 0
-
-        if start_time is not None:
-
-            start_seconds = _time_to_seconds(
-                start_time
-            )
-
-        if start_seconds < 0:
-
-            raise ValueError(
-                "開始時間は0秒以上にしてください。"
-            )
-
-        duration = None
-
-        if end_time is not None:
-
-            end_seconds = _time_to_seconds(
-                end_time
-            )
-
-            if end_seconds <= start_seconds:
-
-                raise ValueError(
-                    "終了時間は開始時間より後にしてください。"
-                )
-
-            duration = (
-                end_seconds
-                - start_seconds
-            )
-
-        print(
-            "[DEBUG] MP4 start seconds:",
-            start_seconds,
-            flush=True
-        )
-
-        print(
-            "[DEBUG] MP4 duration:",
-            duration,
-            flush=True
-        )
-
-        # --------------------------------------------------
-        # 最終MP4
-        # --------------------------------------------------
-
-        if video_id:
-
-            mp4_file = (
-                output_dir
-                / f"{video_id}.mp4"
-            )
-
-        else:
-
-            mp4_file = (
-                downloaded_file.with_suffix(
-                    ".mp4"
-                )
-            )
-
-        print(
-            "[DEBUG] MP4 target:",
-            mp4_file,
-            flush=True
-        )
-
-        # --------------------------------------------------
-        # 入力と出力が同じ場合
-        # --------------------------------------------------
-
-        if (
-            downloaded_file.resolve()
-            ==
-            mp4_file.resolve()
-        ):
-
-            temporary_mp4_file = (
-                output_dir
-                /
-                (
-                    f"{video_id or 'video'}"
-                    "_trim_temp.mp4"
-                )
-            )
-
-            ffmpeg_output = (
-                temporary_mp4_file
-            )
-
-            print(
-                "[DEBUG] MP4 source == target",
-                flush=True
-            )
-
-            print(
-                "[DEBUG] MP4 using temporary output:",
-                ffmpeg_output,
-                flush=True
-            )
-
-        else:
-
-            ffmpeg_output = (
-                mp4_file
-            )
-
-        # ==================================================
-        # FFmpeg
-        # ==================================================
-
-        ffmpeg_command = [
-            "ffmpeg",
-            "-y"
-        ]
-
-        # --------------------------------------------------
-        # 開始位置
-        # --------------------------------------------------
-
-        if start_seconds > 0:
-
-            ffmpeg_command.extend([
-                "-ss",
-                str(start_seconds)
-            ])
-
-        # --------------------------------------------------
-        # 入力
-        # --------------------------------------------------
-
-        ffmpeg_command.extend([
-            "-i",
-            str(downloaded_file)
-        ])
-
-        # --------------------------------------------------
-        # 長さ
-        # --------------------------------------------------
-
-        if duration is not None:
-
-            ffmpeg_command.extend([
-                "-t",
-                str(duration)
-            ])
-
-        # --------------------------------------------------
-        # MP4出力設定
-        # --------------------------------------------------
-
-        ffmpeg_command.extend([
-
-            "-c:v",
-            "libx264",
-
-            "-preset",
-            "medium",
-
-            "-crf",
-            "23",
-
-            "-c:a",
-            "aac",
-
-            "-b:a",
-            "192k",
-
-            "-movflags",
-            "+faststart",
-
-            "-metadata",
-            "title=" + str(video_title),
-
-            "-metadata",
-            "comment=YouTube Converter",
-
-            str(ffmpeg_output)
-
-        ])
-
-        print(
-            "[DEBUG] MP4 FFmpeg command:",
-            " ".join(
-                ffmpeg_command
-            ),
-            flush=True
-        )
-
-        print(
-            "[DEBUG] MP4 Starting FFmpeg...",
-            flush=True
-        )
-
-        ffmpeg_result = subprocess.run(
-            ffmpeg_command,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace"
-        )
-
-        print(
-            "[DEBUG] MP4 FFmpeg returncode:",
-            ffmpeg_result.returncode,
-            flush=True
-        )
-
-        if ffmpeg_result.stdout:
-
-            print(
-                "[DEBUG] MP4 FFmpeg stdout:",
-                ffmpeg_result.stdout,
-                flush=True
-            )
-
-        if ffmpeg_result.stderr:
-
-            print(
-                "[DEBUG] MP4 FFmpeg stderr:",
-                ffmpeg_result.stderr,
-                flush=True
-            )
-
-        # --------------------------------------------------
-        # FFmpegエラー
-        # --------------------------------------------------
-
-        if ffmpeg_result.returncode != 0:
-
-            error_detail = (
-                ffmpeg_result.stderr.strip()
-                if ffmpeg_result.stderr
-                else
-                "FFmpegからエラー内容が返されませんでした。"
-            )
-
-            raise RuntimeError(
-                "MP4 FFmpeg conversion failed\n"
-                + error_detail
-            )
-
-        # --------------------------------------------------
-        # 一時ファイル → 最終ファイル
-        # --------------------------------------------------
-
-        if temporary_mp4_file:
-
-            print(
-                "[DEBUG] Moving temporary MP4 to final MP4...",
-                flush=True
-            )
-
-            if mp4_file.exists():
-
-                print(
-                    "[DEBUG] Removing old MP4:",
-                    mp4_file,
-                    flush=True
-                )
-
-                mp4_file.unlink()
-
-            temporary_mp4_file.replace(
-                mp4_file
-            )
-
-            temporary_mp4_file = None
-
-            print(
-                "[DEBUG] Temporary MP4 moved successfully",
-                flush=True
-            )
-
-        # --------------------------------------------------
-        # 完成確認
-        # --------------------------------------------------
-
-        if not mp4_file.exists():
-
-            raise FileNotFoundError(
-                "MP4ファイルが作成されませんでした"
-            )
-
-        mp4_size = (
-            mp4_file.stat().st_size
-        )
-
-        print(
-            "[DEBUG] MP4 final file:",
-            mp4_file,
-            flush=True
-        )
-
-        print(
-            "[DEBUG] MP4 final size:",
-            mp4_size,
-            flush=True
-        )
-
-        if mp4_size <= 0:
-
-            raise RuntimeError(
-                "MP4ファイルのサイズが0です"
-            )
-
-        # --------------------------------------------------
-        # 元ファイル削除
-        # --------------------------------------------------
-
-        if (
-            downloaded_file.exists()
-            and
-            downloaded_file.resolve()
-            !=
-            mp4_file.resolve()
-        ):
-
-            print(
-                "[DEBUG] Removing MP4 source:",
-                downloaded_file,
-                flush=True
-            )
-
-            downloaded_file.unlink()
-
-            print(
-                "[DEBUG] MP4 source removed",
-                flush=True
-            )
-
-        result = {
             "path":
-                str(mp4_file),
+                str(downloaded_file),
 
             "filename":
-                mp4_file.name
+                downloaded_file.name
+
         }
 
+    start_seconds = 0
+
+    if start_time is not None:
+
+        start_seconds = (
+            _time_to_seconds(
+                start_time
+            )
+        )
+
+    if start_seconds < 0:
+
+        raise ValueError(
+            "開始時間は0秒以上にしてください。"
+        )
+
+    duration = None
+
+    if end_time is not None:
+
+        end_seconds = (
+            _time_to_seconds(
+                end_time
+            )
+        )
+
+        if end_seconds <= start_seconds:
+
+            raise ValueError(
+                "終了時間は開始時間より後にしてください。"
+            )
+
+        duration = (
+            end_seconds
+            - start_seconds
+        )
+
+    if video_id:
+
+        mp4_file = (
+            output_dir
+            /
+            f"{video_id}.mp4"
+        )
+
+    else:
+
+        mp4_file = (
+            downloaded_file.with_suffix(
+                ".mp4"
+            )
+        )
+
+    temporary_mp4_file = None
+
+    if (
+        downloaded_file.resolve()
+        ==
+        mp4_file.resolve()
+    ):
+
+        temporary_mp4_file = (
+            output_dir
+            /
+            f"{video_id or 'video'}_trim_temp.mp4"
+        )
+
+        ffmpeg_output = (
+            temporary_mp4_file
+        )
+
+    else:
+
+        ffmpeg_output = (
+            mp4_file
+        )
+
+    ffmpeg_command = [
+        "ffmpeg",
+        "-y"
+    ]
+
+    if start_seconds > 0:
+
+        ffmpeg_command.extend([
+            "-ss",
+            str(start_seconds)
+        ])
+
+    ffmpeg_command.extend([
+        "-i",
+        str(downloaded_file)
+    ])
+
+    if duration is not None:
+
+        ffmpeg_command.extend([
+            "-t",
+            str(duration)
+        ])
+
+    ffmpeg_command.extend([
+
+        "-c:v",
+        "libx264",
+
+        "-preset",
+        "medium",
+
+        "-crf",
+        "23",
+
+        "-c:a",
+        "aac",
+
+        "-b:a",
+        "192k",
+
+        "-movflags",
+        "+faststart",
+
+        "-metadata",
+        "title=" + str(video_title),
+
+        "-metadata",
+        "comment=YouTube Converter",
+
+        str(ffmpeg_output)
+
+    ])
+
+    print(
+        "[DEBUG] MP4 FFmpeg:",
+        " ".join(ffmpeg_command),
+        flush=True
+    )
+
+    result = subprocess.run(
+        ffmpeg_command,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace"
+    )
+
+    print(
+        "[DEBUG] MP4 FFmpeg returncode:",
+        result.returncode,
+        flush=True
+    )
+
+    if result.stderr:
+
         print(
-            "[DEBUG] MP4 result:",
-            result,
+            "[DEBUG] MP4 FFmpeg stderr:",
+            result.stderr,
             flush=True
         )
 
-        print(
-            "[DEBUG] create_mp4 SUCCESS",
-            flush=True
+    if result.returncode != 0:
+
+        raise RuntimeError(
+            "MP4 FFmpeg conversion failed\n"
+            + result.stderr
         )
 
-        return result
+    if temporary_mp4_file:
 
-    except Exception as e:
+        if mp4_file.exists():
 
-        print(
-            "==========================================",
-            flush=True
+            mp4_file.unlink()
+
+        temporary_mp4_file.replace(
+            mp4_file
         )
 
-        print(
-            "[DEBUG] create_mp4 ERROR:",
-            repr(e),
-            flush=True
+        temporary_mp4_file = None
+
+    if not mp4_file.exists():
+
+        raise FileNotFoundError(
+            "MP4ファイルが作成されませんでした"
         )
 
-        print(
-            "[DEBUG] MP4 exception type:",
-            type(e).__name__,
-            flush=True
+    if mp4_file.stat().st_size <= 0:
+
+        raise RuntimeError(
+            "MP4ファイルのサイズが0です"
         )
 
-        traceback.print_exc()
+    if (
+        downloaded_file.exists()
+        and
+        downloaded_file.resolve()
+        !=
+        mp4_file.resolve()
+    ):
 
-        raise
+        downloaded_file.unlink()
 
-    finally:
+    return {
 
-        # --------------------------------------------------
-        # 一時MP4削除
-        # --------------------------------------------------
+        "path":
+            str(mp4_file),
 
-        if temporary_mp4_file:
+        "filename":
+            mp4_file.name
 
-            try:
-
-                if temporary_mp4_file.exists():
-
-                    temporary_mp4_file.unlink()
-
-                    print(
-                        "[DEBUG] temporary MP4 removed",
-                        flush=True
-                    )
-
-            except Exception as cleanup_error:
-
-                print(
-                    "[DEBUG] temporary MP4 cleanup ERROR:",
-                    repr(cleanup_error),
-                    flush=True
-                )
-
-        print(
-            "[DEBUG] create_mp4 END",
-            flush=True
-        )
-
-        print(
-            "==========================================",
-            flush=True
-        )
+    }
