@@ -5,7 +5,11 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
+
+# =====================================
 # OSパッケージ
+# =====================================
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     ffmpeg \
@@ -14,21 +18,37 @@ RUN apt-get update && \
     ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
+
+# =====================================
 # Deno
+# =====================================
+
 RUN curl -fsSL https://deno.land/install.sh | sh
 
 ENV PATH="/root/.deno/bin:${PATH}"
 
+
+# =====================================
 # Python dependencies
+# =====================================
+
 COPY requirements.txt .
 
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# アプリ
+
+# =====================================
+# アプリケーション
+# =====================================
+
 COPY . .
 
+
+# =====================================
 # 環境確認
+# =====================================
+
 RUN echo "==========================================" && \
     echo "DOCKER ENVIRONMENT" && \
     echo "==========================================" && \
@@ -42,11 +62,22 @@ RUN echo "==========================================" && \
     pip show yt-dlp-ejs && \
     echo "------------------------------------------" && \
     echo "Deno:" && \
-    /root/.deno/bin/deno --version && \
+    deno --version && \
     echo "------------------------------------------" && \
     echo "FFmpeg:" && \
     ffmpeg -version | head -n 1 && \
     echo "=========================================="
 
+
+# =====================================
+# Render用PORT
+# =====================================
+
+ENV PORT=10000
+
+
+# =====================================
 # 起動
-CMD ["sh", "-c", "echo '==========================================' && echo 'Starting Gunicorn...' && echo '==========================================' && gunicorn --bind 0.0.0.0:10000 --timeout 1800 app:app"]
+# =====================================
+
+CMD ["sh", "-c", "echo '==========================================' && echo 'Starting Gunicorn...' && echo '==========================================' && gunicorn --bind 0.0.0.0:${PORT} --timeout 1800 app:app"]
