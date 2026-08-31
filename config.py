@@ -1,7 +1,18 @@
+# =====================================
+# YouTube Converter
+# config.py
+#
+# プロジェクト全体の設定
+# =====================================
+
 import os
 
 from dotenv import load_dotenv
 
+
+# =====================================
+# .env
+# =====================================
 
 load_dotenv()
 
@@ -43,7 +54,57 @@ GEMINI_API_KEY = os.environ.get(
 # YouTube cookies
 # =====================================
 
-COOKIES_FILE = "/etc/secrets/cookies.txt"
+# Render Secret File
+RENDER_COOKIES_FILE = "/etc/secrets/cookies.txt"
+
+
+# =====================================
+# Cookieファイル決定
+#
+# 優先順位:
+#
+# 1. Render Secret File
+# 2. 環境変数 COOKIES_FILE
+# 3. BASE_DIR/cookies.txt
+#
+# =====================================
+
+if os.path.isfile(
+    RENDER_COOKIES_FILE
+):
+
+    COOKIES_FILE = (
+        RENDER_COOKIES_FILE
+    )
+
+else:
+
+    env_cookies_file = os.environ.get(
+        "COOKIES_FILE"
+    )
+
+    if (
+        env_cookies_file
+        and
+        os.path.isfile(
+            env_cookies_file
+        )
+    ):
+
+        COOKIES_FILE = (
+            env_cookies_file
+        )
+
+    else:
+
+        local_cookies_file = os.path.join(
+            BASE_DIR,
+            "cookies.txt"
+        )
+
+        COOKIES_FILE = (
+            local_cookies_file
+        )
 
 
 # =====================================
@@ -63,8 +124,17 @@ CHUNK_SECONDS = (
 
 print("==========================================")
 print("CONFIG")
-print("BASE_DIR:", BASE_DIR)
-print("DOWNLOAD_DIR:", DOWNLOAD_DIR)
+print("==========================================")
+
+print(
+    "BASE_DIR:",
+    BASE_DIR
+)
+
+print(
+    "DOWNLOAD_DIR:",
+    DOWNLOAD_DIR
+)
 
 print(
     "DOWNLOAD_DIR exists:",
@@ -72,6 +142,22 @@ print(
         DOWNLOAD_DIR
     )
 )
+
+print("------------------------------------------")
+
+print(
+    "RENDER_COOKIES_FILE:",
+    RENDER_COOKIES_FILE
+)
+
+print(
+    "RENDER_COOKIES_FILE exists:",
+    os.path.isfile(
+        RENDER_COOKIES_FILE
+    )
+)
+
+print("------------------------------------------")
 
 print(
     "COOKIES_FILE:",
@@ -82,6 +168,15 @@ print(
     "COOKIES_FILE exists:",
     os.path.isfile(
         COOKIES_FILE
+    )
+)
+
+print("------------------------------------------")
+
+print(
+    "GEMINI_API_KEY exists:",
+    bool(
+        GEMINI_API_KEY
     )
 )
 
