@@ -1,18 +1,8 @@
-# =====================================
-# YouTube Converter
-# config.py
-#
-# プロジェクト全体の設定
-# =====================================
-
 import os
+import shutil
 
 from dotenv import load_dotenv
 
-
-# =====================================
-# .env
-# =====================================
 
 load_dotenv()
 
@@ -54,57 +44,37 @@ GEMINI_API_KEY = os.environ.get(
 # YouTube cookies
 # =====================================
 
-# Render Secret File
-RENDER_COOKIES_FILE = "/etc/secrets/cookies.txt"
+COOKIES_FILE = "/etc/secrets/cookies.txt"
 
 
 # =====================================
-# Cookieファイル決定
+# Deno
+# =====================================
 #
-# 優先順位:
+# DockerではPATHから検索する。
 #
-# 1. Render Secret File
-# 2. 環境変数 COOKIES_FILE
-# 3. BASE_DIR/cookies.txt
+# /app/.deno/bin/deno
+# /root/.deno/bin/deno
+# などを直接固定しない。
 #
+
+DENO_PATH = shutil.which(
+    "deno"
+)
+
+
+# =====================================
+# FFmpeg
 # =====================================
 
-if os.path.isfile(
-    RENDER_COOKIES_FILE
-):
+FFMPEG_PATH = shutil.which(
+    "ffmpeg"
+)
 
-    COOKIES_FILE = (
-        RENDER_COOKIES_FILE
-    )
 
-else:
-
-    env_cookies_file = os.environ.get(
-        "COOKIES_FILE"
-    )
-
-    if (
-        env_cookies_file
-        and
-        os.path.isfile(
-            env_cookies_file
-        )
-    ):
-
-        COOKIES_FILE = (
-            env_cookies_file
-        )
-
-    else:
-
-        local_cookies_file = os.path.join(
-            BASE_DIR,
-            "cookies.txt"
-        )
-
-        COOKIES_FILE = (
-            local_cookies_file
-        )
+FFPROBE_PATH = shutil.which(
+    "ffprobe"
+)
 
 
 # =====================================
@@ -124,17 +94,8 @@ CHUNK_SECONDS = (
 
 print("==========================================")
 print("CONFIG")
-print("==========================================")
-
-print(
-    "BASE_DIR:",
-    BASE_DIR
-)
-
-print(
-    "DOWNLOAD_DIR:",
-    DOWNLOAD_DIR
-)
+print("BASE_DIR:", BASE_DIR)
+print("DOWNLOAD_DIR:", DOWNLOAD_DIR)
 
 print(
     "DOWNLOAD_DIR exists:",
@@ -142,22 +103,6 @@ print(
         DOWNLOAD_DIR
     )
 )
-
-print("------------------------------------------")
-
-print(
-    "RENDER_COOKIES_FILE:",
-    RENDER_COOKIES_FILE
-)
-
-print(
-    "RENDER_COOKIES_FILE exists:",
-    os.path.isfile(
-        RENDER_COOKIES_FILE
-    )
-)
-
-print("------------------------------------------")
 
 print(
     "COOKIES_FILE:",
@@ -171,13 +116,27 @@ print(
     )
 )
 
-print("------------------------------------------")
+print(
+    "DENO_PATH:",
+    DENO_PATH
+)
 
 print(
-    "GEMINI_API_KEY exists:",
+    "DENO_PATH exists:",
     bool(
-        GEMINI_API_KEY
+        DENO_PATH
+        and os.path.isfile(DENO_PATH)
     )
+)
+
+print(
+    "FFMPEG_PATH:",
+    FFMPEG_PATH
+)
+
+print(
+    "FFPROBE_PATH:",
+    FFPROBE_PATH
 )
 
 print("==========================================")
