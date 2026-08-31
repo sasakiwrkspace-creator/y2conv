@@ -8,7 +8,21 @@
 # ・Flaskアプリ起動
 # ・各routes登録
 # ・設定読み込み
+#
+# タブ1:
+# ・YouTube URL
+# ・動画情報取得
+# ・MP3 / MP4変換
+# ・Job監視
+#
+# タブ2:
+# ・ファイル変換
+#
+# 注意:
+# ・converter.js / subtitle.js の処理は
+#   このファイルでは行わない。
 # =====================================
+
 
 from flask import Flask
 
@@ -32,6 +46,7 @@ app = Flask(__name__)
 # =====================================
 
 BASE_DIR = config.BASE_DIR
+
 DOWNLOAD_DIR = config.DOWNLOAD_DIR
 
 
@@ -39,11 +54,35 @@ DOWNLOAD_DIR = config.DOWNLOAD_DIR
 # Routes登録
 # =====================================
 
+print("==========================================")
+print("[APP] Registering routes")
+print("==========================================")
+
+
+# -------------------------------------
+# index
+# -------------------------------------
+
 register_index(app)
+
+
+# -------------------------------------
+# files
+# -------------------------------------
 
 register_files(app)
 
+
+# -------------------------------------
+# convert
+# -------------------------------------
+
 register_convert(app)
+
+
+# -------------------------------------
+# video-info / check
+# -------------------------------------
 
 register_video_info(app)
 
@@ -56,12 +95,17 @@ register_check(app)
 
 print("==========================================")
 print("[APP] Registered routes")
+print("==========================================")
+
 
 for rule in app.url_map.iter_rules():
 
     print(
-        rule
+        rule,
+        "->",
+        rule.endpoint
     )
+
 
 print("==========================================")
 
@@ -73,16 +117,16 @@ print("==========================================")
 if __name__ == "__main__":
 
     print("==========================================")
-    print("YouTube Converter")
+    print("[APP] YouTube Converter")
     print("==========================================")
 
     print(
-        "BASE_DIR:",
+        "[APP] BASE_DIR:",
         BASE_DIR
     )
 
     print(
-        "DOWNLOAD_DIR:",
+        "[APP] DOWNLOAD_DIR:",
         DOWNLOAD_DIR
     )
 
