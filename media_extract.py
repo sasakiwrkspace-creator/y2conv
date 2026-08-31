@@ -1,4 +1,3 @@
-import os
 import re
 import subprocess
 import traceback
@@ -9,8 +8,15 @@ from pathlib import Path
 # DEBUG
 # ==========================================================
 
-print("==========================================", flush=True)
-print("[DEBUG] media_extract.py loaded", flush=True)
+print(
+    "==========================================",
+    flush=True
+)
+
+print(
+    "[DEBUG] media_extract.py loaded",
+    flush=True
+)
 
 
 # ==========================================================
@@ -18,14 +24,6 @@ print("[DEBUG] media_extract.py loaded", flush=True)
 # ==========================================================
 
 def time_to_seconds(value):
-    """
-    以下の形式に対応
-
-    00:00:05
-    00:05
-    5
-    5.5
-    """
 
     if value is None:
         return 0.0
@@ -41,24 +39,20 @@ def time_to_seconds(value):
 
         if len(parts) == 3:
 
-            hours = float(parts[0])
-            minutes = float(parts[1])
-            seconds = float(parts[2])
-
             return (
-                hours * 3600
-                + minutes * 60
-                + seconds
+                float(parts[0]) * 3600
+                +
+                float(parts[1]) * 60
+                +
+                float(parts[2])
             )
 
         if len(parts) == 2:
 
-            minutes = float(parts[0])
-            seconds = float(parts[1])
-
             return (
-                minutes * 60
-                + seconds
+                float(parts[0]) * 60
+                +
+                float(parts[1])
             )
 
         return float(text)
@@ -71,63 +65,37 @@ def time_to_seconds(value):
 
 
 # ==========================================================
-# 時間指定なし判定
+# 全編判定
 # ==========================================================
 
 def is_full_download(
     start_time=None,
     end_time=None
 ):
-    """
-    以下の場合は全編扱い
-
-    None / None
-    00:00:00 / 00:00:00
-    0 / 0
-    """
-
-    start_seconds = time_to_seconds(
-        start_time
-    )
-
-    end_seconds = time_to_seconds(
-        end_time
-    )
 
     return (
-        start_seconds == 0
+        time_to_seconds(start_time) == 0
         and
-        end_seconds == 0
+        time_to_seconds(end_time) == 0
     )
 
 
 # ==========================================================
-# 安全なファイル名
+# ファイル名安全化
 # ==========================================================
 
 def sanitize_filename(
     title,
     fallback="YouTube Video"
 ):
-    """
-    動画タイトルをファイル名として安全にする。
-
-    Windows/Linux等で問題になりやすい文字を除去。
-    """
 
     if title is None:
-
         title = fallback
 
     title = str(title).strip()
 
     if not title:
-
         title = fallback
-
-    # ------------------------------------------------------
-    # 改行・タブ
-    # ------------------------------------------------------
 
     title = re.sub(
         r"[\r\n\t]+",
@@ -135,19 +103,11 @@ def sanitize_filename(
         title
     )
 
-    # ------------------------------------------------------
-    # ファイル名として使用できない文字
-    # ------------------------------------------------------
-
     title = re.sub(
         r'[\\/:*?"<>|]',
         "_",
         title
     )
-
-    # ------------------------------------------------------
-    # 制御文字
-    # ------------------------------------------------------
 
     title = re.sub(
         r"[\x00-\x1f\x7f]",
@@ -155,45 +115,27 @@ def sanitize_filename(
         title
     )
 
-    # ------------------------------------------------------
-    # 連続スペース
-    # ------------------------------------------------------
-
     title = re.sub(
         r"\s+",
         " ",
         title
     )
 
-    title = title.strip()
-
-    # ------------------------------------------------------
-    # 末尾のドット・スペース
-    # ------------------------------------------------------
-
-    title = title.rstrip(
-        " ."
-    )
+    title = title.rstrip(" .")
 
     if not title:
-
         title = fallback
 
-    # ------------------------------------------------------
-    # 長すぎるファイル名対策
-    # ------------------------------------------------------
+    title = title[:180].rstrip(" .")
 
-    max_length = 180
-
-    if len(title) > max_length:
-
-        title = title[:max_length].rstrip()
+    if not title:
+        title = fallback
 
     return title
 
 
 # ==========================================================
-# 出力ファイル名
+# 出力パス
 # ==========================================================
 
 def build_output_paths(
@@ -214,27 +156,26 @@ def build_output_paths(
         title
     )
 
-    mp3_path = (
-        output_dir
-        /
-        f"{safe_title}.mp3"
-    )
-
-    mp4_path = (
-        output_dir
-        /
-        f"{safe_title}.mp4"
-    )
-
     return {
-        "mp3": mp3_path,
-        "mp4": mp4_path,
-        "title": safe_title
+
+        "mp3":
+            output_dir
+            /
+            f"{safe_title}.mp3",
+
+        "mp4":
+            output_dir
+            /
+            f"{safe_title}.mp4",
+
+        "title":
+            safe_title
+
     }
 
 
 # ==========================================================
-# FFmpeg存在確認
+# FFmpeg確認
 # ==========================================================
 
 def check_ffmpeg():
@@ -266,10 +207,6 @@ def check_ffmpeg():
         raise RuntimeError(
             "FFmpegが見つかりません。"
         ) from error
-
-    except Exception:
-
-        raise
 
 
 # ==========================================================
@@ -320,7 +257,6 @@ def _validate_output_file(
 def _remove_file(path):
 
     if not path:
-
         return
 
     try:
@@ -347,7 +283,99 @@ def _remove_file(path):
 
 
 # ==========================================================
-# MP3作成
+# FFmpeg実行
+#
+# stderrをPythonメモリに保持し続けない。
+# 一時ログファイルへ出力する。
+# ==========================================================
+
+def _run_ffmpeg(
+    command,
+    mode_name
+):
+
+    print(
+        f"[MEDIA] {mode_name} FFmpeg:",
+        " ".join(
+            str(x)
+            for x in command
+        ),
+        flush=True
+    )
+
+    log_file = None
+
+    try:
+
+        log_file = open(
+            Path(
+                command[-1]
+            ).with_suffix(
+                ".ffmpeg.log"
+            ),
+            "w",
+            encoding="utf-8",
+            errors="replace"
+        )
+
+        result = subprocess.run(
+
+            command,
+
+            stdout=subprocess.DEVNULL,
+
+            stderr=log_file
+
+        )
+
+    finally:
+
+        if log_file:
+
+            log_file.close()
+
+    print(
+        f"[MEDIA] {mode_name} returncode:",
+        result.returncode,
+        flush=True
+    )
+
+    if result.returncode != 0:
+
+        log_path = Path(
+            command[-1]
+        ).with_suffix(
+            ".ffmpeg.log"
+        )
+
+        try:
+
+            log_text = log_path.read_text(
+                encoding="utf-8",
+                errors="replace"
+            )
+
+        except Exception:
+
+            log_text = ""
+
+        print(
+            f"[MEDIA] {mode_name} stderr:",
+            log_text,
+            flush=True
+        )
+
+        raise RuntimeError(
+            f"{mode_name}変換に失敗しました。\n"
+            +
+            log_text
+        )
+
+    return result
+
+
+# ==========================================================
+# MP3
 # ==========================================================
 
 def create_mp3_from_file(
@@ -358,34 +386,8 @@ def create_mp3_from_file(
     end_time=None
 ):
 
-    print("==========================================", flush=True)
-
     print(
         "[MEDIA] MP3 START",
-        flush=True
-    )
-
-    print(
-        "[MEDIA] input:",
-        input_file,
-        flush=True
-    )
-
-    print(
-        "[MEDIA] title:",
-        title,
-        flush=True
-    )
-
-    print(
-        "[MEDIA] start_time:",
-        start_time,
-        flush=True
-    )
-
-    print(
-        "[MEDIA] end_time:",
-        end_time,
         flush=True
     )
 
@@ -394,6 +396,12 @@ def create_mp3_from_file(
     input_file = Path(
         input_file
     )
+
+    if not input_file.is_file():
+
+        raise FileNotFoundError(
+            f"入力ファイルが見つかりません: {input_file}"
+        )
 
     output_dir = Path(
         output_dir
@@ -411,21 +419,19 @@ def create_mp3_from_file(
 
     mp3_file = paths["mp3"]
 
-    # ------------------------------------------------------
-    # 既存ファイル削除
-    # ------------------------------------------------------
+    temporary_mp3_file = (
+        output_dir
+        /
+        f".{paths['title']}.mp3.tmp"
+    )
 
-    if mp3_file.exists():
+    _remove_file(
+        temporary_mp3_file
+    )
 
-        try:
-
-            mp3_file.unlink()
-
-        except Exception as error:
-
-            raise RuntimeError(
-                f"既存MP3ファイルを削除できません: {mp3_file}"
-            ) from error
+    _remove_file(
+        mp3_file
+    )
 
     start_seconds = time_to_seconds(
         start_time
@@ -440,27 +446,17 @@ def create_mp3_from_file(
         end_time
     )
 
-    # ------------------------------------------------------
-    # FFmpeg
-    # ------------------------------------------------------
-
     command = [
         "ffmpeg",
         "-y"
     ]
 
-    # ------------------------------------------------------
-    # 時間指定
-    # ------------------------------------------------------
+    if not full_download and start_seconds > 0:
 
-    if not full_download:
-
-        if start_seconds > 0:
-
-            command.extend([
-                "-ss",
-                str(start_seconds)
-            ])
+        command.extend([
+            "-ss",
+            str(start_seconds)
+        ])
 
     command.extend([
         "-i",
@@ -471,25 +467,16 @@ def create_mp3_from_file(
 
         if end_seconds > start_seconds:
 
-            duration = (
-                end_seconds
-                -
-                start_seconds
-            )
-
             command.extend([
                 "-t",
-                str(duration)
+                str(
+                    end_seconds - start_seconds
+                )
             ])
 
         elif end_time is not None and end_seconds == 0:
 
-            # 終了時間0は「最後まで」
             pass
-
-    # ------------------------------------------------------
-    # 音声
-    # ------------------------------------------------------
 
     command.extend([
 
@@ -507,65 +494,23 @@ def create_mp3_from_file(
         "-metadata",
         "comment=YouTube Converter",
 
-        str(mp3_file)
+        str(temporary_mp3_file)
 
     ])
 
-    print(
-        "[MEDIA] MP3 FFmpeg:",
-        " ".join(
-            str(x)
-            for x in command
-        ),
-        flush=True
+    _run_ffmpeg(
+        command,
+        "MP3"
     )
 
-    try:
-
-        result = subprocess.run(
-
-            command,
-
-            stdout=subprocess.DEVNULL,
-
-            stderr=subprocess.PIPE,
-
-            text=True,
-
-            encoding="utf-8",
-
-            errors="replace"
-
-        )
-
-    except Exception as error:
-
-        print(
-            "[MEDIA] MP3 FFmpeg exception:",
-            repr(error),
-            flush=True
-        )
-
-        raise
-
-    print(
-        "[MEDIA] MP3 returncode:",
-        result.returncode,
-        flush=True
+    _validate_output_file(
+        temporary_mp3_file,
+        "MP3一時"
     )
 
-    if result.returncode != 0:
-
-        print(
-            "[MEDIA] MP3 stderr:",
-            result.stderr,
-            flush=True
-        )
-
-        raise RuntimeError(
-            "MP3変換に失敗しました。\n"
-            + result.stderr
-        )
+    temporary_mp3_file.replace(
+        mp3_file
+    )
 
     _validate_output_file(
         mp3_file,
@@ -577,8 +522,6 @@ def create_mp3_from_file(
         mp3_file,
         flush=True
     )
-
-    print("==========================================", flush=True)
 
     return {
 
@@ -595,7 +538,7 @@ def create_mp3_from_file(
 
 
 # ==========================================================
-# MP4作成
+# MP4
 # ==========================================================
 
 def create_mp4_from_file(
@@ -606,34 +549,8 @@ def create_mp4_from_file(
     end_time=None
 ):
 
-    print("==========================================", flush=True)
-
     print(
         "[MEDIA] MP4 START",
-        flush=True
-    )
-
-    print(
-        "[MEDIA] input:",
-        input_file,
-        flush=True
-    )
-
-    print(
-        "[MEDIA] title:",
-        title,
-        flush=True
-    )
-
-    print(
-        "[MEDIA] start_time:",
-        start_time,
-        flush=True
-    )
-
-    print(
-        "[MEDIA] end_time:",
-        end_time,
         flush=True
     )
 
@@ -642,6 +559,12 @@ def create_mp4_from_file(
     input_file = Path(
         input_file
     )
+
+    if not input_file.is_file():
+
+        raise FileNotFoundError(
+            f"入力ファイルが見つかりません: {input_file}"
+        )
 
     output_dir = Path(
         output_dir
@@ -659,17 +582,19 @@ def create_mp4_from_file(
 
     mp4_file = paths["mp4"]
 
-    if mp4_file.exists():
+    temporary_mp4_file = (
+        output_dir
+        /
+        f".{paths['title']}.mp4.tmp"
+    )
 
-        try:
+    _remove_file(
+        temporary_mp4_file
+    )
 
-            mp4_file.unlink()
-
-        except Exception as error:
-
-            raise RuntimeError(
-                f"既存MP4ファイルを削除できません: {mp4_file}"
-            ) from error
+    _remove_file(
+        mp4_file
+    )
 
     start_seconds = time_to_seconds(
         start_time
@@ -684,184 +609,85 @@ def create_mp4_from_file(
         end_time
     )
 
-    # ======================================================
-    # 全編
-    # ======================================================
+    command = [
+        "ffmpeg",
+        "-y"
+    ]
 
-    if full_download:
-
-        print(
-            "[MEDIA] MP4: full video",
-            flush=True
-        )
-
-        # --------------------------------------------------
-        # 再エンコードなし
-        # --------------------------------------------------
-
-        command = [
-
-            "ffmpeg",
-
-            "-y",
-
-            "-i",
-            str(input_file),
-
-            "-map",
-            "0:v:0",
-
-            "-map",
-            "0:a:0?",
-
-            "-c",
-            "copy",
-
-            "-movflags",
-            "+faststart",
-
-            "-metadata",
-            "title=" + str(title),
-
-            "-metadata",
-            "comment=YouTube Converter",
-
-            str(mp4_file)
-
-        ]
-
-    # ======================================================
+    # ------------------------------------------------------
     # 時間指定
-    # ======================================================
+    # ------------------------------------------------------
 
-    else:
-
-        print(
-            "[MEDIA] MP4: selected section",
-            flush=True
-        )
-
-        command = [
-            "ffmpeg",
-            "-y"
-        ]
-
-        # --------------------------------------------------
-        # 入力シーク
-        # --------------------------------------------------
-
-        if start_seconds > 0:
-
-            command.extend([
-                "-ss",
-                str(start_seconds)
-            ])
+    if not full_download and start_seconds > 0:
 
         command.extend([
-            "-i",
-            str(input_file)
+            "-ss",
+            str(start_seconds)
         ])
 
-        # --------------------------------------------------
-        # 抽出時間
-        # --------------------------------------------------
+    command.extend([
+        "-i",
+        str(input_file)
+    ])
+
+    if not full_download:
 
         if end_seconds > start_seconds:
 
-            duration = (
-                end_seconds
-                -
-                start_seconds
-            )
-
             command.extend([
                 "-t",
-                str(duration)
+                str(
+                    end_seconds - start_seconds
+                )
             ])
 
-        # --------------------------------------------------
-        # 再エンコードなし
-        # --------------------------------------------------
+        elif end_time is not None and end_seconds == 0:
 
-        command.extend([
+            pass
 
-            "-map",
-            "0:v:0",
+    # ------------------------------------------------------
+    # 再エンコードなし
+    #
+    # メモリ使用量・CPU使用量を抑える。
+    # ------------------------------------------------------
 
-            "-map",
-            "0:a:0?",
+    command.extend([
 
-            "-c",
-            "copy",
+        "-map",
+        "0:v:0",
 
-            "-movflags",
-            "+faststart",
+        "-map",
+        "0:a:0?",
 
-            "-metadata",
-            "title=" + str(title),
+        "-c",
+        "copy",
 
-            "-metadata",
-            "comment=YouTube Converter",
+        "-movflags",
+        "+faststart",
 
-            str(mp4_file)
+        "-metadata",
+        "title=" + str(title),
 
-        ])
+        "-metadata",
+        "comment=YouTube Converter",
 
-    print(
-        "[MEDIA] MP4 FFmpeg:",
-        " ".join(
-            str(x)
-            for x in command
-        ),
-        flush=True
+        str(temporary_mp4_file)
+
+    ])
+
+    _run_ffmpeg(
+        command,
+        "MP4"
     )
 
-    try:
-
-        result = subprocess.run(
-
-            command,
-
-            stdout=subprocess.DEVNULL,
-
-            stderr=subprocess.PIPE,
-
-            text=True,
-
-            encoding="utf-8",
-
-            errors="replace"
-
-        )
-
-    except Exception as error:
-
-        print(
-            "[MEDIA] MP4 FFmpeg exception:",
-            repr(error),
-            flush=True
-        )
-
-        raise
-
-    print(
-        "[MEDIA] MP4 returncode:",
-        result.returncode,
-        flush=True
+    _validate_output_file(
+        temporary_mp4_file,
+        "MP4一時"
     )
 
-    if result.returncode != 0:
-
-        print(
-            "[MEDIA] MP4 stderr:",
-            result.stderr,
-            flush=True
-        )
-
-        raise RuntimeError(
-            "MP4変換に失敗しました。\n"
-            + result.stderr
-        )
+    temporary_mp4_file.replace(
+        mp4_file
+    )
 
     _validate_output_file(
         mp4_file,
@@ -873,8 +699,6 @@ def create_mp4_from_file(
         mp4_file,
         flush=True
     )
-
-    print("==========================================", flush=True)
 
     return {
 
@@ -903,8 +727,6 @@ def create_media_files(
     end_time=None
 ):
 
-    print("==========================================", flush=True)
-
     print(
         "[MEDIA] create_media_files START",
         flush=True
@@ -916,38 +738,44 @@ def create_media_files(
 
         if "mp3" in outputs:
 
-            results["mp3"] = (
-                create_mp3_from_file(
+            results["mp3"] = create_mp3_from_file(
 
-                    input_file=input_file,
+                input_file=
+                    input_file,
 
-                    output_dir=output_dir,
+                output_dir=
+                    output_dir,
 
-                    title=title,
+                title=
+                    title,
 
-                    start_time=start_time,
+                start_time=
+                    start_time,
 
-                    end_time=end_time
+                end_time=
+                    end_time
 
-                )
             )
 
         if "mp4" in outputs:
 
-            results["mp4"] = (
-                create_mp4_from_file(
+            results["mp4"] = create_mp4_from_file(
 
-                    input_file=input_file,
+                input_file=
+                    input_file,
 
-                    output_dir=output_dir,
+                output_dir=
+                    output_dir,
 
-                    title=title,
+                title=
+                    title,
 
-                    start_time=start_time,
+                start_time=
+                    start_time,
 
-                    end_time=end_time
+                end_time=
+                    end_time
 
-                )
             )
 
         return results
@@ -970,5 +798,3 @@ def create_media_files(
             "[MEDIA] create_media_files END",
             flush=True
         )
-
-        print("==========================================", flush=True)
