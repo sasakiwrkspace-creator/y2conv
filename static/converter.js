@@ -16,6 +16,10 @@
 // ・converterStatus.js は使用しない
 // ・タブ2の処理には触れない
 // ・タブ1の実行ボタンは #convertBtn
+//
+// ステータス表示:
+// ・#conversion-status-area の1か所だけを使用
+// ・#status は使用しない
 // =====================================
 
 
@@ -51,11 +55,9 @@
             );
 
 
-        const statusElement =
-            document.getElementById(
-                "status"
-            );
-
+        // -------------------------------------
+        // ステータス表示はここ1か所だけ
+        // -------------------------------------
 
         const conversionStatusArea =
             document.getElementById(
@@ -78,12 +80,6 @@
         console.log(
             "[CONVERTER] convertBtn:",
             convertButton
-        );
-
-
-        console.log(
-            "[CONVERTER] status:",
-            statusElement
         );
 
 
@@ -121,6 +117,15 @@
             );
 
             return;
+
+        }
+
+
+        if (!conversionStatusArea) {
+
+            console.warn(
+                "[CONVERTER] #conversion-status-area が見つかりません"
+            );
 
         }
 
@@ -167,66 +172,18 @@
 
         // =====================================
         // ステータス表示
+        //
+        // 重要:
+        // #status は使用しない。
+        //
+        // すべて
+        // #conversion-status-area
+        // に一本化する。
         // =====================================
 
         function setStatus(
             message,
             type
-        ) {
-
-            const text =
-                String(
-                    message || ""
-                );
-
-
-            if (statusElement) {
-
-                statusElement.textContent =
-                    text;
-
-                statusElement.style.whiteSpace =
-                    "pre-line";
-
-
-                if (type === "error") {
-
-                    statusElement.style.color =
-                        "#c00";
-
-                }
-                else if (
-                    type === "success"
-                ) {
-
-                    statusElement.style.color =
-                        "#087f23";
-
-                }
-                else {
-
-                    statusElement.style.color =
-                        "#222";
-
-                }
-
-            }
-
-
-            console.log(
-                "[CONVERTER] STATUS:",
-                text
-            );
-
-        }
-
-
-        // =====================================
-        // 処理状況表示
-        // =====================================
-
-        function setProgress(
-            message
         ) {
 
             const text =
@@ -246,11 +203,55 @@
                 conversionStatusArea.style.display =
                     "block";
 
+
+                if (type === "error") {
+
+                    conversionStatusArea.style.color =
+                        "#c00";
+
+                }
+                else if (
+                    type === "success"
+                ) {
+
+                    conversionStatusArea.style.color =
+                        "#087f23";
+
+                }
+                else {
+
+                    conversionStatusArea.style.color =
+                        "#222";
+
+                }
+
             }
 
 
-            setStatus(
+            console.log(
+                "[CONVERTER] STATUS:",
                 text
+            );
+
+        }
+
+
+        // =====================================
+        // 処理状況表示
+        //
+        // setStatus()だけを使用する。
+        //
+        // これによりステータス表示が
+        // 2か所に分かれることを防止する。
+        // =====================================
+
+        function setProgress(
+            message
+        ) {
+
+            setStatus(
+                message,
+                "progress"
             );
 
         }
@@ -853,13 +854,8 @@
                 conversionStatusArea.style.display =
                     "none";
 
-            }
-
-
-            if (statusElement) {
-
-                statusElement.textContent =
-                    "";
+                conversionStatusArea.style.color =
+                    "#222";
 
             }
 
@@ -896,10 +892,6 @@
 
         // =====================================
         // HTTPレスポンスJSON取得
-        //
-        // JSONでない場合も
-        // サーバーから返ってきた内容を
-        // エラーとして表示できるようにする。
         // =====================================
 
         async function readJsonResponse(
@@ -967,12 +959,6 @@
 
         // =====================================
         // 動画情報取得
-        //
-        // 注意：
-        // 現在のapp.pyでは
-        // /video-info を登録していないため、
-        // このAPIが必要ならapp.py側で
-        // register_video_info(app)を登録する。
         // =====================================
 
         async function getVideoInfo(
@@ -1331,6 +1317,10 @@
             }
 
 
+            // ---------------------------------
+            // ここだけに表示
+            // ---------------------------------
+
             setProgress(
                 lines.join(
                     "\n"
@@ -1680,6 +1670,7 @@
             clearResults();
 
 
+            // clearResults()後に再度true
             converterState.isProcessing =
                 true;
 
@@ -1939,20 +1930,14 @@
                 }
 
 
+                // ---------------------------------
+                // 完了表示も1か所だけ
+                // ---------------------------------
+
                 setStatus(
                     completeMessage,
                     "success"
                 );
-
-
-                if (
-                    conversionStatusArea
-                ) {
-
-                    conversionStatusArea.textContent =
-                        completeMessage;
-
-                }
 
 
                 console.log(
@@ -1976,6 +1961,10 @@
                         : "不明なエラー";
 
 
+                // ---------------------------------
+                // エラー表示も1か所だけ
+                // ---------------------------------
+
                 setStatus(
 
                     "変換中にエラーが発生しました。\n" +
@@ -1984,21 +1973,6 @@
                     "error"
 
                 );
-
-
-                if (
-                    conversionStatusArea
-                ) {
-
-                    conversionStatusArea.style.display =
-                        "block";
-
-
-                    conversionStatusArea.textContent =
-                        "変換中にエラーが発生しました。\n" +
-                        message;
-
-                }
 
             }
             finally {
@@ -2089,6 +2063,9 @@
 
         // =====================================
         // 時間入力
+        //
+        // converter.js側だけで管理する。
+        // index.html側では登録しない。
         // =====================================
 
         const timeInputs =
