@@ -121,7 +121,7 @@ def register_download(app):
         )
 
         # ==================================================
-        # ファイルサイズ
+        # ファイルサイズ確認
         # ==================================================
 
         if file_exists:
@@ -166,6 +166,19 @@ def register_download(app):
                     repr(error),
                     flush=True
                 )
+
+                return {
+
+                    "success":
+                        False,
+
+                    "message":
+                        "ファイルサイズを確認できません。",
+
+                    "filename":
+                        filename
+
+                }, 500
 
         # ==================================================
         # ファイルなし
@@ -213,19 +226,48 @@ def register_download(app):
         )
 
         print(
+            "[DOWNLOAD] download_folder:",
+            download_folder,
+            flush=True
+        )
+
+        print(
             "==========================================",
             flush=True
         )
 
-        return send_from_directory(
+        try:
 
-            directory=
-                download_folder,
+            return send_from_directory(
 
-            path=
-                filename,
+                directory=
+                    download_folder,
 
-            as_attachment=
-                True
+                path=
+                    filename,
 
-        )
+                as_attachment=
+                    True
+
+            )
+
+        except Exception as error:
+
+            print(
+                "[DOWNLOAD] send_from_directory ERROR:",
+                repr(error),
+                flush=True
+            )
+
+            return {
+
+                "success":
+                    False,
+
+                "message":
+                    "ファイルのダウンロードに失敗しました。",
+
+                "filename":
+                    filename
+
+            }, 500
