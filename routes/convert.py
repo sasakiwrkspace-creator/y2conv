@@ -1,11 +1,20 @@
 from flask import request, jsonify
 
+import os
 import threading
 import traceback
 import uuid
 from datetime import datetime
+from pathlib import Path
 
-from ytdlp import create_mp3, create_mp4
+from ytdlp import (
+    download_source,
+    cleanup_download
+)
+
+from media_extract import (
+    create_media_files
+)
 
 
 # ==========================================================
@@ -38,10 +47,6 @@ def _create_job(
         "status":
             "queued",
 
-        # ==================================================
-        # YouTube動画タイトル
-        # ==================================================
-
         "title":
             "",
 
@@ -59,10 +64,6 @@ def _create_job(
 
         "end_time":
             end_time,
-
-        # ==================================================
-        # 出力ファイル
-        # ==================================================
 
         "files": {
 
@@ -100,26 +101,14 @@ def _create_job(
 
         },
 
-        # ==================================================
-        # 全体メッセージ
-        # ==================================================
-
         "message":
             "変換処理を開始する準備をしています。",
-
-        # ==================================================
-        # 処理時間
-        # ==================================================
 
         "execution_seconds":
             None,
 
         "execution_seconds_text":
             "",
-
-        # ==================================================
-        # 時刻
-        # ==================================================
 
         "created_at":
             datetime.now().isoformat(),
@@ -152,14 +141,9 @@ def _get_job(job_id):
         )
 
         if job is None:
-
             return None
 
-        # --------------------------------------------------
-        # JSON返却用に最低限コピー
-        # --------------------------------------------------
-
-        result = {
+        return {
 
             "job_id":
                 job.get("job_id"),
@@ -206,9 +190,7 @@ def _get_job(job_id):
                 job.get("execution_seconds"),
 
             "execution_seconds_text":
-                job.get(
-                    "execution_seconds_text"
-                ),
+                job.get("execution_seconds_text"),
 
             "created_at":
                 job.get("created_at"),
@@ -220,8 +202,6 @@ def _get_job(job_id):
                 job.get("completed_at")
 
         }
-
-        return result
 
 
 # ==========================================================
@@ -239,13 +219,11 @@ def _update_job(
             job_id
         )
 
-        if job is None:
+        if job:
 
-            return
-
-        job.update(
-            kwargs
-        )
+            job.update(
+                kwargs
+            )
 
 
 # ==========================================================
@@ -264,21 +242,18 @@ def _update_file(
             job_id
         )
 
-        if job is None:
-
+        if not job:
             return
 
         file_info = job["files"].get(
             output_type
         )
 
-        if file_info is None:
+        if file_info:
 
-            return
-
-        file_info.update(
-            kwargs
-        )
+            file_info.update(
+                kwargs
+            )
 
 
 # ==========================================================
@@ -288,7 +263,6 @@ def _update_file(
 def _format_seconds(seconds):
 
     if seconds is None:
-
         return ""
 
     try:
@@ -339,70 +313,142 @@ def _run_conversion_job(
 
     started_at = datetime.now()
 
-    # ======================================================
-    # 処理開始
-    # ======================================================
-
-    _update_job(
-
-        job_id,
-
-        status="processing",
-
-        started_at=
-            started_at.isoformat(),
-
-        message=
-            "動画情報を取得しています・・・"
-
-    )
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    print(
-        "[CONVERT] Background job START:",
-        job_id,
-        flush=True
-    )
-
-    print(
-        "[CONVERT] URL:",
-        url,
-        flush=True
-    )
-
-    print(
-        "[CONVERT] outputs:",
-        outputs,
-        flush=True
-    )
-
-    print(
-        "[CONVERT] start_time:",
-        start_time,
-        flush=True
-    )
-
-    print(
-        "[CONVERT] end_time:",
-        end_time,
-        flush=True
-    )
+    download_result = None
 
     try:
+
+        # ==================================================
+        # processing
+        # ==================================================
+
+        _update_job(
+
+            job_id,
+
+            status="processing",
+
+            started_at=
+                started_at.isoformat(),
+
+            message=
+                "動画をダウンロードしています・・・"
+
+        )
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+        print(
+            "[CONVERT] Background job START:",
+            job_id,
+            flush=True
+        )
+
+        print(
+            "[CONVERT] URL:",
+            url,
+            flush=True
+        )
+
+        print(
+            "[CONVERT] outputs:",
+            outputs,
+            flush=True
+        )
+
+        # ==================================================
+        # YouTube → 一時ファイル
+        #
+        # ここで動画全体をRAMへ読み込まない。
+        # ==================================================
+
+        print(
+            "[CONVERT] source download START",
+            flush=True
+        )
+
+        download_result = download_source(
+            url
+        )
+
+        if not download_result:
+
+            raise RuntimeError(
+                "動画ダウンロード結果が空です。"
+            )
+
+        source_path = Path(
+            download_result["path"]
+        )
+
+        if not source_path.is_file():
+
+            raise FileNotFoundError(
+                f"一時動画ファイルがありません: {source_path}"
+            )
+
+        title = (
+            download_result.get("title")
+            or "YouTube Video"
+        )
+
+        duration = (
+            download_result.get("duration")
+        )
+
+        _update_job(
+
+            job_id,
+
+            title=title,
+
+            duration=duration,
+
+            duration_text=
+                _format_seconds(
+                    duration
+                ),
+
+            message=
+                "動画のダウンロードが完了しました。"
+
+        )
+
+        print(
+            "[CONVERT] source:",
+            source_path,
+            flush=True
+        )
+
+        print(
+            "[CONVERT] source size:",
+            source_path.stat().st_size,
+            "bytes",
+            flush=True
+        )
+
+        # ==================================================
+        # 出力先
+        # ==================================================
+
+        output_dir = (
+            Path(os.getcwd())
+            /
+            "downloads"
+        )
+
+        output_dir.mkdir(
+            parents=True,
+            exist_ok=True
+        )
 
         # ==================================================
         # MP3
         # ==================================================
 
         if "mp3" in outputs:
-
-            # ------------------------------------------------
-            # MP3変換開始
-            # ------------------------------------------------
 
             _update_file(
 
@@ -412,8 +458,7 @@ def _run_conversion_job(
 
                 status="processing",
 
-                message=
-                    "mp3 変換中・・・"
+                message="mp3 変換中・・・"
 
             )
 
@@ -421,157 +466,15 @@ def _run_conversion_job(
 
                 job_id,
 
-                message=
-                    "mp3 変換中・・・"
+                message="mp3 変換中・・・"
 
             )
-
-            print(
-                "[CONVERT] MP3作成開始",
-                flush=True
-            )
-
-            try:
-
-                result = create_mp3(
-
-                    url,
-
-                    start_time=
-                        start_time,
-
-                    end_time=
-                        end_time
-
-                )
-
-                print(
-                    "[CONVERT] MP3作成完了:",
-                    result,
-                    flush=True
-                )
-
-                if not result:
-
-                    raise RuntimeError(
-                        "MP3作成結果が空です。"
-                    )
-
-                # ------------------------------------------------
-                # 動画タイトル
-                # ------------------------------------------------
-
-                title = (
-                    result.get("title")
-                    or ""
-                )
-
-                if title:
-
-                    _update_job(
-
-                        job_id,
-
-                        title=title
-
-                    )
-
-                # ------------------------------------------------
-                # 動画時間
-                # ------------------------------------------------
-
-                duration = (
-                    result.get("duration")
-                )
-
-                if duration is not None:
-
-                    _update_job(
-
-                        job_id,
-
-                        duration=duration,
-
-                        duration_text=
-                            _format_seconds(
-                                duration
-                            )
-
-                    )
-
-                # ------------------------------------------------
-                # MP3完了
-                # ------------------------------------------------
-
-                _update_file(
-
-                    job_id,
-
-                    "mp3",
-
-                    status="complete",
-
-                    filename=
-                        result.get(
-                            "filename"
-                        ),
-
-                    path=
-                        result.get(
-                            "path"
-                        ),
-
-                    message=
-                        "mp3 変換終了"
-
-                )
-
-                _update_job(
-
-                    job_id,
-
-                    message=
-                        "mp3 変換終了"
-
-                )
-
-            except Exception as error:
-
-                print(
-                    "[CONVERT] MP3 ERROR:",
-                    repr(error),
-                    flush=True
-                )
-
-                _update_file(
-
-                    job_id,
-
-                    "mp3",
-
-                    status="error",
-
-                    filename=None,
-
-                    path=None,
-
-                    message=
-                        "mp3 変換エラー: "
-                        + str(error)
-
-                )
-
-                raise
 
         # ==================================================
         # MP4
         # ==================================================
 
         if "mp4" in outputs:
-
-            # ------------------------------------------------
-            # MP4変換開始
-            # ------------------------------------------------
 
             _update_file(
 
@@ -581,159 +484,129 @@ def _run_conversion_job(
 
                 status="processing",
 
-                message=
-                    "mp4 変換中・・・"
+                message="mp4 変換中・・・"
 
             )
 
-            _update_job(
+        # ==================================================
+        # メディア作成
+        #
+        # 1つのsource fileから必要なものを作る。
+        # ==================================================
+
+        print(
+            "[CONVERT] media extraction START",
+            flush=True
+        )
+
+        results = create_media_files(
+
+            input_file=
+                str(source_path),
+
+            output_dir=
+                output_dir,
+
+            title=
+                title,
+
+            outputs=
+                outputs,
+
+            start_time=
+                start_time,
+
+            end_time=
+                end_time
+
+        )
+
+        print(
+            "[CONVERT] media extraction COMPLETE:",
+            results,
+            flush=True
+        )
+
+        # ==================================================
+        # MP3結果
+        # ==================================================
+
+        if "mp3" in outputs:
+
+            mp3_result = results.get(
+                "mp3"
+            )
+
+            if not mp3_result:
+
+                raise RuntimeError(
+                    "MP3作成結果が空です。"
+                )
+
+            _update_file(
 
                 job_id,
 
+                "mp3",
+
+                status="complete",
+
+                filename=
+                    mp3_result.get(
+                        "filename"
+                    ),
+
+                path=
+                    mp3_result.get(
+                        "path"
+                    ),
+
                 message=
-                    "mp4 変換中・・・"
+                    "mp3 変換終了"
 
             )
-
-            print(
-                "[CONVERT] MP4作成開始",
-                flush=True
-            )
-
-            try:
-
-                result = create_mp4(
-
-                    url,
-
-                    start_time=
-                        start_time,
-
-                    end_time=
-                        end_time
-
-                )
-
-                print(
-                    "[CONVERT] MP4作成完了:",
-                    result,
-                    flush=True
-                )
-
-                if not result:
-
-                    raise RuntimeError(
-                        "MP4作成結果が空です。"
-                    )
-
-                # ------------------------------------------------
-                # 動画タイトル
-                # ------------------------------------------------
-
-                title = (
-                    result.get("title")
-                    or ""
-                )
-
-                if title:
-
-                    _update_job(
-
-                        job_id,
-
-                        title=title
-
-                    )
-
-                # ------------------------------------------------
-                # 動画時間
-                # ------------------------------------------------
-
-                duration = (
-                    result.get("duration")
-                )
-
-                if duration is not None:
-
-                    _update_job(
-
-                        job_id,
-
-                        duration=duration,
-
-                        duration_text=
-                            _format_seconds(
-                                duration
-                            )
-
-                    )
-
-                # ------------------------------------------------
-                # MP4完了
-                # ------------------------------------------------
-
-                _update_file(
-
-                    job_id,
-
-                    "mp4",
-
-                    status="complete",
-
-                    filename=
-                        result.get(
-                            "filename"
-                        ),
-
-                    path=
-                        result.get(
-                            "path"
-                        ),
-
-                    message=
-                        "mp4 変換終了"
-
-                )
-
-                _update_job(
-
-                    job_id,
-
-                    message=
-                        "mp4 変換終了"
-
-                )
-
-            except Exception as error:
-
-                print(
-                    "[CONVERT] MP4 ERROR:",
-                    repr(error),
-                    flush=True
-                )
-
-                _update_file(
-
-                    job_id,
-
-                    "mp4",
-
-                    status="error",
-
-                    filename=None,
-
-                    path=None,
-
-                    message=
-                        "mp4 変換エラー: "
-                        + str(error)
-
-                )
-
-                raise
 
         # ==================================================
-        # 全体完了
+        # MP4結果
+        # ==================================================
+
+        if "mp4" in outputs:
+
+            mp4_result = results.get(
+                "mp4"
+            )
+
+            if not mp4_result:
+
+                raise RuntimeError(
+                    "MP4作成結果が空です。"
+                )
+
+            _update_file(
+
+                job_id,
+
+                "mp4",
+
+                status="complete",
+
+                filename=
+                    mp4_result.get(
+                        "filename"
+                    ),
+
+                path=
+                    mp4_result.get(
+                        "path"
+                    ),
+
+                message=
+                    "mp4 変換終了"
+
+            )
+
+        # ==================================================
+        # 完了
         # ==================================================
 
         completed_at = datetime.now()
@@ -776,10 +649,6 @@ def _run_conversion_job(
 
     except Exception as error:
 
-        # ======================================================
-        # エラー
-        # ======================================================
-
         completed_at = datetime.now()
 
         elapsed = (
@@ -821,7 +690,52 @@ def _run_conversion_job(
 
         traceback.print_exc()
 
+        # --------------------------------------------------
+        # processing中の出力をerrorにする
+        # --------------------------------------------------
+
+        for output_type in outputs:
+
+            job = _get_job(
+                job_id
+            )
+
+            if not job:
+                continue
+
+            file_status = (
+                job["files"][output_type]["status"]
+            )
+
+            if file_status == "processing":
+
+                _update_file(
+
+                    job_id,
+
+                    output_type,
+
+                    status="error",
+
+                    message=
+                        f"{output_type} 変換エラー: "
+                        + str(error)
+
+                )
+
     finally:
+
+        # ==================================================
+        # 一時動画削除
+        #
+        # 成功・失敗どちらでも最後に削除する。
+        # ==================================================
+
+        if download_result:
+
+            cleanup_download(
+                download_result
+            )
 
         print(
             "[CONVERT] Background job END:",
@@ -836,13 +750,13 @@ def _run_conversion_job(
 
 
 # ==========================================================
-# Route登録
+# Route
 # ==========================================================
 
 def register_convert(app):
 
     # ======================================================
-    # 変換開始
+    # /convert
     # ======================================================
 
     @app.route(
@@ -862,10 +776,6 @@ def register_convert(app):
         )
 
         try:
-
-            # ==================================================
-            # Request
-            # ==================================================
 
             data = request.get_json(
                 silent=True
@@ -894,7 +804,7 @@ def register_convert(app):
             )
 
             # ==================================================
-            # 旧形式 output_type 対応
+            # 旧形式
             # ==================================================
 
             if not outputs:
@@ -951,32 +861,8 @@ def register_convert(app):
                 )
             )
 
-            print(
-                "[CONVERT] URL:",
-                url,
-                flush=True
-            )
-
-            print(
-                "[CONVERT] outputs:",
-                outputs,
-                flush=True
-            )
-
-            print(
-                "[CONVERT] start_time:",
-                start_time,
-                flush=True
-            )
-
-            print(
-                "[CONVERT] end_time:",
-                end_time,
-                flush=True
-            )
-
             # ==================================================
-            # URL確認
+            # URL
             # ==================================================
 
             if not url:
@@ -992,7 +878,7 @@ def register_convert(app):
                 }), 400
 
             # ==================================================
-            # 出力形式確認
+            # 出力形式
             # ==================================================
 
             if not outputs:
@@ -1008,7 +894,10 @@ def register_convert(app):
                 }), 400
 
             # ==================================================
-            # 時間確認
+            # 時間
+            #
+            # HH:MM:SS / MM:SS / 秒
+            # に対応するため、floatだけで検証しない。
             # ==================================================
 
             if (
@@ -1019,13 +908,53 @@ def register_convert(app):
 
                 try:
 
-                    start_value = float(
+                    def parse_time(value):
+
+                        text = str(
+                            value
+                        ).strip()
+
+                        parts = text.split(":")
+
+                        if len(parts) == 3:
+
+                            return (
+                                float(parts[0]) * 3600
+                                +
+                                float(parts[1]) * 60
+                                +
+                                float(parts[2])
+                            )
+
+                        if len(parts) == 2:
+
+                            return (
+                                float(parts[0]) * 60
+                                +
+                                float(parts[1])
+                            )
+
+                        return float(text)
+
+                    start_value = parse_time(
                         start_time
                     )
 
-                    end_value = float(
+                    end_value = parse_time(
                         end_time
                     )
+
+                    if start_value < 0:
+
+                        return jsonify({
+
+                            "success":
+                                False,
+
+                            "message":
+                                "開始時間は0秒以上にしてください。"
+
+                        }), 400
 
                     if end_value <= start_value:
 
@@ -1055,7 +984,7 @@ def register_convert(app):
                     }), 400
 
             # ==================================================
-            # Job作成
+            # Job
             # ==================================================
 
             job_id = _create_job(
@@ -1081,7 +1010,7 @@ def register_convert(app):
             )
 
             # ==================================================
-            # バックグラウンド実行
+            # Thread
             # ==================================================
 
             thread = threading.Thread(
@@ -1108,10 +1037,6 @@ def register_convert(app):
             )
 
             thread.start()
-
-            # ==================================================
-            # 即時レスポンス
-            # ==================================================
 
             return jsonify({
 
@@ -1147,7 +1072,7 @@ def register_convert(app):
             }), 500
 
     # ======================================================
-    # Jobステータス
+    # /status
     # ======================================================
 
     @app.route(
