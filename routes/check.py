@@ -4,6 +4,7 @@ import os
 import shutil
 import tempfile
 import subprocess
+import traceback
 
 
 # ==========================================================
@@ -25,13 +26,6 @@ LOCAL_COOKIE_FILE = os.path.join(
 
 
 # ==========================================================
-# Deno
-# ==========================================================
-
-DENO_PATH = "/opt/render/project/src/.deno/bin/deno"
-
-
-# ==========================================================
 # Render / ローカル判定
 # ==========================================================
 
@@ -44,13 +38,129 @@ else:
     ORIGINAL_COOKIE_FILE = LOCAL_COOKIE_FILE
 
 
-print("==========================================")
-print("check.py 起動")
-print("Cookie設定")
-print("RENDER:", os.environ.get("RENDER"))
-print("元Cookieファイル:")
-print(ORIGINAL_COOKIE_FILE)
-print("==========================================")
+# ==========================================================
+# Deno
+#
+# 固定パスではなく、PATHから検索する
+#
+# Dockerfile:
+# ENV DENO_INSTALL=/app/.deno
+# ENV PATH="/app/.deno/bin:${PATH}"
+#
+# したがって通常は:
+# /app/.deno/bin/deno
+# ==========================================================
+
+def find_deno():
+
+    # ------------------------------------------------------
+    # 1. PATHから検索
+    # ------------------------------------------------------
+
+    deno_from_path = shutil.which(
+        "deno"
+    )
+
+    if deno_from_path:
+
+        return deno_from_path
+
+    # ------------------------------------------------------
+    # 2. Dockerfileで想定しているパス
+    # ------------------------------------------------------
+
+    candidates = [
+
+        "/app/.deno/bin/deno",
+
+        "/opt/render/project/src/.deno/bin/deno",
+
+        os.path.expanduser(
+            "~/.deno/bin/deno"
+        )
+
+    ]
+
+    for candidate in candidates:
+
+        if os.path.isfile(candidate):
+
+            if os.access(
+                candidate,
+                os.X_OK
+            ):
+
+                return candidate
+
+    return None
+
+
+DENO_PATH = find_deno()
+
+
+# ==========================================================
+# 起動ログ
+# ==========================================================
+
+print(
+    "==========================================",
+    flush=True
+)
+
+print(
+    "check.py 起動",
+    flush=True
+)
+
+print(
+    "Cookie設定",
+    flush=True
+)
+
+print(
+    "RENDER:",
+    os.environ.get("RENDER"),
+    flush=True
+)
+
+print(
+    "元Cookieファイル:",
+    ORIGINAL_COOKIE_FILE,
+    flush=True
+)
+
+print(
+    "==========================================",
+    flush=True
+)
+
+print(
+    "Deno確認",
+    flush=True
+)
+
+print(
+    "Deno PATH:",
+    DENO_PATH,
+    flush=True
+)
+
+print(
+    "shutil.which('deno'):",
+    shutil.which("deno"),
+    flush=True
+)
+
+print(
+    "PATH:",
+    os.environ.get("PATH"),
+    flush=True
+)
+
+print(
+    "==========================================",
+    flush=True
+)
 
 
 # ==========================================================
@@ -60,6 +170,7 @@ print("==========================================")
 def remove_cookie_file(cookie_file):
 
     if not cookie_file:
+
         return
 
     try:
@@ -74,14 +185,16 @@ def remove_cookie_file(cookie_file):
 
             print(
                 "一時Cookieファイル削除OK:",
-                cookie_file
+                cookie_file,
+                flush=True
             )
 
     except Exception as e:
 
         print(
             "WARNING: 一時Cookieファイル削除失敗:",
-            repr(e)
+            repr(e),
+            flush=True
         )
 
 
@@ -100,15 +213,26 @@ def remove_cookie_file(cookie_file):
 
 def prepare_cookie_file():
 
-    print("==========================================")
-    print("Cookieファイル準備開始")
-    print("==========================================")
+    print(
+        "==========================================",
+        flush=True
+    )
+
+    print(
+        "Cookieファイル準備開始",
+        flush=True
+    )
+
+    print(
+        "==========================================",
+        flush=True
+    )
 
     # ------------------------------------------------------
     # 元Cookie存在確認
     # ------------------------------------------------------
 
-    if not os.path.exists(
+    if not os.path.isfile(
         ORIGINAL_COOKIE_FILE
     ):
 
@@ -127,13 +251,15 @@ def prepare_cookie_file():
 
     print(
         "元Cookieファイル:",
-        ORIGINAL_COOKIE_FILE
+        ORIGINAL_COOKIE_FILE,
+        flush=True
     )
 
     print(
         "元Cookieサイズ:",
         original_size,
-        "bytes"
+        "bytes",
+        flush=True
     )
 
     if original_size == 0:
@@ -163,7 +289,8 @@ def prepare_cookie_file():
 
         print(
             "一時Cookieファイル作成:",
-            temp_cookie_file
+            temp_cookie_file,
+            flush=True
         )
 
         # --------------------------------------------------
@@ -187,7 +314,7 @@ def prepare_cookie_file():
     # コピー後確認
     # ------------------------------------------------------
 
-    if not os.path.exists(
+    if not os.path.isfile(
         temp_cookie_file
     ):
 
@@ -200,11 +327,33 @@ def prepare_cookie_file():
         temp_cookie_file
     )
 
-    print("==========================================")
-    print("yt-dlp用Cookieファイル作成OK")
-    print("一時Cookie:", temp_cookie_file)
-    print("サイズ:", file_size, "bytes")
-    print("==========================================")
+    print(
+        "==========================================",
+        flush=True
+    )
+
+    print(
+        "yt-dlp用Cookieファイル作成OK",
+        flush=True
+    )
+
+    print(
+        "一時Cookie:",
+        temp_cookie_file,
+        flush=True
+    )
+
+    print(
+        "サイズ:",
+        file_size,
+        "bytes",
+        flush=True
+    )
+
+    print(
+        "==========================================",
+        flush=True
+    )
 
     if file_size == 0:
 
@@ -276,16 +425,27 @@ def prepare_cookie_file():
             + repr(e)
         )
 
-    print("==========================================")
+    print(
+        "==========================================",
+        flush=True
+    )
+
     print(
         "Cookieデータ行数:",
-        cookie_count
+        cookie_count,
+        flush=True
     )
+
     print(
         "YouTube/Google Cookie数:",
-        youtube_cookie_count
+        youtube_cookie_count,
+        flush=True
     )
-    print("==========================================")
+
+    print(
+        "==========================================",
+        flush=True
+    )
 
     # ------------------------------------------------------
     # Cookie件数確認
@@ -304,12 +464,13 @@ def prepare_cookie_file():
     if youtube_cookie_count == 0:
 
         print(
-            "WARNING: "
-            "YouTube/Google Cookieが見つかりません"
+            "WARNING: YouTube/Google Cookieが見つかりません",
+            flush=True
         )
 
     print(
-        "Cookie準備完了"
+        "Cookie準備完了",
+        flush=True
     )
 
     return temp_cookie_file
@@ -321,26 +482,80 @@ def prepare_cookie_file():
 
 def test_deno():
 
-    print("==========================================")
-    print("Deno単体テスト開始")
-    print("==========================================")
+    print(
+        "==========================================",
+        flush=True
+    )
 
     print(
-        "Deno PATH:",
-        DENO_PATH
+        "Deno単体テスト開始",
+        flush=True
     )
+
+    print(
+        "==========================================",
+        flush=True
+    )
+
+    # ------------------------------------------------------
+    # Deno再検索
+    # ------------------------------------------------------
+
+    deno_path = find_deno()
+
+    print(
+        "Deno検出結果:",
+        deno_path,
+        flush=True
+    )
+
+    print(
+        "shutil.which('deno'):",
+        shutil.which("deno"),
+        flush=True
+    )
+
+    print(
+        "PATH:",
+        os.environ.get("PATH"),
+        flush=True
+    )
+
+    # ------------------------------------------------------
+    # Denoがない
+    # ------------------------------------------------------
+
+    if not deno_path:
+
+        print(
+            "Denoが存在しません",
+            flush=True
+        )
+
+        print(
+            "Deno単体テスト失敗",
+            flush=True
+        )
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+        return False
 
     # ------------------------------------------------------
     # ファイル存在確認
     # ------------------------------------------------------
 
     if not os.path.isfile(
-        DENO_PATH
+        deno_path
     ):
 
         print(
-            "Denoが存在しません:",
-            DENO_PATH
+            "Denoファイルが存在しません:",
+            deno_path,
+            flush=True
         )
 
         return False
@@ -350,13 +565,14 @@ def test_deno():
     # ------------------------------------------------------
 
     if not os.access(
-        DENO_PATH,
+        deno_path,
         os.X_OK
     ):
 
         print(
             "Denoに実行権限がありません:",
-            DENO_PATH
+            deno_path,
+            flush=True
         )
 
         return False
@@ -370,7 +586,7 @@ def test_deno():
         result = subprocess.run(
 
             [
-                DENO_PATH,
+                deno_path,
                 "--version"
             ],
 
@@ -386,37 +602,50 @@ def test_deno():
 
         print(
             "Deno returncode:",
-            result.returncode
+            result.returncode,
+            flush=True
         )
 
         print(
             "Deno stdout:",
-            result.stdout.strip()
+            result.stdout.strip(),
+            flush=True
         )
 
         print(
             "Deno stderr:",
-            result.stderr.strip()
+            result.stderr.strip(),
+            flush=True
         )
 
         if result.returncode == 0:
 
             print(
-                "Deno単体テストOK"
+                "Deno単体テストOK",
+                flush=True
             )
 
             print(
-                "=========================================="
+                "Deno実行ファイル:",
+                deno_path,
+                flush=True
+            )
+
+            print(
+                "==========================================",
+                flush=True
             )
 
             return True
 
         print(
-            "Deno単体テスト失敗"
+            "Deno単体テスト失敗",
+            flush=True
         )
 
         print(
-            "=========================================="
+            "==========================================",
+            flush=True
         )
 
         return False
@@ -424,11 +653,13 @@ def test_deno():
     except subprocess.TimeoutExpired:
 
         print(
-            "Deno単体テストTIMEOUT"
+            "Deno単体テストTIMEOUT",
+            flush=True
         )
 
         print(
-            "=========================================="
+            "==========================================",
+            flush=True
         )
 
         return False
@@ -437,11 +668,15 @@ def test_deno():
 
         print(
             "Deno単体テストエラー:",
-            repr(e)
+            repr(e),
+            flush=True
         )
 
+        traceback.print_exc()
+
         print(
-            "=========================================="
+            "==========================================",
+            flush=True
         )
 
         return False
@@ -453,97 +688,155 @@ def test_deno():
 
 def get_ydl_base_options():
 
-    print("==========================================")
-    print("yt-dlp共通設定開始")
-    print("==========================================")
+    print(
+        "==========================================",
+        flush=True
+    )
 
-    cookie_file = prepare_cookie_file()
+    print(
+        "yt-dlp共通設定開始",
+        flush=True
+    )
 
-    # ------------------------------------------------------
-    # Deno確認
-    # ------------------------------------------------------
+    print(
+        "==========================================",
+        flush=True
+    )
 
-    deno_available = test_deno()
+    cookie_file = None
 
-    if not deno_available:
-
-        remove_cookie_file(
-            cookie_file
-        )
-
-        raise Exception(
-            "Denoが利用できません"
-        )
-
-    # ------------------------------------------------------
-    # yt-dlp設定
-    # ------------------------------------------------------
-
-    ydl_opts = {
+    try:
 
         # --------------------------------------------------
         # Cookie
         # --------------------------------------------------
 
-        "cookiefile":
-        cookie_file,
+        cookie_file = prepare_cookie_file()
 
         # --------------------------------------------------
-        # Playlist無効
+        # Deno確認
         # --------------------------------------------------
 
-        "noplaylist":
-        True,
+        deno_path = find_deno()
+
+        print(
+            "yt-dlp用Deno:",
+            deno_path,
+            flush=True
+        )
+
+        if not deno_path:
+
+            raise Exception(
+                "Denoが利用できません"
+            )
 
         # --------------------------------------------------
-        # JavaScript Runtime
+        # Deno単体テスト
         # --------------------------------------------------
 
-        "js_runtimes": {
+        deno_available = test_deno()
 
-            "deno": {
+        if not deno_available:
 
-                "path":
-                DENO_PATH
-
-            }
-
-        },
+            raise Exception(
+                "Denoが正常に起動できません"
+            )
 
         # --------------------------------------------------
-        # EJS
+        # yt-dlp設定
         # --------------------------------------------------
 
-        "remote_components": [
-            "ejs:github"
-        ]
+        ydl_opts = {
 
-    }
+            # --------------------------------------------------
+            # Cookie
+            # --------------------------------------------------
 
-    print("==========================================")
-    print("yt-dlp設定")
-    print("==========================================")
+            "cookiefile":
+            cookie_file,
 
-    print(
-        "Cookie:",
-        cookie_file
-    )
+            # --------------------------------------------------
+            # Playlist無効
+            # --------------------------------------------------
 
-    print(
-        "Deno:",
-        DENO_PATH
-    )
+            "noplaylist":
+            True,
 
-    print(
-        "EJS:",
-        "ejs:github"
-    )
+            # --------------------------------------------------
+            # JavaScript Runtime
+            # --------------------------------------------------
 
-    print(
-        "=========================================="
-    )
+            "js_runtimes": {
 
-    return ydl_opts
+                "deno": {
+
+                    "path":
+                    deno_path
+
+                }
+
+            },
+
+            # --------------------------------------------------
+            # EJS
+            # --------------------------------------------------
+
+            "remote_components": [
+
+                "ejs:github"
+
+            ]
+
+        }
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+        print(
+            "yt-dlp設定",
+            flush=True
+        )
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+        print(
+            "Cookie:",
+            cookie_file,
+            flush=True
+        )
+
+        print(
+            "Deno:",
+            deno_path,
+            flush=True
+        )
+
+        print(
+            "EJS:",
+            "ejs:github",
+            flush=True
+        )
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+        return ydl_opts
+
+    except Exception:
+
+        remove_cookie_file(
+            cookie_file
+        )
+
+        raise
 
 
 # ==========================================================
@@ -552,33 +845,49 @@ def get_ydl_base_options():
 
 def get_youtube_info(url):
 
-    print("==========================================")
-    print("YouTube情報取得開始")
-    print("==========================================")
+    print(
+        "==========================================",
+        flush=True
+    )
+
+    print(
+        "YouTube情報取得開始",
+        flush=True
+    )
+
+    print(
+        "==========================================",
+        flush=True
+    )
 
     print(
         "URL:",
-        url
+        url,
+        flush=True
     )
 
     print(
         "Python:",
-        os.sys.version
+        sys_version(),
+        flush=True
     )
 
     print(
         "yt-dlp:",
-        yt_dlp.version.__version__
+        yt_dlp.version.__version__,
+        flush=True
     )
 
     print(
         "Deno PATH:",
-        DENO_PATH
+        find_deno(),
+        flush=True
     )
 
     print(
         "ffmpeg:",
-        shutil.which("ffmpeg")
+        shutil.which("ffmpeg"),
+        flush=True
     )
 
     temp_cookie = None
@@ -615,59 +924,94 @@ def get_youtube_info(url):
 
         })
 
-        print("==========================================")
-        print("yt-dlp設定確認")
-        print("==========================================")
+        print(
+            "==========================================",
+            flush=True
+        )
+
+        print(
+            "yt-dlp設定確認",
+            flush=True
+        )
+
+        print(
+            "==========================================",
+            flush=True
+        )
 
         print(
             "Cookie:",
-            temp_cookie
+            temp_cookie,
+            flush=True
         )
 
         print(
             "JavaScript Runtime:",
-            "deno"
+            ydl_opts.get(
+                "js_runtimes"
+            ),
+            flush=True
         )
 
         print(
             "EJS:",
-            "ejs:github"
+            ydl_opts.get(
+                "remote_components"
+            ),
+            flush=True
         )
 
         print(
-            "=========================================="
+            "==========================================",
+            flush=True
         )
 
         # ==================================================
         # YoutubeDL
         # ==================================================
 
-        print("==========================================")
-        print("YoutubeDL作成開始")
-        print("==========================================")
+        print(
+            "==========================================",
+            flush=True
+        )
+
+        print(
+            "YoutubeDL作成開始",
+            flush=True
+        )
+
+        print(
+            "==========================================",
+            flush=True
+        )
 
         with yt_dlp.YoutubeDL(
             ydl_opts
         ) as ydl:
 
             print(
-                ">>> YoutubeDL作成完了"
+                ">>> YoutubeDL作成完了",
+                flush=True
             )
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             print(
-                "extract_info開始"
+                "extract_info開始",
+                flush=True
             )
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             print(
-                ">>> extract_info 実行直前"
+                ">>> extract_info 実行直前",
+                flush=True
             )
 
             try:
@@ -680,39 +1024,49 @@ def get_youtube_info(url):
             except Exception as e:
 
                 print(
-                    "=========================================="
+                    "==========================================",
+                    flush=True
                 )
 
                 print(
-                    "extract_info ERROR"
+                    "extract_info ERROR",
+                    flush=True
                 )
 
                 print(
-                    "=========================================="
+                    "==========================================",
+                    flush=True
                 )
 
                 print(
                     "ERROR TYPE:",
-                    type(e).__name__
+                    type(e).__name__,
+                    flush=True
                 )
 
                 print(
                     "ERROR:",
-                    repr(e)
+                    repr(e),
+                    flush=True
                 )
 
                 print(
-                    "=========================================="
+                    "==========================================",
+                    flush=True
                 )
+
+                traceback.print_exc()
 
                 raise
 
             print(
-                ">>> extract_info 実行完了"
+                ">>> extract_info 実行完了",
+                flush=True
             )
 
         print(
-            ">>> YoutubeDL終了"
+            ">>> YoutubeDL終了",
+            flush=True
         )
 
         # ==================================================
@@ -725,32 +1079,59 @@ def get_youtube_info(url):
                 "YouTube情報を取得できませんでした"
             )
 
-        print("==========================================")
-        print("YouTube情報取得成功")
-        print("==========================================")
+        print(
+            "==========================================",
+            flush=True
+        )
+
+        print(
+            "YouTube情報取得成功",
+            flush=True
+        )
+
+        print(
+            "==========================================",
+            flush=True
+        )
 
         print(
             "Video ID:",
-            info.get("id")
+            info.get("id"),
+            flush=True
         )
 
         print(
             "タイトル:",
-            info.get("title")
+            info.get("title"),
+            flush=True
         )
 
         print(
             "再生時間:",
-            info.get("duration")
+            info.get("duration"),
+            flush=True
         )
 
         print(
             "Extractor:",
-            info.get("extractor")
+            info.get("extractor"),
+            flush=True
         )
 
         print(
-            "=========================================="
+            "Format数:",
+            len(
+                info.get(
+                    "formats",
+                    []
+                )
+            ),
+            flush=True
+        )
+
+        print(
+            "==========================================",
+            flush=True
         )
 
         return info
@@ -758,7 +1139,8 @@ def get_youtube_info(url):
     finally:
 
         print(
-            "get_youtube_info終了処理"
+            "get_youtube_info終了処理",
+            flush=True
         )
 
         remove_cookie_file(
@@ -767,14 +1149,36 @@ def get_youtube_info(url):
 
 
 # ==========================================================
+# Python version helper
+# ==========================================================
+
+def sys_version():
+
+    import sys
+
+    return sys.version
+
+
+# ==========================================================
 # Format診断
 # ==========================================================
 
 def diagnose_formats(info):
 
-    print("==========================================")
-    print("FORMAT診断開始")
-    print("==========================================")
+    print(
+        "==========================================",
+        flush=True
+    )
+
+    print(
+        "FORMAT診断開始",
+        flush=True
+    )
+
+    print(
+        "==========================================",
+        flush=True
+    )
 
     title = info.get(
         "title"
@@ -799,28 +1203,33 @@ def diagnose_formats(info):
 
     print(
         "Video ID:",
-        video_id
+        video_id,
+        flush=True
     )
 
     print(
         "Extractor:",
-        extractor
+        extractor,
+        flush=True
     )
 
     print(
         "タイトル:",
-        title
+        title,
+        flush=True
     )
 
     print(
         "再生時間:",
         duration,
-        "秒"
+        "秒",
+        flush=True
     )
 
     print(
         "利用可能format数:",
-        len(formats)
+        len(formats),
+        flush=True
     )
 
     # ======================================================
@@ -830,15 +1239,18 @@ def diagnose_formats(info):
     audio_formats = []
 
     print(
-        "=========================================="
+        "==========================================",
+        flush=True
     )
 
     print(
-        "音声format"
+        "音声format",
+        flush=True
     )
 
     print(
-        "=========================================="
+        "==========================================",
+        flush=True
     )
 
     for f in formats:
@@ -891,20 +1303,24 @@ def diagnose_formats(info):
                 "ACODEC=", acodec,
                 "ABR=", abr,
                 "ASR=", asr,
-                "PROTO=", protocol
+                "PROTO=", protocol,
+                flush=True
             )
 
     print(
-        "=========================================="
+        "==========================================",
+        flush=True
     )
 
     print(
         "音声format数:",
-        len(audio_formats)
+        len(audio_formats),
+        flush=True
     )
 
     print(
-        "=========================================="
+        "==========================================",
+        flush=True
     )
 
     # ======================================================
@@ -914,15 +1330,18 @@ def diagnose_formats(info):
     video_formats = []
 
     print(
-        "=========================================="
+        "==========================================",
+        flush=True
     )
 
     print(
-        "動画format"
+        "動画format",
+        flush=True
     )
 
     print(
-        "=========================================="
+        "==========================================",
+        flush=True
     )
 
     for f in formats:
@@ -972,20 +1391,24 @@ def diagnose_formats(info):
                 "FPS=", fps,
                 "VCODEC=", vcodec,
                 "ACODEC=", acodec,
-                "PROTO=", protocol
+                "PROTO=", protocol,
+                flush=True
             )
 
     print(
-        "=========================================="
+        "==========================================",
+        flush=True
     )
 
     print(
         "動画format数:",
-        len(video_formats)
+        len(video_formats),
+        flush=True
     )
 
     print(
-        "=========================================="
+        "==========================================",
+        flush=True
     )
 
     # ======================================================
@@ -1022,75 +1445,90 @@ def diagnose_formats(info):
             format_18 = f
 
     print(
-        "=========================================="
+        "==========================================",
+        flush=True
     )
 
     print(
-        "代表format確認"
+        "代表format確認",
+        flush=True
     )
 
     print(
-        "=========================================="
+        "==========================================",
+        flush=True
     )
 
     print(
         "140:",
-        "あり" if format_140 else "なし"
+        "あり" if format_140 else "なし",
+        flush=True
     )
 
     print(
         "251:",
-        "あり" if format_251 else "なし"
+        "あり" if format_251 else "なし",
+        flush=True
     )
 
     print(
         "249:",
-        "あり" if format_249 else "なし"
+        "あり" if format_249 else "なし",
+        flush=True
     )
 
     print(
         "18:",
-        "あり" if format_18 else "なし"
+        "あり" if format_18 else "なし",
+        flush=True
     )
 
     print(
-        "=========================================="
+        "==========================================",
+        flush=True
     )
 
     if len(audio_formats) == 0:
 
         print(
-            "WARNING: 音声formatが取得できていません"
+            "WARNING: 音声formatが取得できていません",
+            flush=True
         )
 
     else:
 
         print(
-            "OK: 音声formatを取得できています"
+            "OK: 音声formatを取得できています",
+            flush=True
         )
 
     if len(video_formats) == 0:
 
         print(
-            "WARNING: 動画formatが取得できていません"
+            "WARNING: 動画formatが取得できていません",
+            flush=True
         )
 
     else:
 
         print(
-            "OK: 動画formatを取得できています"
+            "OK: 動画formatを取得できています",
+            flush=True
         )
 
     print(
-        "=========================================="
+        "==========================================",
+        flush=True
     )
 
     print(
-        "FORMAT診断完了"
+        "FORMAT診断完了",
+        flush=True
     )
 
     print(
-        "=========================================="
+        "==========================================",
+        flush=True
     )
 
     return {
@@ -1133,14 +1571,14 @@ def diagnose_formats(info):
 #
 # タブ1 YouTube Converter専用
 #
-# converter.js が呼び出すAPI
-#
 # POST:
+#
 # {
 #     "url": "https://www.youtube.com/watch?v=..."
 # }
 #
 # Response:
+#
 # {
 #     "success": true,
 #     "title": "...",
@@ -1157,15 +1595,18 @@ def register_video_info(app):
     def video_info():
 
         print(
-            "=========================================="
+            "==========================================",
+            flush=True
         )
 
         print(
-            "/video-info 呼び出し"
+            "/video-info 呼び出し",
+            flush=True
         )
 
         print(
-            "=========================================="
+            "==========================================",
+            flush=True
         )
 
         try:
@@ -1181,7 +1622,8 @@ def register_video_info(app):
             if not data:
 
                 print(
-                    "/video-info JSONなし"
+                    "/video-info JSONなし",
+                    flush=True
                 )
 
                 return jsonify({
@@ -1205,7 +1647,8 @@ def register_video_info(app):
             if not url:
 
                 print(
-                    "/video-info URLなし"
+                    "/video-info URLなし",
+                    flush=True
                 )
 
                 return jsonify({
@@ -1220,7 +1663,8 @@ def register_video_info(app):
 
             print(
                 "/video-info 受信URL:",
-                url
+                url,
+                flush=True
             )
 
             # ==================================================
@@ -1228,15 +1672,18 @@ def register_video_info(app):
             # ==================================================
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             print(
-                "/video-info YouTube情報取得開始"
+                "/video-info YouTube情報取得開始",
+                flush=True
             )
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             info = get_youtube_info(
@@ -1296,30 +1743,36 @@ def register_video_info(app):
             # ==================================================
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             print(
-                "/video-info 正常完了"
+                "/video-info 正常完了",
+                flush=True
             )
 
             print(
                 "タイトル:",
-                title
+                title,
+                flush=True
             )
 
             print(
                 "再生時間:",
-                duration
+                duration,
+                flush=True
             )
 
             print(
                 "Video ID:",
-                video_id
+                video_id,
+                flush=True
             )
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             # ==================================================
@@ -1351,29 +1804,37 @@ def register_video_info(app):
         except Exception as e:
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             print(
-                "/video-info エラー"
+                "/video-info エラー",
+                flush=True
             )
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             print(
                 "ERROR TYPE:",
-                type(e).__name__
+                type(e).__name__,
+                flush=True
             )
 
             print(
                 "ERROR:",
-                repr(e)
+                repr(e),
+                flush=True
             )
 
+            traceback.print_exc()
+
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             return jsonify({
@@ -1404,15 +1865,18 @@ def register_check(app):
         try:
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             print(
-                "/check 呼び出し"
+                "/check 呼び出し",
+                flush=True
             )
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             # ==================================================
@@ -1433,7 +1897,7 @@ def register_check(app):
                     "message":
                     "JSONデータがありません"
 
-                })
+                }), 400
 
             # ==================================================
             # URL
@@ -1453,11 +1917,12 @@ def register_check(app):
                     "message":
                     "YouTube URLを入力してください"
 
-                })
+                }), 400
 
             print(
                 "受信URL:",
-                url
+                url,
+                flush=True
             )
 
             # ==================================================
@@ -1465,15 +1930,18 @@ def register_check(app):
             # ==================================================
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             print(
-                "/check Deno確認"
+                "/check Deno確認",
+                flush=True
             )
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             deno_ok = test_deno()
@@ -1495,15 +1963,18 @@ def register_check(app):
             # ==================================================
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             print(
-                "/check YouTube情報取得開始"
+                "/check YouTube情報取得開始",
+                flush=True
             )
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             info = get_youtube_info(
@@ -1511,15 +1982,18 @@ def register_check(app):
             )
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             print(
-                "/check YouTube情報取得完了"
+                "/check YouTube情報取得完了",
+                flush=True
             )
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             # ==================================================
@@ -1548,9 +2022,15 @@ def register_check(app):
 
                 duration_sec = 0
 
-            duration_sec = int(
-                duration_sec
-            )
+            try:
+
+                duration_sec = int(
+                    duration_sec
+                )
+
+            except Exception:
+
+                duration_sec = 0
 
             # ==================================================
             # 時間
@@ -1588,15 +2068,18 @@ def register_check(app):
             # ==================================================
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             print(
-                "/check 正常完了"
+                "/check 正常完了",
+                flush=True
             )
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             return jsonify({
@@ -1639,29 +2122,37 @@ def register_check(app):
         except Exception as e:
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             print(
-                "/check エラー"
+                "/check エラー",
+                flush=True
             )
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             print(
                 "ERROR TYPE:",
-                type(e).__name__
+                type(e).__name__,
+                flush=True
             )
 
             print(
                 "ERROR:",
-                repr(e)
+                repr(e),
+                flush=True
             )
 
+            traceback.print_exc()
+
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             return jsonify({
@@ -1680,39 +2171,71 @@ def register_check(app):
 # ==========================================================
 
 print(
-    "=========================================="
+    "==========================================",
+    flush=True
 )
 
 print(
-    "実行環境確認"
+    "実行環境確認",
+    flush=True
 )
 
 print(
-    "=========================================="
+    "==========================================",
+    flush=True
 )
+
+import sys
 
 print(
     "Python:",
-    os.sys.version
+    sys.version,
+    flush=True
+)
+
+print(
+    "Python executable:",
+    sys.executable,
+    flush=True
 )
 
 print(
     "yt-dlp:",
-    yt_dlp.version.__version__
+    yt_dlp.version.__version__,
+    flush=True
 )
 
 print(
     "Deno:",
-    DENO_PATH
-    if os.path.isfile(DENO_PATH)
-    else "None"
+    find_deno(),
+    flush=True
+)
+
+print(
+    "Deno which:",
+    shutil.which("deno"),
+    flush=True
 )
 
 print(
     "ffmpeg:",
-    shutil.which("ffmpeg")
+    shutil.which("ffmpeg"),
+    flush=True
 )
 
 print(
-    "=========================================="
+    "ffprobe:",
+    shutil.which("ffprobe"),
+    flush=True
+)
+
+print(
+    "PATH:",
+    os.environ.get("PATH"),
+    flush=True
+)
+
+print(
+    "==========================================",
+    flush=True
 )
