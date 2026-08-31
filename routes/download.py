@@ -9,34 +9,26 @@ def register_download(app):
     def download(filename):
 
         # =================================
-        # プロジェクトルート
-        # =================================
-
-        base_dir = os.path.dirname(
-            os.path.dirname(
-                os.path.abspath(__file__)
-            )
-        )
-
-
-        # =================================
-        # downloads
+        # Flaskアプリのルート
         # =================================
 
         download_folder = os.path.join(
-            base_dir,
+            app.root_path,
             "downloads"
         )
 
-
-        print("================================")
-        print("DOWNLOAD")
-        print("filename:", filename)
+        print("================================", flush=True)
+        print("[DOWNLOAD] filename:", filename, flush=True)
         print(
-            "download_folder:",
-            download_folder
+            "[DOWNLOAD] app.root_path:",
+            app.root_path,
+            flush=True
         )
-
+        print(
+            "[DOWNLOAD] download_folder:",
+            download_folder,
+            flush=True
+        )
 
         # =================================
         # フォルダ作成
@@ -47,7 +39,6 @@ def register_download(app):
             exist_ok=True
         )
 
-
         # =================================
         # ファイル確認
         # =================================
@@ -57,19 +48,33 @@ def register_download(app):
             filename
         )
 
-
         print(
-            "file_path:",
-            file_path
+            "[DOWNLOAD] file_path:",
+            file_path,
+            flush=True
         )
 
         print(
-            "file exists:",
-            os.path.isfile(file_path)
+            "[DOWNLOAD] file exists:",
+            os.path.isfile(file_path),
+            flush=True
         )
 
-        print("================================")
+        if os.path.isfile(file_path):
 
+            try:
+
+                print(
+                    "[DOWNLOAD] file size:",
+                    os.path.getsize(file_path),
+                    "bytes",
+                    flush=True
+                )
+
+            except Exception:
+                pass
+
+        print("================================", flush=True)
 
         # =================================
         # ファイルなし
@@ -82,7 +87,6 @@ def register_download(app):
                 "message": "ファイルが見つかりません",
                 "filename": filename
             }, 404
-
 
         # =================================
         # ダウンロード
