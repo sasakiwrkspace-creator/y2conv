@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import tempfile
 import traceback
+
 from pathlib import Path
 
 import yt_dlp
@@ -13,11 +14,33 @@ import yt_dlp
 # DEBUG
 # ==========================================================
 
-print("==========================================", flush=True)
-print("[STREAM] ytdlp_stream.py loaded", flush=True)
-print("[STREAM] Python:", sys.version, flush=True)
-print("[STREAM] Python executable:", sys.executable, flush=True)
-print("[STREAM] Current working directory:", os.getcwd(), flush=True)
+print(
+    "==========================================",
+    flush=True
+)
+
+print(
+    "[STREAM] ytdlp_stream.py loaded",
+    flush=True
+)
+
+print(
+    "[STREAM] Python:",
+    sys.version,
+    flush=True
+)
+
+print(
+    "[STREAM] Python executable:",
+    sys.executable,
+    flush=True
+)
+
+print(
+    "[STREAM] Current working directory:",
+    os.getcwd(),
+    flush=True
+)
 
 
 # ==========================================================
@@ -41,14 +64,48 @@ print(
     flush=True
 )
 
+print(
+    "[STREAM] Deno executable:",
+    os.access(
+        DENO_PATH,
+        os.X_OK
+    ),
+    flush=True
+)
+
+print(
+    "[STREAM] Deno which:",
+    shutil.which("deno"),
+    flush=True
+)
+
 
 # ==========================================================
-# 共通
+# FFmpeg
+# ==========================================================
+
+print(
+    "[STREAM] ffmpeg:",
+    shutil.which("ffmpeg"),
+    flush=True
+)
+
+print(
+    "[STREAM] ffprobe:",
+    shutil.which("ffprobe"),
+    flush=True
+)
+
+
+# ==========================================================
+# Cookie
 # ==========================================================
 
 def _prepare_cookie_file():
 
-    cookies_source = "/etc/secrets/cookies.txt"
+    cookies_source = (
+        "/etc/secrets/cookies.txt"
+    )
 
     print(
         "[STREAM] Cookie source:",
@@ -56,83 +113,138 @@ def _prepare_cookie_file():
         flush=True
     )
 
-    if not os.path.isfile(cookies_source):
+    if not os.path.isfile(
+        cookies_source
+    ):
 
         raise FileNotFoundError(
-            f"Cookieファイルが見つかりません: {cookies_source}"
+            "Cookieファイルが見つかりません: "
+            +
+            cookies_source
         )
 
-    temporary_cookie = tempfile.NamedTemporaryFile(
-        mode="w",
-        suffix=".txt",
-        prefix="y2conv_stream_",
-        delete=False
-    )
+    temporary_cookie_path = None
 
-    temporary_cookie_path = temporary_cookie.name
+    try:
 
-    temporary_cookie.close()
+        temporary_cookie = tempfile.NamedTemporaryFile(
 
-    shutil.copyfile(
-        cookies_source,
-        temporary_cookie_path
-    )
+            mode="w",
 
-    print(
-        "[STREAM] Temporary cookie:",
-        temporary_cookie_path,
-        flush=True
-    )
+            suffix=".txt",
 
-    return temporary_cookie_path
+            prefix="y2conv_stream_",
+
+            delete=False
+
+        )
+
+        temporary_cookie_path = (
+            temporary_cookie.name
+        )
+
+        temporary_cookie.close()
+
+        shutil.copyfile(
+
+            cookies_source,
+
+            temporary_cookie_path
+
+        )
+
+        print(
+            "[STREAM] Temporary cookie:",
+            temporary_cookie_path,
+            flush=True
+        )
+
+        return temporary_cookie_path
+
+    except Exception:
+
+        if temporary_cookie_path:
+
+            try:
+
+                if os.path.exists(
+                    temporary_cookie_path
+                ):
+
+                    os.remove(
+                        temporary_cookie_path
+                    )
+
+            except Exception:
+
+                pass
+
+        raise
 
 
 # ==========================================================
 # 時間 → 秒
 # ==========================================================
 
-def _time_to_seconds(value):
+def _time_to_seconds(
+    value
+):
 
     if value is None:
+
         return 0.0
 
-    text = str(value).strip()
+    text = str(
+        value
+    ).strip()
 
     if not text:
+
         return 0.0
 
     parts = text.split(":")
 
-    if len(parts) == 3:
+    try:
 
-        hours = float(parts[0])
-        minutes = float(parts[1])
-        seconds = float(parts[2])
+        if len(parts) == 3:
 
-        return (
-            hours * 3600
-            + minutes * 60
-            + seconds
-        )
+            return (
 
-    if len(parts) == 2:
+                float(parts[0]) * 3600
 
-        minutes = float(parts[0])
-        seconds = float(parts[1])
+                +
 
-        return (
-            minutes * 60
-            + seconds
-        )
+                float(parts[1]) * 60
 
-    return float(text)
+                +
+
+                float(parts[2])
+
+            )
+
+        if len(parts) == 2:
+
+            return (
+
+                float(parts[0]) * 60
+
+                +
+
+                float(parts[1])
+
+            )
+
+        return float(text)
+
+    except Exception as error:
+
+        raise ValueError(
+            f"時間形式が不正です: {value}"
+        ) from error
 
 
 # ==========================================================
-# 時間指定が実質的にあるか
-#
-# 00:00:00 ～ 00:00:00
-# は「指定なし」として扱う
+# 時間指定判定
 # ==========================================================
 
 def _has_time_range(
@@ -148,6 +260,10 @@ def _has_time_range(
         end_time
     )
 
+    # ------------------------------------------------------
+    # 00:00:00 ～ 00:00:00
+    # ------------------------------------------------------
+
     if (
         start_seconds == 0
         and
@@ -156,34 +272,104 @@ def _has_time_range(
 
         return False
 
-    return (
-        start_time is not None
-        or
-        end_time is not None
-    )
+    return True
 
 
 # ==========================================================
-# yt-dlp共通設定
+# Deno確認
 # ==========================================================
 
-def _build_ydl_options(
+def _check_deno():
+
+    if not os.path.isfile(
+        DENO_PATH
+    ):
+
+        raise RuntimeError(
+            "Denoが見つかりません: "
+            +
+            DENO_PATH
+        )
+
+    if not os.access(
+        DENO_PATH,
+        os.X_OK
+    ):
+
+        raise RuntimeError(
+            "Denoに実行権限がありません: "
+            +
+            DENO_PATH
+        )
+
+    try:
+
+        result = subprocess.run(
+
+            [
+                DENO_PATH,
+                "--version"
+            ],
+
+            stdout=subprocess.DEVNULL,
+
+            stderr=subprocess.DEVNULL,
+
+            timeout=10
+
+        )
+
+        if result.returncode != 0:
+
+            raise RuntimeError(
+                "Denoの実行に失敗しました"
+            )
+
+    except FileNotFoundError as error:
+
+        raise RuntimeError(
+            "Denoが実行できません: "
+            +
+            DENO_PATH
+        ) from error
+
+
+# ==========================================================
+# FFmpeg確認
+# ==========================================================
+
+def _check_ffmpeg():
+
+    if shutil.which(
+        "ffmpeg"
+    ) is None:
+
+        raise RuntimeError(
+            "FFmpegが見つかりません。"
+        )
+
+
+# ==========================================================
+# 共通 yt-dlp オプション
+# ==========================================================
+
+def _build_common_options(
     output_dir,
     temporary_cookie_path
 ):
 
     output_template = str(
-        Path(output_dir) / "%(id)s.%(ext)s"
+
+        Path(output_dir)
+        /
+        "%(id)s.%(ext)s"
+
     )
 
-    return {
+    options = {
 
         "outtmpl":
             output_template,
-
-        # 映像＋音声
-        "format":
-            "bv*+ba/b",
 
         "noplaylist":
             True,
@@ -198,7 +384,7 @@ def _build_ydl_options(
             True,
 
         # ==================================================
-        # YouTube JS challenge
+        # YouTube JavaScript challenge
         # ==================================================
 
         "js_runtimes": {
@@ -223,23 +409,210 @@ def _build_ydl_options(
         # ==================================================
 
         "cookiefile":
-            temporary_cookie_path,
-
-        # ==================================================
-        # MP4
-        # ==================================================
-
-        "merge_output_format":
-            "mp4",
-
-        # ==================================================
-        # プレイリスト禁止
-        # ==================================================
-
-        "noplaylist":
-            True
+            temporary_cookie_path
 
     }
+
+    return options
+
+
+# ==========================================================
+# 全体MP4用 yt-dlp オプション
+#
+# 最速を優先。
+#
+# 重要：
+#
+# bv*+ba
+#
+# は使用しない。
+#
+# 映像＋音声が一体になったMP4を優先して
+# 直接ダウンロードする。
+#
+# これならFFmpegによる結合処理が不要。
+# ==========================================================
+
+def _build_full_mp4_options(
+    output_dir,
+    temporary_cookie_path
+):
+
+    options = _build_common_options(
+
+        output_dir=
+            output_dir,
+
+        temporary_cookie_path=
+            temporary_cookie_path
+
+    )
+
+    # ------------------------------------------------------
+    # MP4コンテナの単一ファイルを最優先
+    #
+    # best[ext=mp4]
+    #
+    # → 映像＋音声が一つになったMP4
+    #
+    # FFmpeg不要
+    # ------------------------------------------------------
+
+    options["format"] = (
+        "best[ext=mp4]"
+    )
+
+    return options
+
+
+# ==========================================================
+# 時間指定用 yt-dlp オプション
+#
+# 時間指定の場合は映像＋音声を取得して、
+# 後段のFFmpegで切り出す。
+# ==========================================================
+
+def _build_range_options(
+    output_dir,
+    temporary_cookie_path
+):
+
+    options = _build_common_options(
+
+        output_dir=
+            output_dir,
+
+        temporary_cookie_path=
+            temporary_cookie_path
+
+    )
+
+    options["format"] = (
+        "bv*+ba/b"
+    )
+
+    options["merge_output_format"] = (
+        "mp4"
+    )
+
+    return options
+
+
+# ==========================================================
+# ダウンロードファイル検索
+# ==========================================================
+
+def _find_downloaded_file(
+    output_dir,
+    video_id
+):
+
+    output_dir = Path(
+        output_dir
+    )
+
+    if not video_id:
+
+        return None
+
+    candidates = []
+
+    for path in output_dir.glob(
+        f"{video_id}.*"
+    ):
+
+        if not path.is_file():
+
+            continue
+
+        if path.suffix.lower() in (
+
+            ".part",
+            ".ytdl",
+            ".temp"
+
+        ):
+
+            continue
+
+        try:
+
+            size = path.stat().st_size
+
+        except Exception:
+
+            size = 0
+
+        if size <= 0:
+
+            continue
+
+        candidates.append(
+            path
+        )
+
+    if not candidates:
+
+        return None
+
+    candidates.sort(
+
+        key=lambda p:
+            p.stat().st_mtime,
+
+        reverse=True
+
+    )
+
+    return candidates[0]
+
+
+# ==========================================================
+# MP4ファイル確認
+# ==========================================================
+
+def _validate_mp4(
+    path
+):
+
+    path = Path(
+        path
+    )
+
+    if not path.exists():
+
+        raise FileNotFoundError(
+            f"MP4ファイルがありません: {path}"
+        )
+
+    if not path.is_file():
+
+        raise RuntimeError(
+            f"MP4ファイルではありません: {path}"
+        )
+
+    if path.stat().st_size <= 0:
+
+        raise RuntimeError(
+            f"MP4ファイルのサイズが0です: {path}"
+        )
+
+    if path.suffix.lower() != ".mp4":
+
+        raise RuntimeError(
+            "MP4ではないファイルが生成されました: "
+            +
+            str(path)
+        )
+
+    print(
+        "[STREAM] MP4 size:",
+        path.stat().st_size,
+        "bytes",
+        flush=True
+    )
+
+    return path
 
 
 # ==========================================================
@@ -252,12 +625,16 @@ def _extract_info(
     cookie_path
 ):
 
-    options = _build_ydl_options(
-        output_dir,
-        cookie_path
+    options = _build_full_mp4_options(
+
+        output_dir=
+            output_dir,
+
+        temporary_cookie_path=
+            cookie_path
+
     )
 
-    # 情報取得時はダウンロードしない
     options["skip_download"] = True
 
     with yt_dlp.YoutubeDL(
@@ -265,8 +642,11 @@ def _extract_info(
     ) as ydl:
 
         info = ydl.extract_info(
+
             url,
+
             download=False
+
         )
 
     if not info:
@@ -281,7 +661,12 @@ def _extract_info(
 # ==========================================================
 # MP4全体ダウンロード
 #
-# 時間指定なしの場合はこちら
+# ★最速経路
+#
+# FFmpegを使用しない。
+#
+# YouTubeからMP4単一ファイルを
+# そのままダウンロードする。
 # ==========================================================
 
 def create_mp4_full(
@@ -290,7 +675,22 @@ def create_mp4_full(
 ):
 
     print(
+        "==========================================",
+        flush=True
+    )
+
+    print(
         "[STREAM] create_mp4_full START",
+        flush=True
+    )
+
+    print(
+        "[STREAM] MODE: DIRECT MP4 DOWNLOAD",
+        flush=True
+    )
+
+    print(
+        "[STREAM] FFmpeg: NOT USED",
         flush=True
     )
 
@@ -299,147 +699,248 @@ def create_mp4_full(
     )
 
     output_dir.mkdir(
+
         parents=True,
+
         exist_ok=True
+
     )
 
     cookie_path = None
 
     try:
 
-        cookie_path = _prepare_cookie_file()
+        _check_deno()
 
-        options = _build_ydl_options(
-            output_dir,
-            cookie_path
+        cookie_path = (
+            _prepare_cookie_file()
+        )
+
+        options = _build_full_mp4_options(
+
+            output_dir=
+                output_dir,
+
+            temporary_cookie_path=
+                cookie_path
+
         )
 
         with yt_dlp.YoutubeDL(
             options
         ) as ydl:
 
+            # --------------------------------------------------
+            # 情報取得
+            # --------------------------------------------------
+
             info = ydl.extract_info(
+
                 url,
-                download=True
+
+                download=False
+
             )
 
             if not info:
 
                 raise RuntimeError(
-                    "MP4ダウンロード情報を取得できませんでした"
+                    "YouTube情報を取得できませんでした"
                 )
 
-            video_id = info.get("id")
+            video_id = info.get(
+                "id"
+            )
 
             title = (
                 info.get("title")
-                or "YouTube Video"
+                or
+                "YouTube Video"
             )
 
-            # ------------------------------------------------
-            # yt-dlpが作成したファイルを探す
-            # ------------------------------------------------
+            duration = info.get(
+                "duration"
+            )
 
-            expected = None
+            print(
+                "[STREAM] Video ID:",
+                video_id,
+                flush=True
+            )
 
-            try:
+            print(
+                "[STREAM] Title:",
+                title,
+                flush=True
+            )
 
-                prepared = ydl.prepare_filename(
-                    info
-                )
+            print(
+                "[STREAM] Duration:",
+                duration,
+                flush=True
+            )
 
-                prepared_path = Path(
-                    prepared
-                )
+            # --------------------------------------------------
+            # ダウンロード前の既存MP4を削除
+            #
+            # 同じvideo IDなら上書きする。
+            # --------------------------------------------------
 
-                if prepared_path.exists():
+            if video_id:
 
-                    expected = prepared_path
+                existing_mp4 = (
 
-            except Exception:
-
-                pass
-
-            # ------------------------------------------------
-            # video IDで探す
-            # ------------------------------------------------
-
-            if expected is None and video_id:
-
-                mp4_candidate = (
                     output_dir
                     /
                     f"{video_id}.mp4"
+
                 )
 
-                if mp4_candidate.exists():
+                if existing_mp4.exists():
 
-                    expected = mp4_candidate
-
-            # ------------------------------------------------
-            # 最終検索
-            # ------------------------------------------------
-
-            if expected is None and video_id:
-
-                candidates = list(
-                    output_dir.glob(
-                        f"{video_id}.*"
-                    )
-                )
-
-                candidates = [
-
-                    p
-
-                    for p in candidates
-
-                    if p.is_file()
-                    and p.suffix.lower()
-                    not in (
-                        ".part",
-                        ".ytdl",
-                        ".temp"
+                    print(
+                        "[STREAM] Removing existing MP4:",
+                        existing_mp4,
+                        flush=True
                     )
 
-                ]
+                    existing_mp4.unlink()
 
-                if candidates:
+            # --------------------------------------------------
+            # ダウンロード
+            # --------------------------------------------------
 
-                    candidates.sort(
-                        key=lambda p: p.stat().st_mtime,
-                        reverse=True
-                    )
+            print(
+                "[STREAM] Direct MP4 download START",
+                flush=True
+            )
 
-                    expected = candidates[0]
+            ydl.download([
+                url
+            ])
 
-            if expected is None:
+            print(
+                "[STREAM] Direct MP4 download COMPLETE",
+                flush=True
+            )
 
-                raise FileNotFoundError(
-                    "MP4ファイルを確認できませんでした"
+        # ------------------------------------------------------
+        # ファイル検索
+        # ------------------------------------------------------
+
+        downloaded_file = None
+
+        if video_id:
+
+            mp4_path = (
+
+                output_dir
+                /
+                f"{video_id}.mp4"
+
+            )
+
+            if mp4_path.is_file():
+
+                downloaded_file = (
+                    mp4_path
                 )
 
-            if expected.stat().st_size <= 0:
+        # ------------------------------------------------------
+        # 念のため検索
+        # ------------------------------------------------------
 
-                raise RuntimeError(
-                    "MP4ファイルのサイズが0です"
+        if downloaded_file is None:
+
+            downloaded_file = (
+                _find_downloaded_file(
+                    output_dir,
+                    video_id
                 )
+            )
 
-            return {
+        if downloaded_file is None:
 
-                "path":
-                    str(expected),
+            raise FileNotFoundError(
+                "MP4ファイルを確認できませんでした"
+            )
 
-                "filename":
-                    expected.name,
+        # ------------------------------------------------------
+        # MP4確認
+        # ------------------------------------------------------
 
-                "video_id":
-                    video_id,
+        downloaded_file = _validate_mp4(
+            downloaded_file
+        )
 
-                "title":
-                    title
+        # ------------------------------------------------------
+        # ファイル名をvideo IDからMP4に統一
+        # ------------------------------------------------------
 
-            }
+        final_file = (
+
+            output_dir
+            /
+            f"{video_id}.mp4"
+
+        )
+
+        if (
+            downloaded_file != final_file
+        ):
+
+            if final_file.exists():
+
+                final_file.unlink()
+
+            shutil.move(
+
+                str(downloaded_file),
+
+                str(final_file)
+
+            )
+
+            downloaded_file = (
+                final_file
+            )
+
+        print(
+            "[STREAM] MP4 COMPLETE:",
+            downloaded_file,
+            flush=True
+        )
+
+        return {
+
+            "path":
+                str(downloaded_file),
+
+            "filename":
+                downloaded_file.name,
+
+            "video_id":
+                video_id,
+
+            "title":
+                title,
+
+            "duration":
+                duration
+
+        }
+
+    except Exception as error:
+
+        print(
+            "[STREAM] create_mp4_full ERROR:",
+            repr(error),
+            flush=True
+        )
+
+        traceback.print_exc()
+
+        raise
 
     finally:
 
@@ -459,16 +960,29 @@ def create_mp4_full(
 
                 pass
 
+        print(
+            "[STREAM] create_mp4_full END",
+            flush=True
+        )
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
 
 # ==========================================================
 # MP4指定時間抽出
 #
-# 重要：
-# YouTube動画全体をPythonのメモリには載せない。
+# 時間指定ありの場合のみFFmpegを使用。
 #
-# yt-dlpで一旦ディスクへ保存し、
-# ffmpegで指定区間だけ処理する。
-#
+# YouTube
+# ↓
+# 一時ファイル
+# ↓
+# FFmpeg
+# ↓
+# 指定時間MP4
 # ==========================================================
 
 def create_mp4_range(
@@ -477,6 +991,11 @@ def create_mp4_range(
     start_time,
     end_time
 ):
+
+    print(
+        "==========================================",
+        flush=True
+    )
 
     print(
         "[STREAM] create_mp4_range START",
@@ -500,8 +1019,11 @@ def create_mp4_range(
     )
 
     output_dir.mkdir(
+
         parents=True,
+
         exist_ok=True
+
     )
 
     start_seconds = _time_to_seconds(
@@ -519,24 +1041,29 @@ def create_mp4_range(
         )
 
     duration = (
+
         end_seconds
-        - start_seconds
+        -
+        start_seconds
+
     )
+
+    _check_deno()
+
+    _check_ffmpeg()
 
     cookie_path = None
 
     try:
 
-        cookie_path = _prepare_cookie_file()
-
-        # ==================================================
-        # 一時ディレクトリ
-        #
-        # メモリではなくディスクを使用
-        # ==================================================
+        cookie_path = (
+            _prepare_cookie_file()
+        )
 
         with tempfile.TemporaryDirectory(
+
             prefix="y2conv_mp4_"
+
         ) as temp_dir:
 
             temp_dir = Path(
@@ -544,7 +1071,7 @@ def create_mp4_range(
             )
 
             print(
-                "[STREAM] temporary directory:",
+                "[STREAM] Temporary directory:",
                 temp_dir,
                 flush=True
             )
@@ -553,18 +1080,31 @@ def create_mp4_range(
             # YouTube → 一時ファイル
             # ==================================================
 
-            options = _build_ydl_options(
-                temp_dir,
-                cookie_path
+            options = _build_range_options(
+
+                output_dir=
+                    temp_dir,
+
+                temporary_cookie_path=
+                    cookie_path
+
             )
 
             with yt_dlp.YoutubeDL(
                 options
             ) as ydl:
 
+                print(
+                    "[STREAM] source download START",
+                    flush=True
+                )
+
                 info = ydl.extract_info(
+
                     url,
+
                     download=True
+
                 )
 
                 if not info:
@@ -579,110 +1119,79 @@ def create_mp4_range(
 
                 title = (
                     info.get("title")
-                    or "YouTube Video"
+                    or
+                    "YouTube Video"
                 )
 
-                # ------------------------------------------------
-                # ダウンロードファイル確認
-                # ------------------------------------------------
-
-                source_file = None
-
-                try:
-
-                    prepared = ydl.prepare_filename(
-                        info
-                    )
-
-                    prepared_path = Path(
-                        prepared
-                    )
-
-                    if prepared_path.exists():
-
-                        source_file = (
-                            prepared_path
-                        )
-
-                except Exception:
-
-                    pass
-
-                if source_file is None and video_id:
-
-                    candidates = list(
-                        temp_dir.glob(
-                            f"{video_id}.*"
-                        )
-                    )
-
-                    candidates = [
-
-                        p
-
-                        for p in candidates
-
-                        if p.is_file()
-                        and p.suffix.lower()
-                        not in (
-                            ".part",
-                            ".ytdl",
-                            ".temp"
-                        )
-
-                    ]
-
-                    if candidates:
-
-                        candidates.sort(
-                            key=lambda p: p.stat().st_mtime,
-                            reverse=True
-                        )
-
-                        source_file = candidates[0]
-
-                if source_file is None:
-
-                    raise FileNotFoundError(
-                        "一時MP4ファイルを確認できませんでした"
-                    )
-
                 print(
-                    "[STREAM] source:",
-                    source_file,
+                    "[STREAM] source download COMPLETE",
                     flush=True
                 )
 
-            # ==================================================
-            # 出力ファイル
-            # ==================================================
+            # --------------------------------------------------
+            # 一時ファイル検索
+            # --------------------------------------------------
 
-            if video_id:
+            source_file = (
+                _find_downloaded_file(
+                    temp_dir,
+                    video_id
+                )
+            )
 
-                output_file = (
-                    output_dir
-                    /
-                    f"{video_id}.mp4"
+            if source_file is None:
+
+                raise FileNotFoundError(
+                    "一時動画ファイルを確認できませんでした"
                 )
 
-            else:
+            print(
+                "[STREAM] source:",
+                source_file,
+                flush=True
+            )
 
-                output_file = (
-                    output_dir
-                    /
-                    "video.mp4"
-                )
+            print(
+                "[STREAM] source size:",
+                source_file.stat().st_size,
+                "bytes",
+                flush=True
+            )
 
-            temp_output = (
+            # ==================================================
+            # 出力
+            # ==================================================
+
+            output_file = (
+
+                output_dir
+                /
+                f"{video_id}.mp4"
+
+            )
+
+            temporary_output = (
+
                 temp_dir
                 /
                 "converted.mp4"
+
             )
+
+            # --------------------------------------------------
+            # 既存ファイル削除
+            # --------------------------------------------------
+
+            if output_file.exists():
+
+                output_file.unlink()
 
             # ==================================================
             # FFmpeg
             #
-            # -ss を入力前に置いて不要な区間を極力読まない
+            # 時間指定時だけ使用。
+            #
+            # 再エンコード方式。
             # ==================================================
 
             ffmpeg_command = [
@@ -699,10 +1208,6 @@ def create_mp4_range(
 
                 "-t",
                 str(duration),
-
-                # ------------------------------------------------
-                # メモリ使用を抑えやすい設定
-                # ------------------------------------------------
 
                 "-c:v",
                 "libx264",
@@ -728,7 +1233,7 @@ def create_mp4_range(
                 "-metadata",
                 "comment=YouTube Converter",
 
-                str(temp_output)
+                str(temporary_output)
 
             ]
 
@@ -740,14 +1245,39 @@ def create_mp4_range(
                 flush=True
             )
 
-            result = subprocess.run(
-                ffmpeg_command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                encoding="utf-8",
-                errors="replace"
+            # --------------------------------------------------
+            # stderrをメモリに大量保持しない
+            # --------------------------------------------------
+
+            log_path = (
+
+                temp_dir
+                /
+                "ffmpeg.log"
+
             )
+
+            with open(
+
+                log_path,
+
+                "w",
+
+                encoding="utf-8",
+
+                errors="replace"
+
+            ) as log_file:
+
+                result = subprocess.run(
+
+                    ffmpeg_command,
+
+                    stdout=subprocess.DEVNULL,
+
+                    stderr=log_file
+
+                )
 
             print(
                 "[STREAM] FFmpeg returncode:",
@@ -757,24 +1287,42 @@ def create_mp4_range(
 
             if result.returncode != 0:
 
+                try:
+
+                    log_text = (
+                        log_path.read_text(
+                            encoding="utf-8",
+                            errors="replace"
+                        )
+                    )
+
+                except Exception:
+
+                    log_text = ""
+
                 print(
-                    "[STREAM] FFmpeg stderr:",
-                    result.stderr,
+                    "[STREAM] FFmpeg ERROR:",
+                    log_text,
                     flush=True
                 )
 
                 raise RuntimeError(
                     "FFmpeg指定時間変換に失敗しました\n"
-                    + result.stderr
+                    +
+                    log_text
                 )
 
-            if not temp_output.exists():
+            # ==================================================
+            # 出力確認
+            # ==================================================
+
+            if not temporary_output.exists():
 
                 raise FileNotFoundError(
                     "FFmpeg出力ファイルがありません"
                 )
 
-            if temp_output.stat().st_size <= 0:
+            if temporary_output.stat().st_size <= 0:
 
                 raise RuntimeError(
                     "FFmpeg出力ファイルのサイズが0です"
@@ -784,17 +1332,20 @@ def create_mp4_range(
             # 完成ファイルへ移動
             # ==================================================
 
-            if output_file.exists():
-
-                output_file.unlink()
-
             shutil.move(
-                str(temp_output),
+
+                str(temporary_output),
+
                 str(output_file)
+
+            )
+
+            output_file = _validate_mp4(
+                output_file
             )
 
             print(
-                "[STREAM] MP4完成:",
+                "[STREAM] MP4 COMPLETE:",
                 output_file,
                 flush=True
             )
@@ -845,15 +1396,27 @@ def create_mp4_range(
 
                 pass
 
+        print(
+            "[STREAM] create_mp4_range END",
+            flush=True
+        )
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
 
 # ==========================================================
-# メイン関数
+# メイン
 #
-# 00:00:00 ～ 00:00:00
-# → 全体ダウンロード
+# 全体：
+#   → 直接MP4ダウンロード
+#   → FFmpegなし
 #
-# 時間指定あり
-# → 指定区間抽出
+# 時間指定：
+#   → 一時ファイル
+#   → FFmpeg切り出し
 # ==========================================================
 
 def create_mp4_memory_safe(
@@ -863,6 +1426,57 @@ def create_mp4_memory_safe(
     end_time=None
 ):
 
+    print(
+        "[STREAM] create_mp4_memory_safe START",
+        flush=True
+    )
+
+    print(
+        "[STREAM] start_time:",
+        start_time,
+        flush=True
+    )
+
+    print(
+        "[STREAM] end_time:",
+        end_time,
+        flush=True
+    )
+
+    # ======================================================
+    # 時間指定なし
+    # ======================================================
+
+    if not _has_time_range(
+
+        start_time,
+
+        end_time
+
+    ):
+
+        print(
+            "[STREAM] MODE: FULL",
+            flush=True
+        )
+
+        print(
+            "[STREAM] FFmpeg: SKIP",
+            flush=True
+        )
+
+        return create_mp4_full(
+
+            url,
+
+            output_dir
+
+        )
+
+    # ======================================================
+    # 時間指定あり
+    # ======================================================
+
     start_seconds = _time_to_seconds(
         start_time
     )
@@ -871,35 +1485,21 @@ def create_mp4_memory_safe(
         end_time
     )
 
-    # ======================================================
-    # 00:00:00 ～ 00:00:00
-    # ======================================================
-
-    if (
-        start_seconds == 0
-        and
-        end_seconds == 0
-    ):
-
-        print(
-            "[STREAM] 時間指定なし → 全体ダウンロード",
-            flush=True
-        )
-
-        return create_mp4_full(
-            url,
-            output_dir
-        )
-
-    # ======================================================
-    # 片方だけ0の場合
-    # ======================================================
-
     if end_seconds <= start_seconds:
 
         raise ValueError(
             "終了時間は開始時間より後にしてください。"
         )
+
+    print(
+        "[STREAM] MODE: RANGE",
+        flush=True
+    )
+
+    print(
+        "[STREAM] FFmpeg: USE",
+        flush=True
+    )
 
     return create_mp4_range(
 
