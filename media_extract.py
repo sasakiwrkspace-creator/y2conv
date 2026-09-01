@@ -422,7 +422,7 @@ def create_mp3_from_file(
     temporary_mp3_file = (
         output_dir
         /
-        f".{paths['title']}.mp3.tmp"
+        f".{paths['title']}.tmp.mp3"
     )
 
     _remove_file(
