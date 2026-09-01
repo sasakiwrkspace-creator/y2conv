@@ -244,6 +244,267 @@ def _time_to_seconds(
 
 
 # ==========================================================
+# ファイル名用時間表記
+#
+# 例:
+#
+# 5秒
+#   ↓
+# 000005
+#
+# 10秒
+#   ↓
+# 000010
+#
+# 1分30秒
+#   ↓
+# 000130
+#
+# 1時間2分3秒
+#   ↓
+# 010203
+# ==========================================================
+
+def _format_filename_time(
+    value
+):
+
+    seconds = _time_to_seconds(
+        value
+    )
+
+    total_seconds = int(
+        round(seconds)
+    )
+
+    hours = (
+        total_seconds
+        //
+        3600
+    )
+
+    minutes = (
+        total_seconds
+        %
+        3600
+    ) // 60
+
+    secs = (
+        total_seconds
+        %
+        60
+    )
+
+    return (
+
+        f"{hours:02d}"
+        f"{minutes:02d}"
+        f"{secs:02d}"
+
+    )
+
+
+# ==========================================================
+# ファイル名安全化
+#
+# YouTubeタイトルに含まれる
+# Windows / Linux等で問題になる文字を置換。
+#
+# yt-dlpにはタイトル名で保存させず、
+# Python側でダウンロード後にリネームする。
+# ==========================================================
+
+def _sanitize_filename(
+    title
+):
+
+    if not title:
+
+        title = "YouTube Video"
+
+    title = str(
+        title
+    ).strip()
+
+    # ------------------------------------------------------
+    # ファイル名として使用できない文字
+    # ------------------------------------------------------
+
+    invalid_chars = (
+        '<>:"/\\|?*'
+    )
+
+    for char in invalid_chars:
+
+        title = title.replace(
+            char,
+            "_"
+        )
+
+    # ------------------------------------------------------
+    # 改行除去
+    # ------------------------------------------------------
+
+    title = title.replace(
+        "\n",
+        " "
+    )
+
+    title = title.replace(
+        "\r",
+        " "
+    )
+
+    # ------------------------------------------------------
+    # 連続空白を整理
+    # ------------------------------------------------------
+
+    title = " ".join(
+        title.split()
+    )
+
+    # ------------------------------------------------------
+    # ファイル名先頭・末尾の
+    # 空白・ドットを除去
+    # ------------------------------------------------------
+
+    title = title.strip(
+        " ."
+    )
+
+    if not title:
+
+        title = "YouTube Video"
+
+    # ------------------------------------------------------
+    # Windows予約名対策
+    # ------------------------------------------------------
+
+    reserved_names = {
+
+        "CON",
+        "PRN",
+        "AUX",
+        "NUL",
+
+        "COM1",
+        "COM2",
+        "COM3",
+        "COM4",
+        "COM5",
+        "COM6",
+        "COM7",
+        "COM8",
+        "COM9",
+
+        "LPT1",
+        "LPT2",
+        "LPT3",
+        "LPT4",
+        "LPT5",
+        "LPT6",
+        "LPT7",
+        "LPT8",
+        "LPT9"
+
+    }
+
+    if title.upper() in reserved_names:
+
+        title = (
+            "_"
+            +
+            title
+        )
+
+    return title
+
+
+# ==========================================================
+# MP4最終ファイル名
+#
+# 時間指定なし:
+#
+#   タイトル.mp4
+#
+# 時間指定あり:
+#
+#   タイトル_000005_000010.mp4
+#
+# 開始・終了が両方0の場合は
+# 範囲表記を付けない。
+# ==========================================================
+
+def _build_mp4_filename(
+    title,
+    start_time=None,
+    end_time=None
+):
+
+    safe_title = _sanitize_filename(
+        title
+    )
+
+    start_seconds = _time_to_seconds(
+        start_time
+    )
+
+    end_seconds = _time_to_seconds(
+        end_time
+    )
+
+    # ------------------------------------------------------
+    # 範囲指定なし
+    # ------------------------------------------------------
+
+    if (
+
+        start_seconds == 0
+
+        and
+
+        end_seconds == 0
+
+    ):
+
+        return (
+
+            safe_title
+            +
+            ".mp4"
+
+        )
+
+    # ------------------------------------------------------
+    # 範囲指定あり
+    # ------------------------------------------------------
+
+    start_text = _format_filename_time(
+        start_time
+    )
+
+    end_text = _format_filename_time(
+        end_time
+    )
+
+    return (
+
+        safe_title
+        +
+        "_"
+        +
+        start_text
+        +
+        "_"
+        +
+        end_text
+        +
+        ".mp4"
+
+    )
+
+
+# ==========================================================
 # 時間指定判定
 # ==========================================================
 
@@ -262,12 +523,18 @@ def _has_time_range(
 
     # ------------------------------------------------------
     # 00:00:00 ～ 00:00:00
+    #
+    # → 全体
     # ------------------------------------------------------
 
     if (
+
         start_seconds == 0
+
         and
+
         end_seconds == 0
+
     ):
 
         return False
@@ -351,6 +618,17 @@ def _check_ffmpeg():
 
 # ==========================================================
 # 共通 yt-dlp オプション
+#
+# yt-dlpではタイトルをファイル名に使用しない。
+#
+# 一旦、
+#
+#     VIDEO_ID.ext
+#
+# として保存する。
+#
+# 最終ファイル名への変更は
+# Python側でダウンロード後に行う。
 # ==========================================================
 
 def _build_common_options(
@@ -419,18 +697,9 @@ def _build_common_options(
 # ==========================================================
 # 全体MP4用 yt-dlp オプション
 #
-# 最速を優先。
+# MP4単一ファイルを優先。
 #
-# 重要：
-#
-# bv*+ba
-#
-# は使用しない。
-#
-# 映像＋音声が一体になったMP4を優先して
-# 直接ダウンロードする。
-#
-# これならFFmpegによる結合処理が不要。
+# FFmpegによる結合を避ける。
 # ==========================================================
 
 def _build_full_mp4_options(
@@ -448,16 +717,6 @@ def _build_full_mp4_options(
 
     )
 
-    # ------------------------------------------------------
-    # MP4コンテナの単一ファイルを最優先
-    #
-    # best[ext=mp4]
-    #
-    # → 映像＋音声が一つになったMP4
-    #
-    # FFmpeg不要
-    # ------------------------------------------------------
-
     options["format"] = (
         "best[ext=mp4]"
     )
@@ -468,8 +727,13 @@ def _build_full_mp4_options(
 # ==========================================================
 # 時間指定用 yt-dlp オプション
 #
-# 時間指定の場合は映像＋音声を取得して、
-# 後段のFFmpegで切り出す。
+# 映像＋音声を取得。
+#
+# 必要ならyt-dlp内部でFFmpegによる
+# 映像＋音声結合を行う。
+#
+# その後、外側のFFmpegで
+# 指定時間を切り出す。
 # ==========================================================
 
 def _build_range_options(
@@ -665,8 +929,13 @@ def _extract_info(
 #
 # FFmpegを使用しない。
 #
-# YouTubeからMP4単一ファイルを
-# そのままダウンロードする。
+# YouTube
+# ↓
+# yt-dlp
+# ↓
+# VIDEO_ID.mp4
+# ↓
+# Pythonでタイトル.mp4へリネーム
 # ==========================================================
 
 def create_mp4_full(
@@ -781,30 +1050,34 @@ def create_mp4_full(
             )
 
             # --------------------------------------------------
-            # ダウンロード前の既存MP4を削除
+            # yt-dlpが作る一時MP4
             #
-            # 同じvideo IDなら上書きする。
+            # 例:
+            #
+            # Wb11ihveUCk.mp4
             # --------------------------------------------------
 
-            if video_id:
+            temporary_mp4 = (
 
-                existing_mp4 = (
+                output_dir
+                /
+                f"{video_id}.mp4"
 
-                    output_dir
-                    /
-                    f"{video_id}.mp4"
+            )
 
+            # --------------------------------------------------
+            # 既存MP4削除
+            # --------------------------------------------------
+
+            if temporary_mp4.exists():
+
+                print(
+                    "[STREAM] Removing existing MP4:",
+                    temporary_mp4,
+                    flush=True
                 )
 
-                if existing_mp4.exists():
-
-                    print(
-                        "[STREAM] Removing existing MP4:",
-                        existing_mp4,
-                        flush=True
-                    )
-
-                    existing_mp4.unlink()
+                temporary_mp4.unlink()
 
             # --------------------------------------------------
             # ダウンロード
@@ -825,7 +1098,7 @@ def create_mp4_full(
             )
 
         # ------------------------------------------------------
-        # ファイル検索
+        # ダウンロードファイル検索
         # ------------------------------------------------------
 
         downloaded_file = None
@@ -873,25 +1146,70 @@ def create_mp4_full(
             downloaded_file
         )
 
-        # ------------------------------------------------------
-        # ファイル名をvideo IDからMP4に統一
-        # ------------------------------------------------------
+        # ======================================================
+        # ★ここでタイトル名へリネーム
+        #
+        # 全体の場合:
+        #
+        #     タイトル.mp4
+        #
+        # 時間指定はこの関数では行わない。
+        # ======================================================
+
+        final_filename = _build_mp4_filename(
+
+            title=
+                title,
+
+            start_time=
+                None,
+
+            end_time=
+                None
+
+        )
 
         final_file = (
 
             output_dir
             /
-            f"{video_id}.mp4"
+            final_filename
 
         )
 
+        print(
+            "[STREAM] Final filename:",
+            final_file.name,
+            flush=True
+        )
+
+        # ------------------------------------------------------
+        # 同名ファイルが存在する場合は削除
+        # ------------------------------------------------------
+
         if (
-            downloaded_file != final_file
+
+            final_file.exists()
+
+            and
+
+            final_file != downloaded_file
+
         ):
 
-            if final_file.exists():
+            print(
+                "[STREAM] Removing existing final file:",
+                final_file,
+                flush=True
+            )
 
-                final_file.unlink()
+            final_file.unlink()
+
+        # ------------------------------------------------------
+        # VIDEO_ID.mp4 → タイトル.mp4
+        # ------------------------------------------------------
+
+        if downloaded_file != final_file:
 
             shutil.move(
 
@@ -982,7 +1300,7 @@ def create_mp4_full(
 # ↓
 # FFmpeg
 # ↓
-# 指定時間MP4
+# タイトル_000005_000010.mp4
 # ==========================================================
 
 def create_mp4_range(
@@ -1123,6 +1441,10 @@ def create_mp4_range(
                     "YouTube Video"
                 )
 
+                duration_source = info.get(
+                    "duration"
+                )
+
                 print(
                     "[STREAM] source download COMPLETE",
                     flush=True
@@ -1159,16 +1481,43 @@ def create_mp4_range(
             )
 
             # ==================================================
-            # 出力
+            # 最終出力ファイル名
+            #
+            # 例:
+            #
+            # タイトル_000005_000010.mp4
             # ==================================================
+
+            output_filename = _build_mp4_filename(
+
+                title=
+                    title,
+
+                start_time=
+                    start_time,
+
+                end_time=
+                    end_time
+
+            )
 
             output_file = (
 
                 output_dir
                 /
-                f"{video_id}.mp4"
+                output_filename
 
             )
+
+            print(
+                "[STREAM] Final filename:",
+                output_file.name,
+                flush=True
+            )
+
+            # ==================================================
+            # FFmpeg一時出力
+            # ==================================================
 
             temporary_output = (
 
@@ -1183,6 +1532,12 @@ def create_mp4_range(
             # --------------------------------------------------
 
             if output_file.exists():
+
+                print(
+                    "[STREAM] Removing existing output:",
+                    output_file,
+                    flush=True
+                )
 
                 output_file.unlink()
 
@@ -1362,7 +1717,10 @@ def create_mp4_range(
                     video_id,
 
                 "title":
-                    title
+                    title,
+
+                "duration":
+                    duration
 
             }
 
@@ -1413,10 +1771,12 @@ def create_mp4_range(
 # 全体：
 #   → 直接MP4ダウンロード
 #   → FFmpegなし
+#   → タイトル.mp4
 #
 # 時間指定：
 #   → 一時ファイル
 #   → FFmpeg切り出し
+#   → タイトル_000005_000010.mp4
 # ==========================================================
 
 def create_mp4_memory_safe(
