@@ -277,11 +277,7 @@ body {
 ----------------------------------------- */
 
 .time-label-row {
-    display: grid;
-
-    grid-template-columns:
-        minmax(0, 1fr)
-        minmax(0, 1fr);
+    display: flex;
 
     align-items: center;
 
@@ -292,12 +288,30 @@ body {
     white-space: nowrap;
 }
 
+
+/*
+    開始ラベル
+
+    開始時間入力欄
+    「00時00分00秒」の上に配置
+*/
+
 .time-label-row .time-title:first-child {
-    width: auto;
+    width: 238px;
 }
 
+
+/*
+    終了ラベル
+
+    「～」の後ろにある
+    終了時間「00」の上に配置
+*/
+
 .time-label-row .time-title:last-child {
-    margin-left: 0;
+    width: auto;
+
+    margin-left: 30px;
 }
 
 .time-title {
@@ -344,6 +358,7 @@ body {
         開始側・終了側を途中で
         バラバラに折り返さない
     */
+
     flex: 0 0 auto;
 }
 
@@ -377,6 +392,7 @@ body {
         入力欄自身が勝手に
         横方向へ縮まないようにする
     */
+
     flex: 0 0 42px;
 }
 
@@ -429,11 +445,29 @@ body {
     ------------------------------------- */
 
     .time-label-row {
+        display: grid;
+
         grid-template-columns:
             minmax(0, 1fr)
             minmax(0, 1fr);
 
+        align-items: center;
+
+        width: 100%;
+
         margin-bottom: 5px;
+    }
+
+
+    .time-label-row .time-title:first-child {
+        width: auto;
+    }
+
+
+    .time-label-row .time-title:last-child {
+        width: auto;
+
+        margin-left: 0;
     }
 
 
@@ -602,16 +636,22 @@ body {
 ========================================= */
 
 .common-result-area {
+    display: block;
+
+    width: 100%;
+
     margin-top: 20px;
 }
 
 
 /* =========================================
-   処理状況
+   上側ステータス
 ========================================= */
 
 .conversion-status-area {
     display: none;
+
+    width: 100%;
 
     margin-top: 10px;
 
@@ -633,7 +673,59 @@ body {
 
 
 /* =========================================
-   ステータス
+   下側ステータス
+========================================= */
+
+.conversion-details-area {
+    display: none;
+
+    width: 100%;
+
+    margin-top: 8px;
+
+    border: 1px solid #ddd;
+    border-radius: 4px;
+
+    background: #fafafa;
+
+    font-size: 14px;
+}
+
+
+/* -----------------------------------------
+   詳細の見出し
+----------------------------------------- */
+
+.conversion-details-area summary {
+    padding: 10px 14px;
+
+    cursor: pointer;
+
+    font-weight: bold;
+
+    color: #444;
+
+    list-style-position: inside;
+}
+
+
+/* -----------------------------------------
+   詳細内容
+----------------------------------------- */
+
+.conversion-details-content {
+    padding: 10px 14px 14px;
+
+    border-top: 1px solid #ddd;
+
+    line-height: 1.8;
+
+    white-space: pre-line;
+}
+
+
+/* =========================================
+   旧ステータス
 ========================================= */
 
 .status {
@@ -655,6 +747,7 @@ body {
     display: none;
 }
 
+
 .download-area {
     display: flex;
 
@@ -664,8 +757,11 @@ body {
 
     gap: 10px;
 
+    width: 100%;
+
     margin-top: 15px;
 }
+
 
 .download-button {
     display: inline-block;
