@@ -1,6 +1,6 @@
- /* =========================================
-    YouTube Converter
-    style.css
+/* =========================================
+   YouTube Converter
+   style.css
 ========================================= */
 
 
@@ -268,7 +268,6 @@ body {
 
     width: 100%;
 
-    /* 横にはみ出さない */
     overflow: hidden;
 }
 
@@ -278,9 +277,15 @@ body {
 ----------------------------------------- */
 
 .time-label-row {
-    display: flex;
+    display: grid;
+
+    grid-template-columns:
+        minmax(0, 1fr)
+        minmax(0, 1fr);
 
     align-items: center;
+
+    width: 100%;
 
     margin-bottom: 6px;
 
@@ -288,7 +293,7 @@ body {
 }
 
 .time-label-row .time-title:first-child {
-    width: 300px;
+    width: auto;
 }
 
 .time-label-row .time-title:last-child {
@@ -302,7 +307,7 @@ body {
 
 
 /* -----------------------------------------
-   時間入力
+   時間入力行
 ----------------------------------------- */
 
 .time-input-row {
@@ -310,21 +315,13 @@ body {
 
     align-items: center;
 
-    /*
-        画面幅が狭い場合でも、
-        中身を強制的に横へはみ出させない。
-    */
+    flex-wrap: wrap;
+
     width: 100%;
 
     max-width: 100%;
 
-    gap: 8px;
-
-    /*
-        PCでは1行表示。
-        必要に応じて下のメディアクエリで
-        スマホ時に2行へ変更する。
-    */
+    gap: 6px;
 }
 
 
@@ -339,12 +336,15 @@ body {
 
     gap: 2px;
 
-    /*
-        グループ自体は縮められるようにする。
-    */
     min-width: 0;
 
     white-space: nowrap;
+
+    /*
+        開始側・終了側を途中で
+        バラバラに折り返さない
+    */
+    flex: 0 0 auto;
 }
 
 
@@ -357,7 +357,7 @@ body {
 
     height: 32px;
 
-    padding: 4px 2px;
+    padding: 2px 0;
 
     text-align: center;
 
@@ -374,9 +374,10 @@ body {
     outline: none;
 
     /*
-        flexによる縮小を許可
+        入力欄自身が勝手に
+        横方向へ縮まないようにする
     */
-    flex: 0 1 auto;
+    flex: 0 0 42px;
 }
 
 .time-input:focus {
@@ -423,57 +424,143 @@ body {
 
 @media (max-width: 600px) {
 
-    /*
-        開始と終了を縦に分ける。
-
-        開始
-        [00]時[00]分[00]秒
-
-        終了
-        [00]時[00]分[00]秒
-    */
+    /* -------------------------------------
+       ラベル
+    ------------------------------------- */
 
     .time-label-row {
-        display: grid;
+        grid-template-columns:
+            minmax(0, 1fr)
+            minmax(0, 1fr);
 
-        grid-template-columns: 1fr 1fr;
-
-        width: 100%;
+        margin-bottom: 5px;
     }
 
-    .time-label-row .time-title:first-child {
-        width: auto;
-    }
 
+    /* -------------------------------------
+       時間入力行
+
+       入る場合
+       [開始時間] ～ [終了時間]
+
+       入らない場合
+       [開始時間]
+       [終了時間]
+    ------------------------------------- */
 
     .time-input-row {
-        display: grid;
+        display: flex;
 
-        grid-template-columns: 1fr 1fr;
+        flex-wrap: wrap;
 
-        gap: 8px;
+        align-items: center;
+
+        column-gap: 4px;
+
+        row-gap: 4px;
 
         width: 100%;
     }
 
+
+    /* -------------------------------------
+       時間グループ
+    ------------------------------------- */
 
     .time-group {
+        display: flex;
+
+        align-items: center;
+
+        gap: 0;
+
         min-width: 0;
 
-        width: 100%;
+        width: auto;
+
+        flex: 0 0 auto;
     }
 
+
+    /* -------------------------------------
+       数字入力欄
+
+       スマホでは余白を削減
+    ------------------------------------- */
 
     .time-input {
-        width: 38px;
+        width: 32px;
+
+        height: 30px;
+
+        padding: 2px 0;
+
+        flex: 0 0 32px;
+
+        font-size: 13px;
     }
 
 
+    /* -------------------------------------
+       時・分・秒
+    ------------------------------------- */
+
+    .time-unit {
+        font-size: 13px;
+
+        margin: 0;
+    }
+
+
+    /* -------------------------------------
+       ～ 区切り
+    ------------------------------------- */
+
     .time-separator {
-        display: none;
+        margin: 0;
+
+        font-size: 16px;
+
+        flex: 0 0 auto;
     }
 
 }
+
+
+/* =========================================
+   さらに狭いスマートフォン
+========================================= */
+
+@media (max-width: 380px) {
+
+    .time-input-row {
+        column-gap: 2px;
+    }
+
+    .time-group {
+        gap: 0;
+    }
+
+    .time-input {
+        width: 30px;
+
+        flex: 0 0 30px;
+
+        height: 29px;
+
+        font-size: 13px;
+    }
+
+    .time-unit {
+        font-size: 12px;
+    }
+
+    .time-separator {
+        font-size: 15px;
+    }
+
+}
+
 
 /* =========================================
    出力形式
@@ -563,11 +650,6 @@ body {
 /* =========================================
    ダウンロード
 ========================================= */
-
-/*
-    「作成ファイル」という見出しは
-    初期状態では不要なので非表示
-*/
 
 .download-section-title {
     display: none;
