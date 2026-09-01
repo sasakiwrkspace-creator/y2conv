@@ -585,7 +585,7 @@ def create_mp4_from_file(
     temporary_mp4_file = (
         output_dir
         /
-        f".{paths['title']}.mp4.tmp"
+        f".{paths['title']}.tmp.mp4"
     )
 
     _remove_file(
