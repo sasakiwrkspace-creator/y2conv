@@ -12,8 +12,13 @@ from ytdlp import (
     cleanup_download
 )
 
+from ytdlp_stream import (
+    create_mp4_full,
+    create_mp4_range
+)
+
 from media_extract import (
-    create_media_files
+    create_mp3_from_file
 )
 
 
@@ -141,6 +146,7 @@ def _get_job(job_id):
         )
 
         if job is None:
+
             return None
 
         return {
@@ -243,6 +249,7 @@ def _update_file(
         )
 
         if not job:
+
             return
 
         file_info = job["files"].get(
@@ -263,6 +270,7 @@ def _update_file(
 def _format_seconds(seconds):
 
     if seconds is None:
+
         return ""
 
     try:
@@ -300,6 +308,116 @@ def _format_seconds(seconds):
 
 
 # ==========================================================
+# 時間 → 秒
+#
+# HH:MM:SS
+# MM:SS
+# 秒
+# に対応
+# ==========================================================
+
+def _time_to_seconds(value):
+
+    if value is None:
+
+        return 0.0
+
+    text = str(
+        value
+    ).strip()
+
+    if not text:
+
+        return 0.0
+
+    parts = text.split(":")
+
+    try:
+
+        if len(parts) == 3:
+
+            return (
+                float(parts[0]) * 3600
+                +
+                float(parts[1]) * 60
+                +
+                float(parts[2])
+            )
+
+        if len(parts) == 2:
+
+            return (
+                float(parts[0]) * 60
+                +
+                float(parts[1])
+            )
+
+        return float(text)
+
+    except Exception as error:
+
+        raise ValueError(
+            f"時間形式が不正です: {value}"
+        ) from error
+
+
+# ==========================================================
+# 時間指定判定
+#
+# 00:00:00 ～ 00:00:00
+# または
+# None / None
+# は全体扱い
+# ==========================================================
+
+def _is_full_download(
+    start_time=None,
+    end_time=None
+):
+
+    return (
+        _time_to_seconds(start_time) == 0
+        and
+        _time_to_seconds(end_time) == 0
+    )
+
+
+# ==========================================================
+# sourceファイル確認
+# ==========================================================
+
+def _validate_source(
+    download_result
+):
+
+    if not download_result:
+
+        raise RuntimeError(
+            "動画ダウンロード結果が空です。"
+        )
+
+    source_path = Path(
+        download_result.get("path", "")
+    )
+
+    if not source_path.is_file():
+
+        raise FileNotFoundError(
+            f"一時動画ファイルがありません: {source_path}"
+        )
+
+    size = source_path.stat().st_size
+
+    if size <= 0:
+
+        raise RuntimeError(
+            f"一時動画ファイルのサイズが0です: {source_path}"
+        )
+
+    return source_path
+
+
+# ==========================================================
 # Job実行
 # ==========================================================
 
@@ -331,7 +449,7 @@ def _run_conversion_job(
                 started_at.isoformat(),
 
             message=
-                "動画をダウンロードしています・・・"
+                "変換処理を開始しています・・・"
 
         )
 
@@ -358,74 +476,15 @@ def _run_conversion_job(
             flush=True
         )
 
-        # ==================================================
-        # YouTube → 一時ファイル
-        #
-        # ここで動画全体をRAMへ読み込まない。
-        # ==================================================
-
         print(
-            "[CONVERT] source download START",
-            flush=True
-        )
-
-        download_result = download_source(
-            url
-        )
-
-        if not download_result:
-
-            raise RuntimeError(
-                "動画ダウンロード結果が空です。"
-            )
-
-        source_path = Path(
-            download_result["path"]
-        )
-
-        if not source_path.is_file():
-
-            raise FileNotFoundError(
-                f"一時動画ファイルがありません: {source_path}"
-            )
-
-        title = (
-            download_result.get("title")
-            or "YouTube Video"
-        )
-
-        duration = (
-            download_result.get("duration")
-        )
-
-        _update_job(
-
-            job_id,
-
-            title=title,
-
-            duration=duration,
-
-            duration_text=
-                _format_seconds(
-                    duration
-                ),
-
-            message=
-                "動画のダウンロードが完了しました。"
-
-        )
-
-        print(
-            "[CONVERT] source:",
-            source_path,
+            "[CONVERT] start_time:",
+            start_time,
             flush=True
         )
 
         print(
-            "[CONVERT] source size:",
-            source_path.stat().st_size,
-            "bytes",
+            "[CONVERT] end_time:",
+            end_time,
             flush=True
         )
 
@@ -445,10 +504,125 @@ def _run_conversion_job(
         )
 
         # ==================================================
-        # MP3
+        # 時間指定判定
+        # ==================================================
+
+        full_download = _is_full_download(
+            start_time,
+            end_time
+        )
+
+        print(
+            "[CONVERT] full_download:",
+            full_download,
+            flush=True
+        )
+
+        # ==================================================
+        # title / duration
+        #
+        # MP4だけの場合は ytdlp_stream.py が返す情報を使用。
+        # MP3が必要な場合は download_source() の情報を使用。
+        # ==================================================
+
+        title = "YouTube Video"
+
+        duration = None
+
+        # ==================================================
+        # ==================================================
+        # MP3処理
+        # ==================================================
+        # ==================================================
+        #
+        # MP3が必要な場合はsourceファイルが必要。
+        #
+        # MP4も同時に必要な場合、
+        # MP4処理とは別にsourceを取得する。
+        #
+        # ただしMP4全体だけならsource取得を行わず、
+        # ytdlp_stream.pyから直接MP4を取得する。
+        #
         # ==================================================
 
         if "mp3" in outputs:
+
+            _update_file(
+
+                job_id,
+
+                "mp3",
+
+                status="processing",
+
+                message="mp3 用動画をダウンロード中・・・"
+
+            )
+
+            _update_job(
+
+                job_id,
+
+                message="mp3 用動画をダウンロード中・・・"
+
+            )
+
+            print(
+                "[CONVERT] MP3 source download START",
+                flush=True
+            )
+
+            download_result = download_source(
+                url
+            )
+
+            source_path = _validate_source(
+                download_result
+            )
+
+            title = (
+                download_result.get("title")
+                or "YouTube Video"
+            )
+
+            duration = (
+                download_result.get("duration")
+            )
+
+            _update_job(
+
+                job_id,
+
+                title=title,
+
+                duration=duration,
+
+                duration_text=
+                    _format_seconds(
+                        duration
+                    ),
+
+                message=
+                    "動画のダウンロードが完了しました。"
+
+            )
+
+            print(
+                "[CONVERT] MP3 source:",
+                source_path,
+                flush=True
+            )
+
+            print(
+                "[CONVERT] MP3 source size:",
+                source_path.stat().st_size,
+                "bytes",
+                flush=True
+            )
+
+            # ==================================================
+            # MP3作成
+            # ==================================================
 
             _update_file(
 
@@ -470,71 +644,28 @@ def _run_conversion_job(
 
             )
 
-        # ==================================================
-        # MP4
-        # ==================================================
-
-        if "mp4" in outputs:
-
-            _update_file(
-
-                job_id,
-
-                "mp4",
-
-                status="processing",
-
-                message="mp4 変換中・・・"
-
+            print(
+                "[CONVERT] MP3 extraction START",
+                flush=True
             )
 
-        # ==================================================
-        # メディア作成
-        #
-        # 1つのsource fileから必要なものを作る。
-        # ==================================================
+            mp3_result = create_mp3_from_file(
 
-        print(
-            "[CONVERT] media extraction START",
-            flush=True
-        )
+                input_file=
+                    str(source_path),
 
-        results = create_media_files(
+                output_dir=
+                    output_dir,
 
-            input_file=
-                str(source_path),
+                title=
+                    title,
 
-            output_dir=
-                output_dir,
+                start_time=
+                    start_time,
 
-            title=
-                title,
+                end_time=
+                    end_time
 
-            outputs=
-                outputs,
-
-            start_time=
-                start_time,
-
-            end_time=
-                end_time
-
-        )
-
-        print(
-            "[CONVERT] media extraction COMPLETE:",
-            results,
-            flush=True
-        )
-
-        # ==================================================
-        # MP3結果
-        # ==================================================
-
-        if "mp3" in outputs:
-
-            mp3_result = results.get(
-                "mp3"
             )
 
             if not mp3_result:
@@ -566,21 +697,128 @@ def _run_conversion_job(
 
             )
 
+            print(
+                "[CONVERT] MP3 COMPLETE:",
+                mp3_result,
+                flush=True
+            )
+
         # ==================================================
-        # MP4結果
+        # ==================================================
+        # MP4処理
+        # ==================================================
         # ==================================================
 
         if "mp4" in outputs:
 
-            mp4_result = results.get(
-                "mp4"
+            _update_file(
+
+                job_id,
+
+                "mp4",
+
+                status="processing",
+
+                message="mp4 ダウンロード中・・・"
+
             )
+
+            _update_job(
+
+                job_id,
+
+                message="mp4 ダウンロード中・・・"
+
+            )
+
+            print(
+                "[CONVERT] MP4 processing START",
+                flush=True
+            )
+
+            # ==================================================
+            # MP4全体
+            #
+            # FFmpegを使用せず、
+            # yt-dlpが取得したMP4をそのまま完成ファイルとして使用。
+            # ==================================================
+
+            if full_download:
+
+                print(
+                    "[CONVERT] MP4 full download",
+                    flush=True
+                )
+
+                mp4_result = create_mp4_full(
+
+                    url=
+                        url,
+
+                    output_dir=
+                        output_dir
+
+                )
+
+            # ==================================================
+            # MP4時間指定
+            #
+            # 一時ファイルへダウンロード後、
+            # FFmpegで指定区間を抽出。
+            # ==================================================
+
+            else:
+
+                print(
+                    "[CONVERT] MP4 range extraction",
+                    flush=True
+                )
+
+                mp4_result = create_mp4_range(
+
+                    url=
+                        url,
+
+                    output_dir=
+                        output_dir,
+
+                    start_time=
+                        start_time,
+
+                    end_time=
+                        end_time
+
+                )
 
             if not mp4_result:
 
                 raise RuntimeError(
                     "MP4作成結果が空です。"
                 )
+
+            # ==================================================
+            # MP4情報
+            # ==================================================
+
+            mp4_title = (
+                mp4_result.get("title")
+                or "YouTube Video"
+            )
+
+            if not title or title == "YouTube Video":
+
+                title = mp4_title
+
+            _update_job(
+
+                job_id,
+
+                title=title,
+
+                message=
+                    "mp4 ダウンロードが完了しました。"
+
+            )
 
             _update_file(
 
@@ -602,6 +840,32 @@ def _run_conversion_job(
 
                 message=
                     "mp4 変換終了"
+
+            )
+
+            print(
+                "[CONVERT] MP4 COMPLETE:",
+                mp4_result,
+                flush=True
+            )
+
+        # ==================================================
+        # durationがまだない場合
+        # ==================================================
+
+        if duration is not None:
+
+            _update_job(
+
+                job_id,
+
+                duration=
+                    duration,
+
+                duration_text=
+                    _format_seconds(
+                        duration
+                    )
 
             )
 
@@ -690,9 +954,9 @@ def _run_conversion_job(
 
         traceback.print_exc()
 
-        # --------------------------------------------------
-        # processing中の出力をerrorにする
-        # --------------------------------------------------
+        # ==================================================
+        # processing中の出力をerrorへ
+        # ==================================================
 
         for output_type in outputs:
 
@@ -701,6 +965,7 @@ def _run_conversion_job(
             )
 
             if not job:
+
                 continue
 
             file_status = (
@@ -719,16 +984,17 @@ def _run_conversion_job(
 
                     message=
                         f"{output_type} 変換エラー: "
-                        + str(error)
+                        +
+                        str(error)
 
                 )
 
     finally:
 
         # ==================================================
-        # 一時動画削除
+        # MP3用source削除
         #
-        # 成功・失敗どちらでも最後に削除する。
+        # MP4全体はsourceを作っていないので何もしない。
         # ==================================================
 
         if download_result:
@@ -895,52 +1161,21 @@ def register_convert(app):
 
             # ==================================================
             # 時間
-            #
-            # HH:MM:SS / MM:SS / 秒
-            # に対応するため、floatだけで検証しない。
             # ==================================================
 
             if (
                 start_time is not None
-                and
+                or
                 end_time is not None
             ):
 
                 try:
 
-                    def parse_time(value):
-
-                        text = str(
-                            value
-                        ).strip()
-
-                        parts = text.split(":")
-
-                        if len(parts) == 3:
-
-                            return (
-                                float(parts[0]) * 3600
-                                +
-                                float(parts[1]) * 60
-                                +
-                                float(parts[2])
-                            )
-
-                        if len(parts) == 2:
-
-                            return (
-                                float(parts[0]) * 60
-                                +
-                                float(parts[1])
-                            )
-
-                        return float(text)
-
-                    start_value = parse_time(
+                    start_value = _time_to_seconds(
                         start_time
                     )
 
-                    end_value = parse_time(
+                    end_value = _time_to_seconds(
                         end_time
                     )
 
@@ -956,7 +1191,27 @@ def register_convert(app):
 
                         }), 400
 
-                    if end_value <= start_value:
+                    # ------------------------------------------
+                    # 両方0なら全体扱い
+                    # ------------------------------------------
+
+                    if (
+                        start_value == 0
+                        and
+                        end_value == 0
+                    ):
+
+                        pass
+
+                    # ------------------------------------------
+                    # 終了時間だけ指定
+                    #
+                    # 例:
+                    # start = 00:00:00
+                    # end   = 00:01:00
+                    # ------------------------------------------
+
+                    elif end_value <= start_value:
 
                         return jsonify({
 
@@ -971,7 +1226,7 @@ def register_convert(app):
                 except (
                     TypeError,
                     ValueError
-                ):
+                ) as error:
 
                     return jsonify({
 
