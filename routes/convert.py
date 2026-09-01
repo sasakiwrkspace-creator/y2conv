@@ -364,10 +364,15 @@ def _time_to_seconds(value):
 # ==========================================================
 # 時間指定判定
 #
-# 00:00:00 ～ 00:00:00
-# または
+# 以下はすべて「範囲指定なし」
+#
 # None / None
-# は全体扱い
+# "" / ""
+# 00:00:00 / 00:00:00
+# 0 / 0
+#
+# 片方だけ0の場合は、
+# もう片方の値に応じて通常の範囲指定として扱う。
 # ==========================================================
 
 def _is_full_download(
@@ -375,10 +380,101 @@ def _is_full_download(
     end_time=None
 ):
 
+    start_seconds = _time_to_seconds(
+        start_time
+    )
+
+    end_seconds = _time_to_seconds(
+        end_time
+    )
+
     return (
-        _time_to_seconds(start_time) == 0
+        start_seconds == 0
         and
-        _time_to_seconds(end_time) == 0
+        end_seconds == 0
+    )
+
+
+# ==========================================================
+# 時間指定ファイル名用
+#
+# 例：
+#
+# 5秒 ～ 10秒
+# → 000005_000010
+#
+# 1分5秒 ～ 2分10秒
+# → 000065_000130
+#
+# 1時間2分3秒 ～ 1時間5分10秒
+# → 003723_003910
+#
+# ==========================================================
+
+def _format_range_seconds(
+    seconds
+):
+
+    try:
+
+        total = int(
+            float(seconds)
+        )
+
+    except Exception:
+
+        total = 0
+
+    if total < 0:
+
+        total = 0
+
+    return f"{total:06d}"
+
+
+# ==========================================================
+# 時間指定ファイル名サフィックス
+#
+# 範囲指定なし：
+#   ""
+#
+# 5秒～10秒：
+#   "_000005_000010"
+#
+# ==========================================================
+
+def _build_range_suffix(
+    start_time=None,
+    end_time=None
+):
+
+    if _is_full_download(
+        start_time,
+        end_time
+    ):
+
+        return ""
+
+    start_seconds = _time_to_seconds(
+        start_time
+    )
+
+    end_seconds = _time_to_seconds(
+        end_time
+    )
+
+    return (
+        "_"
+        +
+        _format_range_seconds(
+            start_seconds
+        )
+        +
+        "_"
+        +
+        _format_range_seconds(
+            end_seconds
+        )
     )
 
 
@@ -512,17 +608,25 @@ def _run_conversion_job(
             end_time
         )
 
+        range_suffix = _build_range_suffix(
+            start_time,
+            end_time
+        )
+
         print(
             "[CONVERT] full_download:",
             full_download,
             flush=True
         )
 
+        print(
+            "[CONVERT] range_suffix:",
+            range_suffix,
+            flush=True
+        )
+
         # ==================================================
         # title / duration
-        #
-        # MP4だけの場合は ytdlp_stream.py が返す情報を使用。
-        # MP3が必要な場合は download_source() の情報を使用。
         # ==================================================
 
         title = "YouTube Video"
@@ -533,16 +637,6 @@ def _run_conversion_job(
         # ==================================================
         # MP3処理
         # ==================================================
-        # ==================================================
-        #
-        # MP3が必要な場合はsourceファイルが必要。
-        #
-        # MP4も同時に必要な場合、
-        # MP4処理とは別にsourceを取得する。
-        #
-        # ただしMP4全体だけならsource取得を行わず、
-        # ytdlp_stream.pyから直接MP4を取得する。
-        #
         # ==================================================
 
         if "mp3" in outputs:
@@ -674,6 +768,52 @@ def _run_conversion_job(
                     "MP3作成結果が空です。"
                 )
 
+            # ==================================================
+            # MP3結果確認
+            # ==================================================
+
+            mp3_path = mp3_result.get(
+                "path"
+            )
+
+            mp3_filename = mp3_result.get(
+                "filename"
+            )
+
+            if not mp3_path:
+
+                raise RuntimeError(
+                    "MP3ファイルのpathが返されませんでした。"
+                )
+
+            if not mp3_filename:
+
+                raise RuntimeError(
+                    "MP3ファイルのfilenameが返されませんでした。"
+                )
+
+            print(
+                "[CONVERT] MP3 filename:",
+                mp3_filename,
+                flush=True
+            )
+
+            print(
+                "[CONVERT] MP3 path:",
+                mp3_path,
+                flush=True
+            )
+
+            # ==================================================
+            # MP3完了
+            #
+            # media_extract.py側で
+            #
+            # VIDEOID_000005_000010.mp3
+            #
+            # のような名前を生成する。
+            # ==================================================
+
             _update_file(
 
                 job_id,
@@ -683,14 +823,10 @@ def _run_conversion_job(
                 status="complete",
 
                 filename=
-                    mp3_result.get(
-                        "filename"
-                    ),
+                    mp3_filename,
 
                 path=
-                    mp3_result.get(
-                        "path"
-                    ),
+                    mp3_path,
 
                 message=
                     "mp3 変換終了"
@@ -741,6 +877,11 @@ def _run_conversion_job(
             #
             # FFmpegを使用せず、
             # yt-dlpが取得したMP4をそのまま完成ファイルとして使用。
+            #
+            # ファイル名：
+            #
+            # VIDEOID.mp4
+            #
             # ==================================================
 
             if full_download:
@@ -763,8 +904,12 @@ def _run_conversion_job(
             # ==================================================
             # MP4時間指定
             #
-            # 一時ファイルへダウンロード後、
-            # FFmpegで指定区間を抽出。
+            # ファイル名：
+            #
+            # VIDEOID_000005_000010.mp4
+            #
+            # 5秒～10秒の場合。
+            #
             # ==================================================
 
             else:
@@ -797,6 +942,42 @@ def _run_conversion_job(
                 )
 
             # ==================================================
+            # MP4結果確認
+            # ==================================================
+
+            mp4_path = mp4_result.get(
+                "path"
+            )
+
+            mp4_filename = mp4_result.get(
+                "filename"
+            )
+
+            if not mp4_path:
+
+                raise RuntimeError(
+                    "MP4ファイルのpathが返されませんでした。"
+                )
+
+            if not mp4_filename:
+
+                raise RuntimeError(
+                    "MP4ファイルのfilenameが返されませんでした。"
+                )
+
+            print(
+                "[CONVERT] MP4 filename:",
+                mp4_filename,
+                flush=True
+            )
+
+            print(
+                "[CONVERT] MP4 path:",
+                mp4_path,
+                flush=True
+            )
+
+            # ==================================================
             # MP4情報
             # ==================================================
 
@@ -820,6 +1001,13 @@ def _run_conversion_job(
 
             )
 
+            # ==================================================
+            # MP4完了
+            #
+            # create_mp4_full / create_mp4_range が返した
+            # 実際のfilename/pathを使用する。
+            # ==================================================
+
             _update_file(
 
                 job_id,
@@ -829,14 +1017,10 @@ def _run_conversion_job(
                 status="complete",
 
                 filename=
-                    mp4_result.get(
-                        "filename"
-                    ),
+                    mp4_filename,
 
                 path=
-                    mp4_result.get(
-                        "path"
-                    ),
+                    mp4_path,
 
                 message=
                     "mp4 変換終了"
@@ -999,9 +1183,19 @@ def _run_conversion_job(
 
         if download_result:
 
-            cleanup_download(
-                download_result
-            )
+            try:
+
+                cleanup_download(
+                    download_result
+                )
+
+            except Exception as cleanup_error:
+
+                print(
+                    "[CONVERT] cleanup error:",
+                    repr(cleanup_error),
+                    flush=True
+                )
 
         print(
             "[CONVERT] Background job END:",
@@ -1191,8 +1385,22 @@ def register_convert(app):
 
                         }), 400
 
+                    if end_value < 0:
+
+                        return jsonify({
+
+                            "success":
+                                False,
+
+                            "message":
+                                "終了時間は0秒以上にしてください。"
+
+                        }), 400
+
                     # ------------------------------------------
                     # 両方0なら全体扱い
+                    #
+                    # ファイル名にも時間を付けない。
                     # ------------------------------------------
 
                     if (
@@ -1204,11 +1412,7 @@ def register_convert(app):
                         pass
 
                     # ------------------------------------------
-                    # 終了時間だけ指定
-                    #
-                    # 例:
-                    # start = 00:00:00
-                    # end   = 00:01:00
+                    # 時間指定あり
                     # ------------------------------------------
 
                     elif end_value <= start_value:
@@ -1226,7 +1430,7 @@ def register_convert(app):
                 except (
                     TypeError,
                     ValueError
-                ) as error:
+                ):
 
                     return jsonify({
 
