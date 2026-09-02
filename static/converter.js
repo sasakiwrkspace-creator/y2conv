@@ -698,11 +698,9 @@
 
 
         // =====================================
-        // SRT作成ボタン
+        // SRT作成
         //
         // /gemini-transcribe
-        //
-        // routes/gemini.py の既存APIを使用
         // =====================================
 
         async function createSrtWithGemini(
@@ -749,8 +747,10 @@
                 resultArea.textContent =
                     "GeminiへMP3を送信しています...";
 
+
                 resultArea.style.display =
                     "block";
+
 
                 resultArea.style.color =
                     "#222";
@@ -879,6 +879,7 @@
                     resultArea.style.display =
                         "block";
 
+
                     resultArea.style.color =
                         "#176b2c";
 
@@ -911,8 +912,10 @@
                         "SRT作成に失敗しました。\n" +
                         message;
 
+
                     resultArea.style.display =
                         "block";
+
 
                     resultArea.style.color =
                         "#b00020";
@@ -939,20 +942,22 @@
 
 
         // =====================================
-        // MP3用SRT折り畳みUI
+        // MP3用Gemini UI
         //
-        // 初期状態:
-        //
-        // [MP3]  ▲
-        //
-        // ▲クリック:
+        // 閉じた状態:
         //
         // [MP3]  ▼
-        //       SRT作成(geminiへ送る)
+        //
+        // 開いた状態:
+        //
+        // [MP3]  ▲ SRT作成(geminiへ送る)
+        //
+        // MP3とトグルは必ず同じ行。
         // =====================================
 
-        function addMp3GeminiControl(
-            filename
+        function createMp3GeminiControl(
+            filename,
+            mp3Link
         ) {
 
             if (!downloadArea) {
@@ -974,6 +979,10 @@
                     filename
                 );
 
+
+            // =================================
+            // 二重作成防止
+            // =================================
 
             const existing =
                 Array.from(
@@ -1018,7 +1027,7 @@
 
 
             // =================================
-            // 上段
+            // MP3 + トグルを同じ行にする
             // =================================
 
             const header =
@@ -1031,8 +1040,37 @@
                 "mp3-gemini-header";
 
 
+            header.style.display =
+                "flex";
+
+
+            header.style.alignItems =
+                "center";
+
+
+            header.style.flexWrap =
+                "nowrap";
+
+
+            header.style.gap =
+                "8px";
+
+
             // =================================
-            // ▲ / ▼ ボタン
+            // 既存MP3リンクを移動
+            // =================================
+
+            if (mp3Link) {
+
+                header.appendChild(
+                    mp3Link
+                );
+
+            }
+
+
+            // =================================
+            // 開閉ボタン
             // =================================
 
             const toggleButton =
@@ -1050,7 +1088,15 @@
 
 
             toggleButton.textContent =
-                "▲";
+                "▼";
+
+
+            toggleButton.style.flex =
+                "0 0 auto";
+
+
+            toggleButton.style.whiteSpace =
+                "nowrap";
 
 
             toggleButton.setAttribute(
@@ -1102,7 +1148,7 @@
 
 
             srtButton.textContent =
-                "▼ SRT作成(geminiへ送る)";
+                "SRT作成(geminiへ送る)";
 
 
             // =================================
@@ -1132,18 +1178,24 @@
                 function () {
 
                     const isOpen =
-                        actionArea.style.display !==
-                        "none";
+                        toggleButton.getAttribute(
+                            "aria-expanded"
+                        ) ===
+                        "true";
 
 
                     if (isOpen) {
+
+                        // -------------------------
+                        // 閉じる
+                        // -------------------------
 
                         actionArea.style.display =
                             "none";
 
 
                         toggleButton.textContent =
-                            "▲";
+                            "▼";
 
 
                         toggleButton.setAttribute(
@@ -1160,12 +1212,16 @@
                     }
                     else {
 
+                        // -------------------------
+                        // 開く
+                        // -------------------------
+
                         actionArea.style.display =
                             "block";
 
 
                         toggleButton.textContent =
-                            "▼";
+                            "▲ SRT作成(geminiへ送る)";
 
 
                         toggleButton.setAttribute(
@@ -1237,7 +1293,10 @@
 
 
             // =================================
-            // ダウンロードエリアへ追加
+            // downloadAreaへ追加
+            //
+            // MP3リンクは元の位置から
+            // headerへ移動する。
             // =================================
 
             downloadArea.appendChild(
@@ -1282,6 +1341,16 @@
                 );
 
 
+            const normalizedType =
+                String(
+                    type
+                ).toLowerCase();
+
+
+            // =================================
+            // 既存確認
+            // =================================
+
             const existing =
                 Array.from(
                     downloadArea.querySelectorAll(
@@ -1305,6 +1374,10 @@
 
             }
 
+
+            // =================================
+            // ダウンロードリンク
+            // =================================
 
             const link =
                 document.createElement(
@@ -1332,9 +1405,38 @@
 
             link.textContent =
                 "[" +
-                String(type).toUpperCase() +
+                normalizedType.toUpperCase() +
                 "]";
 
+
+            // =================================
+            // MP3
+            //
+            // MP3リンクと▼を
+            // 最初から同じ行にする。
+            // =================================
+
+            if (
+                normalizedType ===
+                "mp3"
+            ) {
+
+                createMp3GeminiControl(
+                    safeFilename,
+                    link
+                );
+
+
+                return;
+
+            }
+
+
+            // =================================
+            // MP4
+            //
+            // 従来どおり
+            // =================================
 
             downloadArea.appendChild(
                 link
@@ -1345,25 +1447,6 @@
                 "[CONVERTER] ダウンロードボタン追加:",
                 safeFilename
             );
-
-
-            // =================================
-            // MP3の場合
-            //
-            // ダウンロードボタンと同時に
-            // ▲を表示
-            // =================================
-
-            if (
-                String(type).toLowerCase() ===
-                "mp3"
-            ) {
-
-                addMp3GeminiControl(
-                    safeFilename
-                );
-
-            }
 
         }
 
