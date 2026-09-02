@@ -576,7 +576,7 @@ body {
 ----------------------------------------- */
 
 .conversion-details summary {
-    display: block;
+    display: list-item;
 
     width: 100%;
 
@@ -590,6 +590,7 @@ body {
 
     user-select: none;
 }
+
 
 
 /*
