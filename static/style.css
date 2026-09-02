@@ -276,8 +276,16 @@ body {
    開始・終了ラベル
 ========================================= */
 
+/* =========================================
+   開始・終了ラベル
+========================================= */
+
 .time-label-row {
-    display: flex;
+    display: grid;
+
+    grid-template-columns:
+        50%
+        50%;
 
     align-items: center;
 
@@ -294,14 +302,15 @@ body {
 }
 
 .time-label-row .time-title:first-child {
-    width: 50%;
-
     text-align: left;
 }
 
 .time-label-row .time-title:last-child {
     text-align: left;
+
+    padding-left: 0;
 }
+
 
 
 
