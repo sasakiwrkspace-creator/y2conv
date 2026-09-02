@@ -274,13 +274,9 @@ try:
 
     if result.stdout:
 
-        first_line = (
-            result.stdout.splitlines()[0]
-        )
-
         print(
             "[DEBUG] ffmpeg version:",
-            first_line,
+            result.stdout.splitlines()[0],
             flush=True
         )
 
@@ -300,7 +296,7 @@ print(
 
 
 # ==========================================================
-# 共通：downloadsフォルダ
+# downloadsフォルダ
 # ==========================================================
 
 def _get_download_dir():
@@ -320,7 +316,7 @@ def _get_download_dir():
 
 
 # ==========================================================
-# 共通：ファイル名安全化
+# ファイル名安全化
 # ==========================================================
 
 def _sanitize_filename(title):
@@ -379,24 +375,6 @@ def _sanitize_filename(title):
 
 
 # ==========================================================
-# 共通：動画タイトルからファイル名生成
-# ==========================================================
-
-def _make_output_filename(
-    title,
-    extension
-):
-
-    safe_title = _sanitize_filename(
-        title
-    )
-
-    return (
-        f"{safe_title}.{extension}"
-    )
-
-
-# ==========================================================
 # Cookie準備
 # ==========================================================
 
@@ -412,58 +390,43 @@ def _prepare_cookie_file():
         flush=True
     )
 
-    cookies_source = COOKIES_SOURCE
-
     print(
         "[DEBUG] 元Cookieファイル:",
-        cookies_source,
+        COOKIES_SOURCE,
         flush=True
     )
 
-    exists = os.path.isfile(
-        cookies_source
-    )
-
-    print(
-        "[DEBUG] Cookie exists:",
-        exists,
-        flush=True
-    )
-
-    if not exists:
+    if not os.path.isfile(
+        COOKIES_SOURCE
+    ):
 
         raise FileNotFoundError(
             "Cookieファイルが見つかりません: "
             +
-            cookies_source
+            COOKIES_SOURCE
         )
 
     temporary_cookie_path = None
 
     try:
 
-        cookie_size = os.path.getsize(
-            cookies_source
+        source_size = os.path.getsize(
+            COOKIES_SOURCE
         )
 
         print(
             "[DEBUG] 元Cookieサイズ:",
-            cookie_size,
+            source_size,
             "bytes",
             flush=True
         )
 
         temporary_cookie_file = (
             tempfile.NamedTemporaryFile(
-
                 mode="w",
-
                 suffix=".txt",
-
                 prefix="y2conv_cookies_",
-
                 delete=False
-
             )
         )
 
@@ -474,35 +437,15 @@ def _prepare_cookie_file():
         temporary_cookie_file.close()
 
         shutil.copyfile(
-
-            cookies_source,
-
-            temporary_cookie_path
-
-        )
-
-        temporary_size = os.path.getsize(
+            COOKIES_SOURCE,
             temporary_cookie_path
         )
 
         print(
-            "[DEBUG] 一時Cookieファイル作成:",
+            "[DEBUG] 一時Cookie:",
             temporary_cookie_path,
             flush=True
         )
-
-        print(
-            "[DEBUG] 一時Cookieサイズ:",
-            temporary_size,
-            "bytes",
-            flush=True
-        )
-
-        if temporary_size <= 0:
-
-            raise RuntimeError(
-                "一時Cookieファイルのサイズが0です。"
-            )
 
         return temporary_cookie_path
 
@@ -543,12 +486,7 @@ def _prepare_cookie_file():
 
 
 # ==========================================================
-# yt-dlp共通オプション作成
-#
-# 重要：
-#
-# ytdlp.py / ytdlp_stream.py の両方で
-# この設定を利用する。
+# yt-dlpオプション
 # ==========================================================
 
 def _build_ydl_options(
@@ -583,10 +521,6 @@ def _build_ydl_options(
         "verbose":
             True,
 
-        # ==================================================
-        # YouTube JavaScript challenge
-        # ==================================================
-
         "js_runtimes": {
 
             "deno": {
@@ -597,10 +531,6 @@ def _build_ydl_options(
             }
 
         },
-
-        # ==================================================
-        # EJS challenge scripts
-        # ==================================================
 
         "remote_components": {
 
@@ -635,32 +565,8 @@ def _build_ydl_options(
     )
 
     print(
-        "[DEBUG] Deno exists:",
-        os.path.isfile(
-            DENO_PATH
-        ),
-        flush=True
-    )
-
-    print(
-        "[DEBUG] cookiefile:",
+        "[DEBUG] yt-dlp cookie:",
         temporary_cookie_path,
-        flush=True
-    )
-
-    print(
-        "[DEBUG] remote_components:",
-        ydl_opts.get(
-            "remote_components"
-        ),
-        flush=True
-    )
-
-    print(
-        "[DEBUG] js_runtimes:",
-        ydl_opts.get(
-            "js_runtimes"
-        ),
         flush=True
     )
 
@@ -675,22 +581,6 @@ def get_youtube_info(
     url
 ):
 
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    print(
-        "[DEBUG] YouTube情報取得開始",
-        flush=True
-    )
-
-    print(
-        "[DEBUG] URL:",
-        url,
-        flush=True
-    )
-
     temporary_cookie_path = None
 
     try:
@@ -701,60 +591,14 @@ def get_youtube_info(
                 "YouTube URLが空です"
             )
 
-        if not os.path.isfile(
-            DENO_PATH
-        ):
-
-            raise RuntimeError(
-                "Denoが利用できません: "
-                +
-                DENO_PATH
-            )
-
-        if not os.access(
-            DENO_PATH,
-            os.X_OK
-        ):
-
-            raise RuntimeError(
-                "Denoに実行権限がありません: "
-                +
-                DENO_PATH
-            )
-
-        deno_result = subprocess.run(
-
-            [
-                DENO_PATH,
-                "--version"
-            ],
-
-            capture_output=True,
-
-            text=True,
-
-            timeout=10
-
-        )
-
-        if deno_result.returncode != 0:
-
-            raise RuntimeError(
-                "Denoの実行に失敗しました"
-            )
-
         temporary_cookie_path = (
             _prepare_cookie_file()
-        )
-
-        output_dir = (
-            _get_download_dir()
         )
 
         ydl_opts = _build_ydl_options(
 
             output_dir=
-                output_dir,
+                _get_download_dir(),
 
             format_string=
                 "bestaudio/best",
@@ -769,11 +613,8 @@ def get_youtube_info(
         ) as ydl:
 
             info = ydl.extract_info(
-
                 url,
-
                 download=False
-
             )
 
         if not info:
@@ -802,18 +643,6 @@ def get_youtube_info(
 
         return info
 
-    except Exception as e:
-
-        print(
-            "[DEBUG] get_youtube_info ERROR:",
-            repr(e),
-            flush=True
-        )
-
-        traceback.print_exc()
-
-        raise
-
     finally:
 
         if temporary_cookie_path:
@@ -832,19 +661,9 @@ def get_youtube_info(
 
                 pass
 
-        print(
-            "[DEBUG] get_youtube_info終了",
-            flush=True
-        )
-
-        print(
-            "==========================================",
-            flush=True
-        )
-
 
 # ==========================================================
-# YouTube → 一時ファイル
+# YouTube → source
 # ==========================================================
 
 def download_source(
@@ -873,9 +692,7 @@ def download_source(
             "YouTube URLが空です"
         )
 
-    output_dir = (
-        _get_download_dir()
-    )
+    output_dir = _get_download_dir()
 
     temporary_cookie_path = None
 
@@ -905,11 +722,6 @@ def download_source(
         with yt_dlp.YoutubeDL(
             ydl_opts
         ) as ydl:
-
-            print(
-                "[DEBUG] download_source extract_info",
-                flush=True
-            )
 
             info = ydl.extract_info(
 
@@ -943,21 +755,11 @@ def download_source(
                 flush=True
             )
 
-            try:
-
-                expected_filename = (
-                    ydl.prepare_filename(
-                        info
-                    )
+            expected_filename = (
+                ydl.prepare_filename(
+                    info
                 )
-
-            except Exception as e:
-
-                print(
-                    "[DEBUG] prepare_filename ERROR:",
-                    repr(e),
-                    flush=True
-                )
+            )
 
             print(
                 "[DEBUG] download_source download START",
@@ -983,9 +785,7 @@ def download_source(
 
             if expected_path.is_file():
 
-                downloaded_file = (
-                    expected_path
-                )
+                downloaded_file = expected_path
 
         if downloaded_file is None:
 
@@ -1013,9 +813,7 @@ def download_source(
 
                     try:
 
-                        size = (
-                            path.stat().st_size
-                        )
+                        size = path.stat().st_size
 
                     except Exception:
 
@@ -1046,31 +844,18 @@ def download_source(
         if downloaded_file is None:
 
             raise FileNotFoundError(
-                "YouTubeからダウンロードした"
-                "sourceファイルを確認できませんでした"
+                "ダウンロードしたsourceファイルを確認できませんでした"
             )
 
-        file_size = (
-            downloaded_file.stat().st_size
-        )
+        file_size = downloaded_file.stat().st_size
 
         if file_size <= 0:
 
             raise RuntimeError(
-                "ダウンロードされたsourceファイル"
-                "のサイズが0です"
+                "sourceファイルのサイズが0です"
             )
 
-        title = (
-            info.get("title")
-            or "YouTube Video"
-        )
-
-        duration = (
-            info.get("duration")
-        )
-
-        result = {
+        return {
 
             "path":
                 str(downloaded_file),
@@ -1079,10 +864,11 @@ def download_source(
                 downloaded_file.name,
 
             "title":
-                title,
+                info.get("title")
+                or "YouTube Video",
 
             "duration":
-                duration,
+                info.get("duration"),
 
             "video_id":
                 info.get("id"),
@@ -1091,26 +877,6 @@ def download_source(
                 info
 
         }
-
-        print(
-            "[DEBUG] download_source COMPLETE",
-            flush=True
-        )
-
-        print(
-            "[DEBUG] source path:",
-            downloaded_file,
-            flush=True
-        )
-
-        print(
-            "[DEBUG] source size:",
-            file_size,
-            "bytes",
-            flush=True
-        )
-
-        return result
 
     except Exception as e:
 
@@ -1138,18 +904,9 @@ def download_source(
                         temporary_cookie_path
                     )
 
-                    print(
-                        "[DEBUG] temporary cookie removed",
-                        flush=True
-                    )
+            except Exception:
 
-            except Exception as e:
-
-                print(
-                    "[DEBUG] temporary cookie remove ERROR:",
-                    repr(e),
-                    flush=True
-                )
+                pass
 
         print(
             "[DEBUG] download_source END",
@@ -1163,31 +920,19 @@ def download_source(
 
 
 # ==========================================================
-# 一時ダウンロードファイル削除
+# source削除
 # ==========================================================
 
 def cleanup_download(
     download_result
 ):
 
-    print(
-        "[DEBUG] cleanup_download START",
-        flush=True
-    )
-
     if not download_result:
-
-        print(
-            "[DEBUG] cleanup_download: result empty",
-            flush=True
-        )
 
         return
 
     source_path = (
-        download_result.get(
-            "path"
-        )
+        download_result.get("path")
         if isinstance(
             download_result,
             dict
@@ -1196,11 +941,6 @@ def cleanup_download(
     )
 
     if not source_path:
-
-        print(
-            "[DEBUG] cleanup_download: path empty",
-            flush=True
-        )
 
         return
 
@@ -1212,16 +952,11 @@ def cleanup_download(
 
         if path.exists() and path.is_file():
 
-            print(
-                "[DEBUG] removing source:",
-                path,
-                flush=True
-            )
-
             path.unlink()
 
             print(
-                "[DEBUG] source removed",
+                "[DEBUG] source removed:",
+                path,
                 flush=True
             )
 
@@ -1232,13 +967,6 @@ def cleanup_download(
             repr(e),
             flush=True
         )
-
-        traceback.print_exc()
-
-    print(
-        "[DEBUG] cleanup_download END",
-        flush=True
-    )
 
 
 # ==========================================================
@@ -1252,16 +980,6 @@ def _download_with_ytdlp(
     merge_output_format=None,
     mode_name="UNKNOWN"
 ):
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    print(
-        f"[DEBUG] _download_with_ytdlp START [{mode_name}]",
-        flush=True
-    )
 
     output_dir = Path(
         output_dir
@@ -1299,198 +1017,110 @@ def _download_with_ytdlp(
                 "merge_output_format"
             ] = merge_output_format
 
-        info = None
-
-        expected_filename = None
-
         with yt_dlp.YoutubeDL(
             ydl_opts
         ) as ydl:
 
             info = ydl.extract_info(
-
                 url,
-
-                download=False
-
+                download=True
             )
 
-            if info is None:
+            if not info:
 
                 raise RuntimeError(
                     f"{mode_name} "
                     "extract_info() returned None"
                 )
 
-            print(
-                f"[DEBUG] [{mode_name}] video id:",
-                info.get("id"),
-                flush=True
-            )
-
-            print(
-                f"[DEBUG] [{mode_name}] title:",
-                info.get("title"),
-                flush=True
-            )
-
-            print(
-                f"[DEBUG] [{mode_name}] duration:",
-                info.get("duration"),
-                flush=True
-            )
-
-            try:
-
-                expected_filename = (
-                    ydl.prepare_filename(
-                        info
-                    )
+            prepared_filename = (
+                ydl.prepare_filename(
+                    info
                 )
-
-            except Exception as e:
-
-                print(
-                    f"[DEBUG] [{mode_name}] "
-                    "prepare_filename ERROR:",
-                    repr(e),
-                    flush=True
-                )
-
-            print(
-                f"[DEBUG] [{mode_name}] download START",
-                flush=True
             )
 
-            ydl.download([
-                url
-            ])
-
-            print(
-                f"[DEBUG] [{mode_name}] download SUCCESS",
-                flush=True
-            )
+        prepared_path = Path(
+            prepared_filename
+        )
 
         downloaded_file = None
 
-        if expected_filename:
+        if prepared_path.is_file():
 
-            expected_path = Path(
-                expected_filename
-            )
-
-            if expected_path.is_file():
-
-                downloaded_file = (
-                    expected_path
-                )
+            downloaded_file = prepared_path
 
         if (
             downloaded_file is None
             and
             merge_output_format
-            and
-            info
         ):
+
+            merged_path = (
+
+                output_dir
+                /
+                f"{info.get('id')}."
+                f"{merge_output_format}"
+
+            )
+
+            if merged_path.is_file():
+
+                downloaded_file = merged_path
+
+        if downloaded_file is None:
 
             video_id = info.get(
                 "id"
             )
 
-            if video_id:
+            matches = list(
+                output_dir.glob(
+                    f"{video_id}.*"
+                )
+            )
 
-                merged_path = (
+            matches = [
 
-                    output_dir
-                    /
-                    f"{video_id}."
-                    f"{merge_output_format}"
+                p for p in matches
+
+                if p.is_file()
+
+                and
+                p.suffix.lower()
+                not in (
+                    ".part",
+                    ".ytdl",
+                    ".temp"
+                )
+
+            ]
+
+            if matches:
+
+                matches.sort(
+
+                    key=lambda p:
+                        p.stat().st_mtime,
+
+                    reverse=True
 
                 )
 
-                if merged_path.is_file():
-
-                    downloaded_file = (
-                        merged_path
-                    )
-
-        if (
-            downloaded_file is None
-            and
-            info
-        ):
-
-            video_id = info.get(
-                "id"
-            )
-
-            if video_id:
-
-                possible_files = []
-
-                for path in output_dir.glob(
-                    video_id + ".*"
-                ):
-
-                    if not path.is_file():
-                        continue
-
-                    if path.suffix.lower() in (
-                        ".part",
-                        ".ytdl",
-                        ".temp"
-                    ):
-                        continue
-
-                    try:
-
-                        size = (
-                            path.stat().st_size
-                        )
-
-                    except Exception:
-
-                        size = 0
-
-                    if size <= 0:
-                        continue
-
-                    possible_files.append(
-                        path
-                    )
-
-                if possible_files:
-
-                    possible_files.sort(
-
-                        key=lambda p:
-                            p.stat().st_mtime,
-
-                        reverse=True
-
-                    )
-
-                    downloaded_file = (
-                        possible_files[0]
-                    )
+                downloaded_file = matches[0]
 
         if downloaded_file is None:
 
             raise FileNotFoundError(
-                f"{mode_name}"
-                "ダウンロードファイルを"
-                "確認できませんでした"
+                f"{mode_name} "
+                "ダウンロードファイルが見つかりません"
             )
 
-        file_size = (
-            downloaded_file.stat().st_size
-        )
-
-        if file_size <= 0:
+        if downloaded_file.stat().st_size <= 0:
 
             raise RuntimeError(
-                f"{mode_name}"
-                "ファイルのサイズが0です"
+                f"{mode_name} "
+                "ファイルサイズが0です"
             )
 
         return {
@@ -1502,38 +1132,19 @@ def _download_with_ytdlp(
                 downloaded_file.name,
 
             "video_id":
-                info.get("id")
-                if info
-                else None,
+                info.get("id"),
 
             "title":
                 info.get("title")
-                if info
-                else "",
+                or "YouTube Video",
 
             "duration":
-                info.get("duration")
-                if info
-                else None,
+                info.get("duration"),
 
             "info":
                 info
 
         }
-
-    except Exception as e:
-
-        print(
-            f"[DEBUG] "
-            f"_download_with_ytdlp ERROR "
-            f"[{mode_name}]:",
-            repr(e),
-            flush=True
-        )
-
-        traceback.print_exc()
-
-        raise
 
     finally:
 
@@ -1550,4 +1161,5 @@ def _download_with_ytdlp(
                     )
 
             except Exception:
+
                 pass
