@@ -14,7 +14,7 @@
 # ・動画情報取得
 # ・MP3 / MP4変換
 # ・Job監視
-# ・MP3 → SRT / Gemini
+# ・MP3完成後のSRT / Gemini処理
 #
 # タブ2:
 # ・ファイル変換
@@ -33,8 +33,6 @@ from routes.index import register_index
 from routes.files import register_files
 from routes.convert import register_convert
 from routes.check import register_video_info, register_check
-
-# Gemini / SRT
 from routes.gemini import register_gemini
 
 
@@ -95,16 +93,11 @@ register_check(app)
 
 # -------------------------------------
 # Gemini / SRT
-# -------------------------------------
-#
-# /gemini-transcribe
-#
-# converter.js から
 #
 # POST /gemini-transcribe
 #
-# を受け付ける。
-#
+# converter.jsからMP3ファイル名を受け取り、
+# Geminiで文字起こししてSRTを作成する。
 # -------------------------------------
 
 register_gemini(app)
