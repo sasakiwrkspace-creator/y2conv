@@ -34,6 +34,20 @@
 #   ・各工程が成功した場合のみ次の工程へ進む
 #   ・途中で失敗した場合は例外を返す
 #
+# 名前衝突対策:
+#
+#   routes.subtitle_routes.py の
+#   create_subtitle_mp4()
+#
+#   と、このファイルの
+#   create_subtitle_mp4()
+#
+#   が衝突しないように、import時に
+#
+#   create_subtitle_mp4_from_route
+#
+#   という別名を付ける。
+#
 # ==========================================================
 
 
@@ -73,17 +87,21 @@ from media_extract import (
 #     ↓
 # SRT
 #
-# create_subtitle_mp4()
+# create_subtitle_mp4_from_route()
 #     ↓
 # subtitle.py
 #     ↓
 # 字幕MP4
 #
+# ※ create_subtitle_mp4() という名前は
+#    このファイル自身でも使用するため、
+#    import時に別名を付ける。
+#
 # ==========================================================
 
 from routes.subtitle_routes import (
     create_srt_from_mp3,
-    create_subtitle_mp4
+    create_subtitle_mp4 as create_subtitle_mp4_from_route
 )
 
 
@@ -1222,14 +1240,27 @@ def create_subtitle_mp4_pipeline(
 
     log(
         "------------------------------------------"
-
-
     )
 
 
     try:
 
-        subtitle_result = create_subtitle_mp4(
+        # --------------------------------------------------
+        # 重要:
+        #
+        # routes.subtitle_routes.py の
+        # create_subtitle_mp4() を呼ぶ。
+        #
+        # このファイル自身にも
+        # create_subtitle_mp4() があるため、
+        # import時に
+        #
+        # create_subtitle_mp4_from_route
+        #
+        # という名前に変更している。
+        # --------------------------------------------------
+
+        subtitle_result = create_subtitle_mp4_from_route(
 
             str(mp4_path),
 
@@ -1348,6 +1379,11 @@ def create_subtitle_mp4_pipeline(
 # 別名
 #
 # convert.py側から呼びやすくする。
+#
+# この関数は、
+# 「字幕MP4の4段階連続処理」を開始するための
+# 外部向けエントリーポイント。
+#
 # ==========================================================
 
 def create_subtitle_mp4(
