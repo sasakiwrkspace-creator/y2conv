@@ -276,20 +276,12 @@ body {
    開始・終了ラベル
 ========================================= */
 
-/* =========================================
-   開始・終了ラベル
-========================================= */
-
 .time-label-row {
-    display: grid;
-
-    grid-template-columns:
-        50%
-        50%;
-
-    align-items: center;
+    position: relative;
 
     width: 100%;
+
+    height: 20px;
 
     margin-bottom: 6px;
 
@@ -297,19 +289,32 @@ body {
 }
 
 .time-title {
+    position: absolute;
+
+    top: 0;
+
     font-size: 14px;
+
     font-weight: bold;
 }
 
 .time-label-row .time-title:first-child {
+    left: 0;
+
     text-align: left;
 }
 
 .time-label-row .time-title:last-child {
-    text-align: left;
+    /*
+       「～」と終了時間の間隔を考慮して
+       右側の00時の位置に合わせる
+    */
 
-    padding-left: 0;
+    left: calc(50% + 6px);
+
+    text-align: left;
 }
+
 
 
 
