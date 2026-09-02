@@ -273,15 +273,11 @@ body {
 
 
 /* =========================================
-   開始・終了ラベル
+   開始 → 時間指定 ラベル
 ========================================= */
 
 .time-label-row {
-    position: relative;
-
     width: 100%;
-
-    height: 20px;
 
     margin-bottom: 6px;
 
@@ -289,34 +285,10 @@ body {
 }
 
 .time-title {
-    position: absolute;
-
-    top: 0;
-
     font-size: 14px;
 
     font-weight: bold;
 }
-
-.time-label-row .time-title:first-child {
-    left: 0;
-
-    text-align: left;
-}
-
-.time-label-row .time-title:last-child {
-    /*
-       「～」と終了時間の間隔を考慮して
-       右側の00時の位置に合わせる
-    */
-
-    left: calc(50% + 6px);
-
-    text-align: left;
-}
-
-
-
 
 
 /* =========================================
@@ -588,10 +560,6 @@ body {
    処理詳細タイトル
 ----------------------------------------- */
 
-/* -----------------------------------------
-   処理詳細タイトル
------------------------------------------ */
-
 .conversion-details summary {
     display: list-item;
 
@@ -745,7 +713,7 @@ body {
 
 /*
     旧方式の .conversion-details にも
-   対応。
+    対応。
 */
 
 .conversion-info {
@@ -996,19 +964,6 @@ input {
 
     .tab-content {
         padding: 18px;
-    }
-
-
-    /* -------------------------------------
-       ラベル
-    ------------------------------------- */
-
-    .time-label-row {
-        grid-template-columns:
-            minmax(0, 1fr)
-            minmax(0, 1fr);
-
-        margin-bottom: 5px;
     }
 
 
