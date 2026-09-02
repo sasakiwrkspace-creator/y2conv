@@ -288,16 +288,21 @@ body {
     white-space: nowrap;
 }
 
+.time-title {
+    font-size: 14px;
+    font-weight: bold;
+}
+
 .time-label-row .time-title:first-child {
-    flex: 0 0 50%;
+    width: 50%;
+
     text-align: left;
 }
 
 .time-label-row .time-title:last-child {
-    flex: 0 0 auto;
     text-align: left;
-    margin-left: 0;
 }
+
 
 
 /* =========================================
