@@ -309,11 +309,6 @@ def _format_seconds(seconds):
 
 # ==========================================================
 # 時間 → 秒
-#
-# HH:MM:SS
-# MM:SS
-# 秒
-# に対応
 # ==========================================================
 
 def _time_to_seconds(value):
@@ -364,10 +359,7 @@ def _time_to_seconds(value):
 # ==========================================================
 # 時間指定判定
 #
-# 00:00:00 ～ 00:00:00
-# または
-# None / None
-# は全体扱い
+# 0 / 0 は全体
 # ==========================================================
 
 def _is_full_download(
@@ -384,21 +376,9 @@ def _is_full_download(
 
 # ==========================================================
 # ファイル名用時間
-#
-# 5秒
-# → 000005
-#
-# 1分30秒
-# → 000130
-#
-# 1時間2分3秒
-# → 010203
-#
 # ==========================================================
 
-def _format_filename_time(
-    value
-):
+def _format_filename_time(value):
 
     seconds = _time_to_seconds(
         value
@@ -427,16 +407,6 @@ def _format_filename_time(
 
 # ==========================================================
 # 時間指定ファイル名サフィックス
-#
-# 全体：
-#   ""
-#
-# 5秒～10秒：
-#   "_000005_000010"
-#
-# 0秒～10秒：
-#   "_000000_000010"
-#
 # ==========================================================
 
 def _build_range_suffix(
@@ -472,25 +442,6 @@ def _build_range_suffix(
 
 # ==========================================================
 # 完成後ファイルをリネーム
-#
-# ここでは「変換完了後」にだけ名前を変更する。
-#
-# 例：
-#
-# video_id.mp3
-# ↓
-# video_id_000005_000010.mp3
-#
-# video_id.mp4
-# ↓
-# video_id_000005_000010.mp4
-#
-# 全体の場合：
-#
-# video_id.mp3
-# video_id.mp4
-#
-# のまま。
 # ==========================================================
 
 def _rename_completed_file(
@@ -536,19 +487,11 @@ def _rename_completed_file(
             str(original_path)
         )
 
-    # ------------------------------------------------------
-    # video_id
-    # ------------------------------------------------------
-
     video_id = (
         result.get("video_id")
         or
         original_path.stem
     )
-
-    # ------------------------------------------------------
-    # 拡張子
-    # ------------------------------------------------------
 
     extension = (
         original_path.suffix.lower()
@@ -565,38 +508,17 @@ def _rename_completed_file(
             extension
         )
 
-    # ------------------------------------------------------
-    # 時間指定サフィックス
-    # ------------------------------------------------------
-
     range_suffix = _build_range_suffix(
-
-        start_time=
-            start_time,
-
-        end_time=
-            end_time
-
+        start_time=start_time,
+        end_time=end_time
     )
 
-    # ------------------------------------------------------
-    # 新しいファイル名
-    #
-    # 全体：
-    #   video_id.mp3
-    #
-    # 時間指定：
-    #   video_id_000005_000010.mp3
-    # ------------------------------------------------------
-
     new_filename = (
-
         str(video_id)
         +
         range_suffix
         +
         extension
-
     )
 
     new_path = (
@@ -613,25 +535,12 @@ def _rename_completed_file(
         flush=True
     )
 
-    # ------------------------------------------------------
-    # 同じパスなら何もしない
-    # ------------------------------------------------------
-
     if original_path == new_path:
 
         return {
-
-            "path":
-                str(new_path),
-
-            "filename":
-                new_path.name
-
+            "path": str(new_path),
+            "filename": new_path.name
         }
-
-    # ------------------------------------------------------
-    # 既存ファイルがある場合
-    # ------------------------------------------------------
 
     if new_path.exists():
 
@@ -643,17 +552,9 @@ def _rename_completed_file(
 
         new_path.unlink()
 
-    # ------------------------------------------------------
-    # 完成済みファイルをリネーム
-    # ------------------------------------------------------
-
     original_path.rename(
         new_path
     )
-
-    # ------------------------------------------------------
-    # リネーム後確認
-    # ------------------------------------------------------
 
     if not new_path.is_file():
 
@@ -678,13 +579,8 @@ def _rename_completed_file(
     )
 
     return {
-
-        "path":
-            str(new_path),
-
-        "filename":
-            new_path.name
-
+        "path": str(new_path),
+        "filename": new_path.name
     }
 
 
@@ -741,10 +637,6 @@ def _run_conversion_job(
 
     try:
 
-        # ==================================================
-        # processing
-        # ==================================================
-
         _update_job(
 
             job_id,
@@ -794,10 +686,6 @@ def _run_conversion_job(
             flush=True
         )
 
-        # ==================================================
-        # 出力先
-        # ==================================================
-
         output_dir = (
             Path(os.getcwd())
             /
@@ -808,10 +696,6 @@ def _run_conversion_job(
             parents=True,
             exist_ok=True
         )
-
-        # ==================================================
-        # 時間指定判定
-        # ==================================================
 
         full_download = _is_full_download(
             start_time,
@@ -824,18 +708,9 @@ def _run_conversion_job(
             flush=True
         )
 
-        # ==================================================
-        # ファイル名用サフィックス確認
-        # ==================================================
-
         range_suffix = _build_range_suffix(
-
-            start_time=
-                start_time,
-
-            end_time=
-                end_time
-
+            start_time=start_time,
+            end_time=end_time
         )
 
         print(
@@ -844,38 +719,28 @@ def _run_conversion_job(
             flush=True
         )
 
-        # ==================================================
-        # title / duration
-        # ==================================================
-
         title = "YouTube Video"
 
         duration = None
 
         # ==================================================
-        # MP3処理
+        # MP3
+        #
+        # MP3は従来方式。
         # ==================================================
 
         if "mp3" in outputs:
 
             _update_file(
-
                 job_id,
-
                 "mp3",
-
                 status="processing",
-
                 message="mp3 用動画をダウンロード中・・・"
-
             )
 
             _update_job(
-
                 job_id,
-
                 message="mp3 用動画をダウンロード中・・・"
-
             )
 
             print(
@@ -893,7 +758,8 @@ def _run_conversion_job(
 
             title = (
                 download_result.get("title")
-                or "YouTube Video"
+                or
+                "YouTube Video"
             )
 
             duration = (
@@ -901,21 +767,11 @@ def _run_conversion_job(
             )
 
             _update_job(
-
                 job_id,
-
                 title=title,
-
                 duration=duration,
-
-                duration_text=
-                    _format_seconds(
-                        duration
-                    ),
-
-                message=
-                    "動画のダウンロードが完了しました。"
-
+                duration_text=_format_seconds(duration),
+                message="動画のダウンロードが完了しました。"
             )
 
             print(
@@ -931,28 +787,16 @@ def _run_conversion_job(
                 flush=True
             )
 
-            # ==================================================
-            # MP3作成
-            # ==================================================
-
             _update_file(
-
                 job_id,
-
                 "mp3",
-
                 status="processing",
-
                 message="mp3 変換中・・・"
-
             )
 
             _update_job(
-
                 job_id,
-
                 message="mp3 変換中・・・"
-
             )
 
             print(
@@ -985,17 +829,6 @@ def _run_conversion_job(
                     "MP3作成結果が空です。"
                 )
 
-            # ==================================================
-            # MP3完成後にリネーム
-            #
-            # ここで初めて時間範囲をファイル名に追加する。
-            # ==================================================
-
-            print(
-                "[CONVERT] MP3 completed. Rename START",
-                flush=True
-            )
-
             renamed_mp3 = _rename_completed_file(
 
                 result=
@@ -1011,10 +844,6 @@ def _run_conversion_job(
                     end_time
 
             )
-
-            # ==================================================
-            # MP3 Job更新
-            # ==================================================
 
             _update_file(
 
@@ -1046,7 +875,7 @@ def _run_conversion_job(
             )
 
         # ==================================================
-        # MP4処理
+        # MP4
         # ==================================================
 
         if "mp4" in outputs:
@@ -1079,8 +908,7 @@ def _run_conversion_job(
             # ==================================================
             # MP4全体
             #
-            # FFmpegを使用せず、
-            # yt-dlpが取得したMP4をそのまま完成ファイルとして使用。
+            # yt-dlpでそのまま取得。
             # ==================================================
 
             if full_download:
@@ -1103,15 +931,28 @@ def _run_conversion_job(
             # ==================================================
             # MP4時間指定
             #
-            # 一時ファイルへダウンロード後、
-            # FFmpegで指定区間を抽出。
+            # 動画全体を保存しない。
+            #
+            # YouTubeのストリームURLを取得し、
+            # FFmpegへ直接渡す。
+            #
+            # -c copy なので再エンコードしない。
             # ==================================================
 
             else:
 
                 print(
-                    "[CONVERT] MP4 range extraction",
+                    "[CONVERT] MP4 direct range download",
                     flush=True
+                )
+
+                _update_job(
+
+                    job_id,
+
+                    message=
+                        "mp4 指定区間を直接ダウンロード中・・・"
+
                 )
 
                 mp4_result = create_mp4_range(
@@ -1136,18 +977,23 @@ def _run_conversion_job(
                     "MP4作成結果が空です。"
                 )
 
-            # ==================================================
-            # MP4情報
-            # ==================================================
-
             mp4_title = (
                 mp4_result.get("title")
-                or "YouTube Video"
+                or
+                "YouTube Video"
             )
 
             if not title or title == "YouTube Video":
 
                 title = mp4_title
+
+            mp4_duration = (
+                mp4_result.get("duration")
+            )
+
+            if duration is None and mp4_duration is not None:
+
+                duration = mp4_duration
 
             _update_job(
 
@@ -1155,20 +1001,16 @@ def _run_conversion_job(
 
                 title=title,
 
+                duration=duration,
+
+                duration_text=
+                    _format_seconds(
+                        duration
+                    ),
+
                 message=
                     "mp4 ダウンロードが完了しました。"
 
-            )
-
-            # ==================================================
-            # MP4完成後にリネーム
-            #
-            # ここで初めて時間範囲をファイル名に追加する。
-            # ==================================================
-
-            print(
-                "[CONVERT] MP4 completed. Rename START",
-                flush=True
             )
 
             renamed_mp4 = _rename_completed_file(
@@ -1186,10 +1028,6 @@ def _run_conversion_job(
                     end_time
 
             )
-
-            # ==================================================
-            # MP4 Job更新
-            # ==================================================
 
             _update_file(
 
@@ -1220,10 +1058,6 @@ def _run_conversion_job(
                 flush=True
             )
 
-        # ==================================================
-        # durationがまだない場合
-        # ==================================================
-
         if duration is not None:
 
             _update_job(
@@ -1239,10 +1073,6 @@ def _run_conversion_job(
                     )
 
             )
-
-        # ==================================================
-        # 完了
-        # ==================================================
 
         completed_at = datetime.now()
 
@@ -1325,10 +1155,6 @@ def _run_conversion_job(
 
         traceback.print_exc()
 
-        # ==================================================
-        # processing中の出力をerrorへ
-        # ==================================================
-
         for output_type in outputs:
 
             job = _get_job(
@@ -1362,12 +1188,6 @@ def _run_conversion_job(
 
     finally:
 
-        # ==================================================
-        # MP3用source削除
-        #
-        # MP4全体はsourceを作っていないので何もしない。
-        # ==================================================
-
         if download_result:
 
             cleanup_download(
@@ -1391,10 +1211,6 @@ def _run_conversion_job(
 # ==========================================================
 
 def register_convert(app):
-
-    # ======================================================
-    # /convert
-    # ======================================================
 
     @app.route(
         "/convert",
@@ -1440,10 +1256,6 @@ def register_convert(app):
                 "end_time"
             )
 
-            # ==================================================
-            # 旧形式
-            # ==================================================
-
             if not outputs:
 
                 output_type = data.get(
@@ -1458,10 +1270,6 @@ def register_convert(app):
                     outputs = [
                         output_type
                     ]
-
-            # ==================================================
-            # outputs正規化
-            # ==================================================
 
             if isinstance(
                 outputs,
@@ -1498,10 +1306,6 @@ def register_convert(app):
                 )
             )
 
-            # ==================================================
-            # URL
-            # ==================================================
-
             if not url:
 
                 return jsonify({
@@ -1513,10 +1317,6 @@ def register_convert(app):
                         "YouTube URLが指定されていません。"
 
                 }), 400
-
-            # ==================================================
-            # 出力形式
-            # ==================================================
 
             if not outputs:
 
@@ -1531,7 +1331,7 @@ def register_convert(app):
                 }), 400
 
             # ==================================================
-            # 時間
+            # 時間検証
             # ==================================================
 
             if (
@@ -1574,10 +1374,6 @@ def register_convert(app):
 
                         }), 400
 
-                    # ------------------------------------------
-                    # 両方0なら全体扱い
-                    # ------------------------------------------
-
                     if (
                         start_value == 0
                         and
@@ -1585,10 +1381,6 @@ def register_convert(app):
                     ):
 
                         pass
-
-                    # ------------------------------------------
-                    # それ以外は終了時間 > 開始時間
-                    # ------------------------------------------
 
                     elif end_value <= start_value:
 
@@ -1624,7 +1416,7 @@ def register_convert(app):
                     }), 400
 
             # ==================================================
-            # Job
+            # Job作成
             # ==================================================
 
             job_id = _create_job(
@@ -1650,7 +1442,7 @@ def register_convert(app):
             )
 
             # ==================================================
-            # Thread
+            # Background thread
             # ==================================================
 
             thread = threading.Thread(
@@ -1710,6 +1502,7 @@ def register_convert(app):
                     str(error)
 
             }), 500
+
 
     # ======================================================
     # /status
