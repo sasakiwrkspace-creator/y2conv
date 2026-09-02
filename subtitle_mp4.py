@@ -1,353 +1,1128 @@
-# =====================================
-# YouTube Converter
+# ==========================================================
 # subtitle_mp4.py
 #
-# 字幕MP4連続処理管理
+# タブ1「字幕mp4」専用
+# 連続処理管理
 #
 # 処理順:
 #
-# 1. MP4作成
-# 2. MP3作成
-# 3. SRT作成
-# 4. 字幕MP4作成
+#   ① MP4作成
+#       ↓
+#   ② MP3作成
+#       ↓
+#   ③ SRT作成
+#       ↓
+#   ④ 字幕MP4作成
+#
+# 役割:
+#
+#   routes/convert.py
+#          ↓
+#   subtitle_mp4.py
+#          ↓
+#   ytdlp_stream.py
+#   media_extract.py
+#   routes/subtitle_routes.py
+#          ↓
+#   subtitle.py
 #
 # 注意:
-# ・既存のMP4 / MP3 / SRT処理をできるだけ再利用する
-# ・このファイルは「処理順序の管理」を担当する
-# ・全工程成功後のみ complete にする
-# =====================================
+#
+#   ・このファイルではFlask Routeを登録しない
+#   ・Job管理もしない
+#   ・タブ1の連続処理だけを担当する
+#   ・各工程が成功した場合のみ次の工程へ進む
+#   ・途中で失敗した場合は例外を返す
+#
+# ==========================================================
 
+
+import os
 import traceback
 
-from datetime import datetime
 from pathlib import Path
 
 
 # ==========================================================
-# 共通
+# MP4作成
 # ==========================================================
 
-def _format_seconds(seconds):
-    """
-    秒数を HH:MM:SS / MM:SS に変換する。
-    """
-
-    if seconds is None:
-        return ""
-
-    try:
-        total = int(float(seconds))
-    except Exception:
-        return ""
-
-    hours = total // 3600
-
-    minutes = (
-        total % 3600
-    ) // 60
-
-    secs = (
-        total % 60
-    )
-
-    if hours > 0:
-        return (
-            f"{hours:02d}:"
-            f"{minutes:02d}:"
-            f"{secs:02d}"
-        )
-
-    return (
-        f"{minutes:02d}:"
-        f"{secs:02d}"
-    )
+from ytdlp_stream import (
+    create_mp4_full,
+    create_mp4_range
+)
 
 
 # ==========================================================
-# 進捗通知
+# MP3作成
 # ==========================================================
 
-def _notify(
-    callback,
-    step,
-    status,
-    message,
-    **extra
+from media_extract import (
+    create_mp3_from_file
+)
+
+
+# ==========================================================
+# 字幕関連
+#
+# routes/subtitle_routes.py にある共通関数を使用する。
+#
+# create_srt_from_mp3()
+#     ↓
+# Gemini
+#     ↓
+# SRT
+#
+# create_subtitle_mp4()
+#     ↓
+# subtitle.py
+#     ↓
+# 字幕MP4
+#
+# ==========================================================
+
+from routes.subtitle_routes import (
+    create_srt_from_mp3,
+    create_subtitle_mp4
+)
+
+
+# ==========================================================
+# 共通ログ
+# ==========================================================
+
+def log(
+    message
 ):
-    """
-    routes/convert.py 側へ進捗を通知する。
-
-    callback が指定されていなければ
-    コンソールへ出力するだけ。
-    """
-
-    data = {
-
-        "step":
-            step,
-
-        "status":
-            status,
-
-        "message":
-            message
-
-    }
-
-    data.update(extra)
 
     print(
         "[SUBTITLE_MP4]",
-        data,
+        message,
         flush=True
     )
 
-    if callback:
 
-        callback(
-            data
+# ==========================================================
+# ファイル確認
+# ==========================================================
+
+def validate_file(
+    file_path,
+    extension,
+    label
+):
+
+    if not file_path:
+
+        raise RuntimeError(
+            f"{label}のパスがありません。"
         )
 
 
-# ==========================================================
-# 字幕MP4連続処理
-# ==========================================================
-
-def create_subtitle_mp4_job(
-    url,
-    output_dir,
-    start_time=None,
-    end_time=None,
-    title=None,
-    mp4_creator=None,
-    mp3_creator=None,
-    srt_creator=None,
-    subtitle_mp4_creator=None,
-    progress_callback=None
-):
-    """
-    字幕MP4連続処理。
-
-    処理順:
-
-        MP4
-         ↓
-        MP3
-         ↓
-        SRT
-         ↓
-        字幕MP4
-
-    各処理関数は外部から渡す。
-
-    これにより既存コードを
-    できるだけ変更せず利用できる。
-    """
-
-    started_at = datetime.now()
-
-    output_dir = Path(
-        output_dir
+    path = Path(
+        file_path
     )
 
-    output_dir.mkdir(
-        parents=True,
-        exist_ok=True
-    )
 
-    result = {
+    if not path.exists():
 
-        "status":
-            "processing",
+        raise FileNotFoundError(
 
-        "step":
-            "mp4",
+            f"{label}がありません: "
+            +
+            str(path)
 
-        "title":
-            title,
+        )
 
-        "mp4":
-            None,
 
-        "mp3":
-            None,
+    if not path.is_file():
 
-        "srt":
-            None,
+        raise RuntimeError(
 
-        "subtitle_mp4":
-            None,
+            f"{label}のパスがファイルではありません: "
+            +
+            str(path)
 
-        "started_at":
-            started_at.isoformat(),
+        )
 
-        "completed_at":
-            None,
 
-        "execution_seconds":
-            None,
+    if path.suffix.lower() != extension.lower():
 
-        "message":
-            "字幕MP4連続処理を開始しました。"
+        raise RuntimeError(
 
-    }
+            f"{label}の拡張子が不正です: "
+            +
+            str(path)
+
+        )
+
 
     try:
 
-        # ==================================================
-        # STEP 1
-        # MP4作成
-        # ==================================================
+        size = path.stat().st_size
 
-        result["step"] = "mp4"
+    except OSError as error:
 
-        _notify(
+        raise RuntimeError(
 
-            progress_callback,
-
-            "mp4",
-
-            "processing",
-
-            "MP4を作成しています・・・"
+            f"{label}のサイズを確認できません: "
+            +
+            str(error)
 
         )
 
-        if mp4_creator is None:
 
-            raise RuntimeError(
-                "MP4作成関数が指定されていません。"
+    if size <= 0:
+
+        raise RuntimeError(
+
+            f"{label}のファイルサイズが0 bytesです: "
+            +
+            str(path)
+
+        )
+
+
+    return path
+
+
+# ==========================================================
+# MP4結果確認
+# ==========================================================
+
+def validate_mp4_result(
+    result
+):
+
+    if not result:
+
+        raise RuntimeError(
+            "MP4作成結果が空です。"
+        )
+
+
+    result_path = result.get(
+        "path"
+    )
+
+
+    if not result_path:
+
+        raise RuntimeError(
+            "MP4作成結果にpathがありません。"
+        )
+
+
+    mp4_path = validate_file(
+
+        result_path,
+
+        ".mp4",
+
+        "MP4"
+
+    )
+
+
+    return mp4_path
+
+
+# ==========================================================
+# MP4タイトル取得
+# ==========================================================
+
+def get_title_from_result(
+    result
+):
+
+    if not result:
+
+        return "YouTube Video"
+
+
+    title = (
+
+        result.get(
+            "title"
+        )
+
+        or
+
+        "YouTube Video"
+
+    )
+
+
+    return str(
+        title
+    ).strip() or "YouTube Video"
+
+
+# ==========================================================
+# MP4 duration取得
+# ==========================================================
+
+def get_duration_from_result(
+    result
+):
+
+    if not result:
+
+        return None
+
+
+    return result.get(
+        "duration"
+    )
+
+
+# ==========================================================
+# MP3結果確認
+# ==========================================================
+
+def validate_mp3_result(
+    result
+):
+
+    if not result:
+
+        raise RuntimeError(
+            "MP3作成結果が空です。"
+        )
+
+
+    result_path = result.get(
+        "path"
+    )
+
+
+    if not result_path:
+
+        raise RuntimeError(
+            "MP3作成結果にpathがありません。"
+        )
+
+
+    mp3_path = validate_file(
+
+        result_path,
+
+        ".mp3",
+
+        "MP3"
+
+    )
+
+
+    return mp3_path
+
+
+# ==========================================================
+# タイトル安全化
+#
+# subtitle_mp4.py単体でも使用できるようにする。
+#
+# ==========================================================
+
+def sanitize_filename(
+    value
+):
+
+    import re
+
+
+    text = str(
+        value or "YouTube Video"
+    ).strip()
+
+
+    if not text:
+
+        text = "YouTube Video"
+
+
+    text = re.sub(
+        r"[\r\n\t]+",
+        " ",
+        text
+    )
+
+
+    text = re.sub(
+        r'[\\/:*?"<>|]',
+        "_",
+        text
+    )
+
+
+    text = re.sub(
+        r"[\x00-\x1f\x7f]",
+        "",
+        text
+    )
+
+
+    text = re.sub(
+        r"\s+",
+        " ",
+        text
+    )
+
+
+    text = text.rstrip(
+        " ."
+    )
+
+
+    if not text:
+
+        text = "YouTube Video"
+
+
+    return text[:180].rstrip(
+        " ."
+    )
+
+
+# ==========================================================
+# 完成MP4 / MP3のタイトルリネーム
+#
+# create_mp4_full / create_mp4_range
+# create_mp3_from_file
+# が生成した一時的な名前を、
+# YouTubeタイトル + 時間範囲に統一する。
+#
+# ==========================================================
+
+def rename_output_file(
+    result,
+    output_type,
+    title,
+    start_time=None,
+    end_time=None
+):
+
+    if not result:
+
+        raise RuntimeError(
+
+            f"{output_type}作成結果がありません。"
+
+        )
+
+
+    original_path_text = result.get(
+        "path"
+    )
+
+
+    if not original_path_text:
+
+        raise RuntimeError(
+
+            f"{output_type}作成結果にpathがありません。"
+
+        )
+
+
+    original_path = validate_file(
+
+        original_path_text,
+
+        "." + output_type,
+
+        output_type.upper()
+
+    )
+
+
+    safe_title = sanitize_filename(
+        title
+    )
+
+
+    # ------------------------------------------------------
+    # 時間範囲
+    # ------------------------------------------------------
+
+    def time_to_seconds(
+        value
+    ):
+
+        if value is None:
+
+            return 0.0
+
+
+        text = str(
+            value
+        ).strip()
+
+
+        if not text:
+
+            return 0.0
+
+
+        parts = text.split(":")
+
+
+        try:
+
+            if len(parts) == 3:
+
+                return (
+
+                    float(parts[0]) * 3600
+                    +
+                    float(parts[1]) * 60
+                    +
+                    float(parts[2])
+
+                )
+
+
+            if len(parts) == 2:
+
+                return (
+
+                    float(parts[0]) * 60
+                    +
+                    float(parts[1])
+
+                )
+
+
+            return float(text)
+
+
+        except Exception as error:
+
+            raise ValueError(
+
+                f"時間形式が不正です: {value}"
+
+            ) from error
+
+
+    start_seconds = time_to_seconds(
+        start_time
+    )
+
+
+    end_seconds = time_to_seconds(
+        end_time
+    )
+
+
+    # ------------------------------------------------------
+    # ファイル名用時間
+    # ------------------------------------------------------
+
+    def format_filename_time(
+        value
+    ):
+
+        seconds = time_to_seconds(
+            value
+        )
+
+
+        total_seconds = int(
+            seconds
+        )
+
+
+        hours = (
+            total_seconds // 3600
+        )
+
+
+        minutes = (
+            total_seconds % 3600
+        ) // 60
+
+
+        secs = (
+            total_seconds % 60
+        )
+
+
+        return (
+
+            f"{hours:02d}"
+            f"{minutes:02d}"
+            f"{secs:02d}"
+
+        )
+
+
+    # ------------------------------------------------------
+    # suffix
+    # ------------------------------------------------------
+
+    if (
+
+        start_seconds == 0
+
+        and
+
+        end_seconds == 0
+
+    ):
+
+        range_suffix = ""
+
+
+    else:
+
+        range_suffix = (
+
+            "_"
+            +
+            format_filename_time(
+                start_time
+            )
+            +
+            "_"
+            +
+            format_filename_time(
+                end_time
             )
 
-        mp4_result = mp4_creator(
-
-            url=url,
-
-            output_dir=output_dir,
-
-            start_time=start_time,
-
-            end_time=end_time
-
         )
 
-        if not mp4_result:
 
-            raise RuntimeError(
-                "MP4作成結果が空です。"
+    extension = original_path.suffix.lower()
+
+
+    new_filename = (
+
+        safe_title
+        +
+        range_suffix
+        +
+        extension
+
+    )
+
+
+    new_path = (
+
+        original_path.parent
+        /
+        new_filename
+
+    )
+
+
+    log(
+        f"{output_type.upper()} rename:"
+    )
+
+
+    log(
+        f"  {original_path}"
+    )
+
+
+    log(
+        f"  -> {new_path}"
+    )
+
+
+    if original_path != new_path:
+
+        if new_path.exists():
+
+            log(
+                f"既存ファイル削除: {new_path}"
             )
 
-        result["mp4"] = mp4_result
+            new_path.unlink()
 
-        _notify(
 
-            progress_callback,
+        original_path.rename(
+            new_path
+        )
 
-            "mp4",
 
-            "complete",
+    return validate_file(
 
-            "MP4作成が完了しました。",
+        new_path,
 
-            file=mp4_result
+        extension,
+
+        output_type.upper()
+
+    )
+
+
+# ==========================================================
+# 字幕MP4結果確認
+# ==========================================================
+
+def validate_subtitle_mp4_result(
+    result
+):
+
+    if not result:
+
+        raise RuntimeError(
+            "字幕MP4作成結果が空です。"
+        )
+
+
+    result_path = result.get(
+        "subtitle_mp4_path"
+    )
+
+
+    if not result_path:
+
+        raise RuntimeError(
+
+            "字幕MP4作成結果に"
+            "subtitle_mp4_pathがありません。"
 
         )
 
-        # ==================================================
-        # STEP 2
-        # MP3作成
-        # ==================================================
 
-        result["step"] = "mp3"
+    subtitle_mp4_path = validate_file(
 
-        _notify(
+        result_path,
 
-            progress_callback,
+        ".mp4",
 
-            "mp3",
+        "字幕MP4"
 
-            "processing",
+    )
 
-            "MP3を作成しています・・・"
+
+    return subtitle_mp4_path
+
+
+# ==========================================================
+# 連続処理本体
+#
+# ==========================================================
+#
+# 処理順:
+#
+#   ① MP4
+#   ② MP3
+#   ③ SRT
+#   ④ 字幕MP4
+#
+# ==========================================================
+
+def create_subtitle_mp4_pipeline(
+    url,
+    start_time=None,
+    end_time=None,
+    output_dir=None
+):
+
+    log(
+        "=========================================="
+    )
+
+    log(
+        "字幕MP4連続処理 START"
+    )
+
+    log(
+        "=========================================="
+    )
+
+
+    # ======================================================
+    # 出力先
+    # ======================================================
+
+    if output_dir:
+
+        output_dir = Path(
+            output_dir
+        )
+
+    else:
+
+        output_dir = (
+
+            Path(
+                os.getcwd()
+            )
+            /
+            "downloads"
 
         )
 
-        if mp3_creator is None:
 
-            raise RuntimeError(
-                "MP3作成関数が指定されていません。"
+    output_dir.mkdir(
+
+        parents=True,
+
+        exist_ok=True
+
+    )
+
+
+    log(
+        f"OUTPUT_DIR: {output_dir}"
+    )
+
+
+    # ======================================================
+    # URL確認
+    # ======================================================
+
+    if not url:
+
+        raise ValueError(
+            "YouTube URLが指定されていません。"
+        )
+
+
+    # ======================================================
+    # 全体判定
+    # ======================================================
+
+    def time_to_seconds(
+        value
+    ):
+
+        if value is None:
+
+            return 0.0
+
+
+        text = str(
+            value
+        ).strip()
+
+
+        if not text:
+
+            return 0.0
+
+
+        parts = text.split(":")
+
+
+        if len(parts) == 3:
+
+            return (
+
+                float(parts[0]) * 3600
+                +
+                float(parts[1]) * 60
+                +
+                float(parts[2])
+
             )
 
-        mp3_result = mp3_creator(
 
-            url=url,
+        if len(parts) == 2:
 
-            output_dir=output_dir,
+            return (
 
-            start_time=start_time,
+                float(parts[0]) * 60
+                +
+                float(parts[1])
 
-            end_time=end_time,
-
-            title=title
-
-        )
-
-        if not mp3_result:
-
-            raise RuntimeError(
-                "MP3作成結果が空です。"
             )
 
-        result["mp3"] = mp3_result
 
-        _notify(
+        return float(text)
 
-            progress_callback,
 
-            "mp3",
+    full_download = (
 
-            "complete",
+        time_to_seconds(
+            start_time
+        ) == 0
 
-            "MP3作成が完了しました。",
+        and
 
-            file=mp3_result
+        time_to_seconds(
+            end_time
+        ) == 0
 
-        )
+    )
 
-        # ==================================================
-        # STEP 3
-        # SRT作成
-        # ==================================================
 
-        result["step"] = "srt"
+    title = "YouTube Video"
 
-        _notify(
+    duration = None
 
-            progress_callback,
 
-            "srt",
+    mp4_path = None
 
-            "processing",
+    mp3_path = None
 
-            "SRTを作成しています・・・"
+    srt_path = None
 
-        )
+    subtitle_mp4_path = None
 
-        if srt_creator is None:
 
-            raise RuntimeError(
-                "SRT作成関数が指定されていません。"
+    # ======================================================
+    # ① MP4作成
+    # ======================================================
+
+    log(
+        "------------------------------------------"
+    )
+
+    log(
+        "STEP 1 / 4"
+    )
+
+    log(
+        "MP4作成開始"
+    )
+
+    log(
+        "------------------------------------------"
+    )
+
+
+    try:
+
+        if full_download:
+
+            log(
+                "MP4 full download"
             )
 
-        srt_result = srt_creator(
 
-            mp3_result=mp3_result,
+            mp4_result = create_mp4_full(
 
-            title=title,
+                url=
+                    url,
 
-            output_dir=output_dir
+                output_dir=
+                    output_dir
+
+            )
+
+
+        else:
+
+            log(
+                "MP4 range download"
+            )
+
+
+            mp4_result = create_mp4_range(
+
+                url=
+                    url,
+
+                output_dir=
+                    output_dir,
+
+                start_time=
+                    start_time,
+
+                end_time=
+                    end_time
+
+            )
+
+
+        mp4_path = validate_mp4_result(
+            mp4_result
+        )
+
+
+        title = get_title_from_result(
+            mp4_result
+        )
+
+
+        duration = get_duration_from_result(
+            mp4_result
+        )
+
+
+        # --------------------------------------------------
+        # MP4をタイトル名へ変更
+        # --------------------------------------------------
+
+        mp4_path = rename_output_file(
+
+            result={
+                "path":
+                    str(mp4_path)
+            },
+
+            output_type=
+                "mp4",
+
+            title=
+                title,
+
+            start_time=
+                start_time,
+
+            end_time=
+                end_time
 
         )
+
+
+        log(
+            f"STEP 1 COMPLETE: {mp4_path}"
+        )
+
+
+    except Exception as error:
+
+        log(
+            "STEP 1 ERROR"
+        )
+
+        log(
+            repr(error)
+        )
+
+        raise RuntimeError(
+
+            "MP4作成に失敗しました: "
+            +
+            str(error)
+
+        ) from error
+
+
+    # ======================================================
+    # ② MP3作成
+    # ======================================================
+
+    log(
+        "------------------------------------------"
+    )
+
+    log(
+        "STEP 2 / 4"
+    )
+
+    log(
+        "MP3作成開始"
+    )
+
+    log(
+        "------------------------------------------"
+    )
+
+
+    try:
+
+        mp3_result = create_mp3_from_file(
+
+            input_file=
+                str(mp4_path),
+
+            output_dir=
+                output_dir,
+
+            title=
+                title,
+
+            start_time=
+                start_time,
+
+            end_time=
+                end_time
+
+        )
+
+
+        mp3_path = validate_mp3_result(
+            mp3_result
+        )
+
+
+        # --------------------------------------------------
+        # MP3をタイトル名へ変更
+        # --------------------------------------------------
+
+        mp3_path = rename_output_file(
+
+            result={
+                "path":
+                    str(mp3_path)
+            },
+
+            output_type=
+                "mp3",
+
+            title=
+                title,
+
+            start_time=
+                start_time,
+
+            end_time=
+                end_time
+
+        )
+
+
+        log(
+            f"STEP 2 COMPLETE: {mp3_path}"
+        )
+
+
+    except Exception as error:
+
+        log(
+            "STEP 2 ERROR"
+        )
+
+        log(
+            repr(error)
+        )
+
+        raise RuntimeError(
+
+            "MP3作成に失敗しました: "
+            +
+            str(error)
+
+        ) from error
+
+
+    # ======================================================
+    # ③ SRT作成
+    # ======================================================
+
+    log(
+        "------------------------------------------"
+    )
+
+    log(
+        "STEP 3 / 4"
+    )
+
+    log(
+        "SRT作成開始"
+    )
+
+    log(
+        "------------------------------------------"
+    )
+
+
+    try:
+
+        srt_result = create_srt_from_mp3(
+
+            str(mp3_path)
+
+        )
+
 
         if not srt_result:
 
@@ -355,202 +1130,396 @@ def create_subtitle_mp4_job(
                 "SRT作成結果が空です。"
             )
 
-        result["srt"] = srt_result
 
-        _notify(
-
-            progress_callback,
-
-            "srt",
-
-            "complete",
-
-            "SRT作成が完了しました。",
-
-            file=srt_result
-
+        srt_path_text = srt_result.get(
+            "srt_path"
         )
 
-        # ==================================================
-        # STEP 4
-        # 字幕MP4作成
-        # ==================================================
 
-        result["step"] = "subtitle_mp4"
+        if not srt_path_text:
 
-        _notify(
-
-            progress_callback,
-
-            "subtitle_mp4",
-
-            "processing",
-
-            "字幕付きMP4を作成しています・・・"
-
-        )
-
-        if subtitle_mp4_creator is None:
-
-            raise RuntimeError(
-                "字幕MP4作成関数が指定されていません。"
+            srt_filename = srt_result.get(
+                "srt_file"
             )
 
-        subtitle_result = subtitle_mp4_creator(
 
-            mp4_result=mp4_result,
+            if not srt_filename:
 
-            srt_result=srt_result,
+                raise RuntimeError(
 
-            title=title,
+                    "SRT作成結果に"
+                    "srt_path / srt_fileがありません。"
 
-            output_dir=output_dir,
+                )
 
-            start_time=start_time,
 
-            end_time=end_time
+            srt_path = (
 
-        )
+                output_dir
+                /
+                srt_filename
 
-        if not subtitle_result:
-
-            raise RuntimeError(
-                "字幕MP4作成結果が空です。"
             )
 
-        result["subtitle_mp4"] = subtitle_result
 
-        _notify(
+        else:
 
-            progress_callback,
+            srt_path = Path(
+                srt_path_text
+            )
 
-            "subtitle_mp4",
 
-            "complete",
+        srt_path = validate_file(
 
-            "字幕付きMP4作成が完了しました。",
+            srt_path,
 
-            file=subtitle_result
+            ".srt",
 
-        )
-
-        # ==================================================
-        # 全工程完了
-        # ==================================================
-
-        completed_at = datetime.now()
-
-        elapsed = (
-            completed_at
-            -
-            started_at
-        ).total_seconds()
-
-        result.update({
-
-            "status":
-                "complete",
-
-            "step":
-                "complete",
-
-            "completed_at":
-                completed_at.isoformat(),
-
-            "execution_seconds":
-                elapsed,
-
-            "execution_seconds_text":
-                "処理時間: "
-                +
-                _format_seconds(
-                    elapsed
-                ),
-
-            "message":
-                "MP4 → MP3 → SRT → 字幕MP4 の全処理が完了しました。"
-
-        })
-
-        _notify(
-
-            progress_callback,
-
-            "complete",
-
-            "complete",
-
-            "MP4 → MP3 → SRT → 字幕MP4 の全処理が完了しました。",
-
-            result=result
+            "SRT"
 
         )
 
-        print(
-            "[SUBTITLE_MP4] ALL COMPLETE",
-            flush=True
+
+        log(
+            f"STEP 3 COMPLETE: {srt_path}"
         )
 
-        return result
 
     except Exception as error:
 
-        completed_at = datetime.now()
+        log(
+            "STEP 3 ERROR"
+        )
 
-        elapsed = (
-            completed_at
-            -
-            started_at
-        ).total_seconds()
+        log(
+            repr(error)
+        )
 
-        result.update({
+        raise RuntimeError(
 
-            "status":
-                "error",
+            "SRT作成に失敗しました: "
+            +
+            str(error)
 
-            "completed_at":
-                completed_at.isoformat(),
+        ) from error
 
-            "execution_seconds":
-                elapsed,
 
-            "execution_seconds_text":
-                "処理時間: "
-                +
-                _format_seconds(
-                    elapsed
-                ),
+    # ======================================================
+    # ④ 字幕MP4作成
+    # ======================================================
 
-            "message":
-                str(error),
+    log(
+        "------------------------------------------"
+    )
 
-            "error":
-                str(error)
+    log(
+        "STEP 4 / 4"
+    )
 
-        })
+    log(
+        "字幕MP4作成開始"
+    )
 
-        _notify(
+    log(
+        "------------------------------------------"
 
-            progress_callback,
 
-            result.get(
-                "step"
-            ),
+    )
 
-            "error",
 
-            str(error),
+    try:
 
-            result=result
+        subtitle_result = create_subtitle_mp4(
+
+            str(mp4_path),
+
+            str(srt_path)
 
         )
 
+
+        subtitle_mp4_path = (
+            validate_subtitle_mp4_result(
+                subtitle_result
+            )
+        )
+
+
+        log(
+            f"STEP 4 COMPLETE: {subtitle_mp4_path}"
+        )
+
+
+    except Exception as error:
+
+        log(
+            "STEP 4 ERROR"
+        )
+
+        log(
+            repr(error)
+        )
+
+        raise RuntimeError(
+
+            "字幕MP4作成に失敗しました: "
+            +
+            str(error)
+
+        ) from error
+
+
+    # ======================================================
+    # 最終確認
+    # ======================================================
+
+    log(
+        "=========================================="
+    )
+
+    log(
+        "字幕MP4連続処理 COMPLETE"
+    )
+
+    log(
+        "=========================================="
+    )
+
+    log(
+        f"MP4: {mp4_path}"
+    )
+
+    log(
+        f"MP3: {mp3_path}"
+    )
+
+    log(
+        f"SRT: {srt_path}"
+    )
+
+    log(
+        f"字幕MP4: {subtitle_mp4_path}"
+    )
+
+    log(
+        "=========================================="
+    )
+
+
+    return {
+
+        "success":
+            True,
+
+        "title":
+            title,
+
+        "duration":
+            duration,
+
+        "mp4_path":
+            str(mp4_path),
+
+        "mp4_file":
+            mp4_path.name,
+
+        "mp3_path":
+            str(mp3_path),
+
+        "mp3_file":
+            mp3_path.name,
+
+        "srt_path":
+            str(srt_path),
+
+        "srt_file":
+            srt_path.name,
+
+        "subtitle_mp4_path":
+            str(subtitle_mp4_path),
+
+        "subtitle_mp4_file":
+            subtitle_mp4_path.name
+
+    }
+
+
+# ==========================================================
+# 別名
+#
+# convert.py側から呼びやすくする。
+# ==========================================================
+
+def create_subtitle_mp4(
+    url,
+    start_time=None,
+    end_time=None,
+    output_dir=None
+):
+
+    return create_subtitle_mp4_pipeline(
+
+        url=
+            url,
+
+        start_time=
+            start_time,
+
+        end_time=
+            end_time,
+
+        output_dir=
+            output_dir
+
+    )
+
+
+# ==========================================================
+# テスト用
+#
+# python subtitle_mp4.py
+#
+# では実行せず、
+# URLを指定した場合のみ実行する。
+# ==========================================================
+
+if __name__ == "__main__":
+
+    import sys
+
+
+    if len(sys.argv) < 2:
+
+        print()
         print(
-            "[SUBTITLE_MP4] ERROR:",
-            repr(error),
-            flush=True
+            "使用方法:"
+        )
+        print()
+        print(
+            "python subtitle_mp4.py "
+            "YouTube_URL"
+        )
+        print()
+        print(
+            "時間指定:"
+        )
+        print()
+        print(
+            "python subtitle_mp4.py "
+            "YouTube_URL "
+            "00:00:05 "
+            "00:00:10"
+        )
+        print()
+
+        sys.exit(1)
+
+
+    url = sys.argv[1]
+
+
+    start_time = (
+
+        sys.argv[2]
+
+        if len(sys.argv) >= 3
+
+        else None
+
+    )
+
+
+    end_time = (
+
+        sys.argv[3]
+
+        if len(sys.argv) >= 4
+
+        else None
+
+    )
+
+
+    try:
+
+        result = create_subtitle_mp4_pipeline(
+
+            url=
+                url,
+
+            start_time=
+                start_time,
+
+            end_time=
+                end_time
+
+        )
+
+
+        print()
+        print(
+            "=========================================="
+        )
+        print(
+            "字幕MP4連続処理成功"
+        )
+        print(
+            "=========================================="
+        )
+
+        print(
+            "MP4:",
+            result["mp4_file"]
+        )
+
+        print(
+            "MP3:",
+            result["mp3_file"]
+        )
+
+        print(
+            "SRT:",
+            result["srt_file"]
+        )
+
+        print(
+            "字幕MP4:",
+            result["subtitle_mp4_file"]
+        )
+
+        print(
+            "=========================================="
+        )
+        print()
+
+
+        sys.exit(0)
+
+
+    except Exception as error:
+
+        print()
+        print(
+            "=========================================="
+        )
+        print(
+            "字幕MP4連続処理失敗"
+        )
+        print(
+            "=========================================="
+        )
+
+        print(
+            str(error)
+        )
+
+        print(
+            "=========================================="
         )
 
         traceback.print_exc()
 
-        return result
+        print()
+
+
+        sys.exit(1)
