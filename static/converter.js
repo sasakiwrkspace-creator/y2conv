@@ -9,6 +9,7 @@
 // ・MP3 / MP4 変換API実行
 // ・job_idによる処理状況監視
 // ・MP3 / MP4ダウンロード表示
+// ・MP3完成後のSRT/Gemini処理表示
 // ・処理詳細表示
 //
 // 注意:
@@ -151,8 +152,6 @@
 
         // =====================================
         // 上側ステータス
-        //
-        // 基本的にはタイトルだけ表示する。
         // =====================================
 
         function setStatus(
@@ -699,6 +698,562 @@
 
 
         // =====================================
+        // SRT作成ボタン
+        //
+        // /gemini-transcribe
+        //
+        // routes/gemini.py の既存APIを使用
+        // =====================================
+
+        async function createSrtWithGemini(
+            filename,
+            button,
+            resultArea
+        ) {
+
+            if (!filename) {
+
+                return;
+
+            }
+
+
+            if (
+                button.dataset.processing ===
+                "true"
+            ) {
+
+                return;
+
+            }
+
+
+            button.dataset.processing =
+                "true";
+
+
+            button.disabled =
+                true;
+
+
+            const originalText =
+                button.textContent;
+
+
+            button.textContent =
+                "処理中...";
+
+
+            if (resultArea) {
+
+                resultArea.textContent =
+                    "GeminiへMP3を送信しています...";
+
+                resultArea.style.display =
+                    "block";
+
+                resultArea.style.color =
+                    "#222";
+
+            }
+
+
+            console.log(
+                "[CONVERTER] Gemini送信開始:",
+                filename
+            );
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        "/gemini-transcribe",
+                        {
+
+                            method:
+                                "POST",
+
+                            headers: {
+
+                                "Content-Type":
+                                    "application/json"
+
+                            },
+
+                            body:
+                                JSON.stringify({
+
+                                    file:
+                                        filename
+
+                                })
+
+                        }
+                    );
+
+
+                const data =
+                    await readJsonResponse(
+                        response
+                    );
+
+
+                if (
+                    !response.ok ||
+                    !data.success
+                ) {
+
+                    throw new Error(
+
+                        data.message ||
+                        "Gemini文字起こしに失敗しました。"
+
+                    );
+
+                }
+
+
+                console.log(
+                    "[CONVERTER] Gemini処理完了:",
+                    data
+                );
+
+
+                if (resultArea) {
+
+                    resultArea.innerHTML =
+                        "";
+
+
+                    const text =
+                        document.createElement(
+                            "span"
+                        );
+
+
+                    text.textContent =
+                        "SRT作成完了：";
+
+
+                    resultArea.appendChild(
+                        text
+                    );
+
+
+                    if (
+                        data.srt_file
+                    ) {
+
+                        const srtLink =
+                            document.createElement(
+                                "a"
+                            );
+
+
+                        srtLink.href =
+                            makeDownloadUrl(
+                                data.srt_file
+                            );
+
+
+                        srtLink.download =
+                            data.srt_file;
+
+
+                        srtLink.className =
+                            "download-button";
+
+
+                        srtLink.textContent =
+                            "[SRT]";
+
+
+                        resultArea.appendChild(
+                            srtLink
+                        );
+
+                    }
+
+
+                    resultArea.style.display =
+                        "block";
+
+                    resultArea.style.color =
+                        "#176b2c";
+
+                }
+
+
+                button.textContent =
+                    "SRT作成完了";
+
+
+            }
+            catch (error) {
+
+                console.error(
+                    "[CONVERTER] Geminiエラー:",
+                    error
+                );
+
+
+                const message =
+                    error &&
+                    error.message
+                        ? error.message
+                        : "不明なエラー";
+
+
+                if (resultArea) {
+
+                    resultArea.textContent =
+                        "SRT作成に失敗しました。\n" +
+                        message;
+
+                    resultArea.style.display =
+                        "block";
+
+                    resultArea.style.color =
+                        "#b00020";
+
+                }
+
+
+                button.textContent =
+                    originalText;
+
+            }
+            finally {
+
+                button.dataset.processing =
+                    "false";
+
+
+                button.disabled =
+                    false;
+
+            }
+
+        }
+
+
+        // =====================================
+        // MP3用SRT折り畳みUI
+        //
+        // 初期状態:
+        //
+        // [MP3]  ▲
+        //
+        // ▲クリック:
+        //
+        // [MP3]  ▼
+        //       SRT作成(geminiへ送る)
+        // =====================================
+
+        function addMp3GeminiControl(
+            filename
+        ) {
+
+            if (!downloadArea) {
+
+                return;
+
+            }
+
+
+            if (!filename) {
+
+                return;
+
+            }
+
+
+            const safeFilename =
+                String(
+                    filename
+                );
+
+
+            const existing =
+                Array.from(
+                    downloadArea.querySelectorAll(
+                        "[data-gemini-filename]"
+                    )
+                ).find(
+                    function (element) {
+
+                        return (
+                            element.dataset.geminiFilename ===
+                            safeFilename
+                        );
+
+                    }
+                );
+
+
+            if (existing) {
+
+                return;
+
+            }
+
+
+            // =================================
+            // 外側
+            // =================================
+
+            const container =
+                document.createElement(
+                    "div"
+                );
+
+
+            container.className =
+                "mp3-gemini-container";
+
+
+            container.dataset.geminiFilename =
+                safeFilename;
+
+
+            // =================================
+            // 上段
+            // =================================
+
+            const header =
+                document.createElement(
+                    "div"
+                );
+
+
+            header.className =
+                "mp3-gemini-header";
+
+
+            // =================================
+            // ▲ / ▼ ボタン
+            // =================================
+
+            const toggleButton =
+                document.createElement(
+                    "button"
+                );
+
+
+            toggleButton.type =
+                "button";
+
+
+            toggleButton.className =
+                "mp3-gemini-toggle";
+
+
+            toggleButton.textContent =
+                "▲";
+
+
+            toggleButton.setAttribute(
+                "aria-expanded",
+                "false"
+            );
+
+
+            toggleButton.setAttribute(
+                "aria-label",
+                "SRT作成メニューを開く"
+            );
+
+
+            // =================================
+            // SRT操作エリア
+            // =================================
+
+            const actionArea =
+                document.createElement(
+                    "div"
+                );
+
+
+            actionArea.className =
+                "mp3-gemini-actions";
+
+
+            actionArea.style.display =
+                "none";
+
+
+            // =================================
+            // SRT作成ボタン
+            // =================================
+
+            const srtButton =
+                document.createElement(
+                    "button"
+                );
+
+
+            srtButton.type =
+                "button";
+
+
+            srtButton.className =
+                "gemini-srt-button";
+
+
+            srtButton.textContent =
+                "▼ SRT作成(geminiへ送る)";
+
+
+            // =================================
+            // 結果表示
+            // =================================
+
+            const resultArea =
+                document.createElement(
+                    "div"
+                );
+
+
+            resultArea.className =
+                "gemini-srt-result";
+
+
+            resultArea.style.display =
+                "none";
+
+
+            // =================================
+            // 開閉
+            // =================================
+
+            toggleButton.addEventListener(
+                "click",
+                function () {
+
+                    const isOpen =
+                        actionArea.style.display !==
+                        "none";
+
+
+                    if (isOpen) {
+
+                        actionArea.style.display =
+                            "none";
+
+
+                        toggleButton.textContent =
+                            "▲";
+
+
+                        toggleButton.setAttribute(
+                            "aria-expanded",
+                            "false"
+                        );
+
+
+                        toggleButton.setAttribute(
+                            "aria-label",
+                            "SRT作成メニューを開く"
+                        );
+
+                    }
+                    else {
+
+                        actionArea.style.display =
+                            "block";
+
+
+                        toggleButton.textContent =
+                            "▼";
+
+
+                        toggleButton.setAttribute(
+                            "aria-expanded",
+                            "true"
+                        );
+
+
+                        toggleButton.setAttribute(
+                            "aria-label",
+                            "SRT作成メニューを閉じる"
+                        );
+
+                    }
+
+                }
+            );
+
+
+            // =================================
+            // Gemini実行
+            // =================================
+
+            srtButton.addEventListener(
+                "click",
+                function () {
+
+                    createSrtWithGemini(
+
+                        safeFilename,
+
+                        srtButton,
+
+                        resultArea
+
+                    );
+
+                }
+            );
+
+
+            // =================================
+            // 組み立て
+            // =================================
+
+            header.appendChild(
+                toggleButton
+            );
+
+
+            actionArea.appendChild(
+                srtButton
+            );
+
+
+            actionArea.appendChild(
+                resultArea
+            );
+
+
+            container.appendChild(
+                header
+            );
+
+
+            container.appendChild(
+                actionArea
+            );
+
+
+            // =================================
+            // ダウンロードエリアへ追加
+            // =================================
+
+            downloadArea.appendChild(
+                container
+            );
+
+
+            console.log(
+                "[CONVERTER] MP3 Gemini UI追加:",
+                safeFilename
+            );
+
+        }
+
+
+        // =====================================
         // ダウンロードボタン
         // =====================================
 
@@ -781,11 +1336,6 @@
                 "]";
 
 
-            /*
-                downloadArea は縦方向に
-                並ぶようCSS側で制御する。
-            */
-
             downloadArea.appendChild(
                 link
             );
@@ -795,6 +1345,25 @@
                 "[CONVERTER] ダウンロードボタン追加:",
                 safeFilename
             );
+
+
+            // =================================
+            // MP3の場合
+            //
+            // ダウンロードボタンと同時に
+            // ▲を表示
+            // =================================
+
+            if (
+                String(type).toLowerCase() ===
+                "mp3"
+            ) {
+
+                addMp3GeminiControl(
+                    safeFilename
+                );
+
+            }
 
         }
 
@@ -1116,9 +1685,6 @@
 
         // =====================================
         // Jobステータス表示
-        //
-        // 処理中は上側に進捗を表示。
-        // 完了後はタイトルだけにする。
         // =====================================
 
         function renderJobStatus(
@@ -1329,10 +1895,6 @@
 
         // =====================================
         // 処理詳細
-        //
-        // downloadArea の先頭に追加。
-        //
-        // <details>なので初期状態は閉じる。
         // =====================================
 
         function addConversionInfo(
@@ -1372,12 +1934,6 @@
 
             details.className =
                 "conversion-details";
-
-
-            /*
-                完了時は閉じた状態にする。
-                open属性は付けない。
-            */
 
 
             const summary =
@@ -1450,11 +2006,6 @@
                 detailBody
             );
 
-
-            /*
-                ダウンロードボタンより
-                必ず上に表示する。
-            */
 
             downloadArea.prepend(
                 details
@@ -1704,23 +2255,15 @@
                     new Date();
 
 
-                /*
-                    処理詳細を先に作る。
-                    その後ダウンロードボタンが
-                    下に並ぶ。
-                */
-
                 addConversionInfo(
                     startTime,
                     endTime
                 );
 
 
-                /*
-                    上側はタイトルだけ。
-                    「MP3の変換が完了しました」
-                    「処理時間」などは表示しない。
-                */
+                // =================================
+                // 上側はタイトルだけ
+                // =================================
 
                 setStatus(
                     converterState.currentVideoTitle,
