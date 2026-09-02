@@ -3,40 +3,118 @@
 #
 # 字幕関連Route
 #
-# タブ1のYouTube変換処理とは完全分離。
+# ==========================================================
+#
+# 役割:
+#
+# 【タブ2】
+#
+# MP3アップロード
+#     ↓
+# downloadsへ保存
+#     ↓
+# Gemini
+#     ↓
+# SRT作成
+#
+#
+# 【タブ2】
+#
+# MP4アップロード
+# SRTアップロード
+#     ↓
+# downloadsから取得
+#     ↓
+# subtitle.py
+#     ↓
+# 字幕付きMP4作成
+#
+#
+# 【タブ1】
+#
+# converter.js / routes/convert.py
+#     ↓
+# MP4作成
+#     ↓
+# MP3作成
+#     ↓
+# このRouteのSRT処理
+#     ↓
+# 字幕MP4作成
+#
+#
+# ==========================================================
+# 重要
+# ==========================================================
+#
+# このファイルでは以下を絶対に登録しない。
+#
+# /convert
+# /status/<job_id>
+# /video-info
+# #convertBtn
+#
+# これらはタブ1のconverter.js / convert.py側の責任。
+#
+# このファイルで登録するのは字幕専用Routeのみ。
+#
+# /subtitle-upload-mp3
+# /subtitle-upload-mp4
+# /subtitle-upload-srt
+# /subtitle-create-srt
+# /subtitle-create-mp4
+#
+# ==========================================================
+#
+# 同名ファイルについて
+# ==========================================================
+#
+# 以前:
+#
+# a.mp3
+#     ↓
+# 既に存在
+#     ↓
+# a_XXXXXXXX.mp3
+#
+# としていたが、今回の仕様では行わない。
+#
+# a.mp3
+#     ↓
+# 新しいa.mp3を保存
+#     ↓
+# 既存a.mp3を上書き
+#
+# とする。
+#
+# これにより、
+#
+# タブ1:
+# a.mp3
 #
 # タブ2:
+# a.mp3
 #
-# MP3
-#   ↓
-# Gemini
-#   ↓
-# SRT
+# の場合、タブ2側でa.mp3を作成した時点で
+# downloads/a.mp3が新しいファイルに置き換わる。
 #
-# MP4 + SRT
-#   ↓
-# 字幕焼き込み
-#   ↓
-# 字幕MP4
-#
-# 重要:
-# ・converter.js のイベントには触れない
-# ・#convertBtn には触れない
-# ・タブ1の処理を登録しない
-# ・同名ファイルは上書きする
 # ==========================================================
 
 
 import os
+
 
 from flask import (
     request,
     jsonify
 )
 
+
 from werkzeug.utils import secure_filename
 
+
 from config import DOWNLOAD_DIR
+
 
 from routes.gemini import (
     transcribe_mp3,
@@ -54,7 +132,7 @@ DOWNLOAD_ROOT = os.path.abspath(
 
 
 # ==========================================================
-# 許可拡張子
+# 許可する拡張子
 # ==========================================================
 
 ALLOWED_MP3_EXTENSIONS = {
@@ -85,7 +163,7 @@ def ensure_download_dir():
 
 
 # ==========================================================
-# 拡張子取得
+# ファイル拡張子取得
 # ==========================================================
 
 def get_file_extension(
@@ -93,19 +171,25 @@ def get_file_extension(
 ):
 
     return os.path.splitext(
-        filename
+        str(
+            filename or ""
+        )
     )[1].lower()
 
 
 # ==========================================================
-# 安全なファイル名
+# 安全なファイル名作成
 #
-# 同名の場合はUUIDを付けない。
-# 必ず同じ名前で上書きする。
+# 日本語ファイル名にもできるだけ対応。
+#
+# secure_filename()で名前が空になった場合は
+# 元のbasenameを使用する。
+#
 # ==========================================================
 
 def make_safe_filename(
-    filename
+    filename,
+    extension=None
 ):
 
     filename = str(
@@ -120,10 +204,28 @@ def make_safe_filename(
         )
 
 
-    extension = get_file_extension(
+    filename = os.path.basename(
         filename
     )
 
+
+    original_extension = (
+        get_file_extension(
+            filename
+        )
+    )
+
+
+    if extension:
+
+        extension = str(
+            extension
+        ).lower()
+
+
+    # ------------------------------------------------------
+    # secure_filename
+    # ------------------------------------------------------
 
     safe_name = secure_filename(
         filename
@@ -131,28 +233,28 @@ def make_safe_filename(
 
 
     # ------------------------------------------------------
-    # secure_filename()で空になった場合
+    # secure_filenameで名前が空になった場合
+    #
+    # 日本語ファイル名等をできるだけ維持する。
     # ------------------------------------------------------
 
     if not safe_name:
 
         base_name = os.path.splitext(
-            os.path.basename(
-                filename
-            )
+            filename
         )[0]
 
 
-        if not base_name:
-
-            raise ValueError(
-                "安全なファイル名を作成できませんでした"
-            )
+        use_extension = (
+            extension
+            or original_extension
+            or ""
+        )
 
 
         safe_name = (
             base_name
-            + extension
+            + use_extension
         )
 
 
@@ -168,7 +270,7 @@ def make_safe_filename(
     if not safe_name:
 
         raise ValueError(
-            "不正なファイル名です"
+            "安全なファイル名を作成できませんでした"
         )
 
 
@@ -176,7 +278,7 @@ def make_safe_filename(
 
 
 # ==========================================================
-# downloadsパス
+# downloads内の保存先
 # ==========================================================
 
 def make_download_path(
@@ -187,8 +289,17 @@ def make_download_path(
 
 
     filename = os.path.basename(
-        filename
+        str(
+            filename
+        )
     )
+
+
+    if not filename:
+
+        raise ValueError(
+            "ファイル名がありません"
+        )
 
 
     path = os.path.abspath(
@@ -228,17 +339,13 @@ def make_download_path(
 
 
 # ==========================================================
-# アップロード保存
+# アップロードファイル保存
 #
-# 重要:
+# ★重要
 #
-# 同名ファイルが存在してもUUIDを付けない。
+# 同名ファイルはUUIDを付けない。
 #
-# タブ2で a.mp3 を選択
-# ↓
-# downloads/a.mp3
-# ↓
-# 既存a.mp3があれば上書き
+# 既存ファイルがあれば上書きする。
 #
 # ==========================================================
 
@@ -281,7 +388,8 @@ def save_uploaded_file(
 
 
     safe_filename = make_safe_filename(
-        original_filename
+        original_filename,
+        extension
     )
 
 
@@ -291,40 +399,32 @@ def save_uploaded_file(
 
 
     # ======================================================
-    # 重要:
+    # ★同名ファイルは上書き
+    # ======================================================
     #
-    # ここでは同名ファイルを別名にしない。
-    # save() により既存ファイルを上書きする。
+    # uploaded_file.save() は既存ファイルがあれば
+    # 基本的に置き換える。
+    #
+    # そのためUUID追加処理は行わない。
+    #
     # ======================================================
 
-    print(
-        "=========================================="
-    )
-
-    print(
-        "[SUBTITLE] ファイル保存開始"
-    )
-
-    print(
-        "[SUBTITLE] filename:",
-        safe_filename
-    )
-
-    print(
-        "[SUBTITLE] path:",
+    existed = os.path.exists(
         save_path
     )
 
-    if os.path.exists(save_path):
+
+    if existed:
 
         print(
-            "[SUBTITLE] 同名ファイルを上書きします"
+            "[SUBTITLE] 同名ファイルを上書き:",
+            save_path
         )
 
-    print(
-        "=========================================="
-    )
 
+    # ------------------------------------------------------
+    # 保存
+    # ------------------------------------------------------
 
     uploaded_file.save(
         save_path
@@ -379,9 +479,19 @@ def save_uploaded_file(
     )
 
     print(
+        "[SUBTITLE] path:",
+        save_path
+    )
+
+    print(
         "[SUBTITLE] size:",
         file_size,
         "bytes"
+    )
+
+    print(
+        "[SUBTITLE] overwritten:",
+        existed
     )
 
     print(
@@ -398,7 +508,10 @@ def save_uploaded_file(
             save_path,
 
         "size":
-            file_size
+            file_size,
+
+        "overwritten":
+            existed
 
     }
 
@@ -465,9 +578,12 @@ def get_download_file(
         )
 
 
-    if os.path.getsize(
+    file_size = os.path.getsize(
         file_path
-    ) <= 0:
+    )
+
+
+    if file_size <= 0:
 
         raise ValueError(
             "ファイルが0 bytesです"
@@ -480,8 +596,29 @@ def get_download_file(
 # ==========================================================
 # MP3 → SRT
 #
-# タブ2から使用。
-# 将来タブ1から呼び出すことも可能。
+# 共通関数
+#
+# タブ2:
+#
+# アップロードMP3
+#     ↓
+# Gemini
+#     ↓
+# SRT
+#
+#
+# タブ1:
+#
+# converter.py
+#     ↓
+# MP3完成
+#     ↓
+# create_srt_from_mp3()
+#     ↓
+# Gemini
+#     ↓
+# SRT
+#
 # ==========================================================
 
 def create_srt_from_mp3(
@@ -489,9 +626,15 @@ def create_srt_from_mp3(
 ):
 
     mp3_path = os.path.abspath(
-        mp3_path
+        str(
+            mp3_path
+        )
     )
 
+
+    # ------------------------------------------------------
+    # MP3確認
+    # ------------------------------------------------------
 
     if not os.path.exists(
         mp3_path
@@ -508,7 +651,7 @@ def create_srt_from_mp3(
     ):
 
         raise ValueError(
-            "指定されたパスはファイルではありません"
+            "MP3のパスがファイルではありません"
         )
 
 
@@ -518,6 +661,15 @@ def create_srt_from_mp3(
 
         raise ValueError(
             "MP3ファイルを指定してください"
+        )
+
+
+    if os.path.getsize(
+        mp3_path
+    ) <= 0:
+
+        raise ValueError(
+            "MP3ファイルが0 bytesです"
         )
 
 
@@ -539,9 +691,9 @@ def create_srt_from_mp3(
     )
 
 
-    # ------------------------------------------------------
+    # ======================================================
     # Gemini
-    # ------------------------------------------------------
+    # ======================================================
 
     srt_text = transcribe_mp3(
         mp3_path
@@ -555,9 +707,18 @@ def create_srt_from_mp3(
         )
 
 
-    # ------------------------------------------------------
+    # ======================================================
     # SRT保存
-    # ------------------------------------------------------
+    #
+    # save_srt()側でMP3と同名のSRTを作成する。
+    #
+    # 例:
+    #
+    # a.mp3
+    # ↓
+    # a.srt
+    #
+    # ======================================================
 
     srt_path = save_srt(
         mp3_path,
@@ -568,12 +729,14 @@ def create_srt_from_mp3(
     if not srt_path:
 
         raise IOError(
-            "SRT保存処理からパスが返されませんでした"
+            "SRT保存先が返されませんでした"
         )
 
 
     srt_path = os.path.abspath(
-        str(srt_path)
+        str(
+            srt_path
+        )
     )
 
 
@@ -582,7 +745,26 @@ def create_srt_from_mp3(
     ):
 
         raise IOError(
-            "SRTファイルの保存に失敗しました"
+            "SRTファイルの保存に失敗しました: "
+            + srt_path
+        )
+
+
+    if not os.path.isfile(
+        srt_path
+    ):
+
+        raise IOError(
+            "SRT保存先がファイルではありません"
+        )
+
+
+    if os.path.getsize(
+        srt_path
+    ) <= 0:
+
+        raise ValueError(
+            "SRTファイルが0 bytesです"
         )
 
 
@@ -624,6 +806,9 @@ def create_srt_from_mp3(
 
 # ==========================================================
 # MP4 + SRT → 字幕MP4
+#
+# subtitle.pyを呼び出す共通関数。
+#
 # ==========================================================
 
 def create_subtitle_mp4(
@@ -632,17 +817,22 @@ def create_subtitle_mp4(
 ):
 
     mp4_path = os.path.abspath(
-        mp4_path
+        str(
+            mp4_path
+        )
     )
+
 
     srt_path = os.path.abspath(
-        srt_path
+        str(
+            srt_path
+        )
     )
 
 
-    # ------------------------------------------------------
+    # ======================================================
     # MP4確認
-    # ------------------------------------------------------
+    # ======================================================
 
     if not os.path.exists(
         mp4_path
@@ -672,9 +862,18 @@ def create_subtitle_mp4(
         )
 
 
-    # ------------------------------------------------------
+    if os.path.getsize(
+        mp4_path
+    ) <= 0:
+
+        raise ValueError(
+            "MP4ファイルが0 bytesです"
+        )
+
+
+    # ======================================================
     # SRT確認
-    # ------------------------------------------------------
+    # ======================================================
 
     if not os.path.exists(
         srt_path
@@ -704,6 +903,15 @@ def create_subtitle_mp4(
         )
 
 
+    if os.path.getsize(
+        srt_path
+    ) <= 0:
+
+        raise ValueError(
+            "SRTファイルが0 bytesです"
+        )
+
+
     print(
         "=========================================="
     )
@@ -727,11 +935,19 @@ def create_subtitle_mp4(
     )
 
 
+    # ======================================================
+    # subtitle.py
+    # ======================================================
+
     import subtitle
 
 
     subtitle_function = None
 
+
+    # ------------------------------------------------------
+    # 優先順位
+    # ------------------------------------------------------
 
     if hasattr(
         subtitle,
@@ -742,6 +958,7 @@ def create_subtitle_mp4(
             subtitle.create_subtitle_mp4
         )
 
+
     elif hasattr(
         subtitle,
         "create_burned_subtitle"
@@ -750,6 +967,7 @@ def create_subtitle_mp4(
         subtitle_function = (
             subtitle.create_burned_subtitle
         )
+
 
     elif hasattr(
         subtitle,
@@ -766,13 +984,24 @@ def create_subtitle_mp4(
         raise AttributeError(
 
             "subtitle.pyに字幕MP4作成関数がありません。"
+            "create_subtitle_mp4() / "
+            "create_burned_subtitle() / "
+            "burn_subtitles() "
+            "のいずれかを実装してください。"
 
         )
 
 
+    # ======================================================
+    # 字幕MP4作成
+    # ======================================================
+
     result = subtitle_function(
+
         mp4_path,
+
         srt_path
+
     )
 
 
@@ -783,8 +1012,16 @@ def create_subtitle_mp4(
         )
 
 
+    # ------------------------------------------------------
+    # 戻り値
+    #
+    # subtitle.pyはパスを返す想定。
+    # ------------------------------------------------------
+
     result_path = os.path.abspath(
-        str(result)
+        str(
+            result
+        )
     )
 
 
@@ -795,6 +1032,24 @@ def create_subtitle_mp4(
         raise IOError(
             "字幕MP4が作成されませんでした: "
             + result_path
+        )
+
+
+    if not os.path.isfile(
+        result_path
+    ):
+
+        raise IOError(
+            "字幕MP4の出力先がファイルではありません"
+        )
+
+
+    if os.path.getsize(
+        result_path
+    ) <= 0:
+
+        raise ValueError(
+            "字幕MP4が0 bytesです"
         )
 
 
@@ -843,7 +1098,7 @@ def create_subtitle_mp4(
 
 
 # ==========================================================
-# Route登録
+# Flask Route登録
 # ==========================================================
 
 def register_subtitle_routes(
@@ -854,22 +1109,38 @@ def register_subtitle_routes(
 
 
     # ======================================================
-    # MP3アップロード + Gemini + SRT
+    # タブ2
     #
-    # POST /subtitle-upload-mp3
+    # MP3アップロード → Gemini → SRT
+    #
+    # POST:
+    #
+    # /subtitle-upload-mp3
+    #
+    # form-data:
+    #
+    # file = MP3
+    #
     # ======================================================
 
     @app.route(
         "/subtitle-upload-mp3",
         methods=["POST"]
     )
-
     def subtitle_upload_mp3():
 
         try:
 
             print(
-                "[SUBTITLE] MP3処理開始"
+                "=========================================="
+            )
+
+            print(
+                "[SUBTITLE] MP3アップロード開始"
+            )
+
+            print(
+                "=========================================="
             )
 
 
@@ -877,6 +1148,10 @@ def register_subtitle_routes(
                 "file"
             )
 
+
+            # ------------------------------------------------
+            # MP3保存
+            # ------------------------------------------------
 
             saved = save_uploaded_file(
 
@@ -887,10 +1162,20 @@ def register_subtitle_routes(
             )
 
 
+            # ------------------------------------------------
+            # Gemini → SRT
+            # ------------------------------------------------
+
             result = create_srt_from_mp3(
+
                 saved["path"]
+
             )
 
+
+            # ------------------------------------------------
+            # 成功
+            # ------------------------------------------------
 
             return jsonify({
 
@@ -900,14 +1185,14 @@ def register_subtitle_routes(
                 "message":
                     "MP3からSRTを作成しました。",
 
-                "filename":
-                    saved["filename"],
-
                 "mp3_file":
                     saved["filename"],
 
                 "srt_file":
                     result["srt_file"],
+
+                "overwritten":
+                    saved["overwritten"],
 
                 "files": {
 
@@ -917,11 +1202,7 @@ def register_subtitle_routes(
                     "srt":
                         result["srt_file"]
 
-                },
-
-                "download_url":
-                    "/download/"
-                    + result["srt_file"]
+                }
 
             })
 
@@ -963,14 +1244,20 @@ def register_subtitle_routes(
 
 
     # ======================================================
+    # タブ2
+    #
     # MP4アップロード
+    #
+    # POST:
+    #
+    # /subtitle-upload-mp4
+    #
     # ======================================================
 
     @app.route(
         "/subtitle-upload-mp4",
         methods=["POST"]
     )
-
     def subtitle_upload_mp4():
 
         try:
@@ -997,11 +1284,14 @@ def register_subtitle_routes(
                 "message":
                     "MP4を保存しました。",
 
+                "mp4_file":
+                    saved["filename"],
+
                 "filename":
                     saved["filename"],
 
-                "mp4_file":
-                    saved["filename"]
+                "overwritten":
+                    saved["overwritten"]
 
             })
 
@@ -1026,14 +1316,20 @@ def register_subtitle_routes(
 
 
     # ======================================================
+    # タブ2
+    #
     # SRTアップロード
+    #
+    # POST:
+    #
+    # /subtitle-upload-srt
+    #
     # ======================================================
 
     @app.route(
         "/subtitle-upload-srt",
         methods=["POST"]
     )
-
     def subtitle_upload_srt():
 
         try:
@@ -1060,11 +1356,14 @@ def register_subtitle_routes(
                 "message":
                     "SRTを保存しました。",
 
+                "srt_file":
+                    saved["filename"],
+
                 "filename":
                     saved["filename"],
 
-                "srt_file":
-                    saved["filename"]
+                "overwritten":
+                    saved["overwritten"]
 
             })
 
@@ -1089,14 +1388,194 @@ def register_subtitle_routes(
 
 
     # ======================================================
+    # MP3 → SRT
+    #
+    # 既にdownloadsにあるMP3からSRTを作る。
+    #
+    # タブ1から利用する場合にも使用可能。
+    #
+    # POST:
+    #
+    # /subtitle-create-srt
+    #
+    # JSON:
+    #
+    # {
+    #     "mp3_file": "a.mp3"
+    # }
+    #
+    # ======================================================
+
+    @app.route(
+        "/subtitle-create-srt",
+        methods=["POST"]
+    )
+    def subtitle_create_srt():
+
+        try:
+
+            data = request.get_json(
+                silent=True
+            )
+
+
+            if not data:
+
+                return jsonify({
+
+                    "success":
+                        False,
+
+                    "message":
+                        "JSONデータがありません"
+
+                }), 400
+
+
+            mp3_filename = data.get(
+                "mp3_file"
+            )
+
+
+            if not mp3_filename:
+
+                return jsonify({
+
+                    "success":
+                        False,
+
+                    "message":
+                        "MP3ファイル名がありません"
+
+                }), 400
+
+
+            # ------------------------------------------------
+            # downloadsからMP3取得
+            # ------------------------------------------------
+
+            mp3_path = get_download_file(
+
+                mp3_filename,
+
+                ALLOWED_MP3_EXTENSIONS
+
+            )
+
+
+            # ------------------------------------------------
+            # Gemini → SRT
+            # ------------------------------------------------
+
+            result = create_srt_from_mp3(
+
+                mp3_path
+
+            )
+
+
+            return jsonify({
+
+                "success":
+                    True,
+
+                "message":
+                    "MP3からSRTを作成しました。",
+
+                "mp3_file":
+                    result["mp3_file"],
+
+                "srt_file":
+                    result["srt_file"],
+
+                "files": {
+
+                    "mp3":
+                        result["mp3_file"],
+
+                    "srt":
+                        result["srt_file"]
+
+                }
+
+            })
+
+
+        except FileNotFoundError as e:
+
+            print(
+                "[SUBTITLE] MP3がありません:",
+                str(e)
+            )
+
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "message":
+                    str(e)
+
+            }), 404
+
+
+        except Exception as e:
+
+            print(
+                "=========================================="
+            )
+
+            print(
+                "[SUBTITLE] MP3 → SRTエラー"
+            )
+
+            print(
+                "TYPE:",
+                type(e).__name__
+            )
+
+            print(
+                "ERROR:",
+                str(e)
+            )
+
+            print(
+                "=========================================="
+            )
+
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "message":
+                    str(e)
+
+            }), 500
+
+
+    # ======================================================
     # MP4 + SRT → 字幕MP4
+    #
+    # POST:
+    #
+    # /subtitle-create-mp4
+    #
+    # JSON:
+    #
+    # {
+    #     "mp4_file": "a.mp4",
+    #     "srt_file": "a.srt"
+    # }
+    #
     # ======================================================
 
     @app.route(
         "/subtitle-create-mp4",
         methods=["POST"]
     )
-
     def subtitle_create_mp4():
 
         try:
@@ -1155,6 +1634,10 @@ def register_subtitle_routes(
                 }), 400
 
 
+            # ------------------------------------------------
+            # MP4取得
+            # ------------------------------------------------
+
             mp4_path = get_download_file(
 
                 mp4_filename,
@@ -1163,6 +1646,10 @@ def register_subtitle_routes(
 
             )
 
+
+            # ------------------------------------------------
+            # SRT取得
+            # ------------------------------------------------
 
             srt_path = get_download_file(
 
@@ -1173,6 +1660,10 @@ def register_subtitle_routes(
             )
 
 
+            # ------------------------------------------------
+            # 字幕MP4作成
+            # ------------------------------------------------
+
             result = create_subtitle_mp4(
 
                 mp4_path,
@@ -1182,6 +1673,10 @@ def register_subtitle_routes(
             )
 
 
+            # ------------------------------------------------
+            # 成功
+            # ------------------------------------------------
+
             return jsonify({
 
                 "success":
@@ -1189,9 +1684,6 @@ def register_subtitle_routes(
 
                 "message":
                     "字幕付きMP4を作成しました。",
-
-                "filename":
-                    result["subtitle_mp4_file"],
 
                 "mp4_file":
                     result["mp4_file"],
@@ -1202,9 +1694,8 @@ def register_subtitle_routes(
                 "subtitle_mp4_file":
                     result["subtitle_mp4_file"],
 
-                "download_url":
-                    "/download/"
-                    + result["subtitle_mp4_file"],
+                "filename":
+                    result["subtitle_mp4_file"],
 
                 "files": {
 
@@ -1277,6 +1768,11 @@ def register_subtitle_routes(
             }), 500
 
 
+    # ======================================================
+    # 登録完了ログ
+    #
+    # ======================================================
+
     print(
         "=========================================="
     )
@@ -1298,7 +1794,15 @@ def register_subtitle_routes(
     )
 
     print(
+        "[SUBTITLE] POST /subtitle-create-srt"
+    )
+
+    print(
         "[SUBTITLE] POST /subtitle-create-mp4"
+    )
+
+    print(
+        "[SUBTITLE] converter.js /convert には干渉しません"
     )
 
     print(
