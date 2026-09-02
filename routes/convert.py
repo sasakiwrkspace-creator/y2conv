@@ -26,6 +26,27 @@ from media_extract import (
 
 
 # ==========================================================
+# 字幕MP4専用
+#
+# ラジオボタン「字幕mp4」が選択された場合は、
+# このモジュールへ処理を完全に切り分ける。
+#
+# subtitle_mp4.py 内で
+#
+#   ① MP4
+#   ② MP3
+#   ③ SRT
+#   ④ 字幕MP4
+#
+# を連続処理する。
+# ==========================================================
+
+from subtitle_mp4 import (
+    create_subtitle_mp4 as create_subtitle_mp4_pipeline
+)
+
+
+# ==========================================================
 # Job管理
 # ==========================================================
 
@@ -168,6 +189,22 @@ def _create_job(
                 "message":
                     ""
 
+            },
+
+            "subtitle_mp4": {
+
+                "status":
+                    "pending",
+
+                "filename":
+                    None,
+
+                "path":
+                    None,
+
+                "message":
+                    ""
+
             }
 
         },
@@ -253,6 +290,11 @@ def _get_job(
                 "mp4":
                     dict(
                         job["files"]["mp4"]
+                    ),
+
+                "subtitle_mp4":
+                    dict(
+                        job["files"]["subtitle_mp4"]
                     )
 
             },
@@ -570,12 +612,6 @@ def _rename_completed_file(
             f"{output_type} 完成ファイルサイズが0です。"
         )
 
-    # ======================================================
-    # タイトル優先
-    #
-    # resultのtitleも保険として使用。
-    # ======================================================
-
     actual_title = (
 
         title
@@ -735,6 +771,50 @@ def _validate_source(
 
 
 # ==========================================================
+# 字幕MP4結果確認
+# ==========================================================
+
+def _validate_subtitle_mp4_result(
+    result
+):
+
+    if not result:
+
+        raise RuntimeError(
+            "字幕MP4作成結果が空です。"
+        )
+
+    subtitle_mp4_path = result.get(
+        "subtitle_mp4_path"
+    )
+
+    if not subtitle_mp4_path:
+
+        raise RuntimeError(
+            "字幕MP4作成結果に"
+            "subtitle_mp4_pathがありません。"
+        )
+
+    path = Path(
+        subtitle_mp4_path
+    )
+
+    if not path.is_file():
+
+        raise FileNotFoundError(
+            f"字幕MP4がありません: {path}"
+        )
+
+    if path.stat().st_size <= 0:
+
+        raise RuntimeError(
+            f"字幕MP4のファイルサイズが0です: {path}"
+        )
+
+    return path
+
+
+# ==========================================================
 # Background Job
 # ==========================================================
 
@@ -779,34 +859,57 @@ def _run_conversion_job(
             exist_ok=True
         )
 
-        full_download = _is_full_download(
-
-            start_time,
-
-            end_time
-
-        )
-
-        title = "YouTube Video"
-
-        duration = None
-
         # ==================================================
-        # MP3
+        # ★ 字幕MP4専用ルート
+        #
+        # 「字幕mp4」が選択された場合は、
+        # ここで処理を完全に分岐する。
+        #
+        # subtitle_mp4.py が
+        #
+        #   MP4
+        #   ↓
+        #   MP3
+        #   ↓
+        #   SRT
+        #   ↓
+        #   字幕MP4
+        #
+        # を全部担当する。
         # ==================================================
 
-        if "mp3" in outputs:
+        if "subtitle_mp4" in outputs:
+
+            print(
+                "[CONVERT] ==========================================",
+                flush=True
+            )
+
+            print(
+                "[CONVERT] SUBTITLE MP4 MODE",
+                flush=True
+            )
+
+            print(
+                "[CONVERT] subtitle_mp4.py に処理を委譲します",
+                flush=True
+            )
+
+            print(
+                "[CONVERT] ==========================================",
+                flush=True
+            )
 
             _update_file(
 
                 job_id,
 
-                "mp3",
+                "subtitle_mp4",
 
                 status="processing",
 
                 message=
-                    "mp3 用動画をダウンロード中・・・"
+                    "字幕MP4連続処理を開始しています・・・"
 
             )
 
@@ -815,26 +918,45 @@ def _run_conversion_job(
                 job_id,
 
                 message=
-                    "mp3 用動画をダウンロード中・・・"
+                    "字幕MP4連続処理を開始しています・・・"
 
             )
 
-            print(
-                "[CONVERT] MP3 source download START",
-                flush=True
+            # ------------------------------------------------
+            # subtitle_mp4.py
+            # ------------------------------------------------
+
+            pipeline_result = (
+                create_subtitle_mp4_pipeline(
+
+                    url=
+                        url,
+
+                    start_time=
+                        start_time,
+
+                    end_time=
+                        end_time,
+
+                    output_dir=
+                        output_dir
+
+                )
             )
 
-            download_result = download_source(
-                url
-            )
+            # ------------------------------------------------
+            # 結果確認
+            # ------------------------------------------------
 
-            source_path = _validate_source(
-                download_result
+            subtitle_mp4_path = (
+                _validate_subtitle_mp4_result(
+                    pipeline_result
+                )
             )
 
             title = (
 
-                download_result.get(
+                pipeline_result.get(
                     "title"
                 )
 
@@ -845,18 +967,36 @@ def _run_conversion_job(
             )
 
             duration = (
-                download_result.get(
+                pipeline_result.get(
                     "duration"
                 )
             )
+
+            mp4_path = pipeline_result.get(
+                "mp4_path"
+            )
+
+            mp3_path = pipeline_result.get(
+                "mp3_path"
+            )
+
+            srt_path = pipeline_result.get(
+                "srt_path"
+            )
+
+            # ------------------------------------------------
+            # Jobへタイトル・時間を反映
+            # ------------------------------------------------
 
             _update_job(
 
                 job_id,
 
-                title=title,
+                title=
+                    title,
 
-                duration=duration,
+                duration=
+                    duration,
 
                 duration_text=
                     _format_seconds(
@@ -864,134 +1004,124 @@ def _run_conversion_job(
                     ),
 
                 message=
-                    "動画のダウンロードが完了しました。"
+                    "字幕MP4連続処理が完了しました。"
 
             )
+
+            # ------------------------------------------------
+            # 字幕MP4
+            # ------------------------------------------------
 
             _update_file(
 
                 job_id,
 
-                "mp3",
-
-                message=
-                    "mp3 変換中・・・"
-
-            )
-
-            mp3_result = create_mp3_from_file(
-
-                input_file=
-                    str(source_path),
-
-                output_dir=
-                    output_dir,
-
-                title=
-                    title,
-
-                start_time=
-                    start_time,
-
-                end_time=
-                    end_time
-
-            )
-
-            renamed_mp3 = _rename_completed_file(
-
-                result=
-                    mp3_result,
-
-                output_type=
-                    "mp3",
-
-                title=
-                    title,
-
-                start_time=
-                    start_time,
-
-                end_time=
-                    end_time
-
-            )
-
-            _update_file(
-
-                job_id,
-
-                "mp3",
+                "subtitle_mp4",
 
                 status="complete",
 
                 filename=
-                    renamed_mp3["filename"],
+                    subtitle_mp4_path.name,
 
                 path=
-                    renamed_mp3["path"],
+                    str(subtitle_mp4_path),
 
                 message=
-                    "mp3 変換終了"
+                    "字幕MP4変換終了"
 
             )
 
+            # ------------------------------------------------
+            # 補助情報
+            #
+            # subtitle_mp4.py 内で作成された
+            # MP4 / MP3 / SRT の情報もJobに保存する。
+            #
+            # これらは「字幕MP4」の連続処理結果として扱う。
+            # ------------------------------------------------
+
+            if mp4_path:
+
+                _update_job(
+
+                    job_id,
+
+                    subtitle_mp4_source_mp4=
+                        str(mp4_path)
+
+                )
+
+            if mp3_path:
+
+                _update_job(
+
+                    job_id,
+
+                    subtitle_mp4_source_mp3=
+                        str(mp3_path)
+
+                )
+
+            if srt_path:
+
+                _update_job(
+
+                    job_id,
+
+                    subtitle_mp4_srt=
+                        str(srt_path)
+
+                )
+
             print(
-                "[CONVERT] MP3 COMPLETE:",
-                renamed_mp3,
+                "[CONVERT] SUBTITLE MP4 COMPLETE:",
+                subtitle_mp4_path,
                 flush=True
             )
 
-        # ==================================================
-        # MP4
-        # ==================================================
+            # ------------------------------------------------
+            # 字幕MP4モードはここで終了
+            #
+            # 下の通常MP3 / MP4処理には入らない。
+            # ------------------------------------------------
 
-        if "mp4" in outputs:
+        else:
 
-            _update_file(
+            # =================================================
+            # 通常モード
+            #
+            # mp3 / mp4 の既存処理
+            # =================================================
 
-                job_id,
+            full_download = _is_full_download(
 
-                "mp4",
+                start_time,
 
-                status="processing",
-
-                message=
-                    "mp4 ダウンロード中・・・"
-
-            )
-
-            _update_job(
-
-                job_id,
-
-                message=
-                    "mp4 ダウンロード中・・・"
+                end_time
 
             )
 
-            if full_download:
+            title = "YouTube Video"
 
-                print(
-                    "[CONVERT] MP4 full download",
-                    flush=True
-                )
+            duration = None
 
-                mp4_result = create_mp4_full(
+            # =================================================
+            # MP3
+            # =================================================
 
-                    url=
-                        url,
+            if "mp3" in outputs:
 
-                    output_dir=
-                        output_dir
+                _update_file(
 
-                )
+                    job_id,
 
-            else:
+                    "mp3",
 
-                print(
-                    "[CONVERT] MP4 direct range download",
-                    flush=True
+                    status="processing",
+
+                    message=
+                        "mp3 用動画をダウンロード中・・・"
+
                 )
 
                 _update_job(
@@ -999,17 +1129,80 @@ def _run_conversion_job(
                     job_id,
 
                     message=
-                        "mp4 指定区間を直接ダウンロード中・・・"
+                        "mp3 用動画をダウンロード中・・・"
 
                 )
 
-                mp4_result = create_mp4_range(
+                print(
+                    "[CONVERT] MP3 source download START",
+                    flush=True
+                )
 
-                    url=
-                        url,
+                download_result = download_source(
+                    url
+                )
+
+                source_path = _validate_source(
+                    download_result
+                )
+
+                title = (
+
+                    download_result.get(
+                        "title"
+                    )
+
+                    or
+
+                    "YouTube Video"
+
+                )
+
+                duration = (
+                    download_result.get(
+                        "duration"
+                    )
+                )
+
+                _update_job(
+
+                    job_id,
+
+                    title=title,
+
+                    duration=duration,
+
+                    duration_text=
+                        _format_seconds(
+                            duration
+                        ),
+
+                    message=
+                        "動画のダウンロードが完了しました。"
+
+                )
+
+                _update_file(
+
+                    job_id,
+
+                    "mp3",
+
+                    message=
+                        "mp3 変換中・・・"
+
+                )
+
+                mp3_result = create_mp3_from_file(
+
+                    input_file=
+                        str(source_path),
 
                     output_dir=
                         output_dir,
+
+                    title=
+                        title,
 
                     start_time=
                         start_time,
@@ -1019,111 +1212,232 @@ def _run_conversion_job(
 
                 )
 
-            if not mp4_result:
+                renamed_mp3 = _rename_completed_file(
 
-                raise RuntimeError(
-                    "MP4作成結果が空です。"
+                    result=
+                        mp3_result,
+
+                    output_type=
+                        "mp3",
+
+                    title=
+                        title,
+
+                    start_time=
+                        start_time,
+
+                    end_time=
+                        end_time
+
                 )
 
-            mp4_title = (
+                _update_file(
 
-                mp4_result.get(
-                    "title"
+                    job_id,
+
+                    "mp3",
+
+                    status="complete",
+
+                    filename=
+                        renamed_mp3["filename"],
+
+                    path=
+                        renamed_mp3["path"],
+
+                    message=
+                        "mp3 変換終了"
+
                 )
 
-                or
-
-                "YouTube Video"
-
-            )
-
-            if (
-                not title
-                or
-                title == "YouTube Video"
-            ):
-
-                title = mp4_title
-
-            mp4_duration = (
-                mp4_result.get(
-                    "duration"
+                print(
+                    "[CONVERT] MP3 COMPLETE:",
+                    renamed_mp3,
+                    flush=True
                 )
-            )
 
-            if (
-                duration is None
-                and
-                mp4_duration is not None
-            ):
+            # =================================================
+            # MP4
+            # =================================================
 
-                duration = mp4_duration
+            if "mp4" in outputs:
 
-            _update_job(
+                _update_file(
 
-                job_id,
+                    job_id,
 
-                title=title,
-
-                duration=duration,
-
-                duration_text=
-                    _format_seconds(
-                        duration
-                    ),
-
-                message=
-                    "mp4 ダウンロードが完了しました。"
-
-            )
-
-            renamed_mp4 = _rename_completed_file(
-
-                result=
-                    mp4_result,
-
-                output_type=
                     "mp4",
 
-                title=
-                    title,
+                    status="processing",
 
-                start_time=
-                    start_time,
+                    message=
+                        "mp4 ダウンロード中・・・"
 
-                end_time=
-                    end_time
+                )
 
-            )
+                _update_job(
 
-            _update_file(
+                    job_id,
 
-                job_id,
+                    message=
+                        "mp4 ダウンロード中・・・"
 
-                "mp4",
+                )
 
-                status="complete",
+                if full_download:
 
-                filename=
-                    renamed_mp4["filename"],
+                    print(
+                        "[CONVERT] MP4 full download",
+                        flush=True
+                    )
 
-                path=
-                    renamed_mp4["path"],
+                    mp4_result = create_mp4_full(
 
-                message=
-                    "mp4 変換終了"
+                        url=
+                            url,
 
-            )
+                        output_dir=
+                            output_dir
 
-            print(
-                "[CONVERT] MP4 COMPLETE:",
-                renamed_mp4,
-                flush=True
-            )
+                    )
 
-        # ==================================================
+                else:
+
+                    print(
+                        "[CONVERT] MP4 direct range download",
+                        flush=True
+                    )
+
+                    _update_job(
+
+                        job_id,
+
+                        message=
+                            "mp4 指定区間を直接ダウンロード中・・・"
+
+                    )
+
+                    mp4_result = create_mp4_range(
+
+                        url=
+                            url,
+
+                        output_dir=
+                            output_dir,
+
+                        start_time=
+                            start_time,
+
+                        end_time=
+                            end_time
+
+                    )
+
+                if not mp4_result:
+
+                    raise RuntimeError(
+                        "MP4作成結果が空です。"
+                    )
+
+                mp4_title = (
+
+                    mp4_result.get(
+                        "title"
+                    )
+
+                    or
+
+                    "YouTube Video"
+
+                )
+
+                if (
+                    not title
+                    or
+                    title == "YouTube Video"
+                ):
+
+                    title = mp4_title
+
+                mp4_duration = (
+                    mp4_result.get(
+                        "duration"
+                    )
+                )
+
+                if (
+                    duration is None
+                    and
+                    mp4_duration is not None
+                ):
+
+                    duration = mp4_duration
+
+                _update_job(
+
+                    job_id,
+
+                    title=title,
+
+                    duration=duration,
+
+                    duration_text=
+                        _format_seconds(
+                            duration
+                        ),
+
+                    message=
+                        "mp4 ダウンロードが完了しました。"
+
+                )
+
+                renamed_mp4 = _rename_completed_file(
+
+                    result=
+                        mp4_result,
+
+                    output_type=
+                        "mp4",
+
+                    title=
+                        title,
+
+                    start_time=
+                        start_time,
+
+                    end_time=
+                        end_time
+
+                )
+
+                _update_file(
+
+                    job_id,
+
+                    "mp4",
+
+                    status="complete",
+
+                    filename=
+                        renamed_mp4["filename"],
+
+                    path=
+                        renamed_mp4["path"],
+
+                    message=
+                        "mp4 変換終了"
+
+                )
+
+                print(
+                    "[CONVERT] MP4 COMPLETE:",
+                    renamed_mp4,
+                    flush=True
+                )
+
+        # ======================================================
         # 完了
-        # ==================================================
+        # ======================================================
 
         completed_at = datetime.now()
 
@@ -1220,6 +1534,10 @@ def _run_conversion_job(
 
                 continue
 
+            if output_type not in job["files"]:
+
+                continue
+
             current_status = (
 
                 job["files"]
@@ -1246,6 +1564,14 @@ def _run_conversion_job(
                 )
 
     finally:
+
+        # ======================================================
+        # 通常MP3処理で使用した一時ダウンロードのみ
+        # cleanupする。
+        #
+        # subtitle_mp4.py は独自にMP4を作成するため、
+        # download_resultは使用しない。
+        # ======================================================
 
         if download_result:
 
@@ -1300,6 +1626,10 @@ def register_convert(
                 "end_time"
             )
 
+            # ==================================================
+            # output_type → outputs
+            # ==================================================
+
             if not outputs:
 
                 output_type = data.get(
@@ -1308,7 +1638,8 @@ def register_convert(
 
                 if output_type in (
                     "mp3",
-                    "mp4"
+                    "mp4",
+                    "subtitle_mp4"
                 ):
 
                     outputs = [
@@ -1331,6 +1662,10 @@ def register_convert(
 
                 outputs = []
 
+            # ==================================================
+            # ★ 字幕MP4を追加
+            # ==================================================
+
             outputs = [
 
                 output
@@ -1339,7 +1674,8 @@ def register_convert(
 
                 if output in (
                     "mp3",
-                    "mp4"
+                    "mp4",
+                    "subtitle_mp4"
                 )
 
             ]
@@ -1349,6 +1685,10 @@ def register_convert(
                     outputs
                 )
             )
+
+            # ==================================================
+            # URL確認
+            # ==================================================
 
             if not url:
 
@@ -1362,6 +1702,10 @@ def register_convert(
 
                 }), 400
 
+            # ==================================================
+            # 出力形式確認
+            # ==================================================
+
             if not outputs:
 
                 return jsonify({
@@ -1373,6 +1717,24 @@ def register_convert(
                         "出力形式を選択してください。"
 
                 }), 400
+
+            # ==================================================
+            # ★ 字幕MP4は単独モード
+            #
+            # フロント側から万一
+            #
+            # ["subtitle_mp4", "mp3"]
+            #
+            # のように送られても、
+            # 処理の切り分けを明確にするため
+            # subtitle_mp4だけを実行する。
+            # ==================================================
+
+            if "subtitle_mp4" in outputs:
+
+                outputs = [
+                    "subtitle_mp4"
+                ]
 
             # ==================================================
             # 時間検証
@@ -1492,6 +1854,12 @@ def register_convert(
             print(
                 "[CONVERT] job_id:",
                 job_id,
+                flush=True
+            )
+
+            print(
+                "[CONVERT] outputs:",
+                outputs,
                 flush=True
             )
 
