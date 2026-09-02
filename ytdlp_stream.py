@@ -3,37 +3,15 @@ import shutil
 import subprocess
 import tempfile
 import uuid
+import traceback
+
 from pathlib import Path
 
 import yt_dlp
 
 
 # ==========================================================
-# FFmpeg
-# ==========================================================
-
-FFMPEG_BINARY = "ffmpeg"
-
-
-# ==========================================================
-# Deno
-# ==========================================================
-
-DENO_PATH = os.environ.get(
-    "DENO_PATH",
-    "/app/.deno/bin/deno"
-)
-
-
-# ==========================================================
-# Cookie
-# ==========================================================
-
-COOKIES_SOURCE = "/etc/secrets/cookies.txt"
-
-
-# ==========================================================
-# 起動時 DEBUG
+# DEBUG
 # ==========================================================
 
 print(
@@ -47,73 +25,33 @@ print(
 )
 
 print(
-    "[YTDLP_STREAM] yt_dlp version:",
-    yt_dlp.version.__version__,
+    "[YTDLP_STREAM] Python:",
+    os.sys.version,
     flush=True
 )
 
-print(
-    "[YTDLP_STREAM] yt_dlp location:",
-    yt_dlp.__file__,
-    flush=True
+
+# ==========================================================
+# 設定
+# ==========================================================
+
+FFMPEG_BINARY = "ffmpeg"
+
+DENO_PATH = os.environ.get(
+    "DENO_PATH",
+    "/app/.deno/bin/deno"
 )
 
-print(
-    "[YTDLP_STREAM] DENO_PATH:",
-    DENO_PATH,
-    flush=True
-)
-
-print(
-    "[YTDLP_STREAM] Deno exists:",
-    os.path.isfile(DENO_PATH),
-    flush=True
-)
-
-print(
-    "[YTDLP_STREAM] Deno executable:",
-    os.access(
-        DENO_PATH,
-        os.X_OK
-    ),
-    flush=True
-)
-
-print(
-    "[YTDLP_STREAM] Cookie exists:",
-    os.path.isfile(COOKIES_SOURCE),
-    flush=True
-)
-
-print(
-    "[YTDLP_STREAM] ffmpeg:",
-    shutil.which("ffmpeg"),
-    flush=True
-)
-
-print(
-    "==========================================",
-    flush=True
+COOKIES_SOURCE = (
+    "/etc/secrets/cookies.txt"
 )
 
 
 # ==========================================================
 # Cookie準備
-#
-# ytdlp.py と同じ方式。
-#
-# 元ファイル:
-#   /etc/secrets/cookies.txt
-#
-# yt-dlpには一時コピーを渡す。
 # ==========================================================
 
 def _prepare_cookie_file():
-
-    print(
-        "[YTDLP_STREAM] Cookie preparation START",
-        flush=True
-    )
 
     if not os.path.isfile(
         COOKIES_SOURCE
@@ -125,102 +63,61 @@ def _prepare_cookie_file():
             COOKIES_SOURCE
         )
 
-    temporary_cookie_path = None
+    temporary_cookie = (
+        tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=".txt",
+            prefix="y2conv_stream_cookies_",
+            delete=False
+        )
+    )
+
+    temporary_path = (
+        temporary_cookie.name
+    )
+
+    temporary_cookie.close()
 
     try:
 
-        source_size = os.path.getsize(
-            COOKIES_SOURCE
-        )
-
-        print(
-            "[YTDLP_STREAM] Cookie source size:",
-            source_size,
-            "bytes",
-            flush=True
-        )
-
-        temporary_cookie = (
-            tempfile.NamedTemporaryFile(
-                mode="w",
-                suffix=".txt",
-                prefix="y2conv_stream_cookies_",
-                delete=False
-            )
-        )
-
-        temporary_cookie_path = (
-            temporary_cookie.name
-        )
-
-        temporary_cookie.close()
-
         shutil.copyfile(
             COOKIES_SOURCE,
-            temporary_cookie_path
+            temporary_path
         )
 
-        temporary_size = os.path.getsize(
-            temporary_cookie_path
-        )
-
-        print(
-            "[YTDLP_STREAM] Temporary cookie:",
-            temporary_cookie_path,
-            flush=True
-        )
-
-        print(
-            "[YTDLP_STREAM] Temporary cookie size:",
-            temporary_size,
-            "bytes",
-            flush=True
-        )
-
-        return temporary_cookie_path
+        return temporary_path
 
     except Exception:
 
-        if temporary_cookie_path:
+        try:
 
-            try:
+            if os.path.exists(
+                temporary_path
+            ):
 
-                if os.path.exists(
-                    temporary_cookie_path
-                ):
+                os.remove(
+                    temporary_path
+                )
 
-                    os.remove(
-                        temporary_cookie_path
-                    )
+        except Exception:
 
-            except Exception:
-
-                pass
+            pass
 
         raise
 
-    finally:
-
-        print(
-            "[YTDLP_STREAM] Cookie preparation END",
-            flush=True
-        )
-
 
 # ==========================================================
-# yt-dlp 共通オプション
-#
-# ytdlp.py と同じYouTube対策を使用。
+# 共通yt-dlpオプション
 # ==========================================================
 
 def _base_ydl_opts(
-    temporary_cookie_path=None
+    cookie_path=None
 ):
 
     opts = {
 
         "quiet":
-            True,
+            False,
 
         "no_warnings":
             False,
@@ -234,10 +131,6 @@ def _base_ydl_opts(
         "verbose":
             True,
 
-        # ==================================================
-        # YouTube JavaScript challenge
-        # ==================================================
-
         "js_runtimes": {
 
             "deno": {
@@ -249,10 +142,6 @@ def _base_ydl_opts(
 
         },
 
-        # ==================================================
-        # EJS challenge scripts
-        # ==================================================
-
         "remote_components": {
 
             "ejs:github"
@@ -261,94 +150,41 @@ def _base_ydl_opts(
 
     }
 
-    if temporary_cookie_path:
+    if cookie_path:
 
         opts[
             "cookiefile"
-        ] = temporary_cookie_path
+        ] = cookie_path
 
     return opts
 
 
 # ==========================================================
-# Deno確認
+# FFmpeg確認
 # ==========================================================
 
-def _validate_deno():
+def _check_ffmpeg():
 
-    print(
-        "[YTDLP_STREAM] Checking Deno...",
-        flush=True
+    path = shutil.which(
+        FFMPEG_BINARY
     )
 
-    if not os.path.isfile(
-        DENO_PATH
-    ):
+    if not path:
 
         raise RuntimeError(
-            "Denoが利用できません: "
-            +
-            DENO_PATH
+            "FFmpegが見つかりません。"
         )
 
-    if not os.access(
-        DENO_PATH,
-        os.X_OK
-    ):
-
-        raise RuntimeError(
-            "Denoに実行権限がありません: "
-            +
-            DENO_PATH
-        )
-
-    result = subprocess.run(
-
-        [
-            DENO_PATH,
-            "--version"
-        ],
-
-        capture_output=True,
-
-        text=True,
-
-        timeout=10
-
-    )
-
-    print(
-        "[YTDLP_STREAM] Deno returncode:",
-        result.returncode,
-        flush=True
-    )
-
-    print(
-        "[YTDLP_STREAM] Deno stdout:",
-        result.stdout,
-        flush=True
-    )
-
-    if result.stderr:
-
-        print(
-            "[YTDLP_STREAM] Deno stderr:",
-            result.stderr,
-            flush=True
-        )
-
-    if result.returncode != 0:
-
-        raise RuntimeError(
-            "Denoの実行に失敗しました。"
-        )
+    return path
 
 
 # ==========================================================
 # 時間 → 秒
 # ==========================================================
 
-def _time_to_seconds(value):
+def _time_to_seconds(
+    value
+):
 
     if value is None:
 
@@ -369,19 +205,23 @@ def _time_to_seconds(value):
         if len(parts) == 3:
 
             return (
+
                 float(parts[0]) * 3600
                 +
                 float(parts[1]) * 60
                 +
                 float(parts[2])
+
             )
 
         if len(parts) == 2:
 
             return (
+
                 float(parts[0]) * 60
                 +
                 float(parts[1])
+
             )
 
         return float(text)
@@ -394,104 +234,23 @@ def _time_to_seconds(value):
 
 
 # ==========================================================
-# 安全なファイル名
+# 情報取得
 # ==========================================================
 
-def _safe_filename(value):
+def _extract_info(
+    url
+):
 
-    text = str(
-        value or "video"
-    ).strip()
-
-    if not text:
-
-        text = "video"
-
-    invalid_chars = (
-        "/",
-        "\\",
-        ":",
-        "*",
-        "?",
-        '"',
-        "<",
-        ">",
-        "|"
-    )
-
-    for char in invalid_chars:
-
-        text = text.replace(
-            char,
-            "_"
-        )
-
-    return text[:180]
-
-
-# ==========================================================
-# YouTube情報取得
-#
-# ytdlp.py と同じ
-# Cookie + Deno + EJS
-# を使用。
-# ==========================================================
-
-def _extract_info(url):
-
-    temporary_cookie_path = None
+    cookie_path = None
 
     try:
 
-        if not url:
-
-            raise ValueError(
-                "YouTube URLが空です。"
-            )
-
-        _validate_deno()
-
-        temporary_cookie_path = (
+        cookie_path = (
             _prepare_cookie_file()
         )
 
         opts = _base_ydl_opts(
-            temporary_cookie_path
-        )
-
-        print(
-            "[YTDLP_STREAM] extract_info START",
-            flush=True
-        )
-
-        print(
-            "[YTDLP_STREAM] URL:",
-            url,
-            flush=True
-        )
-
-        print(
-            "[YTDLP_STREAM] Deno:",
-            DENO_PATH,
-            flush=True
-        )
-
-        print(
-            "[YTDLP_STREAM] Cookie:",
-            temporary_cookie_path,
-            flush=True
-        )
-
-        print(
-            "[YTDLP_STREAM] remote_components:",
-            opts.get("remote_components"),
-            flush=True
-        )
-
-        print(
-            "[YTDLP_STREAM] js_runtimes:",
-            opts.get("js_runtimes"),
-            flush=True
+            cookie_path
         )
 
         with yt_dlp.YoutubeDL(
@@ -499,8 +258,11 @@ def _extract_info(url):
         ) as ydl:
 
             info = ydl.extract_info(
+
                 url,
+
                 download=False
+
             )
 
         if not info:
@@ -509,173 +271,190 @@ def _extract_info(url):
                 "YouTube動画情報を取得できませんでした。"
             )
 
-        print(
-            "[YTDLP_STREAM] extract_info SUCCESS",
-            flush=True
-        )
-
-        print(
-            "[YTDLP_STREAM] Video ID:",
-            info.get("id"),
-            flush=True
-        )
-
-        print(
-            "[YTDLP_STREAM] Title:",
-            info.get("title"),
-            flush=True
-        )
-
-        print(
-            "[YTDLP_STREAM] Duration:",
-            info.get("duration"),
-            flush=True
-        )
-
         return info
 
     finally:
 
-        if temporary_cookie_path:
+        if cookie_path:
 
             try:
 
                 if os.path.exists(
-                    temporary_cookie_path
+                    cookie_path
                 ):
 
                     os.remove(
-                        temporary_cookie_path
+                        cookie_path
                     )
 
-                    print(
-                        "[YTDLP_STREAM] Temporary cookie removed",
-                        flush=True
-                    )
+            except Exception:
 
-            except Exception as error:
-
-                print(
-                    "[YTDLP_STREAM] Cookie remove ERROR:",
-                    repr(error),
-                    flush=True
-                )
+                pass
 
 
 # ==========================================================
-# MP4用フォーマット選択
-#
-# 可能なら映像+音声のMP4を選択。
-#
-# combinedが無い場合は
-# video + audio の分離ストリームを選択。
+# FFmpeg用HTTPヘッダー
 # ==========================================================
 
-def _select_mp4_format(info):
+def _get_http_headers(
+    fmt
+):
+
+    if not fmt:
+
+        return {}
+
+    headers = (
+        fmt.get("http_headers")
+        or {}
+    )
+
+    return dict(
+        headers
+    )
+
+
+# ==========================================================
+# FFmpeg HTTPヘッダー文字列
+# ==========================================================
+
+def _headers_to_ffmpeg(
+    headers
+):
+
+    if not headers:
+
+        return []
+
+    values = []
+
+    for key, value in headers.items():
+
+        if value is None:
+
+            continue
+
+        key_text = str(
+            key
+        ).strip()
+
+        value_text = str(
+            value
+        ).strip()
+
+        if not key_text:
+
+            continue
+
+        values.append(
+            f"{key_text}: {value_text}"
+        )
+
+    if not values:
+
+        return []
+
+    return [
+
+        "-headers",
+
+        "\r\n".join(
+            values
+        )
+        +
+        "\r\n"
+
+    ]
+
+
+# ==========================================================
+# MP4フォーマット選択
+# ==========================================================
+
+def _select_mp4_format(
+    info
+):
 
     formats = info.get(
         "formats"
     ) or []
 
-    candidates = []
+    # ======================================================
+    # combined MP4
+    # ======================================================
+
+    combined = []
 
     for fmt in formats:
-
-        if fmt.get("vcodec") in (
-            None,
-            "none"
-        ):
-
-            continue
 
         ext = str(
             fmt.get("ext") or ""
         ).lower()
 
-        if ext != "mp4":
-
-            continue
+        vcodec = fmt.get(
+            "vcodec"
+        )
 
         acodec = fmt.get(
             "acodec"
         )
 
-        filesize = (
-            fmt.get("filesize")
-            or
-            fmt.get("filesize_approx")
-            or
-            0
-        )
+        if ext != "mp4":
 
-        height = (
-            fmt.get("height")
-            or
-            0
-        )
+            continue
 
-        # ==================================================
-        # 映像 + 音声
-        # ==================================================
-
-        if acodec not in (
+        if vcodec in (
             None,
             "none"
         ):
 
-            candidates.append({
+            continue
 
-                "format":
-                    fmt,
+        if acodec in (
+            None,
+            "none"
+        ):
 
-                "kind":
-                    "combined",
+            continue
 
-                "height":
-                    height,
+        combined.append(
+            fmt
+        )
 
-                "filesize":
-                    filesize
+    if combined:
 
-            })
+        combined.sort(
 
-    # ======================================================
-    # combined MP4優先
-    # ======================================================
+            key=lambda fmt: (
 
-    if candidates:
+                fmt.get("height") or 0,
 
-        candidates.sort(
+                fmt.get("tbr") or 0,
 
-            key=lambda item: (
-                item["height"],
-                item["filesize"]
+                fmt.get("filesize")
+                or
+                fmt.get("filesize_approx")
+                or
+                0
+
             ),
 
             reverse=True
 
         )
 
-        selected = candidates[0]["format"]
+        return {
 
-        print(
-            "[YTDLP_STREAM] Selected combined MP4:",
-            selected.get("format_id"),
-            flush=True
-        )
+            "_separate":
+                False,
 
-        print(
-            "[YTDLP_STREAM] Resolution:",
-            selected.get("width"),
-            "x",
-            selected.get("height"),
-            flush=True
-        )
+            "format":
+                combined[0]
 
-        return selected
+        }
 
     # ======================================================
-    # separate streams
+    # separate video
     # ======================================================
 
     video_candidates = []
@@ -700,24 +479,6 @@ def _select_mp4_format(info):
             "acodec"
         )
 
-        height = (
-            fmt.get("height")
-            or
-            0
-        )
-
-        filesize = (
-            fmt.get("filesize")
-            or
-            fmt.get("filesize_approx")
-            or
-            0
-        )
-
-        # --------------------------------------------------
-        # 映像のみ
-        # --------------------------------------------------
-
         if (
             vcodec not in (
                 None,
@@ -733,10 +494,6 @@ def _select_mp4_format(info):
             video_candidates.append(
                 fmt
             )
-
-        # --------------------------------------------------
-        # 音声のみ
-        # --------------------------------------------------
 
         elif (
             vcodec in (
@@ -763,11 +520,17 @@ def _select_mp4_format(info):
     video_candidates.sort(
 
         key=lambda fmt: (
+
             fmt.get("height") or 0,
-            fmt.get("fps") or 0,
-            fmt.get("filesize") or
-            fmt.get("filesize_approx") or
+
+            fmt.get("tbr") or 0,
+
+            fmt.get("filesize")
+            or
+            fmt.get("filesize_approx")
+            or
             0
+
         ),
 
         reverse=True
@@ -783,10 +546,17 @@ def _select_mp4_format(info):
         audio_candidates.sort(
 
             key=lambda fmt: (
+
                 fmt.get("abr") or 0,
-                fmt.get("filesize") or
-                fmt.get("filesize_approx") or
+
+                fmt.get("tbr") or 0,
+
+                fmt.get("filesize")
+                or
+                fmt.get("filesize_approx")
+                or
                 0
+
             ),
 
             reverse=True
@@ -794,35 +564,6 @@ def _select_mp4_format(info):
         )
 
         audio_fmt = audio_candidates[0]
-
-    print(
-        "[YTDLP_STREAM] Selected video:",
-        video_fmt.get("format_id"),
-        flush=True
-    )
-
-    print(
-        "[YTDLP_STREAM] Video resolution:",
-        video_fmt.get("width"),
-        "x",
-        video_fmt.get("height"),
-        flush=True
-    )
-
-    if audio_fmt:
-
-        print(
-            "[YTDLP_STREAM] Selected audio:",
-            audio_fmt.get("format_id"),
-            flush=True
-        )
-
-    else:
-
-        print(
-            "[YTDLP_STREAM] No separate audio stream",
-            flush=True
-        )
 
     return {
 
@@ -846,22 +587,27 @@ def _run_ffmpeg_single(
     input_url,
     output_path,
     start_seconds,
-    end_seconds
+    end_seconds,
+    headers=None
 ):
 
-    output_path = str(
-        output_path
-    )
+    ffmpeg_path = _check_ffmpeg()
 
-    duration_seconds = (
+    duration = (
         end_seconds
         -
         start_seconds
     )
 
+    if duration <= 0:
+
+        raise ValueError(
+            "指定時間が不正です。"
+        )
+
     command = [
 
-        FFMPEG_BINARY,
+        ffmpeg_path,
 
         "-hide_banner",
 
@@ -869,18 +615,23 @@ def _run_ffmpeg_single(
         "warning",
 
         "-ss",
-        str(start_seconds),
+        str(start_seconds)
+
+    ]
+
+    command.extend(
+        _headers_to_ffmpeg(
+            headers
+        )
+    )
+
+    command.extend([
 
         "-i",
         input_url,
 
         "-t",
-        str(
-            max(
-                0,
-                duration_seconds
-            )
-        ),
+        str(duration),
 
         "-map",
         "0:v:0",
@@ -896,9 +647,9 @@ def _run_ffmpeg_single(
 
         "-y",
 
-        output_path
+        str(output_path)
 
-    ]
+    ])
 
     print(
         "[YTDLP_STREAM] FFmpeg command:",
@@ -930,7 +681,7 @@ def _run_ffmpeg_single(
 
             "指定区間のMP4作成に失敗しました。\n"
             +
-            process.stderr[-3000:]
+            process.stderr[-5000:]
 
         )
 
@@ -939,7 +690,7 @@ def _run_ffmpeg_single(
     ):
 
         raise RuntimeError(
-            "FFmpeg実行後のMP4ファイルがありません。"
+            "FFmpeg後のMP4ファイルがありません。"
         )
 
     if os.path.getsize(
@@ -947,166 +698,16 @@ def _run_ffmpeg_single(
     ) <= 0:
 
         raise RuntimeError(
-            "FFmpeg実行後のMP4ファイルサイズが0です。"
+            "FFmpeg後のMP4ファイルサイズが0です。"
         )
 
-    return output_path
+    return str(
+        output_path
+    )
 
 
 # ==========================================================
-# FFmpeg video + audio
-#
-# URLを2本直接入力。
-# 再エンコードなし。
-# ==========================================================
-
-def _run_ffmpeg_video_audio(
-    video_url,
-    audio_url,
-    output_path,
-    start_seconds,
-    end_seconds
-):
-
-    output_path = str(
-        output_path
-    )
-
-    duration_seconds = (
-        end_seconds
-        -
-        start_seconds
-    )
-
-    command = [
-
-        FFMPEG_BINARY,
-
-        "-hide_banner",
-
-        "-loglevel",
-        "warning",
-
-        # ==================================================
-        # video
-        # ==================================================
-
-        "-ss",
-        str(start_seconds),
-
-        "-i",
-        video_url,
-
-        # ==================================================
-        # audio
-        # ==================================================
-
-        "-ss",
-        str(start_seconds),
-
-        "-i",
-        audio_url,
-
-        # ==================================================
-        # duration
-        # ==================================================
-
-        "-t",
-        str(
-            max(
-                0,
-                duration_seconds
-            )
-        ),
-
-        # ==================================================
-        # map
-        # ==================================================
-
-        "-map",
-        "0:v:0",
-
-        "-map",
-        "1:a:0",
-
-        # ==================================================
-        # no re-encode
-        # ==================================================
-
-        "-c:v",
-        "copy",
-
-        "-c:a",
-        "copy",
-
-        "-movflags",
-        "+faststart",
-
-        "-y",
-
-        output_path
-
-    ]
-
-    print(
-        "[YTDLP_STREAM] FFmpeg video/audio command START",
-        flush=True
-    )
-
-    process = subprocess.run(
-
-        command,
-
-        stdout=subprocess.PIPE,
-
-        stderr=subprocess.PIPE,
-
-        text=True
-
-    )
-
-    if process.returncode != 0:
-
-        print(
-            "[YTDLP_STREAM] FFmpeg stderr:",
-            process.stderr,
-            flush=True
-        )
-
-        raise RuntimeError(
-
-            "指定区間のMP4作成に失敗しました。\n"
-            +
-            process.stderr[-3000:]
-
-        )
-
-    if not os.path.isfile(
-        output_path
-    ):
-
-        raise RuntimeError(
-            "FFmpeg実行後のMP4ファイルがありません。"
-        )
-
-    if os.path.getsize(
-        output_path
-    ) <= 0:
-
-        raise RuntimeError(
-            "FFmpeg実行後のMP4ファイルサイズが0です。"
-        )
-
-    return output_path
-
-
-# ==========================================================
-# MP4全体ダウンロード
-#
-# 時間指定なしの場合。
-#
-# Cookie + Deno + EJSを使用して
-# yt-dlpが通常通りダウンロードする。
+# MP4全体
 # ==========================================================
 
 def create_mp4_full(
@@ -1123,40 +724,29 @@ def create_mp4_full(
         exist_ok=True
     )
 
-    temporary_cookie_path = None
+    cookie_path = None
 
     try:
 
-        _validate_deno()
-
-        temporary_cookie_path = (
+        cookie_path = (
             _prepare_cookie_file()
         )
 
-        info = None
-
-        # --------------------------------------------------
-        # まず情報取得
-        # --------------------------------------------------
-
         opts = _base_ydl_opts(
-            temporary_cookie_path
-        )
-
-        output_template = str(
-            output_dir
-            /
-            "%(id)s.%(ext)s"
+            cookie_path
         )
 
         opts.update({
 
             "format":
-                "bestvideo[ext=mp4]+bestaudio[ext=m4a]/"
-                "best[ext=mp4]/best",
+                "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
 
             "outtmpl":
-                output_template,
+                str(
+                    output_dir
+                    /
+                    "%(id)s.%(ext)s"
+                ),
 
             "merge_output_format":
                 "mp4"
@@ -1168,127 +758,98 @@ def create_mp4_full(
             flush=True
         )
 
-        print(
-            "[YTDLP_STREAM] URL:",
-            url,
-            flush=True
-        )
-
-        print(
-            "[YTDLP_STREAM] Output:",
-            output_template,
-            flush=True
-        )
-
         with yt_dlp.YoutubeDL(
             opts
         ) as ydl:
 
             info = ydl.extract_info(
+
                 url,
+
                 download=True
+
             )
 
             if not info:
 
                 raise RuntimeError(
-                    "YouTube動画情報を取得できませんでした。"
+                    "MP4情報を取得できませんでした。"
                 )
 
-            video_id = (
-                info.get("id")
-                or
-                str(uuid.uuid4())
-            )
-
-            title = (
-                info.get("title")
-                or
-                "YouTube Video"
-            )
-
-            duration = info.get(
-                "duration"
-            )
-
-            prepared_path = Path(
+            prepared = Path(
                 ydl.prepare_filename(
                     info
                 )
             )
 
-        # --------------------------------------------------
-        # MP4
-        # --------------------------------------------------
+        video_id = (
+            info.get("id")
+            or
+            str(uuid.uuid4())
+        )
 
-        mp4_path = prepared_path.with_suffix(
+        title = (
+            info.get("title")
+            or
+            "YouTube Video"
+        )
+
+        duration = info.get(
+            "duration"
+        )
+
+        mp4_path = prepared.with_suffix(
             ".mp4"
         )
 
-        if mp4_path.is_file():
+        if not mp4_path.is_file():
 
-            final_path = mp4_path
+            if prepared.is_file():
 
-        elif prepared_path.is_file():
+                mp4_path = prepared
 
-            final_path = prepared_path
+            else:
 
-        else:
-
-            matches = list(
-                output_dir.glob(
-                    f"{video_id}.*"
-                )
-            )
-
-            matches = [
-
-                path
-
-                for path in matches
-
-                if path.is_file()
-
-                and
-                path.suffix.lower()
-                not in (
-                    ".part",
-                    ".ytdl",
-                    ".temp"
+                matches = list(
+                    output_dir.glob(
+                        f"{video_id}.*"
+                    )
                 )
 
-            ]
+                matches = [
 
-            if not matches:
+                    p for p in matches
 
-                raise FileNotFoundError(
-                    "MP4ダウンロード後のファイルが見つかりません。"
+                    if p.is_file()
+
+                    and
+                    p.suffix.lower()
+                    not in (
+                        ".part",
+                        ".ytdl",
+                        ".temp"
+                    )
+
+                ]
+
+                if not matches:
+
+                    raise FileNotFoundError(
+                        "MP4ダウンロード後のファイルが見つかりません。"
+                    )
+
+                matches.sort(
+
+                    key=lambda p:
+                        p.stat().st_mtime,
+
+                    reverse=True
+
                 )
 
-            matches.sort(
+                mp4_path = matches[0]
 
-                key=lambda path:
-                    path.stat().st_mtime,
-
-                reverse=True
-
-            )
-
-            final_path = matches[0]
-
-        # --------------------------------------------------
-        # 最終確認
-        # --------------------------------------------------
-
-        if not final_path.is_file():
-
-            raise FileNotFoundError(
-                "MP4完成ファイルが存在しません: "
-                +
-                str(final_path)
-            )
-
-        if final_path.stat().st_size <= 0:
+        if mp4_path.stat().st_size <= 0:
 
             raise RuntimeError(
                 "MP4ファイルサイズが0です。"
@@ -1296,24 +857,17 @@ def create_mp4_full(
 
         print(
             "[YTDLP_STREAM] Full MP4 COMPLETE:",
-            final_path,
-            flush=True
-        )
-
-        print(
-            "[YTDLP_STREAM] File size:",
-            final_path.stat().st_size,
-            "bytes",
+            mp4_path,
             flush=True
         )
 
         return {
 
             "path":
-                str(final_path),
+                str(mp4_path),
 
             "filename":
-                final_path.name,
+                mp4_path.name,
 
             "video_id":
                 video_id,
@@ -1326,33 +880,30 @@ def create_mp4_full(
 
         }
 
-    except Exception as error:
+    except Exception as e:
 
         print(
             "[YTDLP_STREAM] create_mp4_full ERROR:",
-            repr(error),
+            repr(e),
             flush=True
         )
+
+        traceback.print_exc()
 
         raise
 
     finally:
 
-        if temporary_cookie_path:
+        if cookie_path:
 
             try:
 
                 if os.path.exists(
-                    temporary_cookie_path
+                    cookie_path
                 ):
 
                     os.remove(
-                        temporary_cookie_path
-                    )
-
-                    print(
-                        "[YTDLP_STREAM] Temporary cookie removed",
-                        flush=True
+                        cookie_path
                     )
 
             except Exception:
@@ -1362,25 +913,6 @@ def create_mp4_full(
 
 # ==========================================================
 # MP4時間指定
-#
-# 重要：
-#
-# YouTube動画全体をローカルへ保存しない。
-#
-# yt-dlp:
-#   情報取得
-#   ↓
-#   ストリームURL取得
-#
-# FFmpeg:
-#   URLを直接入力
-#   ↓
-#   指定時間だけ取得
-#   ↓
-#   -c copy
-#   ↓
-#   再エンコードなし
-#
 # ==========================================================
 
 def create_mp4_range(
@@ -1419,124 +951,70 @@ def create_mp4_range(
             "終了時間は開始時間より後である必要があります。"
         )
 
-    temporary_output = None
+    print(
+        "[YTDLP_STREAM] Extracting stream information...",
+        flush=True
+    )
+
+    info = _extract_info(
+        url
+    )
+
+    video_id = (
+        info.get("id")
+        or
+        str(uuid.uuid4())
+    )
+
+    title = (
+        info.get("title")
+        or
+        "YouTube Video"
+    )
+
+    duration = info.get(
+        "duration"
+    )
+
+    selected = _select_mp4_format(
+        info
+    )
+
+    temporary_name = (
+
+        "."
+        +
+        video_id
+        +
+        "_"
+        +
+        uuid.uuid4().hex
+        +
+        ".mp4"
+
+    )
+
+    output_path = (
+        output_dir
+        /
+        temporary_name
+    )
 
     try:
 
         # ==================================================
-        # YouTube情報
-        #
-        # Cookie + Deno + EJS
-        # ==================================================
-
-        print(
-            "[YTDLP_STREAM] Extracting stream information...",
-            flush=True
-        )
-
-        info = _extract_info(
-            url
-        )
-
-        video_id = (
-            info.get("id")
-            or
-            str(uuid.uuid4())
-        )
-
-        title = (
-            info.get("title")
-            or
-            "YouTube Video"
-        )
-
-        duration = info.get(
-            "duration"
-        )
-
-        # ==================================================
-        # 時間範囲チェック
-        # ==================================================
-
-        if duration is not None:
-
-            try:
-
-                duration_seconds = float(
-                    duration
-                )
-
-                if start_seconds >= duration_seconds:
-
-                    raise ValueError(
-                        "開始時間が動画の長さを超えています。"
-                    )
-
-                if end_seconds > duration_seconds:
-
-                    print(
-                        "[YTDLP_STREAM] end_time adjusted:",
-                        end_seconds,
-                        "->",
-                        duration_seconds,
-                        flush=True
-                    )
-
-                    end_seconds = (
-                        duration_seconds
-                    )
-
-                if end_seconds <= start_seconds:
-
-                    raise ValueError(
-                        "指定された時間範囲が動画の長さを超えています。"
-                    )
-
-            except ValueError:
-
-                raise
-
-            except Exception:
-
-                pass
-
-        # ==================================================
-        # フォーマット
-        # ==================================================
-
-        selected = _select_mp4_format(
-            info
-        )
-
-        # ==================================================
-        # 出力ファイル
-        # ==================================================
-
-        temporary_name = (
-
-            f".{video_id}_"
-            f"{uuid.uuid4().hex}"
-            ".mp4"
-
-        )
-
-        output_path = (
-            output_dir
-            /
-            temporary_name
-        )
-
-        temporary_output = output_path
-
-        # ==================================================
-        # combined MP4
+        # combined
         # ==================================================
 
         if not selected.get(
             "_separate"
         ):
 
-            stream_url = selected.get(
+            fmt = selected.get(
+                "format"
+            )
+
+            stream_url = fmt.get(
                 "url"
             )
 
@@ -1546,9 +1024,13 @@ def create_mp4_range(
                     "MP4ストリームURLを取得できませんでした。"
                 )
 
+            headers = _get_http_headers(
+                fmt
+            )
+
             print(
-                "[YTDLP_STREAM] Direct combined MP4 stream:",
-                selected.get("format_id"),
+                "[YTDLP_STREAM] Direct combined MP4:",
+                fmt.get("format_id"),
                 flush=True
             )
 
@@ -1564,7 +1046,10 @@ def create_mp4_range(
                     start_seconds,
 
                 end_seconds=
-                    end_seconds
+                    end_seconds,
+
+                headers=
+                    headers
 
             )
 
@@ -1583,23 +1068,15 @@ def create_mp4_range(
             )
 
             video_url = (
-
                 video_fmt.get("url")
-
                 if video_fmt
-
                 else None
-
             )
 
             audio_url = (
-
                 audio_fmt.get("url")
-
                 if audio_fmt
-
                 else None
-
             )
 
             if not video_url:
@@ -1608,16 +1085,25 @@ def create_mp4_range(
                     "MP4映像ストリームURLを取得できませんでした。"
                 )
 
-            # ------------------------------------------------
-            # videoのみ
-            # ------------------------------------------------
+            video_headers = (
+                _get_http_headers(
+                    video_fmt
+                )
+            )
+
+            audio_headers = (
+                _get_http_headers(
+                    audio_fmt
+                )
+                if audio_fmt
+                else {}
+            )
+
+            # ----------------------------------------------
+            # video only
+            # ----------------------------------------------
 
             if not audio_url:
-
-                print(
-                    "[YTDLP_STREAM] Direct video-only stream",
-                    flush=True
-                )
 
                 _run_ffmpeg_single(
 
@@ -1631,43 +1117,124 @@ def create_mp4_range(
                         start_seconds,
 
                     end_seconds=
-                        end_seconds
+                        end_seconds,
+
+                    headers=
+                        video_headers
 
                 )
 
-            # ------------------------------------------------
+            # ----------------------------------------------
             # video + audio
-            # ------------------------------------------------
+            # ----------------------------------------------
 
             else:
 
+                ffmpeg_path = _check_ffmpeg()
+
+                duration_seconds = (
+                    end_seconds
+                    -
+                    start_seconds
+                )
+
+                command = [
+
+                    ffmpeg_path,
+
+                    "-hide_banner",
+
+                    "-loglevel",
+                    "warning",
+
+                    "-ss",
+                    str(start_seconds)
+
+                ]
+
+                command.extend(
+                    _headers_to_ffmpeg(
+                        video_headers
+                    )
+                )
+
+                command.extend([
+
+                    "-i",
+                    video_url,
+
+                    "-ss",
+                    str(start_seconds)
+
+                ])
+
+                command.extend(
+                    _headers_to_ffmpeg(
+                        audio_headers
+                    )
+                )
+
+                command.extend([
+
+                    "-i",
+                    audio_url,
+
+                    "-t",
+                    str(duration_seconds),
+
+                    "-map",
+                    "0:v:0",
+
+                    "-map",
+                    "1:a:0",
+
+                    "-c:v",
+                    "copy",
+
+                    "-c:a",
+                    "copy",
+
+                    "-movflags",
+                    "+faststart",
+
+                    "-y",
+
+                    str(output_path)
+
+                ])
+
                 print(
-                    "[YTDLP_STREAM] Direct video/audio streams",
+                    "[YTDLP_STREAM] Direct video/audio FFmpeg",
                     flush=True
                 )
 
-                _run_ffmpeg_video_audio(
+                process = subprocess.run(
 
-                    video_url=
-                        video_url,
+                    command,
 
-                    audio_url=
-                        audio_url,
+                    stdout=subprocess.PIPE,
 
-                    output_path=
-                        output_path,
+                    stderr=subprocess.PIPE,
 
-                    start_seconds=
-                        start_seconds,
-
-                    end_seconds=
-                        end_seconds
+                    text=True
 
                 )
 
-        # ==================================================
-        # 完成確認
-        # ==================================================
+                if process.returncode != 0:
+
+                    print(
+                        "[YTDLP_STREAM] FFmpeg stderr:",
+                        process.stderr,
+                        flush=True
+                    )
+
+                    raise RuntimeError(
+
+                        "指定区間のMP4作成に失敗しました。\n"
+                        +
+                        process.stderr[-5000:]
+
+                    )
 
         if not output_path.is_file():
 
@@ -1684,13 +1251,6 @@ def create_mp4_range(
         print(
             "[YTDLP_STREAM] Range MP4 COMPLETE:",
             output_path,
-            flush=True
-        )
-
-        print(
-            "[YTDLP_STREAM] File size:",
-            output_path.stat().st_size,
-            "bytes",
             flush=True
         )
 
@@ -1713,28 +1273,13 @@ def create_mp4_range(
 
         }
 
-    except Exception as error:
-
-        print(
-            "[YTDLP_STREAM] create_mp4_range ERROR:",
-            repr(error),
-            flush=True
-        )
+    except Exception:
 
         try:
 
-            if (
-                temporary_output
-                and
-                temporary_output.exists()
-            ):
+            if output_path.exists():
 
-                temporary_output.unlink()
-
-                print(
-                    "[YTDLP_STREAM] Temporary output removed",
-                    flush=True
-                )
+                output_path.unlink()
 
         except Exception:
 
