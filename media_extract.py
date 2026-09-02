@@ -22,6 +22,12 @@ print(
 )
 
 print(
+    "[MEDIA] Current working directory:",
+    os.getcwd(),
+    flush=True
+)
+
+print(
     "[MEDIA] ffmpeg:",
     shutil.which("ffmpeg"),
     flush=True
@@ -35,50 +41,48 @@ print(
 
 
 # ==========================================================
-# FFmpeg
+# FFmpeg確認
 # ==========================================================
 
 def _check_ffmpeg():
 
-    path = shutil.which(
+    ffmpeg_path = shutil.which(
         "ffmpeg"
     )
 
-    if path is None:
+    if ffmpeg_path is None:
 
         raise RuntimeError(
             "FFmpegが見つかりません。"
         )
 
-    return path
+    return ffmpeg_path
 
 
 # ==========================================================
-# FFprobe
+# FFprobe確認
 # ==========================================================
 
 def _check_ffprobe():
 
-    path = shutil.which(
+    ffprobe_path = shutil.which(
         "ffprobe"
     )
 
-    if path is None:
+    if ffprobe_path is None:
 
         raise RuntimeError(
             "FFprobeが見つかりません。"
         )
 
-    return path
+    return ffprobe_path
 
 
 # ==========================================================
 # 時間 → 秒
 # ==========================================================
 
-def _time_to_seconds(
-    value
-):
+def _time_to_seconds(value):
 
     if value is None:
 
@@ -98,27 +102,45 @@ def _time_to_seconds(
 
         if len(parts) == 3:
 
+            hours = float(
+                parts[0]
+            )
+
+            minutes = float(
+                parts[1]
+            )
+
+            seconds = float(
+                parts[2]
+            )
+
             return (
-
-                float(parts[0]) * 3600
+                hours * 3600
                 +
-                float(parts[1]) * 60
+                minutes * 60
                 +
-                float(parts[2])
-
+                seconds
             )
 
         if len(parts) == 2:
 
-            return (
-
-                float(parts[0]) * 60
-                +
-                float(parts[1])
-
+            minutes = float(
+                parts[0]
             )
 
-        return float(text)
+            seconds = float(
+                parts[1]
+            )
+
+            return (
+                minutes * 60
+                +
+                seconds
+            )
+
+        return float(
+            text
+        )
 
     except Exception as error:
 
@@ -128,7 +150,10 @@ def _time_to_seconds(
 
 
 # ==========================================================
-# 時間指定判定
+# 時間範囲判定
+#
+# 00:00:00 ～ 00:00:00
+# は全体変換。
 # ==========================================================
 
 def _has_time_range(
@@ -136,23 +161,23 @@ def _has_time_range(
     end_time
 ):
 
+    start_seconds = _time_to_seconds(
+        start_time
+    )
+
+    end_seconds = _time_to_seconds(
+        end_time
+    )
+
     return not (
-
-        _time_to_seconds(
-            start_time
-        ) == 0
-
+        start_seconds == 0
         and
-
-        _time_to_seconds(
-            end_time
-        ) == 0
-
+        end_seconds == 0
     )
 
 
 # ==========================================================
-# 入力確認
+# 入力ファイル確認
 # ==========================================================
 
 def _validate_input_file(
@@ -165,27 +190,45 @@ def _validate_input_file(
             "入力ファイルが指定されていません。"
         )
 
-    path = Path(
+    input_path = Path(
         input_file
     )
 
-    if not path.is_file():
+    print(
+        "[MEDIA] Checking input:",
+        input_path,
+        flush=True
+    )
+
+    if not input_path.exists():
 
         raise FileNotFoundError(
-            f"入力ファイルがありません: {path}"
+            "入力ファイルがありません: "
+            +
+            str(input_path)
         )
 
-    size = path.stat().st_size
+    if not input_path.is_file():
+
+        raise RuntimeError(
+            "入力パスがファイルではありません: "
+            +
+            str(input_path)
+        )
+
+    size = input_path.stat().st_size
 
     if size <= 0:
 
         raise RuntimeError(
-            f"入力ファイルサイズが0です: {path}"
+            "入力ファイルのサイズが0です: "
+            +
+            str(input_path)
         )
 
     print(
-        "[MEDIA] Input:",
-        path,
+        "[MEDIA] Input file:",
+        input_path,
         flush=True
     )
 
@@ -196,7 +239,7 @@ def _validate_input_file(
         flush=True
     )
 
-    return path
+    return input_path
 
 
 # ==========================================================
@@ -213,20 +256,26 @@ def _prepare_output_dir(
             "出力先が指定されていません。"
         )
 
-    path = Path(
+    output_path = Path(
         output_dir
     )
 
-    path.mkdir(
+    output_path.mkdir(
         parents=True,
         exist_ok=True
     )
 
-    return path
+    print(
+        "[MEDIA] Output directory:",
+        output_path,
+        flush=True
+    )
+
+    return output_path
 
 
 # ==========================================================
-# MP3検証
+# MP3確認
 # ==========================================================
 
 def _validate_mp3(
@@ -237,29 +286,69 @@ def _validate_mp3(
         path
     )
 
-    if not path.is_file():
+    if not path.exists():
 
         raise FileNotFoundError(
-            f"MP3ファイルがありません: {path}"
+            "MP3ファイルがありません: "
+            +
+            str(path)
         )
 
-    if path.stat().st_size <= 0:
+    if not path.is_file():
 
         raise RuntimeError(
-            f"MP3ファイルサイズが0です: {path}"
+            "MP3出力がファイルではありません: "
+            +
+            str(path)
+        )
+
+    size = path.stat().st_size
+
+    if size <= 0:
+
+        raise RuntimeError(
+            "MP3ファイルのサイズが0です: "
+            +
+            str(path)
         )
 
     if path.suffix.lower() != ".mp3":
 
         raise RuntimeError(
-            f"MP3ではないファイルです: {path}"
+            "MP3ではないファイルが生成されました: "
+            +
+            str(path)
         )
 
-    ffprobe = _check_ffprobe()
+    print(
+        "[MEDIA] MP3 validated:",
+        path,
+        flush=True
+    )
+
+    print(
+        "[MEDIA] MP3 size:",
+        size,
+        "bytes",
+        flush=True
+    )
+
+    return path
+
+
+# ==========================================================
+# MP3をffprobeで検証
+# ==========================================================
+
+def _probe_mp3(
+    path
+):
+
+    ffprobe_path = _check_ffprobe()
 
     command = [
 
-        ffprobe,
+        ffprobe_path,
 
         "-v",
         "error",
@@ -268,14 +357,20 @@ def _validate_mp3(
         "a:0",
 
         "-show_entries",
-        "stream=codec_name,sample_rate,channels,duration",
+        "stream=codec_name,duration",
 
         "-of",
-        "default=noprint_wrappers=1:nokey=0",
+        "default=noprint_wrappers=1",
 
         str(path)
 
     ]
+
+    print(
+        "[MEDIA] FFprobe:",
+        " ".join(command),
+        flush=True
+    )
 
     result = subprocess.run(
 
@@ -290,53 +385,59 @@ def _validate_mp3(
     )
 
     print(
-        "[MEDIA] ffprobe returncode:",
+        "[MEDIA] FFprobe returncode:",
         result.returncode,
         flush=True
     )
 
-    print(
-        "[MEDIA] ffprobe stdout:",
-        result.stdout,
-        flush=True
-    )
-
-    if result.returncode != 0:
+    if result.stdout:
 
         print(
-            "[MEDIA] ffprobe stderr:",
+            "[MEDIA] FFprobe stdout:",
+            result.stdout,
+            flush=True
+        )
+
+    if result.stderr:
+
+        print(
+            "[MEDIA] FFprobe stderr:",
             result.stderr,
             flush=True
         )
 
+    if result.returncode != 0:
+
         raise RuntimeError(
-            "生成されたMP3をFFprobeで検証できませんでした。\n"
+            "生成されたMP3をFFprobeで確認できませんでした。\n"
             +
             result.stderr[-3000:]
-        )
-
-    if not result.stdout.strip():
-
-        raise RuntimeError(
-            "生成されたMP3に音声ストリームがありません。"
         )
 
     if "codec_name=mp3" not in result.stdout:
 
         raise RuntimeError(
-            "生成されたファイルがMP3音声として認識されません。"
+            "生成されたファイルにMP3音声ストリームがありません。"
         )
 
-    print(
-        "[MEDIA] MP3 validation SUCCESS",
-        flush=True
-    )
-
-    return path
+    return True
 
 
 # ==========================================================
 # MP3作成
+#
+# 入力:
+#     ダウンロード済み動画ファイル
+#
+# 出力:
+#     VIDEO_ID.mp3
+#
+# 時間指定あり:
+#     指定区間だけMP3化
+#
+# 時間指定なし:
+#     動画全体をMP3化
+#
 # ==========================================================
 
 def create_mp3_from_file(
@@ -357,6 +458,60 @@ def create_mp3_from_file(
         flush=True
     )
 
+    print(
+        "[MEDIA] input_file:",
+        input_file,
+        flush=True
+    )
+
+    print(
+        "[MEDIA] output_dir:",
+        output_dir,
+        flush=True
+    )
+
+    print(
+        "[MEDIA] title:",
+        title,
+        flush=True
+    )
+
+    print(
+        "[MEDIA] start_time:",
+        start_time,
+        flush=True
+    )
+
+    print(
+        "[MEDIA] end_time:",
+        end_time,
+        flush=True
+    )
+
+    # ======================================================
+    # 実行ファイル
+    # ======================================================
+
+    ffmpeg_path = _check_ffmpeg()
+
+    ffprobe_path = _check_ffprobe()
+
+    print(
+        "[MEDIA] FFmpeg path:",
+        ffmpeg_path,
+        flush=True
+    )
+
+    print(
+        "[MEDIA] FFprobe path:",
+        ffprobe_path,
+        flush=True
+    )
+
+    # ======================================================
+    # 入力
+    # ======================================================
+
     input_path = _validate_input_file(
         input_file
     )
@@ -365,7 +520,17 @@ def create_mp3_from_file(
         output_dir
     )
 
-    ffmpeg_path = _check_ffmpeg()
+    # ======================================================
+    # video ID
+    #
+    # 例:
+    #
+    # Wb11ihveUCk.mp4
+    #
+    # →
+    #
+    # Wb11ihveUCk
+    # ======================================================
 
     video_id = input_path.stem
 
@@ -375,6 +540,16 @@ def create_mp3_from_file(
             "動画IDを取得できませんでした。"
         )
 
+    print(
+        "[MEDIA] Video ID:",
+        video_id,
+        flush=True
+    )
+
+    # ======================================================
+    # 時間
+    # ======================================================
+
     start_seconds = _time_to_seconds(
         start_time
     )
@@ -383,12 +558,30 @@ def create_mp3_from_file(
         end_time
     )
 
-    full_conversion = not _has_time_range(
+    has_range = _has_time_range(
 
         start_time,
 
         end_time
 
+    )
+
+    print(
+        "[MEDIA] has_range:",
+        has_range,
+        flush=True
+    )
+
+    print(
+        "[MEDIA] start_seconds:",
+        start_seconds,
+        flush=True
+    )
+
+    print(
+        "[MEDIA] end_seconds:",
+        end_seconds,
+        flush=True
     )
 
     if start_seconds < 0:
@@ -403,7 +596,7 @@ def create_mp3_from_file(
             "終了時間は0秒以上にしてください。"
         )
 
-    if not full_conversion:
+    if has_range:
 
         if end_seconds <= start_seconds:
 
@@ -411,9 +604,35 @@ def create_mp3_from_file(
                 "終了時間は開始時間より後にしてください。"
             )
 
-    title_text = str(
+    # ======================================================
+    # タイトル
+    # ======================================================
+
+    mp3_title = str(
         title or "YouTube Video"
+    ).strip()
+
+    if not mp3_title:
+
+        mp3_title = "YouTube Video"
+
+    print(
+        "[MEDIA] MP3 title:",
+        mp3_title,
+        flush=True
     )
+
+    # ======================================================
+    # 最終ファイル
+    #
+    # ここでは必ずVIDEO_ID.mp3
+    #
+    # 時間指定の場合もconvert.py側で
+    #
+    # VIDEO_ID_000005_000010.mp3
+    #
+    # に変更する。
+    # ======================================================
 
     final_output = (
 
@@ -423,13 +642,25 @@ def create_mp3_from_file(
 
     )
 
+    print(
+        "[MEDIA] Final MP3:",
+        final_output,
+        flush=True
+    )
+
+    # ======================================================
+    # 一時ディレクトリ
+    # ======================================================
+
     temporary_directory = tempfile.mkdtemp(
         prefix="y2conv_mp3_"
     )
 
     temporary_output = (
 
-        Path(temporary_directory)
+        Path(
+            temporary_directory
+        )
         /
         "converted.mp3"
 
@@ -437,7 +668,9 @@ def create_mp3_from_file(
 
     log_path = (
 
-        Path(temporary_directory)
+        Path(
+            temporary_directory
+        )
         /
         "ffmpeg.log"
 
@@ -445,9 +678,23 @@ def create_mp3_from_file(
 
     try:
 
+        # ==================================================
+        # 既存MP3削除
+        # ==================================================
+
         if final_output.exists():
 
+            print(
+                "[MEDIA] Removing existing MP3:",
+                final_output,
+                flush=True
+            )
+
             final_output.unlink()
+
+        # ==================================================
+        # FFmpeg
+        # ==================================================
 
         command = [
 
@@ -464,9 +711,14 @@ def create_mp3_from_file(
 
         # ==================================================
         # 時間指定
+        #
+        # 入力側 -ss
+        # できるだけ高速にシーク。
+        # MP3は再エンコードするため、
+        # ここでは問題ない。
         # ==================================================
 
-        if not full_conversion:
+        if has_range:
 
             command.extend([
 
@@ -495,15 +747,15 @@ def create_mp3_from_file(
             ])
 
         # ==================================================
-        # MP3
+        # 音声のみMP3
         # ==================================================
 
         command.extend([
 
-            "-vn",
-
             "-map",
             "0:a:0",
+
+            "-vn",
 
             "-codec:a",
             "libmp3lame",
@@ -520,14 +772,8 @@ def create_mp3_from_file(
             "-id3v2_version",
             "3",
 
-            "-write_id3v1",
-            "1",
-
             "-metadata",
-            "title=" + title_text,
-
-            "-metadata",
-            "artist=YouTube",
+            "title=" + mp3_title,
 
             "-metadata",
             "comment=YouTube Converter",
@@ -537,10 +783,14 @@ def create_mp3_from_file(
         ])
 
         print(
-            "[MEDIA] FFmpeg:",
+            "[MEDIA] FFmpeg command:",
             " ".join(command),
             flush=True
         )
+
+        # ==================================================
+        # FFmpeg実行
+        # ==================================================
 
         with open(
 
@@ -560,7 +810,9 @@ def create_mp3_from_file(
 
                 stdout=subprocess.DEVNULL,
 
-                stderr=log_file
+                stderr=log_file,
+
+                text=True
 
             )
 
@@ -570,20 +822,29 @@ def create_mp3_from_file(
             flush=True
         )
 
-        if result.returncode != 0:
+        # ==================================================
+        # FFmpeg失敗
+        # ==================================================
 
-            log_text = ""
+        if result.returncode != 0:
 
             try:
 
-                log_text = log_path.read_text(
-                    encoding="utf-8",
-                    errors="replace"
+                log_text = (
+
+                    log_path.read_text(
+
+                        encoding="utf-8",
+
+                        errors="replace"
+
+                    )
+
                 )
 
             except Exception:
 
-                pass
+                log_text = ""
 
             print(
                 "[MEDIA] FFmpeg ERROR:",
@@ -599,23 +860,38 @@ def create_mp3_from_file(
 
             )
 
-        if not temporary_output.is_file():
+        # ==================================================
+        # 一時ファイル確認
+        # ==================================================
 
-            raise RuntimeError(
+        if not temporary_output.exists():
+
+            raise FileNotFoundError(
                 "FFmpegのMP3出力ファイルがありません。"
             )
 
-        if temporary_output.stat().st_size <= 0:
+        temporary_size = (
+            temporary_output.stat().st_size
+        )
+
+        print(
+            "[MEDIA] Temporary MP3 size:",
+            temporary_size,
+            "bytes",
+            flush=True
+        )
+
+        if temporary_size <= 0:
 
             raise RuntimeError(
-                "FFmpegのMP3出力ファイルサイズが0です。"
+                "FFmpegのMP3出力サイズが0です。"
             )
 
         # ==================================================
-        # まず一時MP3をFFprobe検証
+        # 一時MP3をFFprobe
         # ==================================================
 
-        _validate_mp3(
+        _probe_mp3(
             temporary_output
         )
 
@@ -631,7 +907,25 @@ def create_mp3_from_file(
 
         )
 
+        print(
+            "[MEDIA] MP3 moved to final:",
+            final_output,
+            flush=True
+        )
+
+        # ==================================================
+        # 完成MP3確認
+        # ==================================================
+
         final_output = _validate_mp3(
+            final_output
+        )
+
+        # ==================================================
+        # 完成MP3を再度probe
+        # ==================================================
+
+        _probe_mp3(
             final_output
         )
 
@@ -640,6 +934,10 @@ def create_mp3_from_file(
             final_output,
             flush=True
         )
+
+        # ==================================================
+        # 戻り値
+        # ==================================================
 
         return {
 
@@ -653,7 +951,7 @@ def create_mp3_from_file(
                 video_id,
 
             "title":
-                title_text
+                mp3_title
 
         }
 
@@ -667,9 +965,27 @@ def create_mp3_from_file(
 
         traceback.print_exc()
 
+        # ==================================================
+        # 失敗時の完成ファイル削除
+        # ==================================================
+
+        try:
+
+            if final_output.exists():
+
+                final_output.unlink()
+
+        except Exception:
+
+            pass
+
         raise
 
     finally:
+
+        # ==================================================
+        # 一時ディレクトリ削除
+        # ==================================================
 
         try:
 
@@ -678,8 +994,11 @@ def create_mp3_from_file(
             ):
 
                 shutil.rmtree(
+
                     temporary_directory,
+
                     ignore_errors=True
+
                 )
 
         except Exception:
