@@ -70,6 +70,13 @@ print(
 
 
 # ==========================================================
+# Cookie
+# ==========================================================
+
+COOKIES_SOURCE = "/etc/secrets/cookies.txt"
+
+
+# ==========================================================
 # yt-dlp import
 # ==========================================================
 
@@ -169,15 +176,7 @@ print(
 )
 
 
-if not os.path.isfile(DENO_PATH):
-
-    print(
-        "[DEBUG] Deno NOT FOUND:",
-        DENO_PATH,
-        flush=True
-    )
-
-else:
+if os.path.isfile(DENO_PATH):
 
     try:
 
@@ -214,13 +213,6 @@ else:
             flush=True
         )
 
-        if result.returncode != 0:
-
-            print(
-                "[DEBUG] Deno execution failed",
-                flush=True
-            )
-
     except Exception as e:
 
         print(
@@ -230,6 +222,14 @@ else:
         )
 
         traceback.print_exc()
+
+else:
+
+    print(
+        "[DEBUG] Deno NOT FOUND:",
+        DENO_PATH,
+        flush=True
+    )
 
 
 # ==========================================================
@@ -333,19 +333,11 @@ def _sanitize_filename(title):
         title
     ).strip()
 
-    # ------------------------------------------------------
-    # 改行・タブ
-    # ------------------------------------------------------
-
     title = re.sub(
         r"[\r\n\t]+",
         " ",
         title
     )
-
-    # ------------------------------------------------------
-    # Windows / Linux / macOS で問題になりやすい文字
-    # ------------------------------------------------------
 
     title = re.sub(
         r'[\\/:*?"<>|]',
@@ -353,29 +345,17 @@ def _sanitize_filename(title):
         title
     )
 
-    # ------------------------------------------------------
-    # 制御文字
-    # ------------------------------------------------------
-
     title = re.sub(
         r"[\x00-\x1f\x7f]",
         "",
         title
     )
 
-    # ------------------------------------------------------
-    # 連続空白
-    # ------------------------------------------------------
-
     title = re.sub(
         r"\s+",
         " ",
         title
     )
-
-    # ------------------------------------------------------
-    # 末尾のドット・スペース
-    # ------------------------------------------------------
 
     title = title.rstrip(
         " ."
@@ -384,10 +364,6 @@ def _sanitize_filename(title):
     if not title:
 
         title = "YouTube Video"
-
-    # ------------------------------------------------------
-    # 長すぎるタイトル対策
-    # ------------------------------------------------------
 
     title = title[:180]
 
@@ -436,9 +412,7 @@ def _prepare_cookie_file():
         flush=True
     )
 
-    cookies_source = (
-        "/etc/secrets/cookies.txt"
-    )
+    cookies_source = COOKIES_SOURCE
 
     print(
         "[DEBUG] 元Cookieファイル:",
@@ -446,17 +420,17 @@ def _prepare_cookie_file():
         flush=True
     )
 
+    exists = os.path.isfile(
+        cookies_source
+    )
+
     print(
         "[DEBUG] Cookie exists:",
-        os.path.isfile(
-            cookies_source
-        ),
+        exists,
         flush=True
     )
 
-    if not os.path.isfile(
-        cookies_source
-    ):
+    if not exists:
 
         raise FileNotFoundError(
             "Cookieファイルが見つかりません: "
@@ -507,14 +481,14 @@ def _prepare_cookie_file():
 
         )
 
+        temporary_size = os.path.getsize(
+            temporary_cookie_path
+        )
+
         print(
             "[DEBUG] 一時Cookieファイル作成:",
             temporary_cookie_path,
             flush=True
-        )
-
-        temporary_size = os.path.getsize(
-            temporary_cookie_path
         )
 
         print(
@@ -524,10 +498,11 @@ def _prepare_cookie_file():
             flush=True
         )
 
-        print(
-            "[DEBUG] yt-dlp用Cookieファイル作成OK",
-            flush=True
-        )
+        if temporary_size <= 0:
+
+            raise RuntimeError(
+                "一時Cookieファイルのサイズが0です。"
+            )
 
         return temporary_cookie_path
 
@@ -568,7 +543,12 @@ def _prepare_cookie_file():
 
 
 # ==========================================================
-# yt-dlpオプション作成
+# yt-dlp共通オプション作成
+#
+# 重要：
+#
+# ytdlp.py / ytdlp_stream.py の両方で
+# この設定を利用する。
 # ==========================================================
 
 def _build_ydl_options(
@@ -721,10 +701,6 @@ def get_youtube_info(
                 "YouTube URLが空です"
             )
 
-        # --------------------------------------------------
-        # Deno確認
-        # --------------------------------------------------
-
         if not os.path.isfile(
             DENO_PATH
         ):
@@ -767,25 +743,13 @@ def get_youtube_info(
                 "Denoの実行に失敗しました"
             )
 
-        # --------------------------------------------------
-        # Cookie
-        # --------------------------------------------------
-
         temporary_cookie_path = (
             _prepare_cookie_file()
         )
 
-        # --------------------------------------------------
-        # downloads
-        # --------------------------------------------------
-
         output_dir = (
             _get_download_dir()
         )
-
-        # --------------------------------------------------
-        # yt-dlp
-        # --------------------------------------------------
 
         ydl_opts = _build_ydl_options(
 
@@ -799,10 +763,6 @@ def get_youtube_info(
                 temporary_cookie_path
 
         )
-
-        # --------------------------------------------------
-        # 情報取得
-        # --------------------------------------------------
 
         with yt_dlp.YoutubeDL(
             ydl_opts
@@ -885,8 +845,6 @@ def get_youtube_info(
 
 # ==========================================================
 # YouTube → 一時ファイル
-#
-# routes/convert.py が使用する関数
 # ==========================================================
 
 def download_source(
@@ -923,24 +881,9 @@ def download_source(
 
     try:
 
-        # ==================================================
-        # Cookie
-        # ==================================================
-
         temporary_cookie_path = (
             _prepare_cookie_file()
         )
-
-        # ==================================================
-        # yt-dlp
-        #
-        # MP4変換前のsourceを保存する。
-        #
-        # bv*+ba/b を使わず、まず単一のsourceを取得する。
-        #
-        # これにより、この関数自身ではFFmpegによる
-        # 大きな再エンコード処理を行わない。
-        # ==================================================
 
         ydl_opts = _build_ydl_options(
 
@@ -1030,10 +973,6 @@ def download_source(
                 flush=True
             )
 
-        # ==================================================
-        # ダウンロードファイル検索
-        # ==================================================
-
         downloaded_file = None
 
         if expected_filename:
@@ -1047,10 +986,6 @@ def download_source(
                 downloaded_file = (
                     expected_path
                 )
-
-        # ==================================================
-        # Video IDから検索
-        # ==================================================
 
         if downloaded_file is None:
 
@@ -1107,10 +1042,6 @@ def download_source(
                     downloaded_file = (
                         possible_files[0]
                     )
-
-        # ==================================================
-        # 最終確認
-        # ==================================================
 
         if downloaded_file is None:
 
@@ -1195,10 +1126,6 @@ def download_source(
 
     finally:
 
-        # ==================================================
-        # Cookie削除
-        # ==================================================
-
         if temporary_cookie_path:
 
             try:
@@ -1237,8 +1164,6 @@ def download_source(
 
 # ==========================================================
 # 一時ダウンロードファイル削除
-#
-# routes/convert.py が使用する関数
 # ==========================================================
 
 def cleanup_download(
@@ -1317,8 +1242,7 @@ def cleanup_download(
 
 
 # ==========================================================
-# 後方互換：
-# 必要な場合に直接ダウンロードする関数
+# 後方互換
 # ==========================================================
 
 def _download_with_ytdlp(
@@ -1368,6 +1292,12 @@ def _download_with_ytdlp(
                 temporary_cookie_path
 
         )
+
+        if merge_output_format:
+
+            ydl_opts[
+                "merge_output_format"
+            ] = merge_output_format
 
         info = None
 
@@ -1455,10 +1385,6 @@ def _download_with_ytdlp(
                     expected_path
                 )
 
-        # --------------------------------------------------
-        # merge_output_format指定時
-        # --------------------------------------------------
-
         if (
             downloaded_file is None
             and
@@ -1487,10 +1413,6 @@ def _download_with_ytdlp(
                     downloaded_file = (
                         merged_path
                     )
-
-        # --------------------------------------------------
-        # 最終検索
-        # --------------------------------------------------
 
         if (
             downloaded_file is None
