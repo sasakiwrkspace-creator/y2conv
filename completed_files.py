@@ -23,6 +23,8 @@
 import re
 from pathlib import Path
 
+from flask import request, jsonify
+
 
 # =====================================
 # ファイル名安全化
