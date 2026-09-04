@@ -157,6 +157,15 @@ def _create_job(
         "end_time":
             end_time,
 
+        # ==================================================
+        # 処理ログ
+        #
+        # converter.js が時系列で表示する。
+        # ==================================================
+
+        "logs":
+            [],
+
         "files": {
 
             "mp3": {
@@ -280,6 +289,19 @@ def _get_job(
             "end_time":
                 job.get("end_time"),
 
+            # ==================================================
+            # 処理ログ
+            # ==================================================
+
+            "logs":
+                [
+                    dict(log)
+                    for log in job.get(
+                        "logs",
+                        []
+                    )
+                ],
+
             "files": {
 
                 "mp3":
@@ -340,6 +362,62 @@ def _update_job(
             job.update(
                 kwargs
             )
+
+
+# ==========================================================
+# 処理ログ追加
+#
+# job["message"] は従来通り「現在の状態」として保持し、
+# job["logs"] に履歴を追加する。
+# ==========================================================
+
+def _add_job_log(
+    job_id,
+    message
+):
+
+    if not message:
+
+        return
+
+    now = datetime.now()
+
+    log = {
+
+        "time":
+            now.strftime(
+                "%H:%M:%S"
+            ),
+
+        "timestamp":
+            now.isoformat(),
+
+        "message":
+            str(message)
+
+    }
+
+    with _jobs_lock:
+
+        job = _jobs.get(
+            job_id
+        )
+
+        if not job:
+
+            return
+
+        if "logs" not in job:
+
+            job["logs"] = []
+
+        job["logs"].append(
+            log
+        )
+
+        # 従来のmessageも最新ログに合わせる
+        job["message"] =
+            str(message)
 
 
 # ==========================================================
@@ -762,9 +840,7 @@ def _validate_source(
     if source_path.stat().st_size <= 0:
 
         raise RuntimeError(
-            f"一時動画ファイルサイズが0です: "
-            +
-            str(source_path)
+            f"一時動画ファイルサイズが0です。"
         )
 
     return source_path
@@ -846,6 +922,12 @@ def _run_conversion_job(
 
         )
 
+        _add_job_log(
+            job_id,
+            "変換処理を開始しました"
+        )
+
+
         output_dir = (
 
             Path(os.getcwd())
@@ -859,23 +941,9 @@ def _run_conversion_job(
             exist_ok=True
         )
 
+
         # ==================================================
-        # ★ 字幕MP4専用ルート
-        #
-        # 「字幕mp4」が選択された場合は、
-        # ここで処理を完全に分岐する。
-        #
-        # subtitle_mp4.py が
-        #
-        #   MP4
-        #   ↓
-        #   MP3
-        #   ↓
-        #   SRT
-        #   ↓
-        #   字幕MP4
-        #
-        # を全部担当する。
+        # 字幕MP4専用ルート
         # ==================================================
 
         if "subtitle_mp4" in outputs:
@@ -900,6 +968,7 @@ def _run_conversion_job(
                 flush=True
             )
 
+
             _update_file(
 
                 job_id,
@@ -913,6 +982,7 @@ def _run_conversion_job(
 
             )
 
+
             _update_job(
 
                 job_id,
@@ -921,6 +991,18 @@ def _run_conversion_job(
                     "字幕MP4連続処理を開始しています・・・"
 
             )
+
+
+            _add_job_log(
+                job_id,
+                "字幕MP4連続処理を開始しました"
+            )
+
+            _add_job_log(
+                job_id,
+                "MP4 → MP3 → SRT → 字幕MP4 の処理を開始しています..."
+            )
+
 
             # ------------------------------------------------
             # subtitle_mp4.py
@@ -944,6 +1026,7 @@ def _run_conversion_job(
                 )
             )
 
+
             # ------------------------------------------------
             # 結果確認
             # ------------------------------------------------
@@ -953,6 +1036,7 @@ def _run_conversion_job(
                     pipeline_result
                 )
             )
+
 
             title = (
 
@@ -966,11 +1050,13 @@ def _run_conversion_job(
 
             )
 
+
             duration = (
                 pipeline_result.get(
                     "duration"
                 )
             )
+
 
             mp4_path = pipeline_result.get(
                 "mp4_path"
@@ -983,6 +1069,7 @@ def _run_conversion_job(
             srt_path = pipeline_result.get(
                 "srt_path"
             )
+
 
             # ------------------------------------------------
             # Jobへタイトル・時間を反映
@@ -1008,6 +1095,7 @@ def _run_conversion_job(
 
             )
 
+
             # ------------------------------------------------
             # 字幕MP4
             # ------------------------------------------------
@@ -1031,13 +1119,9 @@ def _run_conversion_job(
 
             )
 
+
             # ------------------------------------------------
             # 補助情報
-            #
-            # subtitle_mp4.py 内で作成された
-            # MP4 / MP3 / SRT の情報もJobに保存する。
-            #
-            # これらは「字幕MP4」の連続処理結果として扱う。
             # ------------------------------------------------
 
             if mp4_path:
@@ -1051,6 +1135,7 @@ def _run_conversion_job(
 
                 )
 
+
             if mp3_path:
 
                 _update_job(
@@ -1061,6 +1146,7 @@ def _run_conversion_job(
                         str(mp3_path)
 
                 )
+
 
             if srt_path:
 
@@ -1073,24 +1159,24 @@ def _run_conversion_job(
 
                 )
 
+
+            _add_job_log(
+                job_id,
+                "字幕MP4連続処理が完了しました"
+            )
+
+
             print(
                 "[CONVERT] SUBTITLE MP4 COMPLETE:",
                 subtitle_mp4_path,
                 flush=True
             )
 
-            # ------------------------------------------------
-            # 字幕MP4モードはここで終了
-            #
-            # 下の通常MP3 / MP4処理には入らない。
-            # ------------------------------------------------
 
         else:
 
             # =================================================
             # 通常モード
-            #
-            # mp3 / mp4 の既存処理
             # =================================================
 
             full_download = _is_full_download(
@@ -1104,6 +1190,7 @@ def _run_conversion_job(
             title = "YouTube Video"
 
             duration = None
+
 
             # =================================================
             # MP3
@@ -1124,6 +1211,7 @@ def _run_conversion_job(
 
                 )
 
+
                 _update_job(
 
                     job_id,
@@ -1133,18 +1221,28 @@ def _run_conversion_job(
 
                 )
 
+
+                _add_job_log(
+                    job_id,
+                    "MP3用の動画をダウンロードしています..."
+                )
+
+
                 print(
                     "[CONVERT] MP3 source download START",
                     flush=True
                 )
 
+
                 download_result = download_source(
                     url
                 )
 
+
                 source_path = _validate_source(
                     download_result
                 )
+
 
                 title = (
 
@@ -1158,11 +1256,13 @@ def _run_conversion_job(
 
                 )
 
+
                 duration = (
                     download_result.get(
                         "duration"
                     )
                 )
+
 
                 _update_job(
 
@@ -1182,6 +1282,13 @@ def _run_conversion_job(
 
                 )
 
+
+                _add_job_log(
+                    job_id,
+                    "動画のダウンロードが完了しました"
+                )
+
+
                 _update_file(
 
                     job_id,
@@ -1192,6 +1299,13 @@ def _run_conversion_job(
                         "mp3 変換中・・・"
 
                 )
+
+
+                _add_job_log(
+                    job_id,
+                    "MP3変換を開始しています..."
+                )
+
 
                 mp3_result = create_mp3_from_file(
 
@@ -1212,6 +1326,7 @@ def _run_conversion_job(
 
                 )
 
+
                 renamed_mp3 = _rename_completed_file(
 
                     result=
@@ -1230,6 +1345,7 @@ def _run_conversion_job(
                         end_time
 
                 )
+
 
                 _update_file(
 
@@ -1250,11 +1366,19 @@ def _run_conversion_job(
 
                 )
 
+
+                _add_job_log(
+                    job_id,
+                    "MP3変換が完了しました"
+                )
+
+
                 print(
                     "[CONVERT] MP3 COMPLETE:",
                     renamed_mp3,
                     flush=True
                 )
+
 
             # =================================================
             # MP4
@@ -1275,6 +1399,7 @@ def _run_conversion_job(
 
                 )
 
+
                 _update_job(
 
                     job_id,
@@ -1284,12 +1409,26 @@ def _run_conversion_job(
 
                 )
 
+
+                _add_job_log(
+                    job_id,
+                    "MP4変換を開始しています..."
+                )
+
+
                 if full_download:
 
                     print(
                         "[CONVERT] MP4 full download",
                         flush=True
                     )
+
+
+                    _add_job_log(
+                        job_id,
+                        "MP4全体をダウンロードしています..."
+                    )
+
 
                     mp4_result = create_mp4_full(
 
@@ -1308,6 +1447,7 @@ def _run_conversion_job(
                         flush=True
                     )
 
+
                     _update_job(
 
                         job_id,
@@ -1316,6 +1456,13 @@ def _run_conversion_job(
                             "mp4 指定区間を直接ダウンロード中・・・"
 
                     )
+
+
+                    _add_job_log(
+                        job_id,
+                        "MP4指定区間を直接ダウンロードしています..."
+                    )
+
 
                     mp4_result = create_mp4_range(
 
@@ -1333,11 +1480,13 @@ def _run_conversion_job(
 
                     )
 
+
                 if not mp4_result:
 
                     raise RuntimeError(
                         "MP4作成結果が空です。"
                     )
+
 
                 mp4_title = (
 
@@ -1351,6 +1500,7 @@ def _run_conversion_job(
 
                 )
 
+
                 if (
                     not title
                     or
@@ -1359,11 +1509,13 @@ def _run_conversion_job(
 
                     title = mp4_title
 
+
                 mp4_duration = (
                     mp4_result.get(
                         "duration"
                     )
                 )
+
 
                 if (
                     duration is None
@@ -1372,6 +1524,7 @@ def _run_conversion_job(
                 ):
 
                     duration = mp4_duration
+
 
                 _update_job(
 
@@ -1390,6 +1543,13 @@ def _run_conversion_job(
                         "mp4 ダウンロードが完了しました。"
 
                 )
+
+
+                _add_job_log(
+                    job_id,
+                    "MP4のダウンロードが完了しました"
+                )
+
 
                 renamed_mp4 = _rename_completed_file(
 
@@ -1410,6 +1570,7 @@ def _run_conversion_job(
 
                 )
 
+
                 _update_file(
 
                     job_id,
@@ -1429,11 +1590,19 @@ def _run_conversion_job(
 
                 )
 
+
+                _add_job_log(
+                    job_id,
+                    "MP4変換が完了しました"
+                )
+
+
                 print(
                     "[CONVERT] MP4 COMPLETE:",
                     renamed_mp4,
                     flush=True
                 )
+
 
         # ======================================================
         # 完了
@@ -1448,6 +1617,7 @@ def _run_conversion_job(
             started_at
 
         ).total_seconds()
+
 
         _update_job(
 
@@ -1473,11 +1643,19 @@ def _run_conversion_job(
 
         )
 
+
+        _add_job_log(
+            job_id,
+            "変換が完了しました"
+        )
+
+
         print(
             "[CONVERT] Job COMPLETE:",
             job_id,
             flush=True
         )
+
 
     except Exception as error:
 
@@ -1490,6 +1668,7 @@ def _run_conversion_job(
             started_at
 
         ).total_seconds()
+
 
         _update_job(
 
@@ -1515,6 +1694,14 @@ def _run_conversion_job(
 
         )
 
+
+        _add_job_log(
+            job_id,
+            "エラーが発生しました: " +
+            str(error)
+        )
+
+
         print(
             "[CONVERT] Job ERROR:",
             job_id,
@@ -1522,7 +1709,9 @@ def _run_conversion_job(
             flush=True
         )
 
+
         traceback.print_exc()
+
 
         for output_type in outputs:
 
@@ -1534,9 +1723,11 @@ def _run_conversion_job(
 
                 continue
 
+
             if output_type not in job["files"]:
 
                 continue
+
 
             current_status = (
 
@@ -1545,6 +1736,7 @@ def _run_conversion_job(
                 ["status"]
 
             )
+
 
             if current_status == "processing":
 
@@ -1563,6 +1755,7 @@ def _run_conversion_job(
 
                 )
 
+
     finally:
 
         # ======================================================
@@ -1578,6 +1771,7 @@ def _run_conversion_job(
             cleanup_download(
                 download_result
             )
+
 
         print(
             "[CONVERT] Background job END:",
@@ -1610,21 +1804,26 @@ def register_convert(
                 {}
             )
 
+
             url = data.get(
                 "url"
             )
+
 
             outputs = data.get(
                 "outputs"
             )
 
+
             start_time = data.get(
                 "start_time"
             )
 
+
             end_time = data.get(
                 "end_time"
             )
+
 
             # ==================================================
             # output_type → outputs
@@ -1636,6 +1835,7 @@ def register_convert(
                     "output_type"
                 )
 
+
                 if output_type in (
                     "mp3",
                     "mp4",
@@ -1646,6 +1846,7 @@ def register_convert(
                         output_type
                     ]
 
+
             if isinstance(
                 outputs,
                 str
@@ -1655,6 +1856,7 @@ def register_convert(
                     outputs
                 ]
 
+
             if not isinstance(
                 outputs,
                 list
@@ -1662,8 +1864,9 @@ def register_convert(
 
                 outputs = []
 
+
             # ==================================================
-            # ★ 字幕MP4を追加
+            # 出力形式フィルタ
             # ==================================================
 
             outputs = [
@@ -1680,11 +1883,13 @@ def register_convert(
 
             ]
 
+
             outputs = list(
                 dict.fromkeys(
                     outputs
                 )
             )
+
 
             # ==================================================
             # URL確認
@@ -1702,6 +1907,7 @@ def register_convert(
 
                 }), 400
 
+
             # ==================================================
             # 出力形式確認
             # ==================================================
@@ -1718,16 +1924,9 @@ def register_convert(
 
                 }), 400
 
+
             # ==================================================
-            # ★ 字幕MP4は単独モード
-            #
-            # フロント側から万一
-            #
-            # ["subtitle_mp4", "mp3"]
-            #
-            # のように送られても、
-            # 処理の切り分けを明確にするため
-            # subtitle_mp4だけを実行する。
+            # 字幕MP4は単独モード
             # ==================================================
 
             if "subtitle_mp4" in outputs:
@@ -1735,6 +1934,7 @@ def register_convert(
                 outputs = [
                     "subtitle_mp4"
                 ]
+
 
             # ==================================================
             # 時間検証
@@ -1758,11 +1958,13 @@ def register_convert(
                         )
                     )
 
+
                     end_value = (
                         _time_to_seconds(
                             end_time
                         )
                     )
+
 
                     if start_value < 0:
 
@@ -1776,6 +1978,7 @@ def register_convert(
 
                         }), 400
 
+
                     if end_value < 0:
 
                         return jsonify({
@@ -1787,6 +1990,7 @@ def register_convert(
                                 "終了時間は0秒以上にしてください。"
 
                         }), 400
+
 
                     if not (
 
@@ -1810,6 +2014,7 @@ def register_convert(
 
                             }), 400
 
+
                 except (
                     TypeError,
                     ValueError
@@ -1821,6 +2026,7 @@ def register_convert(
                         flush=True
                     )
 
+
                     return jsonify({
 
                         "success":
@@ -1830,6 +2036,7 @@ def register_convert(
                             "開始時間または終了時間が不正です。"
 
                     }), 400
+
 
             # ==================================================
             # Job作成
@@ -1851,17 +2058,20 @@ def register_convert(
 
             )
 
+
             print(
                 "[CONVERT] job_id:",
                 job_id,
                 flush=True
             )
 
+
             print(
                 "[CONVERT] outputs:",
                 outputs,
                 flush=True
             )
+
 
             # ==================================================
             # Background
@@ -1890,7 +2100,9 @@ def register_convert(
 
             )
 
+
             thread.start()
+
 
             return jsonify({
 
@@ -1905,6 +2117,7 @@ def register_convert(
 
             })
 
+
         except Exception as error:
 
             print(
@@ -1913,7 +2126,9 @@ def register_convert(
                 flush=True
             )
 
+
             traceback.print_exc()
+
 
             return jsonify({
 
@@ -1942,6 +2157,7 @@ def register_convert(
             job_id
         )
 
+
         if job is None:
 
             return jsonify({
@@ -1953,6 +2169,7 @@ def register_convert(
                     "指定されたjob_idが見つかりません。"
 
             }), 404
+
 
         return jsonify(
             job
