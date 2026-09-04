@@ -18,6 +18,7 @@
 # 重要:
 #   - 元動画の解像度を維持
 #   - 日本語字幕対応
+#   - 日本語フォントを明示
 #   - 動画は再エンコード
 #   - audioはcopy
 #   - FFmpegを1スレッドに制限
@@ -134,17 +135,6 @@ def make_output_path(
     )
 
     stem = mp4_path.stem
-
-    # ---------------------------------
-    # すでに _sub_embed の場合
-    #
-    # 入力自身を出力にしない。
-    #
-    # 例:
-    # a_sub_embed.mp4
-    # ↓
-    # a_sub_embed_2.mp4
-    # ---------------------------------
 
     if stem.lower().endswith(
         "_sub_embed"
@@ -289,15 +279,19 @@ def validate_srt_encoding(
     except UnicodeDecodeError as error:
 
         raise RuntimeError(
+
             "SRTファイルをUTF-8として"
             "読み込めませんでした。\n"
             "SRTをUTF-8形式で保存してください。"
+
         ) from error
 
     except OSError as error:
 
         raise RuntimeError(
+
             f"SRTファイルを読み込めませんでした: {error}"
+
         ) from error
 
     if not first_content.strip():
@@ -324,7 +318,16 @@ def validate_srt_encoding(
 
 
 # =====================================
-# フォント検索
+# 日本語フォント検索
+#
+# Render / Debian / Ubuntu系を想定
+#
+# 優先:
+#
+# Noto Sans CJK JP
+# Noto Sans JP
+# IPA Gothic
+# IPAex Gothic
 # =====================================
 
 def find_japanese_font():
@@ -333,9 +336,9 @@ def find_japanese_font():
         "日本語フォント検索開始"
     )
 
-    # ---------------------------------
+    # =================================
     # 環境変数
-    # ---------------------------------
+    # =================================
 
     environment_font = os.environ.get(
         "SUBTITLE_FONT"
@@ -350,36 +353,298 @@ def find_japanese_font():
         if environment_font_path.is_file():
 
             log(
-                f"環境変数指定フォント: "
-                f"{environment_font_path}"
+                "環境変数指定フォント:"
             )
 
-            return environment_font_path
+            log(
+                str(
+                    environment_font_path
+                )
+            )
 
-    # ---------------------------------
-    # 優先フォント
-    # ---------------------------------
+            return {
+
+                "path":
+                    environment_font_path,
+
+                "family":
+                    get_font_family_from_path(
+                        environment_font_path
+                    )
+
+            }
+
+        log(
+            "SUBTITLE_FONTに指定された"
+            "フォントが存在しません:"
+        )
+
+        log(
+            str(
+                environment_font_path
+            )
+        )
+
+    # =================================
+    # fc-match
+    #
+    # システムフォントから
+    # 日本語対応フォントを探す
+    # =================================
+
+    fc_match = shutil.which(
+        "fc-match"
+    )
+
+    if fc_match:
+
+        candidates = [
+
+            "Noto Sans CJK JP",
+
+            "Noto Sans JP",
+
+            "Noto Serif CJK JP",
+
+            "IPAexGothic",
+
+            "IPAGothic",
+
+            "VL Gothic",
+
+            "TakaoGothic",
+
+        ]
+
+        for family in candidates:
+
+            try:
+
+                result = subprocess.run(
+
+                    [
+                        fc_match,
+
+                        "-f",
+                        "%{file}\\n",
+
+                        family
+
+                    ],
+
+                    stdout=subprocess.PIPE,
+
+                    stderr=subprocess.PIPE,
+
+                    text=True,
+
+                    encoding="utf-8",
+
+                    errors="replace",
+
+                    timeout=30
+
+                )
+
+            except Exception as error:
+
+                log(
+                    f"fc-matchエラー: {error}"
+                )
+
+                continue
+
+            if result.returncode != 0:
+
+                continue
+
+            font_file = ""
+
+            for line in result.stdout.splitlines():
+
+                line = line.strip()
+
+                if line:
+
+                    font_file = line
+
+                    break
+
+            if not font_file:
+
+                continue
+
+            font_path = Path(
+                font_file
+            )
+
+            if not font_path.is_file():
+
+                continue
+
+            log(
+                "日本語フォント検出:"
+            )
+
+            log(
+                f"family: {family}"
+            )
+
+            log(
+                f"path: {font_path}"
+            )
+
+            return {
+
+                "path":
+                    font_path,
+
+                "family":
+                    family
+
+            }
+
+    # =================================
+    # fc-list
+    #
+    # 日本語をサポートするフォントを
+    # 直接検索
+    # =================================
+
+    fc_list = shutil.which(
+        "fc-list"
+    )
+
+    if fc_list:
+
+        try:
+
+            result = subprocess.run(
+
+                [
+                    fc_list,
+
+                    ":lang=ja",
+
+                    "-f",
+
+                    "%{file}|%{family}\\n"
+
+                ],
+
+                stdout=subprocess.PIPE,
+
+                stderr=subprocess.PIPE,
+
+                text=True,
+
+                encoding="utf-8",
+
+                errors="replace",
+
+                timeout=30
+
+            )
+
+            if result.returncode == 0:
+
+                for line in result.stdout.splitlines():
+
+                    line = line.strip()
+
+                    if not line:
+
+                        continue
+
+                    parts = line.split(
+                        "|",
+                        1
+                    )
+
+                    font_file = parts[0].strip()
+
+                    family = (
+
+                        parts[1].strip()
+
+                        if len(parts) > 1
+
+                        else ""
+
+                    )
+
+                    if not font_file:
+
+                        continue
+
+                    font_path = Path(
+                        font_file
+                    )
+
+                    if not font_path.is_file():
+
+                        continue
+
+                    log(
+                        "fc-list日本語フォント検出:"
+                    )
+
+                    log(
+                        f"path: {font_path}"
+                    )
+
+                    log(
+                        f"family: {family}"
+                    )
+
+                    return {
+
+                        "path":
+                            font_path,
+
+                        "family":
+                            family
+
+                    }
+
+        except Exception as error:
+
+            log(
+                f"fc-list検索エラー: {error}"
+            )
+
+    # =================================
+    # 手動検索
+    # =================================
 
     preferred_fonts = [
 
         "NotoSansCJK-Regular.ttc",
+
         "NotoSansCJKJP-Regular.otf",
+
         "NotoSansJP-Regular.ttf",
 
         "NotoSerifCJK-Regular.ttc",
+
         "NotoSerifCJKJP-Regular.otf",
+
         "NotoSerifJP-Regular.ttf",
 
         "ipaexg.ttf",
+
         "ipaexm.ttf",
 
         "IPAGothic.ttf",
+
         "IPAPGothic.ttf",
 
         "IPAMincho.ttf",
+
         "IPAPMincho.ttf",
 
         "TakaoGothic.ttf",
+
         "TakaoPGothic.ttf",
 
         "TakaoMincho.ttf",
@@ -387,10 +652,6 @@ def find_japanese_font():
         "VL-Gothic-Regular.ttf",
 
     ]
-
-    # ---------------------------------
-    # 検索ディレクトリ
-    # ---------------------------------
 
     font_directories = [
 
@@ -400,14 +661,6 @@ def find_japanese_font():
 
         Path(
             "/usr/local/share/fonts"
-        ),
-
-        Path(
-            "/usr/share/fonts/truetype"
-        ),
-
-        Path(
-            "/usr/share/fonts/opentype"
         ),
 
         Path(
@@ -424,10 +677,6 @@ def find_japanese_font():
 
     ]
 
-    # ---------------------------------
-    # 優先フォント検索
-    # ---------------------------------
-
     for directory in font_directories:
 
         if not directory.exists():
@@ -442,88 +691,116 @@ def find_japanese_font():
                     font_name
                 ):
 
-                    if match.is_file():
+                    if not match.is_file():
 
-                        log(
-                            f"日本語フォント検出: "
-                            f"{match}"
+                        continue
+
+                    log(
+                        "日本語フォント検出:"
+                    )
+
+                    log(
+                        str(
+                            match
                         )
+                    )
 
-                        return match
+                    return {
+
+                        "path":
+                            match,
+
+                        "family":
+                            get_font_family_from_path(
+                                match
+                            )
+
+                    }
 
             except Exception:
 
                 continue
 
-    # ---------------------------------
-    # fc-list
-    # ---------------------------------
-
-    fc_list = shutil.which(
-        "fc-list"
-    )
-
-    if fc_list:
-
-        try:
-
-            result = subprocess.run(
-
-                [
-                    fc_list,
-                    ":lang=ja",
-                    "file",
-                ],
-
-                stdout=subprocess.PIPE,
-
-                stderr=subprocess.PIPE,
-
-                text=True,
-
-                timeout=30
-
-            )
-
-            if result.returncode == 0:
-
-                for line in result.stdout.splitlines():
-
-                    line = line.strip()
-
-                    if not line:
-
-                        continue
-
-                    # fc-listの出力から
-                    # 最初の部分だけ取得
-                    font_text = line.split(":", 1)[0].strip()
-
-                    font_path = Path(
-                        font_text
-                    )
-
-                    if font_path.is_file():
-
-                        log(
-                            f"fc-list日本語フォント検出: "
-                            f"{font_path}"
-                        )
-
-                        return font_path
-
-        except Exception as error:
-
-            log(
-                f"fc-list検索エラー: {error}"
-            )
+    # =================================
+    # 見つからない
+    # =================================
 
     log(
         "日本語フォントが見つかりませんでした。"
-        "FFmpeg/libassの標準フォントを使用します。"
     )
 
     return None
+
+
+# =====================================
+# フォントファミリー取得
+# =====================================
+
+def get_font_family_from_path(
+    font_path
+):
+
+    fc_scan = shutil.which(
+        "fc-scan"
+    )
+
+    if not fc_scan:
+
+        return None
+
+    try:
+
+        result = subprocess.run(
+
+            [
+                fc_scan,
+
+                "--format=%{family}",
+
+                str(font_path)
+
+            ],
+
+            stdout=subprocess.PIPE,
+
+            stderr=subprocess.PIPE,
+
+            text=True,
+
+            encoding="utf-8",
+
+            errors="replace",
+
+            timeout=30
+
+        )
+
+    except Exception:
+
+        return None
+
+    if result.returncode != 0:
+
+        return None
+
+    family = (
+        result.stdout.strip()
+    )
+
+    if not family:
+
+        return None
+
+    # 複数familyが返る場合
+    # 最初のものを使用
+    if "," in family:
+
+        family = family.split(
+            ",",
+            1
+        )[0].strip()
+
+    return family
 
 
 # =====================================
@@ -556,7 +833,7 @@ def escape_ffmpeg_filter_path(
         "\\'"
     )
 
-    # Windows等のドライブ文字
+    # コロン
     path = path.replace(
         ":",
         "\\:"
@@ -566,12 +843,42 @@ def escape_ffmpeg_filter_path(
 
 
 # =====================================
+# FFmpeg字幕文字列エスケープ
+# =====================================
+
+def escape_ffmpeg_value(
+    value
+):
+
+    value = str(
+        value
+    )
+
+    value = value.replace(
+        "\\",
+        "\\\\"
+    )
+
+    value = value.replace(
+        "'",
+        "\\'"
+    )
+
+    value = value.replace(
+        ":",
+        "\\:"
+    )
+
+    return value
+
+
+# =====================================
 # 字幕フィルター作成
 # =====================================
 
 def make_subtitle_filter(
     srt_path,
-    font_path=None
+    font_info=None
 ):
 
     subtitle_path = (
@@ -588,38 +895,82 @@ def make_subtitle_filter(
         "'"
     )
 
-    # ---------------------------------
+    # =================================
     # 日本語フォント
-    # ---------------------------------
+    # =================================
 
-    if font_path:
+    if font_info:
 
-        font_directory = (
-            Path(font_path).parent
+        font_path = font_info.get(
+            "path"
         )
 
-        font_directory_escaped = (
-            escape_ffmpeg_filter_path(
-                font_directory
+        font_family = font_info.get(
+            "family"
+        )
+
+        # ---------------------------------
+        # フォントディレクトリ
+        # ---------------------------------
+
+        if font_path:
+
+            font_directory = (
+                Path(font_path).parent
             )
-        )
 
-        video_filter = (
-            "subtitles='"
-            +
-            subtitle_path
-            +
-            "':fontsdir='"
-            +
-            font_directory_escaped
-            +
-            "'"
-        )
+            font_directory_escaped = (
+                escape_ffmpeg_filter_path(
+                    font_directory
+                )
+            )
 
-        log(
-            f"字幕フォントディレクトリ: "
-            f"{font_directory}"
-        )
+            video_filter += (
+                ":fontsdir='"
+                +
+                font_directory_escaped
+                +
+                "'"
+            )
+
+            log(
+                "字幕フォントディレクトリ:"
+            )
+
+            log(
+                str(
+                    font_directory
+                )
+            )
+
+        # ---------------------------------
+        # フォント名を明示
+        # ---------------------------------
+
+        if font_family:
+
+            font_family_escaped = (
+                escape_ffmpeg_value(
+                    font_family
+                )
+            )
+
+            video_filter += (
+                ":force_style='"
+                "FontName="
+                +
+                font_family_escaped
+                +
+                "'"
+            )
+
+            log(
+                "字幕フォント名:"
+            )
+
+            log(
+                font_family
+            )
 
     return video_filter
 
@@ -697,9 +1048,9 @@ def embed_subtitle(
             mp4_path
         )
 
-    # ---------------------------------
+    # =================================
     # 入力と出力が同じにならないようにする
-    # ---------------------------------
+    # =================================
 
     try:
 
@@ -765,7 +1116,41 @@ def embed_subtitle(
     # 日本語フォント検索
     # =================================
 
-    font_path = find_japanese_font()
+    font_info = find_japanese_font()
+
+    if font_info:
+
+        log(
+            "日本語字幕フォント:"
+        )
+
+        log(
+            str(
+                font_info.get("path")
+            )
+        )
+
+        log(
+            "日本語字幕フォント名:"
+        )
+
+        log(
+            str(
+                font_info.get("family")
+            )
+        )
+
+    else:
+
+        log(
+            "WARNING: 日本語フォントが"
+            "検出できませんでした。"
+        )
+
+        log(
+            "WARNING: Render環境に"
+            "日本語フォントをインストールしてください。"
+        )
 
     # =================================
     # フィルター
@@ -775,7 +1160,7 @@ def embed_subtitle(
 
         srt_path,
 
-        font_path
+        font_info
 
     )
 
@@ -1054,7 +1439,6 @@ def embed_subtitle(
                 "返されませんでした。"
             )
 
-        # 壊れた途中ファイルを削除
         if output_path.exists():
 
             try:
@@ -1155,9 +1539,6 @@ def embed_subtitle(
 
 # =====================================
 # 外部向け正式関数
-#
-# routes/subtitle_routes.py から
-# この関数を呼び出す。
 # =====================================
 
 def create_subtitle_mp4(
