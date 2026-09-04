@@ -11,16 +11,16 @@
 // ・MP3 / MP4ダウンロード表示
 // ・MP3完成後のSRT/Gemini処理表示
 // ・処理詳細表示
-// ・ステータス履歴を下方向へ追加
+// ・ステータス履歴を下方向へ蓄積
 //
 // 注意:
 // ・converterUtils.js は使用しない
 // ・converterStatus.js は使用しない
 // ・タブ2の処理には触れない
 // ・タブ1の実行ボタンは #convertBtn
-// ・上側ステータスは現在状態のみ
+// ・上側ステータスは現在のタイトルのみ
 // ・処理詳細は折り畳み表示
-// ・ステータス履歴は過去分を消さない
+// ・過去のステータスは消去しない
 // =====================================
 
 
@@ -148,30 +148,29 @@
             isProcessing:
                 false,
 
-            // ---------------------------------
+
+            // =================================
             // ステータス履歴
             //
-            // 過去のステータスを保持する。
-            // 新しい処理でもクリアしない。
-            // ---------------------------------
+            // ここは clearResults() でも
+            // 消去しない。
+            // =================================
 
             statusHistory:
                 [],
 
-            // ---------------------------------
-            // 処理詳細の進捗履歴
-            //
-            // renderConversionDetails() で
-            // innerHTMLを書き換えても
-            // 過去の進捗を消さない。
-            // ---------------------------------
 
-            progressHistory:
+            // =================================
+            // 現在の処理詳細ログ
+            // =================================
+
+            currentProgressHistory:
                 [],
 
-            // ---------------------------------
-            // MP3 / MP4処理時間
-            // ---------------------------------
+
+            // =================================
+            // MP3処理時間
+            // =================================
 
             mp3Process:
                 {
@@ -184,9 +183,10 @@
 
                 },
 
-            // ---------------------------------
+
+            // =================================
             // SRT処理時間
-            // ---------------------------------
+            // =================================
 
             srtProcess:
                 {
@@ -204,6 +204,445 @@
 
         window.converterState =
             converterState;
+
+
+        // =====================================
+        // ステータス履歴DOM
+        // =====================================
+
+        let statusHistoryArea =
+            null;
+
+
+        // =====================================
+        // ステータス履歴エリア作成
+        // =====================================
+
+        function createStatusHistoryArea() {
+
+            if (!downloadArea) {
+
+                return null;
+
+            }
+
+
+            // ---------------------------------
+            // すでに存在する場合
+            // ---------------------------------
+
+            const existing =
+                downloadArea.querySelector(
+                    ".converter-status-history"
+                );
+
+
+            if (existing) {
+
+                statusHistoryArea =
+                    existing;
+
+                return existing;
+
+            }
+
+
+            // ---------------------------------
+            // 新規作成
+            // ---------------------------------
+
+            const wrapper =
+                document.createElement(
+                    "div"
+                );
+
+
+            wrapper.className =
+                "converter-status-history";
+
+
+            wrapper.style.marginTop =
+                "12px";
+
+
+            wrapper.style.paddingTop =
+                "8px";
+
+
+            wrapper.style.borderTop =
+                "1px solid #ddd";
+
+
+            // ---------------------------------
+            // タイトル
+            // ---------------------------------
+
+            const title =
+                document.createElement(
+                    "div"
+                );
+
+
+            title.className =
+                "converter-status-history-title";
+
+
+            title.textContent =
+                "STATUS履歴";
+
+
+            title.style.fontWeight =
+                "bold";
+
+
+            title.style.marginBottom =
+                "6px";
+
+
+            wrapper.appendChild(
+                title
+            );
+
+
+            // ---------------------------------
+            // 本体
+            // ---------------------------------
+
+            const body =
+                document.createElement(
+                    "div"
+                );
+
+
+            body.className =
+                "converter-status-history-body";
+
+
+            body.style.whiteSpace =
+                "pre-line";
+
+
+            body.style.fontSize =
+                "0.95em";
+
+
+            wrapper.appendChild(
+                body
+            );
+
+
+            downloadArea.appendChild(
+                wrapper
+            );
+
+
+            statusHistoryArea =
+                wrapper;
+
+
+            return wrapper;
+
+        }
+
+
+        // =====================================
+        // ステータス履歴本体取得
+        // =====================================
+
+        function getStatusHistoryBody() {
+
+            const area =
+                createStatusHistoryArea();
+
+
+            if (!area) {
+
+                return null;
+
+            }
+
+
+            return area.querySelector(
+                ".converter-status-history-body"
+            );
+
+        }
+
+
+        // =====================================
+        // ステータス履歴描画
+        // =====================================
+
+        function renderStatusHistory() {
+
+            const body =
+                getStatusHistoryBody();
+
+
+            if (!body) {
+
+                return;
+
+            }
+
+
+            body.innerHTML =
+                "";
+
+
+            converterState.statusHistory.forEach(
+                function (item) {
+
+                    const entry =
+                        document.createElement(
+                            "div"
+                        );
+
+
+                    entry.className =
+                        "converter-status-history-entry";
+
+
+                    const time =
+                        formatClock(
+                            item.time
+                        );
+
+
+                    const message =
+                        String(
+                            item.message || ""
+                        );
+
+
+                    entry.textContent =
+                        time +
+                        "  " +
+                        message;
+
+
+                    // -----------------------------
+                    // 色
+                    // -----------------------------
+
+                    if (
+                        item.type ===
+                        "error"
+                    ) {
+
+                        entry.style.color =
+                            "#b00020";
+
+                    }
+                    else if (
+                        item.type ===
+                        "success"
+                    ) {
+
+                        entry.style.color =
+                            "#176b2c";
+
+                    }
+                    else {
+
+                        entry.style.color =
+                            "#222";
+
+                    }
+
+
+                    body.appendChild(
+                        entry
+                    );
+
+                }
+            );
+
+        }
+
+
+        // =====================================
+        // ステータス履歴追加
+        // =====================================
+
+        function appendStatusHistory(
+            message,
+            type
+        ) {
+
+            const text =
+                String(
+                    message || ""
+                ).trim();
+
+
+            if (!text) {
+
+                return;
+
+            }
+
+
+            converterState.statusHistory.push({
+
+                time:
+                    new Date(),
+
+                message:
+                    text,
+
+                type:
+                    type || ""
+
+            });
+
+
+            renderStatusHistory();
+
+
+            console.log(
+                "[CONVERTER] STATUS HISTORY:",
+                text
+            );
+
+        }
+
+
+        // =====================================
+        // 上側ステータス
+        //
+        // ここは「現在の状態」だけを表示。
+        // 過去ログはstatusHistoryへ保存。
+        // =====================================
+
+        function setStatus(
+            message,
+            type
+        ) {
+
+            const text =
+                String(
+                    message || ""
+                );
+
+
+            if (conversionStatusArea) {
+
+                conversionStatusArea.textContent =
+                    text;
+
+
+                conversionStatusArea.style.whiteSpace =
+                    "pre-line";
+
+
+                conversionStatusArea.style.display =
+                    text
+                        ? "block"
+                        : "none";
+
+
+                if (
+                    type ===
+                    "error"
+                ) {
+
+                    conversionStatusArea.style.color =
+                        "#b00020";
+
+                }
+                else if (
+                    type ===
+                    "success"
+                ) {
+
+                    conversionStatusArea.style.color =
+                        "#176b2c";
+
+                }
+                else {
+
+                    conversionStatusArea.style.color =
+                        "#222";
+
+                }
+
+            }
+
+
+            // ---------------------------------
+            // 履歴には追加
+            // ---------------------------------
+
+            appendStatusHistory(
+                text,
+                type
+            );
+
+
+            console.log(
+                "[CONVERTER] STATUS:",
+                text
+            );
+
+        }
+
+
+        // =====================================
+        // 処理中ステータス
+        //
+        // 上側は最新状態だけ。
+        // 履歴は下側へ追加。
+        // =====================================
+
+        function setProgress(
+            message
+        ) {
+
+            const text =
+                String(
+                    message || ""
+                );
+
+
+            if (conversionStatusArea) {
+
+                conversionStatusArea.textContent =
+                    text;
+
+
+                conversionStatusArea.style.whiteSpace =
+                    "pre-line";
+
+
+                conversionStatusArea.style.display =
+                    text
+                        ? "block"
+                        : "none";
+
+
+                conversionStatusArea.style.color =
+                    "#222";
+
+            }
+
+
+            // ---------------------------------
+            // 履歴追加
+            // ---------------------------------
+
+            appendStatusHistory(
+                text,
+                ""
+            );
+
+
+            console.log(
+                "[CONVERTER] PROGRESS:",
+                text
+            );
+
+        }
 
 
         // =====================================
@@ -427,408 +866,6 @@
                     2,
                     "0"
                 )
-            );
-
-        }
-
-
-        // =====================================
-        // ステータス履歴DOM取得
-        // =====================================
-
-        function getStatusHistoryArea() {
-
-            if (!downloadArea) {
-
-                return null;
-
-            }
-
-
-            let historyArea =
-                downloadArea.querySelector(
-                    ".converter-status-history"
-                );
-
-
-            if (!historyArea) {
-
-                historyArea =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                historyArea.className =
-                    "converter-status-history";
-
-
-                historyArea.style.marginTop =
-                    "12px";
-
-
-                historyArea.style.paddingTop =
-                    "8px";
-
-
-                historyArea.style.borderTop =
-                    "1px solid #ddd";
-
-
-                downloadArea.appendChild(
-                    historyArea
-                );
-
-            }
-
-
-            return historyArea;
-
-        }
-
-
-        // =====================================
-        // ステータス履歴を一番下へ移動
-        // =====================================
-
-        function moveStatusHistoryToBottom() {
-
-            if (!downloadArea) {
-
-                return;
-
-            }
-
-
-            const historyArea =
-                downloadArea.querySelector(
-                    ".converter-status-history"
-                );
-
-
-            if (!historyArea) {
-
-                return;
-
-            }
-
-
-            downloadArea.appendChild(
-                historyArea
-            );
-
-        }
-
-
-        // =====================================
-        // ステータス履歴表示
-        // =====================================
-
-        function renderStatusHistory() {
-
-            if (!downloadArea) {
-
-                return;
-
-            }
-
-
-            const historyArea =
-                getStatusHistoryArea();
-
-
-            if (!historyArea) {
-
-                return;
-
-            }
-
-
-            historyArea.innerHTML =
-                "";
-
-
-            if (
-                !converterState.statusHistory.length
-            ) {
-
-                historyArea.style.display =
-                    "none";
-
-
-                return;
-
-            }
-
-
-            historyArea.style.display =
-                "block";
-
-
-            const title =
-                document.createElement(
-                    "div"
-                );
-
-
-            title.className =
-                "converter-status-history-title";
-
-
-            title.textContent =
-                "STATUS履歴";
-
-
-            title.style.fontWeight =
-                "bold";
-
-
-            title.style.marginBottom =
-                "6px";
-
-
-            historyArea.appendChild(
-                title
-            );
-
-
-            converterState.statusHistory.forEach(
-                function (item) {
-
-                    const entry =
-                        document.createElement(
-                            "div"
-                        );
-
-
-                    entry.className =
-                        "converter-status-history-entry";
-
-
-                    entry.style.whiteSpace =
-                        "pre-line";
-
-
-                    entry.style.marginBottom =
-                        "3px";
-
-
-                    const time =
-                        formatClock(
-                            item.time
-                        );
-
-
-                    entry.textContent =
-                        time +
-                        "  " +
-                        item.message;
-
-
-                    if (
-                        item.type ===
-                        "error"
-                    ) {
-
-                        entry.style.color =
-                            "#b00020";
-
-                    }
-                    else if (
-                        item.type ===
-                        "success"
-                    ) {
-
-                        entry.style.color =
-                            "#176b2c";
-
-                    }
-                    else {
-
-                        entry.style.color =
-                            "#222";
-
-                    }
-
-
-                    historyArea.appendChild(
-                        entry
-                    );
-
-                }
-            );
-
-
-            moveStatusHistoryToBottom();
-
-        }
-
-
-        // =====================================
-        // ステータス履歴追加
-        // =====================================
-
-        function appendStatusHistory(
-            message,
-            type
-        ) {
-
-            const text =
-                String(
-                    message || ""
-                ).trim();
-
-
-            if (!text) {
-
-                return;
-
-            }
-
-
-            converterState.statusHistory.push({
-
-                time:
-                    new Date(),
-
-                message:
-                    text,
-
-                type:
-                    type || ""
-
-            });
-
-
-            renderStatusHistory();
-
-        }
-
-
-        // =====================================
-        // 上側ステータス
-        //
-        // 上側は常に最新状態だけ表示。
-        // 履歴は別に保存。
-        // =====================================
-
-        function setStatus(
-            message,
-            type
-        ) {
-
-            const text =
-                String(
-                    message || ""
-                );
-
-
-            if (conversionStatusArea) {
-
-                conversionStatusArea.textContent =
-                    text;
-
-
-                conversionStatusArea.style.whiteSpace =
-                    "pre-line";
-
-
-                conversionStatusArea.style.display =
-                    text
-                        ? "block"
-                        : "none";
-
-
-                if (
-                    type ===
-                    "error"
-                ) {
-
-                    conversionStatusArea.style.color =
-                        "#b00020";
-
-                }
-                else if (
-                    type ===
-                    "success"
-                ) {
-
-                    conversionStatusArea.style.color =
-                        "#176b2c";
-
-                }
-                else {
-
-                    conversionStatusArea.style.color =
-                        "#222";
-
-                }
-
-            }
-
-
-            appendStatusHistory(
-                text,
-                type
-            );
-
-
-            console.log(
-                "[CONVERTER] STATUS:",
-                text
-            );
-
-        }
-
-
-        // =====================================
-        // 処理中ステータス
-        //
-        // 上側は最新状態に更新。
-        // 履歴には追加。
-        // =====================================
-
-        function setProgress(
-            message
-        ) {
-
-            const text =
-                String(
-                    message || ""
-                );
-
-
-            if (conversionStatusArea) {
-
-                conversionStatusArea.textContent =
-                    text;
-
-
-                conversionStatusArea.style.whiteSpace =
-                    "pre-line";
-
-
-                conversionStatusArea.style.display =
-                    text
-                        ? "block"
-                        : "none";
-
-
-                conversionStatusArea.style.color =
-                    "#222";
-
-            }
-
-
-            appendStatusHistory(
-                text,
-                ""
-            );
-
-
-            console.log(
-                "[CONVERTER] PROGRESS:",
-                text
             );
 
         }
@@ -1091,6 +1128,13 @@
             }
 
 
+            // ---------------------------------
+            // 既存削除
+            //
+            // 注意:
+            // STATUS履歴は削除しない。
+            // ---------------------------------
+
             const existing =
                 downloadArea.querySelector(
                     ".conversion-details"
@@ -1143,6 +1187,10 @@
                 "conversion-details-body";
 
 
+            // ---------------------------------
+            // MP3
+            // ---------------------------------
+
             mp3DetailsArea =
                 document.createElement(
                     "div"
@@ -1152,6 +1200,10 @@
             mp3DetailsArea.className =
                 "conversion-detail-section";
 
+
+            // ---------------------------------
+            // SRT
+            // ---------------------------------
 
             srtDetailsArea =
                 document.createElement(
@@ -1178,15 +1230,16 @@
             );
 
 
+            // ---------------------------------
+            // 履歴より先に追加
+            // ---------------------------------
+
             downloadArea.appendChild(
                 conversionDetails
             );
 
 
             renderConversionDetails();
-
-
-            moveStatusHistoryToBottom();
 
         }
 
@@ -1207,7 +1260,7 @@
 
 
             // =================================
-            // MP3 / MP4詳細
+            // MP3詳細
             // =================================
 
             if (mp3DetailsArea) {
@@ -1264,7 +1317,7 @@
                 mp3DetailsArea.innerHTML = `
 
                     <div class="conversion-detail-title">
-                        【mp4作成】
+                        【mp3作成】
                     </div>
 
                     <div>
@@ -1316,16 +1369,16 @@
                 `;
 
 
-                // -----------------------------
-                // 進捗履歴
-                // -----------------------------
+                // ---------------------------------
+                // 現在処理の進行ログ
+                // ---------------------------------
 
                 if (
-                    converterState.progressHistory &&
-                    converterState.progressHistory.length
+                    converterState.currentProgressHistory &&
+                    converterState.currentProgressHistory.length
                 ) {
 
-                    converterState.progressHistory.forEach(
+                    converterState.currentProgressHistory.forEach(
                         function (message) {
 
                             const progress =
@@ -1338,12 +1391,10 @@
                                 "conversion-progress";
 
 
-                            progress.style.whiteSpace =
-                                "pre-line";
-
-
                             progress.textContent =
-                                message;
+                                String(
+                                    message || ""
+                                );
 
 
                             mp3DetailsArea.appendChild(
@@ -1365,8 +1416,7 @@
             if (srtDetailsArea) {
 
                 const hasSrtProcess =
-                    converterState.srtProcess.startTime !==
-                    null;
+                    converterState.srtProcess.startTime !== null;
 
 
                 if (!hasSrtProcess) {
@@ -1474,8 +1524,6 @@
 
         // =====================================
         // 処理詳細ステータス
-        //
-        // 以前のログを消さずに追加。
         // =====================================
 
         function updateConversionProgress(
@@ -1495,1215 +1543,24 @@
             }
 
 
-            converterState.progressHistory.push(
+            // ---------------------------------
+            // 現在の処理履歴へ追加
+            // ---------------------------------
+
+            converterState.currentProgressHistory.push(
                 text
             );
 
 
+            // ---------------------------------
+            // 再描画
+            // ---------------------------------
+
             renderConversionDetails();
 
         }
 
 
         // =====================================
-        // SRT作成
-        //
-        // /gemini-transcribe
+        // 次のPartで続く
         // =====================================
-
-        async function createSrtWithGemini(
-            filename,
-            button,
-            resultArea,
-            srtDownloadArea
-        ) {
-
-            if (!filename) {
-
-                return;
-
-            }
-
-
-            if (
-                button.dataset.processing ===
-                "true"
-            ) {
-
-                return;
-
-            }
-
-
-            button.dataset.processing =
-                "true";
-
-
-            button.disabled =
-                true;
-
-
-            // =================================
-            // SRT開始時刻
-            // =================================
-
-            const srtStartTime =
-                new Date();
-
-
-            converterState.srtProcess.startTime =
-                srtStartTime;
-
-
-            converterState.srtProcess.endTime =
-                null;
-
-
-            converterState.currentSrtFile =
-                "";
-
-
-            renderConversionDetails();
-
-
-            updateConversionProgress(
-                "GeminiへMP3を送信しています..."
-            );
-
-
-            appendStatusHistory(
-                "GeminiへMP3を送信しています...",
-                ""
-            );
-
-
-            console.log(
-                "[CONVERTER] Gemini送信開始:",
-                filename
-            );
-
-
-            try {
-
-                const response =
-                    await fetch(
-                        "/gemini-transcribe",
-                        {
-
-                            method:
-                                "POST",
-
-                            headers: {
-
-                                "Content-Type":
-                                    "application/json"
-
-                            },
-
-                            body:
-                                JSON.stringify({
-
-                                    file:
-                                        filename
-
-                                })
-
-                        }
-                    );
-
-
-                const data =
-                    await readJsonResponse(
-                        response
-                    );
-
-
-                if (
-                    !response.ok ||
-                    !data.success
-                ) {
-
-                    throw new Error(
-
-                        data.message ||
-                        "Gemini文字起こしに失敗しました。"
-
-                    );
-
-                }
-
-
-                console.log(
-                    "[CONVERTER] Gemini処理完了:",
-                    data
-                );
-
-
-                // =================================
-                // SRT終了時刻
-                // =================================
-
-                const srtEndTime =
-                    new Date();
-
-
-                converterState.srtProcess.endTime =
-                    srtEndTime;
-
-
-                // =================================
-                // SRTファイル
-                // =================================
-
-                if (
-                    data.srt_file
-                ) {
-
-                    converterState.currentSrtFile =
-                        data.srt_file;
-
-
-                    if (
-                        srtDownloadArea
-                    ) {
-
-                        const existingSrt =
-                            srtDownloadArea.querySelector(
-                                "[data-srt-filename]"
-                            );
-
-
-                        if (!existingSrt) {
-
-                            const srtLink =
-                                document.createElement(
-                                    "a"
-                                );
-
-
-                            srtLink.href =
-                                makeDownloadUrl(
-                                    data.srt_file
-                                );
-
-
-                            srtLink.download =
-                                data.srt_file;
-
-
-                            srtLink.className =
-                                "download-button";
-
-
-                            srtLink.dataset.srtFilename =
-                                data.srt_file;
-
-
-                            srtLink.textContent =
-                                "[SRT]";
-
-
-                            srtDownloadArea.appendChild(
-                                srtLink
-                            );
-
-                        }
-
-                    }
-
-                }
-
-
-                // =================================
-                // 結果エリア
-                // =================================
-
-                if (resultArea) {
-
-                    resultArea.textContent =
-                        "";
-
-
-                    resultArea.style.display =
-                        "none";
-
-                }
-
-
-                appendStatusHistory(
-                    "SRT作成完了",
-                    "success"
-                );
-
-
-                renderConversionDetails();
-
-
-                console.log(
-                    "[CONVERTER] SRT作成完了"
-                );
-
-            }
-            catch (error) {
-
-                console.error(
-                    "[CONVERTER] Geminiエラー:",
-                    error
-                );
-
-
-                const srtEndTime =
-                    new Date();
-
-
-                converterState.srtProcess.endTime =
-                    srtEndTime;
-
-
-                const message =
-                    error &&
-                    error.message
-                        ? error.message
-                        : "不明なエラー";
-
-
-                if (resultArea) {
-
-                    resultArea.textContent =
-                        "SRT作成に失敗しました。\n" +
-                        message;
-
-
-                    resultArea.style.display =
-                        "block";
-
-
-                    resultArea.style.color =
-                        "#b00020";
-
-                }
-
-
-                renderConversionDetails();
-
-
-                updateConversionProgress(
-                    "SRT作成に失敗しました。\n" +
-                    message
-                );
-
-
-                appendStatusHistory(
-                    "SRT作成に失敗しました。\n" +
-                    message,
-                    "error"
-                );
-
-            }
-            finally {
-
-                button.dataset.processing =
-                    "false";
-
-
-                button.disabled =
-                    false;
-
-            }
-
-        }
-
-
-        // =====================================
-        // MP3用Gemini UI
-        // =====================================
-
-        function createMp3GeminiControl(
-            filename,
-            mp3Link
-        ) {
-
-            if (!downloadArea) {
-
-                return;
-
-            }
-
-
-            if (!filename) {
-
-                return;
-
-            }
-
-
-            const safeFilename =
-                String(
-                    filename
-                );
-
-
-            // =================================
-            // 二重作成防止
-            // =================================
-
-            const existing =
-                Array.from(
-                    downloadArea.querySelectorAll(
-                        "[data-gemini-filename]"
-                    )
-                ).find(
-                    function (element) {
-
-                        return (
-                            element.dataset.geminiFilename ===
-                            safeFilename
-                        );
-
-                    }
-                );
-
-
-            if (existing) {
-
-                return;
-
-            }
-
-
-            // =================================
-            // 外側
-            // =================================
-
-            const container =
-                document.createElement(
-                    "div"
-                );
-
-
-            container.className =
-                "mp3-gemini-container";
-
-
-            container.dataset.geminiFilename =
-                safeFilename;
-
-
-            // =================================
-            // ダウンロード行
-            // =================================
-
-            const header =
-                document.createElement(
-                    "div"
-                );
-
-
-            header.className =
-                "mp3-gemini-header";
-
-
-            header.style.display =
-                "flex";
-
-
-            header.style.alignItems =
-                "center";
-
-
-            header.style.flexWrap =
-                "nowrap";
-
-
-            header.style.gap =
-                "8px";
-
-
-            // =================================
-            // MP3リンク
-            // =================================
-
-            if (mp3Link) {
-
-                header.appendChild(
-                    mp3Link
-                );
-
-            }
-
-
-            // =================================
-            // 開閉ボタン
-            // =================================
-
-            const toggleButton =
-                document.createElement(
-                    "button"
-                );
-
-
-            toggleButton.type =
-                "button";
-
-
-            toggleButton.className =
-                "mp3-gemini-toggle";
-
-
-            toggleButton.textContent =
-                "▼";
-
-
-            toggleButton.style.flex =
-                "0 0 auto";
-
-
-            toggleButton.style.whiteSpace =
-                "nowrap";
-
-
-            toggleButton.setAttribute(
-                "aria-expanded",
-                "false"
-            );
-
-
-            toggleButton.setAttribute(
-                "aria-label",
-                "SRT作成メニューを開く"
-            );
-
-
-            // =================================
-            // SRT操作ボタン
-            // =================================
-
-            const srtButton =
-                document.createElement(
-                    "button"
-                );
-
-
-            srtButton.type =
-                "button";
-
-
-            srtButton.className =
-                "gemini-srt-button";
-
-
-            srtButton.textContent =
-                "geminiへ(srt)";
-
-
-            srtButton.style.display =
-                "none";
-
-
-            srtButton.style.flex =
-                "0 0 auto";
-
-
-            srtButton.style.whiteSpace =
-                "nowrap";
-
-
-            // =================================
-            // SRTダウンロード
-            // =================================
-
-            const srtDownloadArea =
-                document.createElement(
-                    "span"
-                );
-
-
-            srtDownloadArea.className =
-                "gemini-srt-download";
-
-
-            srtDownloadArea.style.display =
-                "inline-flex";
-
-
-            srtDownloadArea.style.alignItems =
-                "center";
-
-
-            srtDownloadArea.style.gap =
-                "8px";
-
-
-            // =================================
-            // エラー表示
-            // =================================
-
-            const resultArea =
-                document.createElement(
-                    "div"
-                );
-
-
-            resultArea.className =
-                "gemini-srt-result";
-
-
-            resultArea.style.display =
-                "none";
-
-
-            // =================================
-            // 開閉
-            // =================================
-
-            toggleButton.addEventListener(
-                "click",
-                function () {
-
-                    const isOpen =
-                        toggleButton.getAttribute(
-                            "aria-expanded"
-                        ) ===
-                        "true";
-
-
-                    if (isOpen) {
-
-                        srtButton.style.display =
-                            "none";
-
-
-                        toggleButton.textContent =
-                            "▼";
-
-
-                        toggleButton.setAttribute(
-                            "aria-expanded",
-                            "false"
-                        );
-
-
-                        toggleButton.setAttribute(
-                            "aria-label",
-                            "SRT作成メニューを開く"
-                        );
-
-                    }
-                    else {
-
-                        srtButton.style.display =
-                            "inline-block";
-
-
-                        toggleButton.textContent =
-                            "▲";
-
-
-                        toggleButton.setAttribute(
-                            "aria-expanded",
-                            "true"
-                        );
-
-
-                        toggleButton.setAttribute(
-                            "aria-label",
-                            "SRT作成メニューを閉じる"
-                        );
-
-                    }
-
-                }
-            );
-
-
-            // =================================
-            // Gemini実行
-            // =================================
-
-            srtButton.addEventListener(
-                "click",
-                function () {
-
-                    createSrtWithGemini(
-
-                        safeFilename,
-
-                        srtButton,
-
-                        resultArea,
-
-                        srtDownloadArea
-
-                    );
-
-                }
-            );
-
-
-            // =================================
-            // 組み立て
-            // =================================
-
-            header.appendChild(
-                toggleButton
-            );
-
-
-            header.appendChild(
-                srtButton
-            );
-
-
-            header.appendChild(
-                srtDownloadArea
-            );
-
-
-            container.appendChild(
-                header
-            );
-
-
-            container.appendChild(
-                resultArea
-            );
-
-
-            downloadArea.appendChild(
-                container
-            );
-
-
-            moveStatusHistoryToBottom();
-
-
-            console.log(
-                "[CONVERTER] MP3 Gemini UI追加:",
-                safeFilename
-            );
-
-        }
-
-
-        // =====================================
-        // ダウンロードボタン
-        // =====================================
-
-        function addDownloadButton(
-            filename,
-            type
-        ) {
-
-            if (!downloadArea) {
-
-                return;
-
-            }
-
-
-            if (!filename) {
-
-                return;
-
-            }
-
-
-            const safeFilename =
-                String(
-                    filename
-                );
-
-
-            const normalizedType =
-                String(
-                    type
-                ).toLowerCase();
-
-
-            // =================================
-            // 既存確認
-            // =================================
-
-            const existing =
-                Array.from(
-                    downloadArea.querySelectorAll(
-                        "[data-filename]"
-                    )
-                ).find(
-                    function (element) {
-
-                        return (
-                            element.dataset.filename ===
-                            safeFilename
-                        );
-
-                    }
-                );
-
-
-            if (existing) {
-
-                return;
-
-            }
-
-
-            // =================================
-            // ダウンロードリンク
-            // =================================
-
-            const link =
-                document.createElement(
-                    "a"
-                );
-
-
-            link.href =
-                makeDownloadUrl(
-                    safeFilename
-                );
-
-
-            link.download =
-                safeFilename;
-
-
-            link.className =
-                "download-button";
-
-
-            link.dataset.filename =
-                safeFilename;
-
-
-            link.textContent =
-                "[" +
-                normalizedType.toUpperCase() +
-                "]";
-
-
-            // =================================
-            // MP3
-            // =================================
-
-            if (
-                normalizedType ===
-                "mp3"
-            ) {
-
-                createMp3GeminiControl(
-                    safeFilename,
-                    link
-                );
-
-
-                return;
-
-            }
-
-
-            // =================================
-            // MP4
-            // =================================
-
-            downloadArea.appendChild(
-                link
-            );
-
-
-            moveStatusHistoryToBottom();
-
-
-            console.log(
-                "[CONVERTER] ダウンロードボタン追加:",
-                safeFilename
-            );
-
-        }
-
-
-        // =====================================
-        // 結果クリア
-        //
-        // 重要:
-        // ステータス履歴は絶対に消さない。
-        // =====================================
-
-        function clearResults() {
-
-            if (downloadArea) {
-
-                // ---------------------------------
-                // 過去のステータス履歴は残す。
-                // それ以外の今回の結果だけ削除。
-                // ---------------------------------
-
-                const elementsToRemove =
-                    downloadArea.querySelectorAll(
-                        ".mp3-gemini-container, " +
-                        ".download-button, " +
-                        ".conversion-details"
-                    );
-
-
-                elementsToRemove.forEach(
-                    function (element) {
-
-                        element.remove();
-
-                    }
-                );
-
-            }
-
-
-            if (conversionStatusArea) {
-
-                conversionStatusArea.textContent =
-                    "";
-
-
-                conversionStatusArea.style.display =
-                    "none";
-
-
-                conversionStatusArea.style.color =
-                    "#222";
-
-            }
-
-
-            conversionDetails =
-                null;
-
-
-            conversionDetailsBody =
-                null;
-
-
-            mp3DetailsArea =
-                null;
-
-
-            srtDetailsArea =
-                null;
-
-
-            converterState.currentVideoTitle =
-                "";
-
-
-            converterState.currentVideoDuration =
-                "";
-
-
-            converterState.currentVideoUrl =
-                "";
-
-
-            converterState.currentMp3File =
-                "";
-
-
-            converterState.currentMp4File =
-                "";
-
-
-            converterState.currentSrtFile =
-                "";
-
-
-            converterState.currentJobId =
-                "";
-
-
-            converterState.currentJobStatus =
-                "";
-
-
-            converterState.currentJob =
-                null;
-
-
-            converterState.mp3Process =
-                {
-
-                    startTime:
-                        null,
-
-                    endTime:
-                        null
-
-                };
-
-
-            converterState.srtProcess =
-                {
-
-                    startTime:
-                        null,
-
-                    endTime:
-                        null
-
-                };
-
-
-            // ---------------------------------
-            // 今回の処理詳細ログだけリセット。
-            //
-            // statusHistoryはリセットしない。
-            // ---------------------------------
-
-            converterState.progressHistory =
-                [];
-
-
-            renderStatusHistory();
-
-        }
-
-
-        // =====================================
-        // HTTP JSON
-        // =====================================
-
-        async function readJsonResponse(
-            response
-        ) {
-
-            const text =
-                await response.text();
-
-
-            let data;
-
-
-            try {
-
-                data =
-                    text
-                        ? JSON.parse(text)
-                        : null;
-
-            }
-            catch (error) {
-
-                throw new Error(
-
-                    "サーバーからJSONではない応答が返されました。" +
-                    "\nHTTP " +
-                    response.status +
-                    "\n" +
-                    text.substring(
-                        0,
-                        500
-                    )
-
-                );
-
-            }
-
-
-            if (!data) {
-
-                throw new Error(
-                    "サーバーから空の応答が返されました。"
-                );
-
-            }
-
-
-            return data;
-
-        }
-
-
-        // =====================================
-        // 動画情報
-        // =====================================
-
-        async function getVideoInfo(
-            url
-        ) {
-
-            const response =
-                await fetch(
-                    "/video-info",
-                    {
-
-                        method:
-                            "POST",
-
-                        headers: {
-
-                            "Content-Type":
-                                "application/json"
-
-                        },
-
-                        body:
-                            JSON.stringify({
-
-                                url:
-                                    url
-
-                            })
-
-                    }
-                );
-
-
-            const data =
-                await readJsonResponse(
-                    response
-                );
-
-
-            if (
-                !response.ok ||
-                !data.success
-            ) {
-
-                throw new Error(
-
-                    data.message ||
-                    "動画情報の取得に失敗しました。"
-
-                );
-
-            }
-
-
-            return data;
-
-        }
-
-
-        // =====================================
-        // 変換API
-        // =====================================
-
-        async function convertVideo(
-            url,
-            outputs,
-            timeRange
-        ) {
-
-            const requestBody = {
-
-                url:
-                    url,
-
-                outputs:
-                    outputs,
-
-                start_time:
-                    timeRange.start_time,
-
-                end_time:
-                    timeRange.end_time
-
-            };
-
-
-            const response =
-                await fetch(
-                    "/convert",
-                    {
-
-                        method:
-                            "POST",
-
-                        headers: {
-
-                            "Content-Type":
-                                "application/json"
-
-                        },
-
-                        body:
-                            JSON.stringify(
-                                requestBody
-                            )
-
-                    }
-                );
-
-
-            const data =
-                await readJsonResponse(
-                    response
-                );
-
-
-            if (
-                !response.ok ||
-                !data.success
-            ) {
-
-                throw new Error(
-
-                    data.message ||
-                    "変換APIでエラーが発生しました。"
-
-                );
-
-            }
-
-
-            if (!data.job_id) {
-
-                throw new Error(
-                    "変換APIからjob_idが返されませんでした。"
-                );
-
-            }
-
-
-            converterState.currentJobId =
-                data.job_id;
-
-
-            return data;
-
-        }
-
-
-        // =====================================
-        // Jobステータス
-        // =====================================
-
-        async function getJobStatus(
-            jobId
-        ) {
-
-            const response =
-                await fetch(
-                    "/status/" +
-                    encodeURIComponent(
-                        jobId
-                    ),
-                    {
-
-                        method:
-                            "GET",
-
-                        cache:
-                            "no-store"
-
-                    }
-                );
-
-
-            const data =
-                await readJsonResponse(
-                    response
-                );
-
-
-            if (!response.ok) {
-
-                throw new Error(
-
-                    data.message ||
