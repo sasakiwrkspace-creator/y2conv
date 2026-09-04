@@ -34,6 +34,7 @@ from routes.files import register_files
 from routes.convert import register_convert
 from routes.check import register_video_info, register_check
 from routes.gemini import register_gemini
+from routes.completed_files import register_completed_files
 
 
 # =====================================
@@ -93,14 +94,18 @@ register_check(app)
 
 # -------------------------------------
 # Gemini / SRT
-#
-# POST /gemini-transcribe
-#
-# converter.jsからMP3ファイル名を受け取り、
-# Geminiで文字起こししてSRTを作成する。
 # -------------------------------------
 
 register_gemini(app)
+
+
+# -------------------------------------
+# 完成ファイル確認
+#
+# POST /find-completed-files
+# -------------------------------------
+
+register_completed_files(app)
 
 
 # =====================================
