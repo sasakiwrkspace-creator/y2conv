@@ -17,18 +17,6 @@
 // ・処理詳細表示
 // ・処理ログ表示
 //
-// 注意:
-// ・converterUtils.js は使用しない
-// ・converterStatus.js は使用しない
-// ・タブ2の処理には触れない
-// ・タブ1の実行ボタンは #convertBtn
-// ・通常のMP3 / MP4処理は既存動作を維持する
-// ・subtitle_mp4選択時はconvert.py側で
-//   subtitle_mp4.pyへ処理を委譲する
-// ・subtitle_mp4.pyが
-//   MP4 → MP3 → SRT → 字幕MP4
-//   の連続処理を担当する
-//
 // 表示仕様:
 //
 // 上側:
@@ -46,12 +34,9 @@
 // 完了後:
 //
 //     [MP3]
-//     [SRT]
-//     [MP4]
-//
-//     または
-//
-//     [字幕MP4]
+//     [MP3] [MP4]
+//     [MP3] [MP4] [SRT]
+//     [字幕MP4] [MP3] [MP4] [SRT]
 //
 // MP4 / 字幕MP4には
 // 折り畳み・▲を付けない。
@@ -1209,6 +1194,9 @@
 
         // =====================================
         // ダウンロード行取得
+        //
+        // MP3 / MP4 / SRT / 字幕MP4を
+        // 1つの横並び行にする。
         // =====================================
 
         function ensureDownloadRow() {
@@ -1251,14 +1239,150 @@
 
 
         // =====================================
+        // ダウンロードボタン存在確認
+        // =====================================
+
+        function hasDownloadButton(
+            attributeName,
+            filename
+        ) {
+
+            if (
+                !downloadArea ||
+                !filename
+            ) {
+
+                return false;
+
+            }
+
+
+            const safeFilename =
+                String(
+                    filename
+                );
+
+
+            const buttons =
+                downloadArea.querySelectorAll(
+                    ".download-row > *"
+                );
+
+
+            for (
+                const button of buttons
+            ) {
+
+                if (
+                    button.dataset &&
+                    button.dataset[
+                        attributeName
+                    ] === safeFilename
+                ) {
+
+                    return true;
+
+                }
+
+            }
+
+
+            return false;
+
+        }
+
+
+        // =====================================
+        // ダウンロードボタン並び替え
+        //
+        // 希望する順番:
+        //
+        // [字幕MP4] [MP3] [MP4] [SRT]
+        //
+        // =====================================
+
+        function sortDownloadButtons() {
+
+            if (!downloadArea) {
+
+                return;
+
+            }
+
+
+            const row =
+                downloadArea.querySelector(
+                    ".download-row"
+                );
+
+
+            if (!row) {
+
+                return;
+
+            }
+
+
+            const buttons =
+                Array.from(
+                    row.children
+                );
+
+
+            buttons.sort(
+                function (a, b) {
+
+                    const aOrder =
+                        Number(
+                            a.dataset.downloadOrder ||
+                            999
+                        );
+
+
+                    const bOrder =
+                        Number(
+                            b.dataset.downloadOrder ||
+                            999
+                        );
+
+
+                    return (
+                        aOrder -
+                        bOrder
+                    );
+
+                }
+            );
+
+
+            buttons.forEach(
+                function (button) {
+
+                    row.appendChild(
+                        button
+                    );
+
+                }
+            );
+
+        }
+
+
+        // =====================================
         // MP3用折り畳み
+        //
+        // MP3はGeminiへSRTを作成するため、
+        // 従来どおり折り畳みを使用する。
         // =====================================
 
         function addMp3Download(
             filename
         ) {
 
-            if (!downloadArea || !filename) {
+            if (
+                !downloadArea ||
+                !filename
+            ) {
 
                 return;
 
@@ -1271,17 +1395,12 @@
                 );
 
 
-            const existing =
-                downloadArea.querySelector(
-                    '[data-mp3-filename="' +
-                    CSS.escape(
-                        safeFilename
-                    ) +
-                    '"]'
-                );
-
-
-            if (existing) {
+            if (
+                hasDownloadButton(
+                    "mp3Filename",
+                    safeFilename
+                )
+            ) {
 
                 return;
 
@@ -1311,6 +1430,15 @@
 
             details.dataset.mp3Filename =
                 safeFilename;
+
+
+            // ---------------------------------
+            // 並び順
+            // 字幕MP4 → MP3 → MP4 → SRT
+            // ---------------------------------
+
+            details.dataset.downloadOrder =
+                "2";
 
 
             const summary =
@@ -1448,6 +1576,9 @@
             );
 
 
+            sortDownloadButtons();
+
+
             console.log(
                 "[CONVERTER] MP3ダウンロード追加:",
                 safeFilename
@@ -1466,7 +1597,10 @@
             filename
         ) {
 
-            if (!downloadArea || !filename) {
+            if (
+                !downloadArea ||
+                !filename
+            ) {
 
                 return;
 
@@ -1479,17 +1613,12 @@
                 );
 
 
-            const existing =
-                downloadArea.querySelector(
-                    '[data-mp4-filename="' +
-                    CSS.escape(
-                        safeFilename
-                    ) +
-                    '"]'
-                );
-
-
-            if (existing) {
+            if (
+                hasDownloadButton(
+                    "mp4Filename",
+                    safeFilename
+                )
+            ) {
 
                 return;
 
@@ -1519,9 +1648,21 @@
                 safeFilename;
 
 
+            // ---------------------------------
+            // 並び順
+            // 字幕MP4 → MP3 → MP4 → SRT
+            // ---------------------------------
+
+            link.dataset.downloadOrder =
+                "3";
+
+
             row.appendChild(
                 link
             );
+
+
+            sortDownloadButtons();
 
 
             console.log(
@@ -1536,13 +1677,18 @@
         // 字幕MP4ダウンロード
         //
         // 字幕MP4には折り畳み・▲を付けない。
+        //
+        // 必ず先頭に表示する。
         // =====================================
 
         function addSubtitleMp4Download(
             filename
         ) {
 
-            if (!downloadArea || !filename) {
+            if (
+                !downloadArea ||
+                !filename
+            ) {
 
                 return;
 
@@ -1555,17 +1701,12 @@
                 );
 
 
-            const existing =
-                downloadArea.querySelector(
-                    '[data-subtitle-mp4-filename="' +
-                    CSS.escape(
-                        safeFilename
-                    ) +
-                    '"]'
-                );
-
-
-            if (existing) {
+            if (
+                hasDownloadButton(
+                    "subtitleMp4Filename",
+                    safeFilename
+                )
+            ) {
 
                 return;
 
@@ -1595,9 +1736,21 @@
                 safeFilename;
 
 
+            // ---------------------------------
+            // 並び順
+            // 字幕MP4を先頭にする。
+            // ---------------------------------
+
+            link.dataset.downloadOrder =
+                "1";
+
+
             row.appendChild(
                 link
             );
+
+
+            sortDownloadButtons();
 
 
             console.log(
@@ -1616,7 +1769,10 @@
             filename
         ) {
 
-            if (!downloadArea || !filename) {
+            if (
+                !downloadArea ||
+                !filename
+            ) {
 
                 return;
 
@@ -1629,17 +1785,12 @@
                 );
 
 
-            const existing =
-                downloadArea.querySelector(
-                    '[data-srt-filename="' +
-                    CSS.escape(
-                        safeFilename
-                    ) +
-                    '"]'
-                );
-
-
-            if (existing) {
+            if (
+                hasDownloadButton(
+                    "srtFilename",
+                    safeFilename
+                )
+            ) {
 
                 return;
 
@@ -1669,9 +1820,21 @@
                 safeFilename;
 
 
+            // ---------------------------------
+            // 並び順
+            // SRTを最後にする。
+            // ---------------------------------
+
+            link.dataset.downloadOrder =
+                "4";
+
+
             row.appendChild(
                 link
             );
+
+
+            sortDownloadButtons();
 
 
             console.log(
@@ -1701,7 +1864,10 @@
             }
 
 
-            if (!mp3Filename || !button) {
+            if (
+                !mp3Filename ||
+                !button
+            ) {
 
                 return;
 
@@ -2351,8 +2517,8 @@
 
                             })
 
-                    }
-                );
+                        }
+                    );
 
 
             const data =
@@ -2427,7 +2593,7 @@
                             "Content-Type":
                                 "application/json"
 
-                        },
+                            },
 
                         body:
                             JSON.stringify(
@@ -2584,6 +2750,30 @@
 
                 addMp4Download(
                     files.mp4.filename
+                );
+
+            }
+
+
+            // ---------------------------------
+            // SRT
+            //
+            // Job側からSRTが返る場合にも対応。
+            // ---------------------------------
+
+            if (
+                files.srt &&
+                files.srt.status ===
+                    "complete" &&
+                files.srt.filename
+            ) {
+
+                converterState.currentSrtFile =
+                    files.srt.filename;
+
+
+                addSrtDownload(
+                    files.srt.filename
                 );
 
             }
@@ -2919,8 +3109,7 @@
 
 
             // =================================
-            // 修正点:
-            // subtitle_mp4単独選択も許可する。
+            // subtitle_mp4単独選択も許可
             // =================================
 
             if (!outputs.length) {
@@ -3090,275 +3279,14 @@
                     );
 
 
+                const hasSrt =
+                    Boolean(
+                        converterState.currentSrtFile
+                    );
+
+
                 const hasSubtitleMp4 =
                     Boolean(
                         converterState.currentSubtitleMp4File
                     );
 
-
-                if (
-                    !hasMp3 &&
-                    !hasMp4 &&
-                    !hasSubtitleMp4
-                ) {
-
-                    throw new Error(
-                        "変換は完了しましたが、作成されたファイルが確認できませんでした。"
-                    );
-
-                }
-
-
-                // =================================
-                // 完了
-                // =================================
-
-                const endTime =
-                    new Date();
-
-
-                addProcessingLog(
-                    "変換が完了しました。",
-                    "success"
-                );
-
-
-                addConversionInfo(
-                    startTime,
-                    endTime
-                );
-
-
-                // =================================
-                // 上側はタイトルだけ
-                // =================================
-
-                setStatus(
-                    converterState.currentVideoTitle,
-                    "success"
-                );
-
-
-                console.log(
-                    "[CONVERTER] 変換完了:",
-                    completedJob
-                );
-
-            }
-            catch (error) {
-
-                console.error(
-                    "[CONVERTER] エラー:",
-                    error
-                );
-
-
-                const message =
-                    error &&
-                    error.message
-                        ? error.message
-                        : "不明なエラー";
-
-
-                addProcessingLog(
-                    "変換中にエラーが発生しました: " +
-                    message,
-                    "error"
-                );
-
-
-                setStatus(
-
-                    "変換中にエラーが発生しました。\n" +
-                    message,
-
-                    "error"
-
-                );
-
-            }
-            finally {
-
-                converterState.isProcessing =
-                    false;
-
-
-                convertButton.disabled =
-                    false;
-
-
-                console.log(
-                    "[CONVERTER] 処理終了"
-                );
-
-            }
-
-        }
-
-
-        // =====================================
-        // クリック
-        // =====================================
-
-        if (
-            convertButton.dataset.converterBound !==
-            "true"
-        ) {
-
-            convertButton.addEventListener(
-                "click",
-                startConversion
-            );
-
-
-            convertButton.dataset.converterBound =
-                "true";
-
-        }
-
-
-        // =====================================
-        // Enter
-        // =====================================
-
-        if (
-            urlInput.dataset.converterEnterBound !==
-            "true"
-        ) {
-
-            urlInput.addEventListener(
-                "keydown",
-                function (event) {
-
-                    if (
-                        event.key ===
-                        "Enter"
-                    ) {
-
-                        event.preventDefault();
-
-                        startConversion();
-
-                    }
-
-                }
-            );
-
-
-            urlInput.dataset.converterEnterBound =
-                "true";
-
-        }
-
-
-        // =====================================
-        // 時間入力
-        // =====================================
-
-        const timeInputs =
-            document.querySelectorAll(
-                ".time-input"
-            );
-
-
-        timeInputs.forEach(
-            function (input) {
-
-                if (
-                    input.dataset.converterTimeBound ===
-                    "true"
-                ) {
-
-                    return;
-
-                }
-
-
-                input.addEventListener(
-                    "input",
-                    function () {
-
-                        this.value =
-                            this.value.replace(
-                                /[^0-9]/g,
-                                ""
-                            );
-
-                    }
-                );
-
-
-                input.dataset.converterTimeBound =
-                    "true";
-
-            }
-        );
-
-
-        // =====================================
-        // 公開API
-        // =====================================
-
-        const publicApi = {
-
-            start:
-                startConversion,
-
-            clearResults:
-                clearResults,
-
-            getState:
-                function () {
-
-                    return converterState;
-
-                },
-
-            addProcessingLog:
-                addProcessingLog
-
-        };
-
-
-        window.converterMain =
-            publicApi;
-
-
-        window.ConverterMain =
-            publicApi;
-
-
-        console.log(
-            "[CONVERTER] converter.js 読み込み完了"
-        );
-
-    }
-
-
-    // =====================================
-    // DOMContentLoaded
-    // =====================================
-
-    if (
-        document.readyState ===
-        "loading"
-    ) {
-
-        document.addEventListener(
-            "DOMContentLoaded",
-            initializeConverter,
-            {
-                once:
-                    true
-            }
-        );
-
-    }
-    else {
-
-        initializeConverter();
-
-    }
-
-
-})();
