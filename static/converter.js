@@ -31,19 +31,36 @@
 //
 // 表示仕様:
 //
-// 上側:
-//     動画タイトルのみ
+// 処理中:
 //
-// 完了後:
+//     動画タイトル
+//
+//     処理ログ
+//     14:32:01  変換処理を開始します。
+//     14:32:02  動画情報を取得しています...
+//     14:32:04  動画情報の取得が完了しました。
+//     14:32:05  変換ジョブを開始しました。
+//     ...
+//
+// 正常終了後:
+//
+//     動画タイトル
 //
 //     [字幕MP4] [MP3] [MP4] [SRT]
 //
 //     ▼ 処理詳細
-//        再生時間
-//        実行開始
-//        実行終了
-//        処理時間
-//        処理ログ
+//         再生時間：...
+//         実行開始：...
+//         実行終了：...
+//         処理時間：...
+//
+//         処理ログ
+//         14:32:01 ...
+//         14:32:02 ...
+//
+// エラー時:
+//
+//     処理ログはそのまま表示する。
 //
 // MP4 / 字幕MP4には
 // 折り畳み・▲を付けない。
@@ -268,12 +285,98 @@
 
 
         // =====================================
+        // 処理ログ用DOM作成
+        //
+        // 処理中はdownloadAreaへ直接表示。
+        // 正常終了時に処理詳細の中へ移動する。
+        // =====================================
+
+        function ensureProcessingLogArea() {
+
+            if (!downloadArea) {
+
+                return null;
+
+            }
+
+
+            let logArea =
+                downloadArea.querySelector(
+                    ".conversion-log"
+                );
+
+
+            if (logArea) {
+
+                return logArea;
+
+            }
+
+
+            const details =
+                document.createElement(
+                    "details"
+                );
+
+
+            details.className =
+                "conversion-log";
+
+
+            details.open =
+                true;
+
+
+            const summary =
+                document.createElement(
+                    "summary"
+                );
+
+
+            summary.className =
+                "conversion-log-summary";
+
+
+            summary.textContent =
+                "処理ログ";
+
+
+            details.appendChild(
+                summary
+            );
+
+
+            const body =
+                document.createElement(
+                    "div"
+                );
+
+
+            body.className =
+                "conversion-log-body";
+
+
+            details.appendChild(
+                body
+            );
+
+
+            // ---------------------------------
+            // 処理中は先頭に表示
+            // ---------------------------------
+
+            downloadArea.prepend(
+                details
+            );
+
+
+            return details;
+
+        }
+
+
+        // =====================================
         // 処理ログ追加
-        //
-        // 処理ログは画面上に独立表示しない。
-        //
-        // converterState.processingLog に保存し、
-        // 最後に「処理詳細」の中へ表示する。
         // =====================================
 
         function addProcessingLog(
@@ -349,6 +452,113 @@
             );
 
 
+            const details =
+                ensureProcessingLogArea();
+
+
+            if (!details) {
+
+                console.log(
+                    "[CONVERTER] LOG:",
+                    clock,
+                    text
+                );
+
+                return;
+
+            }
+
+
+            const body =
+                details.querySelector(
+                    ".conversion-log-body"
+                );
+
+
+            if (!body) {
+
+                return;
+
+            }
+
+
+            const line =
+                document.createElement(
+                    "div"
+                );
+
+
+            line.className =
+                "conversion-log-line";
+
+
+            if (
+                entry.type === "error"
+            ) {
+
+                line.classList.add(
+                    "is-error"
+                );
+
+            }
+            else if (
+                entry.type === "success"
+            ) {
+
+                line.classList.add(
+                    "is-success"
+                );
+
+            }
+
+
+            const timeSpan =
+                document.createElement(
+                    "span"
+                );
+
+
+            timeSpan.className =
+                "conversion-log-time";
+
+
+            timeSpan.textContent =
+                clock;
+
+
+            const messageSpan =
+                document.createElement(
+                    "span"
+                );
+
+
+            messageSpan.className =
+                "conversion-log-message";
+
+
+            messageSpan.textContent =
+                text;
+
+
+            line.appendChild(
+                timeSpan
+            );
+
+
+            line.appendChild(
+                messageSpan
+            );
+
+
+            body.appendChild(
+                line
+            );
+
+
+            body.scrollTop =
+                body.scrollHeight;
+
+
             console.log(
                 "[CONVERTER] LOG:",
                 clock,
@@ -374,6 +584,81 @@
 
             converterState.lastJobStatus =
                 "";
+
+
+            if (!downloadArea) {
+
+                return;
+
+            }
+
+
+            const logArea =
+                downloadArea.querySelector(
+                    ".conversion-log"
+                );
+
+
+            if (logArea) {
+
+                logArea.remove();
+
+            }
+
+        }
+
+
+        // =====================================
+        // 処理ログを処理詳細へ移動
+        //
+        // 正常終了時に使用する。
+        // =====================================
+
+        function moveProcessingLogIntoDetails(
+            details,
+            detailBody
+        ) {
+
+            if (
+                !details ||
+                !detailBody
+            ) {
+
+                return;
+
+            }
+
+
+            const logArea =
+                downloadArea
+                    ? downloadArea.querySelector(
+                        ".conversion-log"
+                    )
+                    : null;
+
+
+            if (!logArea) {
+
+                return;
+
+            }
+
+
+            // ---------------------------------
+            // ログを処理詳細の中へ移動
+            // ---------------------------------
+
+            detailBody.appendChild(
+                logArea
+            );
+
+
+            // ---------------------------------
+            // 正常終了後はログを閉じた状態
+            // ---------------------------------
+
+            logArea.open =
+                false;
 
         }
 
@@ -995,9 +1280,6 @@
 
         // =====================================
         // ダウンロード行取得
-        //
-        // MP3 / MP4 / SRT / 字幕MP4を
-        // 1つの横並び行に表示する。
         // =====================================
 
         function ensureDownloadRow() {
@@ -1092,11 +1374,6 @@
 
         // =====================================
         // ダウンロードボタン並び替え
-        //
-        // 希望する順番:
-        //
-        // [字幕MP4] [MP3] [MP4] [SRT]
-        //
         // =====================================
 
         function sortDownloadButtons() {
@@ -1168,9 +1445,6 @@
 
         // =====================================
         // MP3用折り畳み
-        //
-        // MP3はGeminiへ送る機能があるため
-        // 従来どおり折り畳みを使用する。
         // =====================================
 
         function addMp3Download(
@@ -1379,8 +1653,6 @@
 
         // =====================================
         // MP4ダウンロード
-        //
-        // MP4には折り畳み・▲を付けない。
         // =====================================
 
         function addMp4Download(
@@ -1457,10 +1729,6 @@
 
         // =====================================
         // 字幕MP4ダウンロード
-        //
-        // 字幕MP4には折り畳み・▲を付けない。
-        //
-        // 必ず先頭に表示する。
         // =====================================
 
         function addSubtitleMp4Download(
@@ -1537,8 +1805,6 @@
 
         // =====================================
         // SRTダウンロード
-        //
-        // SRTは最後に表示する。
         // =====================================
 
         function addSrtDownload(
@@ -2282,8 +2548,8 @@
 
                             })
 
-                    }
-                );
+                        }
+                    );
 
 
             const data =
@@ -2522,9 +2788,6 @@
 
             // ---------------------------------
             // SRT
-            //
-            // Job側からSRTが返る場合にも
-            // 表示できるようにする。
             // ---------------------------------
 
             if (
@@ -2571,10 +2834,6 @@
 
         // =====================================
         // Jobステータス処理
-        //
-        // ファイル単位のステータス表示はしない。
-        // job.message / job.statusを
-        // 処理ログとして保存する。
         // =====================================
 
         function renderJobStatus(
@@ -2616,9 +2875,7 @@
             ) {
 
                 if (
-                    job.message &&
-                    job.message !==
-                        converterState.lastJobMessage
+                    job.message
                 ) {
 
                     addProcessingLog(
@@ -2719,7 +2976,7 @@
         // =====================================
         // 処理詳細
         //
-        // 「処理ログ」をこの中へ入れる。
+        // 正常終了時に処理ログをここへ移動する。
         // =====================================
 
         function addConversionInfo(
@@ -2730,23 +2987,6 @@
             if (!downloadArea) {
 
                 return;
-
-            }
-
-
-            // ---------------------------------
-            // 既存の処理詳細を削除
-            // ---------------------------------
-
-            const existingDetails =
-                downloadArea.querySelector(
-                    ".conversion-details"
-                );
-
-
-            if (existingDetails) {
-
-                existingDetails.remove();
 
             }
 
@@ -2778,8 +3018,12 @@
                 "conversion-details";
 
 
+            // ---------------------------------
+            // 正常終了後は閉じた状態
+            // ---------------------------------
+
             details.open =
-                true;
+                false;
 
 
             const summary =
@@ -2807,11 +3051,7 @@
                 "conversion-details-body";
 
 
-            // ---------------------------------
-            // 基本情報
-            // ---------------------------------
-
-            const infoHtml = `
+            detailBody.innerHTML = `
 
                 <div>
                     再生時間：
@@ -2852,139 +3092,6 @@
             `;
 
 
-            detailBody.innerHTML =
-                infoHtml;
-
-
-            // ---------------------------------
-            // 処理ログタイトル
-            // ---------------------------------
-
-            if (
-                converterState.processingLog.length > 0
-            ) {
-
-                const logTitle =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                logTitle.className =
-                    "conversion-log-title";
-
-
-                logTitle.textContent =
-                    "処理ログ";
-
-
-                detailBody.appendChild(
-                    logTitle
-                );
-
-
-                // ---------------------------------
-                // 処理ログ本体
-                // ---------------------------------
-
-                const logBody =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                logBody.className =
-                    "conversion-log-body";
-
-
-                converterState.processingLog.forEach(
-                    function (entry) {
-
-                        const line =
-                            document.createElement(
-                                "div"
-                            );
-
-
-                        line.className =
-                            "conversion-log-line";
-
-
-                        if (
-                            entry.type ===
-                            "error"
-                        ) {
-
-                            line.classList.add(
-                                "is-error"
-                            );
-
-                        }
-                        else if (
-                            entry.type ===
-                            "success"
-                        ) {
-
-                            line.classList.add(
-                                "is-success"
-                            );
-
-                        }
-
-
-                        const timeSpan =
-                            document.createElement(
-                                "span"
-                            );
-
-
-                        timeSpan.className =
-                            "conversion-log-time";
-
-
-                        timeSpan.textContent =
-                            entry.time;
-
-
-                        const messageSpan =
-                            document.createElement(
-                                "span"
-                            );
-
-
-                        messageSpan.className =
-                            "conversion-log-message";
-
-
-                        messageSpan.textContent =
-                            entry.message;
-
-
-                        line.appendChild(
-                            timeSpan
-                        );
-
-
-                        line.appendChild(
-                            messageSpan
-                        );
-
-
-                        logBody.appendChild(
-                            line
-                        );
-
-                    }
-                );
-
-
-                detailBody.appendChild(
-                    logBody
-                );
-
-            }
-
-
             details.appendChild(
                 detailBody
             );
@@ -2992,6 +3099,17 @@
 
             downloadArea.appendChild(
                 details
+            );
+
+
+            // ---------------------------------
+            // ここで処理中に表示していた
+            // 処理ログを処理詳細の中へ移動
+            // ---------------------------------
+
+            moveProcessingLogIntoDetails(
+                details,
+                detailBody
             );
 
         }
@@ -3088,421 +3206,3 @@
                 // =================================
 
                 setProgress(
-                    "動画情報を取得しています..."
-                );
-
-
-                const info =
-                    await getVideoInfo(
-                        url
-                    );
-
-
-                converterState.currentVideoTitle =
-                    info.title ||
-                    info.video_title ||
-                    "不明";
-
-
-                converterState.currentVideoDuration =
-                    info.duration ??
-                    info.video_duration ??
-                    0;
-
-
-                // =================================
-                // 上側にはタイトルだけ表示
-                // =================================
-
-                setStatus(
-                    converterState.currentVideoTitle,
-                    ""
-                );
-
-
-                addProcessingLog(
-                    "動画情報の取得が完了しました。"
-                );
-
-
-                // =================================
-                // 時間範囲
-                // =================================
-
-                const timeRange =
-                    getTimeRange();
-
-
-                // =================================
-                // 変換開始
-                // =================================
-
-                setProgress(
-                    "変換ジョブを開始しています..."
-                );
-
-
-                const data =
-                    await convertVideo(
-
-                        url,
-
-                        outputs,
-
-                        timeRange
-
-                    );
-
-
-                const jobId =
-                    data.job_id;
-
-
-                converterState.currentJobId =
-                    jobId;
-
-
-                addProcessingLog(
-                    "変換ジョブを開始しました。"
-                );
-
-
-                // =================================
-                // Job監視
-                // =================================
-
-                setProgress(
-                    "変換処理中..."
-                );
-
-
-                const completedJob =
-                    await waitForJob(
-                        jobId
-                    );
-
-
-                // =================================
-                // 最終ファイル反映
-                // =================================
-
-                renderJobFiles(
-                    completedJob
-                );
-
-
-                // =================================
-                // ファイル確認
-                // =================================
-
-                const hasMp3 =
-                    Boolean(
-                        converterState.currentMp3File
-                    );
-
-
-                const hasMp4 =
-                    Boolean(
-                        converterState.currentMp4File
-                    );
-
-
-                const hasSrt =
-                    Boolean(
-                        converterState.currentSrtFile
-                    );
-
-
-                const hasSubtitleMp4 =
-                    Boolean(
-                        converterState.currentSubtitleMp4File
-                    );
-
-
-                if (
-                    !hasMp3 &&
-                    !hasMp4 &&
-                    !hasSrt &&
-                    !hasSubtitleMp4
-                ) {
-
-                    throw new Error(
-                        "変換は完了しましたが、作成されたファイルが確認できませんでした。"
-                    );
-
-                }
-
-
-                // =================================
-                // 完了
-                // =================================
-
-                const endTime =
-                    new Date();
-
-
-                addProcessingLog(
-                    "変換が完了しました。",
-                    "success"
-                );
-
-
-                // ---------------------------------
-                // 処理詳細
-                //
-                // ログもここへまとめる。
-                // ---------------------------------
-
-                addConversionInfo(
-                    startTime,
-                    endTime
-                );
-
-
-                // =================================
-                // 上側はタイトルだけ
-                // =================================
-
-                setStatus(
-                    converterState.currentVideoTitle,
-                    "success"
-                );
-
-
-                console.log(
-                    "[CONVERTER] 変換完了:",
-                    completedJob
-                );
-
-            }
-            catch (error) {
-
-                console.error(
-                    "[CONVERTER] エラー:",
-                    error
-                );
-
-
-                const message =
-                    error &&
-                    error.message
-                        ? error.message
-                        : "不明なエラー";
-
-
-                addProcessingLog(
-                    "変換中にエラーが発生しました: " +
-                    message,
-                    "error"
-                );
-
-
-                // ---------------------------------
-                // エラー時も処理詳細を表示
-                // ---------------------------------
-
-                const endTime =
-                    new Date();
-
-
-                addConversionInfo(
-                    startTime,
-                    endTime
-                );
-
-
-                setStatus(
-
-                    "変換中にエラーが発生しました。\n" +
-                    message,
-
-                    "error"
-
-                );
-
-            }
-            finally {
-
-                converterState.isProcessing =
-                    false;
-
-
-                convertButton.disabled =
-                    false;
-
-
-                console.log(
-                    "[CONVERTER] 処理終了"
-                );
-
-            }
-
-        }
-
-
-        // =====================================
-        // クリック
-        // =====================================
-
-        if (
-            convertButton.dataset.converterBound !==
-            "true"
-        ) {
-
-            convertButton.addEventListener(
-                "click",
-                startConversion
-            );
-
-
-            convertButton.dataset.converterBound =
-                "true";
-
-        }
-
-
-        // =====================================
-        // Enter
-        // =====================================
-
-        if (
-            urlInput.dataset.converterEnterBound !==
-            "true"
-        ) {
-
-            urlInput.addEventListener(
-                "keydown",
-                function (event) {
-
-                    if (
-                        event.key ===
-                        "Enter"
-                    ) {
-
-                        event.preventDefault();
-
-                        startConversion();
-
-                    }
-
-                }
-            );
-
-
-            urlInput.dataset.converterEnterBound =
-                "true";
-
-        }
-
-
-        // =====================================
-        // 時間入力
-        // =====================================
-
-        const timeInputs =
-            document.querySelectorAll(
-                ".time-input"
-            );
-
-
-        timeInputs.forEach(
-            function (input) {
-
-                if (
-                    input.dataset.converterTimeBound ===
-                    "true"
-                ) {
-
-                    return;
-
-                }
-
-
-                input.addEventListener(
-                    "input",
-                    function () {
-
-                        this.value =
-                            this.value.replace(
-                                /[^0-9]/g,
-                                ""
-                            );
-
-                    }
-                );
-
-
-                input.dataset.converterTimeBound =
-                    "true";
-
-            }
-        );
-
-
-        // =====================================
-        // 公開API
-        // =====================================
-
-        const publicApi = {
-
-            start:
-                startConversion,
-
-            clearResults:
-                clearResults,
-
-            getState:
-                function () {
-
-                    return converterState;
-
-                },
-
-            addProcessingLog:
-                addProcessingLog
-
-        };
-
-
-        window.converterMain =
-            publicApi;
-
-
-        window.ConverterMain =
-            publicApi;
-
-
-        console.log(
-            "[CONVERTER] converter.js 読み込み完了"
-        );
-
-    }
-
-
-    // =====================================
-    // DOMContentLoaded
-    // =====================================
-
-    if (
-        document.readyState ===
-        "loading"
-    ) {
-
-        document.addEventListener(
-            "DOMContentLoaded",
-            initializeConverter,
-            {
-                once:
-                    true
-            }
-        );
-
-    }
-    else {
-
-        initializeConverter();
-
-    }
-
-
-})();
