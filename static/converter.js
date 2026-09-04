@@ -715,6 +715,11 @@
 
         // =====================================
         // ダウンロードボタン
+        //
+        // [MP3] ▲ / [MP4] ▲
+        //
+        // 折り畳み式で表示する。
+        // 初期状態は閉じる。
         // =====================================
 
         function addDownloadButton(
@@ -742,6 +747,16 @@
                 );
 
 
+            const safeType =
+                String(
+                    type || ""
+                ).toLowerCase();
+
+
+            // =====================================
+            // 既存確認
+            // =====================================
+
             const existing =
                 Array.from(
                     downloadArea.querySelectorAll(
@@ -765,6 +780,88 @@
 
             }
 
+
+            // =====================================
+            // details
+            // =====================================
+
+            const details =
+                document.createElement(
+                    "details"
+                );
+
+
+            details.className =
+                "download-details";
+
+
+            details.dataset.filename =
+                safeFilename;
+
+
+            /*
+                初期状態は閉じる。
+                open属性は設定しない。
+            */
+
+
+            // =====================================
+            // summary
+            // =====================================
+
+            const summary =
+                document.createElement(
+                    "summary"
+                );
+
+
+            summary.className =
+                "download-summary";
+
+
+            summary.textContent =
+                "[" +
+                safeType.toUpperCase() +
+                "]";
+
+
+            /*
+                <summary> にはブラウザ標準の
+                折り畳みマーカーが表示される。
+
+                閉じている時：
+                ▶
+
+                開いている時：
+                ▼
+
+                CSS側で必要に応じて
+                ▲ に変更可能。
+            */
+
+
+            details.appendChild(
+                summary
+            );
+
+
+            // =====================================
+            // 内容
+            // =====================================
+
+            const body =
+                document.createElement(
+                    "div"
+                );
+
+
+            body.className =
+                "download-details-body";
+
+
+            // =====================================
+            // ダウンロードリンク
+            // =====================================
 
             const link =
                 document.createElement(
@@ -791,25 +888,31 @@
 
 
             link.textContent =
-                "[" +
-                String(type).toUpperCase() +
-                "]";
+                safeFilename;
 
 
-            /*
-                downloadArea は縦方向に
-                並ぶようCSS側で制御する。
-            */
-
-            downloadArea.appendChild(
+            body.appendChild(
                 link
             );
 
 
+            details.appendChild(
+                body
+            );
+
+
+            // =====================================
+            // downloadAreaへ追加
+            // =====================================
+
+            downloadArea.appendChild(
+                details
+            );
+
+
             console.log(
-                "[CONVERTER] ダウンロードボタン追加:",
-                safeFilename,
-                type
+                "[CONVERTER] ダウンロード折り畳み追加:",
+                safeFilename
             );
 
         }
