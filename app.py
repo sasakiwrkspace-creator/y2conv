@@ -34,7 +34,11 @@ from routes.files import register_files
 from routes.convert import register_convert
 from routes.check import register_video_info, register_check
 from routes.gemini import register_gemini
-from routes.completed_files import register_completed_files
+
+# 完成ファイル確認
+# completed_files.py がプロジェクト直下にあるため
+# routes.completed_files ではなく completed_files を読み込む
+from completed_files import register_completed_files
 
 
 # =====================================
