@@ -14,59 +14,65 @@
 #       ↓
 #   ④ 字幕MP4作成
 #
-# 役割:
+# ----------------------------------------------------------
+# ファイル名ルール
 #
-#   routes/convert.py
-#          ↓
-#   subtitle_mp4.py
-#          ↓
-#   ytdlp_stream.py
-#   media_extract.py
-#   routes/subtitle_routes.py
-#          ↓
-#   subtitle.py
+# 【時間指定なし】
 #
+#   MP4:
+#   運転上手な人が絶対にやらないこと【ずんだもん解説】.mp4
+#
+#   MP3:
+#   運転上手な人が絶対にやらないこと【ずんだもん解説】.mp3
+#
+#   SRT:
+#   create_srt_from_mp3() が生成したファイル名をそのまま使用
+#
+#   字幕MP4:
+#   運転上手な人が絶対にやらないこと【ずんだもん解説】.mp4
+#
+# 【時間指定あり】
+#
+#   00:06:00 ～ 00:06:30 の場合
+#
+#   MP4:
+#   運転上手な人が絶対にやらないこと【ずんだもん解説】_000600_000630.mp4
+#
+#   MP3:
+#   運転上手な人が絶対にやらないこと【ずんだもん解説】_000600_000630.mp3
+#
+#   SRT:
+#   create_srt_from_mp3() が生成したファイル名をそのまま使用
+#
+#   字幕MP4:
+#   運転上手な人が絶対にやらないこと【ずんだもん解説】_000600_000630.mp4
+#
+# ----------------------------------------------------------
+# 時間指定について
+#
+#   ① MP4作成時に指定区間を適用
+#   ② MP3は切り出し済みMP4から作成
+#   ③ SRTは切り出し済みMP3から作成
+#   ④ 字幕MP4は切り出し済みMP4 + SRTから作成
+#
+# これにより二重カットを防止する。
+#
+# ----------------------------------------------------------
+# SRTについて
+#
+#   SRTは create_srt_from_mp3() が生成したファイルを
+#   そのまま使用する。
+#
+#   このファイルではSRTのリネームを行わない。
+#
+# ----------------------------------------------------------
 # 注意:
 #
-#   ・このファイルではFlask Routeを登録しない
+#   ・Flask Routeは登録しない
 #   ・Job管理もしない
-#   ・タブ1の連続処理だけを担当する
-#   ・各工程が成功した場合のみ次の工程へ進む
-#   ・途中で失敗した場合は例外を返す
-#
-# 時間指定:
-#
-#   ① MP4作成時に指定区間を適用する
-#   ② MP3作成時には時間指定を再適用しない
-#   ③ SRTは切り出し済みMP3を元に作成する
-#   ④ 字幕MP4は切り出し済みMP4 + SRTから作成する
-#
-# これにより、
-#
-#   00:10:00 ～ 00:10:30
-#
-# を指定した場合でも、
-#
-#   MP4: 00:00:00 ～ 00:00:30
-#   MP3: 00:00:00 ～ 00:00:30
-#   SRT: 00:00:00 ～ 00:00:30
-#   字幕MP4: 00:00:00 ～ 00:00:30
-#
-# として処理できる。
-#
-# 名前衝突対策:
-#
-#   routes.subtitle_routes.py の
-#   create_subtitle_mp4()
-#
-#   と、このファイルの
-#   create_subtitle_mp4()
-#
-#   が衝突しないように、import時に
-#
-#   create_subtitle_mp4_from_route
-#
-#   という別名を付ける。
+#   ・タブ1の連続処理だけを担当
+#   ・各工程成功後のみ次工程へ進む
+#   ・途中失敗時は例外を返す
 #
 # ==========================================================
 
@@ -99,25 +105,6 @@ from media_extract import (
 
 # ==========================================================
 # 字幕関連
-#
-# routes/subtitle_routes.py にある共通関数を使用する。
-#
-# create_srt_from_mp3()
-#     ↓
-# Gemini
-#     ↓
-# SRT
-#
-# create_subtitle_mp4_from_route()
-#     ↓
-# subtitle.py
-#     ↓
-# 字幕MP4
-#
-# ※ create_subtitle_mp4() という名前は
-#    このファイル自身でも使用するため、
-#    import時に別名を付ける。
-#
 # ==========================================================
 
 from routes.subtitle_routes import (
@@ -207,6 +194,9 @@ def time_to_seconds(
 
 # ==========================================================
 # 全体ダウンロード判定
+#
+# None / "" / 00:00:00 / 0
+# などはすべて「時間指定なし」と判定。
 # ==========================================================
 
 def is_full_download(
@@ -282,11 +272,11 @@ def format_filename_time(
 # ==========================================================
 # 時間サフィックス
 #
-# 全体:
+# 時間指定なし:
 #
 #   ""
 #
-# 指定区間:
+# 時間指定あり:
 #
 #   _000600_000630
 #
@@ -440,7 +430,7 @@ def validate_mp4_result(
         )
 
 
-    mp4_path = validate_file(
+    return validate_file(
 
         result_path,
 
@@ -449,9 +439,6 @@ def validate_mp4_result(
         "MP4"
 
     )
-
-
-    return mp4_path
 
 
 # ==========================================================
@@ -530,7 +517,7 @@ def validate_mp3_result(
         )
 
 
-    mp3_path = validate_file(
+    return validate_file(
 
         result_path,
 
@@ -541,14 +528,8 @@ def validate_mp3_result(
     )
 
 
-    return mp3_path
-
-
 # ==========================================================
 # タイトル安全化
-#
-# subtitle_mp4.py単体でも使用できるようにする。
-#
 # ==========================================================
 
 def sanitize_filename(
@@ -638,10 +619,13 @@ def sanitize_filename(
 # ==========================================================
 # 完成MP4 / MP3のタイトルリネーム
 #
-# create_mp4_full / create_mp4_range
-# create_mp3_from_file
-# が生成した一時的な名前を、
-# YouTubeタイトル + 時間範囲に統一する。
+# 時間指定なし:
+#
+#   タイトル.mp4
+#
+# 時間指定あり:
+#
+#   タイトル_000600_000630.mp4
 #
 # ==========================================================
 
@@ -798,7 +782,7 @@ def validate_subtitle_mp4_result(
         )
 
 
-    subtitle_mp4_path = validate_file(
+    return validate_file(
 
         result_path,
 
@@ -809,11 +793,126 @@ def validate_subtitle_mp4_result(
     )
 
 
-    return subtitle_mp4_path
+# ==========================================================
+# 字幕MP4をタイトル名へ統一
+#
+# routes.subtitle_routes.py が生成した字幕MP4を、
+# MP4と同じ命名規則へ変更する。
+#
+# 時間指定なし:
+#
+#   タイトル.mp4
+#
+# 時間指定あり:
+#
+#   タイトル_000600_000630.mp4
+#
+# ==========================================================
+
+def rename_subtitle_mp4_file(
+    file_path,
+    title,
+    start_time=None,
+    end_time=None
+):
+
+    original_path = validate_file(
+
+        file_path,
+
+        ".mp4",
+
+        "字幕MP4"
+
+    )
+
+
+    safe_title = sanitize_filename(
+        title
+    )
+
+
+    range_suffix = build_range_suffix(
+
+        start_time=
+            start_time,
+
+        end_time=
+            end_time
+
+    )
+
+
+    new_filename = (
+
+        safe_title
+        +
+        range_suffix
+        +
+        ".mp4"
+
+    )
+
+
+    new_path = (
+
+        original_path.parent
+        /
+        new_filename
+
+    )
+
+
+    log(
+        "字幕MP4 rename:"
+    )
+
+
+    log(
+        f"  {original_path}"
+    )
+
+
+    log(
+        f"  -> {new_path}"
+    )
+
+
+    if original_path != new_path:
+
+        if new_path.exists():
+
+            log(
+                f"既存字幕MP4削除: {new_path}"
+            )
+
+            new_path.unlink()
+
+
+        original_path.rename(
+            new_path
+        )
+
+
+    return validate_file(
+
+        new_path,
+
+        ".mp4",
+
+        "字幕MP4"
+
+    )
 
 
 # ==========================================================
 # SRT結果確認
+#
+# ★SRTはリネームしない。
+#
+# create_srt_from_mp3() が返した
+# srt_path / srt_file をそのまま使用する。
+#
 # ==========================================================
 
 def validate_srt_result(
@@ -870,6 +969,10 @@ def validate_srt_result(
         )
 
 
+    # ------------------------------------------------------
+    # ★ここでは名前を変更しない
+    # ------------------------------------------------------
+
     return validate_file(
 
         srt_path,
@@ -883,15 +986,6 @@ def validate_srt_result(
 
 # ==========================================================
 # 連続処理本体
-#
-# ==========================================================
-#
-# 処理順:
-#
-#   ① MP4
-#   ② MP3
-#   ③ SRT
-#   ④ 字幕MP4
 #
 # ==========================================================
 
@@ -1251,26 +1345,9 @@ def create_subtitle_mp4_pipeline(
     try:
 
         # --------------------------------------------------
-        # ★重要
+        # STEP 1で切り出し済みMP4を使用
         #
-        # STEP 1ですでにMP4を指定区間に切り出している。
-        #
-        # そのため、ここで同じstart_time/end_timeを
-        # もう一度指定すると二重カットになる可能性がある。
-        #
-        # したがって、MP3は「完成したMP4全体」から作成する。
-        #
-        # 指定区間:
-        #
-        #   YouTube
-        #       ↓
-        #   10:00～10:30
-        #       ↓
-        #   30秒MP4
-        #       ↓
-        #   30秒MP3
-        #
-        # とする。
+        # 時間指定はここでは再適用しない。
         # --------------------------------------------------
 
         log(
@@ -1319,8 +1396,6 @@ def create_subtitle_mp4_pipeline(
 
         # --------------------------------------------------
         # MP3をタイトル名へ変更
-        #
-        # ファイル名には元の指定範囲を残す。
         # --------------------------------------------------
 
         mp3_path = rename_output_file(
@@ -1423,6 +1498,8 @@ def create_subtitle_mp4_pipeline(
 
         # --------------------------------------------------
         # SRT確認
+        #
+        # ★SRTのファイル名は変更しない。
         # --------------------------------------------------
 
         srt_path = validate_srt_result(
@@ -1433,6 +1510,11 @@ def create_subtitle_mp4_pipeline(
             output_dir=
                 output_dir
 
+        )
+
+
+        log(
+            f"SRT filename: {srt_path.name}"
         )
 
 
@@ -1492,24 +1574,7 @@ def create_subtitle_mp4_pipeline(
     try:
 
         # --------------------------------------------------
-        # 重要:
-        #
-        # routes.subtitle_routes.py の
-        # create_subtitle_mp4() を呼ぶ。
-        #
-        # このファイル自身にも
-        # create_subtitle_mp4() があるため、
-        # import時に
-        #
-        # create_subtitle_mp4_from_route
-        #
-        # という名前に変更している。
-        #
-        # 入力:
-        #
-        #   MP4
-        #   SRT
-        #
+        # MP4 + SRTから字幕MP4を作成
         # --------------------------------------------------
 
         log(
@@ -1544,6 +1609,36 @@ def create_subtitle_mp4_pipeline(
             validate_subtitle_mp4_result(
                 subtitle_result
             )
+        )
+
+
+        # --------------------------------------------------
+        # ★字幕MP4をMP4と同じ命名規則へ統一
+        #
+        # 時間指定なし:
+        #
+        #   タイトル.mp4
+        #
+        # 時間指定あり:
+        #
+        #   タイトル_000600_000630.mp4
+        #
+        # --------------------------------------------------
+
+        subtitle_mp4_path = rename_subtitle_mp4_file(
+
+            file_path=
+                subtitle_mp4_path,
+
+            title=
+                title,
+
+            start_time=
+                start_time,
+
+            end_time=
+                end_time
+
         )
 
 
@@ -1727,9 +1822,6 @@ def create_subtitle_mp4_pipeline(
 
 # ==========================================================
 # 外部向けエントリーポイント
-#
-# convert.py側から呼びやすくする。
-#
 # ==========================================================
 
 def create_subtitle_mp4(
@@ -1761,7 +1853,6 @@ def create_subtitle_mp4(
 #
 # python subtitle_mp4.py
 #
-# URLを指定した場合のみ実行する。
 # ==========================================================
 
 if __name__ == "__main__":
