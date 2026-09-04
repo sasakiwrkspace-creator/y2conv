@@ -19,6 +19,9 @@
 # タブ2:
 # ・ファイル変換
 #
+# 完成ファイル確認:
+# ・/find-completed-files
+#
 # 注意:
 # ・converter.js / subtitle.js の処理は
 #   このファイルでは行わない。
@@ -34,11 +37,7 @@ from routes.files import register_files
 from routes.convert import register_convert
 from routes.check import register_video_info, register_check
 from routes.gemini import register_gemini
-
-# 完成ファイル確認
-# completed_files.py がプロジェクト直下にあるため
-# routes.completed_files ではなく completed_files を読み込む
-from completed_files import register_completed_files
+from routes.completed_files import register_completed_files
 
 
 # =====================================
@@ -58,7 +57,7 @@ DOWNLOAD_DIR = config.DOWNLOAD_DIR
 
 
 # =====================================
-# Routes登録
+# Routes登録開始
 # =====================================
 
 print("==========================================")
@@ -104,12 +103,17 @@ register_gemini(app)
 
 
 # -------------------------------------
-# 完成ファイル確認
+# completed files
 #
 # POST /find-completed-files
+#
+# completed_files.py に処理を分離
 # -------------------------------------
 
-register_completed_files(app)
+register_completed_files(
+    app,
+    DOWNLOAD_DIR
+)
 
 
 # =====================================
