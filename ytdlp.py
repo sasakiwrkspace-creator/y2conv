@@ -503,14 +503,30 @@ def _build_ydl_options(
 
     ydl_opts = {
 
+        # ----------------------------------------------
+        # 出力先
+        # ----------------------------------------------
+
         "outtmpl":
             download_template,
+
+        # ----------------------------------------------
+        # フォーマット
+        # ----------------------------------------------
 
         "format":
             format_string,
 
+        # ----------------------------------------------
+        # プレイリスト禁止
+        # ----------------------------------------------
+
         "noplaylist":
             True,
+
+        # ----------------------------------------------
+        # ログ
+        # ----------------------------------------------
 
         "quiet":
             False,
@@ -520,6 +536,10 @@ def _build_ydl_options(
 
         "verbose":
             True,
+
+        # ----------------------------------------------
+        # Deno
+        # ----------------------------------------------
 
         "js_runtimes": {
 
@@ -532,6 +552,10 @@ def _build_ydl_options(
 
         },
 
+        # ----------------------------------------------
+        # EJS
+        # ----------------------------------------------
+
         "remote_components": {
 
             "ejs:github"
@@ -540,11 +564,20 @@ def _build_ydl_options(
 
     }
 
+    # ======================================================
+    # Cookie
+    # ======================================================
+
     if temporary_cookie_path:
 
         ydl_opts[
             "cookiefile"
         ] = temporary_cookie_path
+
+
+    # ======================================================
+    # DEBUG
+    # ======================================================
 
     print(
         "[DEBUG] yt-dlp format:",
@@ -663,7 +696,377 @@ def get_youtube_info(
 
 
 # ==========================================================
+# ダウンロード済み完成ファイル検索
+#
+# yt-dlpのprepare_filename()だけに依存しない。
+#
+# 最終的に実際に存在するファイルを探す。
+# ==========================================================
+
+def _find_downloaded_file(
+    output_dir,
+    video_id,
+    preferred_path=None,
+    preferred_extension=None
+):
+
+    output_dir = Path(
+        output_dir
+    )
+
+    print(
+        "[DEBUG] Searching downloaded file",
+        flush=True
+    )
+
+    print(
+        "[DEBUG] output_dir:",
+        output_dir,
+        flush=True
+    )
+
+    print(
+        "[DEBUG] video_id:",
+        video_id,
+        flush=True
+    )
+
+    print(
+        "[DEBUG] preferred_path:",
+        preferred_path,
+        flush=True
+    )
+
+    print(
+        "[DEBUG] preferred_extension:",
+        preferred_extension,
+        flush=True
+    )
+
+
+    # ======================================================
+    # 1. preferred_path
+    # ======================================================
+
+    if preferred_path:
+
+        preferred = Path(
+            preferred_path
+        )
+
+        if (
+            preferred.is_file()
+            and
+            preferred.stat().st_size > 0
+        ):
+
+            print(
+                "[DEBUG] Found preferred file:",
+                preferred,
+                flush=True
+            )
+
+            return preferred
+
+
+    # ======================================================
+    # 2. video_id.mp4
+    #
+    # MP4結合後はこちらを最優先。
+    # ======================================================
+
+    if video_id:
+
+        mp4_path = (
+
+            output_dir
+            /
+            f"{video_id}.mp4"
+
+        )
+
+        if (
+            mp4_path.is_file()
+            and
+            mp4_path.stat().st_size > 0
+        ):
+
+            print(
+                "[DEBUG] Found merged MP4:",
+                mp4_path,
+                flush=True
+            )
+
+            return mp4_path
+
+
+    # ======================================================
+    # 3. 指定拡張子
+    # ======================================================
+
+    if video_id and preferred_extension:
+
+        extension = (
+            str(
+                preferred_extension
+            )
+            .lower()
+            .lstrip(".")
+        )
+
+        preferred = (
+
+            output_dir
+            /
+            f"{video_id}.{extension}"
+
+        )
+
+        if (
+            preferred.is_file()
+            and
+            preferred.stat().st_size > 0
+        ):
+
+            print(
+                "[DEBUG] Found extension file:",
+                preferred,
+                flush=True
+            )
+
+            return preferred
+
+
+    # ======================================================
+    # 4. video_id.* 全検索
+    # ======================================================
+
+    if video_id:
+
+        matches = []
+
+        for path in output_dir.glob(
+            f"{video_id}.*"
+        ):
+
+            if not path.is_file():
+
+                continue
+
+            if path.suffix.lower() in (
+
+                ".part",
+                ".ytdl",
+                ".temp",
+                ".tmp"
+
+            ):
+
+                continue
+
+            try:
+
+                size = path.stat().st_size
+
+            except Exception:
+
+                continue
+
+            if size <= 0:
+
+                continue
+
+            matches.append(
+                path
+            )
+
+
+        if matches:
+
+            # MP4を優先
+            matches.sort(
+
+                key=lambda p: (
+
+                    0
+                    if p.suffix.lower() == ".mp4"
+                    else 1,
+
+                    -p.stat().st_mtime
+
+                )
+
+            )
+
+            selected = matches[0]
+
+            print(
+                "[DEBUG] Found downloaded file:",
+                selected,
+                flush=True
+            )
+
+            return selected
+
+
+    # ======================================================
+    # 5. 見つからない
+    # ======================================================
+
+    print(
+        "[DEBUG] No downloaded file found",
+        flush=True
+    )
+
+    return None
+
+
+# ==========================================================
+# sourceファイルをFFprobeで検証
+#
+# ここで「ダウンロードは成功したが再生できない」
+# ファイルを検出する。
+# ==========================================================
+
+def _probe_source_file(
+    path
+):
+
+    path = Path(
+        path
+    )
+
+    ffprobe_path = shutil.which(
+        "ffprobe"
+    )
+
+    if not ffprobe_path:
+
+        print(
+            "[DEBUG] ffprobe not found. "
+            "source検証をスキップします。",
+            flush=True
+        )
+
+        return True
+
+
+    command = [
+
+        ffprobe_path,
+
+        "-v",
+        "error",
+
+        "-show_entries",
+        "format=format_name,duration,size",
+
+        "-show_entries",
+        "stream=index,codec_type,codec_name,width,height,duration",
+
+        "-of",
+        "json",
+
+        str(path)
+
+    ]
+
+
+    print(
+        "[DEBUG] Source FFprobe:",
+        " ".join(command),
+        flush=True
+    )
+
+
+    try:
+
+        result = subprocess.run(
+
+            command,
+
+            stdout=subprocess.PIPE,
+
+            stderr=subprocess.PIPE,
+
+            text=True,
+
+            timeout=60
+
+        )
+
+    except Exception as e:
+
+        print(
+            "[DEBUG] Source FFprobe ERROR:",
+            repr(e),
+            flush=True
+        )
+
+        raise RuntimeError(
+            "sourceファイルのFFprobe検証に失敗しました。"
+        ) from e
+
+
+    print(
+        "[DEBUG] Source FFprobe returncode:",
+        result.returncode,
+        flush=True
+    )
+
+
+    if result.stdout:
+
+        print(
+            "[DEBUG] Source FFprobe stdout:",
+            result.stdout,
+            flush=True
+        )
+
+
+    if result.stderr:
+
+        print(
+            "[DEBUG] Source FFprobe stderr:",
+            result.stderr,
+            flush=True
+        )
+
+
+    if result.returncode != 0:
+
+        raise RuntimeError(
+
+            "ダウンロードされたsourceファイルを"
+            "FFprobeで読み込めません。\n"
+            +
+            result.stderr[-5000:]
+
+        )
+
+
+    return True
+
+
+# ==========================================================
 # YouTube → source
+#
+# 重要:
+#
+# 動画 + 音声を取得してMP4へ結合する。
+#
+# 以前:
+#
+#     best
+#
+# 今回:
+#
+#     bv*+ba/b
+#
+# さらに:
+#
+#     merge_output_format = mp4
+#
 # ==========================================================
 
 def download_source(
@@ -686,21 +1089,35 @@ def download_source(
         flush=True
     )
 
+
     if not url:
 
         raise ValueError(
             "YouTube URLが空です"
         )
 
+
     output_dir = _get_download_dir()
 
     temporary_cookie_path = None
 
+
     try:
+
+        # ==================================================
+        # Cookie
+        # ==================================================
 
         temporary_cookie_path = (
             _prepare_cookie_file()
         )
+
+
+        # ==================================================
+        # yt-dlp
+        #
+        # 動画＋音声
+        # ==================================================
 
         ydl_opts = _build_ydl_options(
 
@@ -708,20 +1125,45 @@ def download_source(
                 output_dir,
 
             format_string=
-                "best",
+                "bv*+ba/b",
 
             temporary_cookie_path=
                 temporary_cookie_path
 
         )
 
+
+        # ==================================================
+        # MP4へマージ
+        # ==================================================
+
+        ydl_opts[
+            "merge_output_format"
+        ] = "mp4"
+
+
+        print(
+            "[DEBUG] merge_output_format: mp4",
+            flush=True
+        )
+
+
         info = None
 
         expected_filename = None
 
+
+        # ==================================================
+        # yt-dlp実行
+        # ==================================================
+
         with yt_dlp.YoutubeDL(
             ydl_opts
         ) as ydl:
+
+            # ----------------------------------------------
+            # 情報取得
+            # ----------------------------------------------
 
             info = ydl.extract_info(
 
@@ -731,11 +1173,13 @@ def download_source(
 
             )
 
+
             if info is None:
 
                 raise RuntimeError(
                     "YouTube情報を取得できませんでした"
                 )
+
 
             print(
                 "[DEBUG] source video id:",
@@ -743,11 +1187,13 @@ def download_source(
                 flush=True
             )
 
+
             print(
                 "[DEBUG] source title:",
                 info.get("title"),
                 flush=True
             )
+
 
             print(
                 "[DEBUG] source duration:",
@@ -755,99 +1201,167 @@ def download_source(
                 flush=True
             )
 
+
+            print(
+                "[DEBUG] source selected format:",
+                info.get("format"),
+                flush=True
+            )
+
+
+            print(
+                "[DEBUG] source format_id:",
+                info.get("format_id"),
+                flush=True
+            )
+
+
+            # ----------------------------------------------
+            # prepare filename
+            # ----------------------------------------------
+
             expected_filename = (
                 ydl.prepare_filename(
                     info
                 )
             )
 
+
+            print(
+                "[DEBUG] expected filename:",
+                expected_filename,
+                flush=True
+            )
+
+
+            # ----------------------------------------------
+            # ダウンロード
+            # ----------------------------------------------
+
             print(
                 "[DEBUG] download_source download START",
                 flush=True
             )
 
-            ydl.download([
+
+            download_result = ydl.download([
+
                 url
+
             ])
+
+
+            print(
+                "[DEBUG] yt-dlp download return:",
+                download_result,
+                flush=True
+            )
+
 
             print(
                 "[DEBUG] download_source download SUCCESS",
                 flush=True
             )
 
-        downloaded_file = None
 
-        if expected_filename:
+        # ==================================================
+        # Video ID
+        # ==================================================
 
-            expected_path = Path(
-                expected_filename
+        video_id = info.get(
+            "id"
+        )
+
+
+        if not video_id:
+
+            raise RuntimeError(
+                "YouTube video IDを取得できませんでした"
             )
 
-            if expected_path.is_file():
 
-                downloaded_file = expected_path
+        # ==================================================
+        # 完成ファイル検索
+        # ==================================================
+
+        downloaded_file = _find_downloaded_file(
+
+            output_dir=
+                output_dir,
+
+            video_id=
+                video_id,
+
+            preferred_path=
+                expected_filename,
+
+            preferred_extension=
+                "mp4"
+
+        )
+
+
+        # ==================================================
+        # ファイルがない
+        # ==================================================
 
         if downloaded_file is None:
 
-            video_id = info.get(
-                "id"
+            print(
+                "[DEBUG] downloads directory contents:",
+                flush=True
             )
 
-            if video_id:
+            try:
 
-                possible_files = []
-
-                for path in output_dir.glob(
-                    video_id + ".*"
+                for path in sorted(
+                    output_dir.iterdir()
                 ):
 
-                    if not path.is_file():
-                        continue
-
-                    if path.suffix.lower() in (
-                        ".part",
-                        ".ytdl",
-                        ".temp"
-                    ):
-                        continue
-
-                    try:
-
-                        size = path.stat().st_size
-
-                    except Exception:
-
-                        size = 0
-
-                    if size <= 0:
-                        continue
-
-                    possible_files.append(
-                        path
+                    print(
+                        "[DEBUG]   ",
+                        path,
+                        flush=True
                     )
 
-                if possible_files:
+            except Exception:
 
-                    possible_files.sort(
+                pass
 
-                        key=lambda p:
-                            p.stat().st_mtime,
-
-                        reverse=True
-
-                    )
-
-                    downloaded_file = (
-                        possible_files[0]
-                    )
-
-        if downloaded_file is None:
 
             raise FileNotFoundError(
-                "ダウンロードしたsourceファイルを確認できませんでした"
+
+                "ダウンロードしたsourceファイルを"
+                "確認できませんでした"
+
             )
 
-        file_size = downloaded_file.stat().st_size
+
+        # ==================================================
+        # ファイルサイズ
+        # ==================================================
+
+        file_size = (
+
+            downloaded_file.stat().st_size
+
+        )
+
+
+        print(
+            "[DEBUG] Downloaded source:",
+            downloaded_file,
+            flush=True
+        )
+
+
+        print(
+            "[DEBUG] Downloaded source size:",
+            file_size,
+            "bytes",
+            flush=True
+        )
+
 
         if file_size <= 0:
 
@@ -855,7 +1369,35 @@ def download_source(
                 "sourceファイルのサイズが0です"
             )
 
-        return {
+
+        # ==================================================
+        # sourceファイルをFFprobe検証
+        # ==================================================
+
+        _probe_source_file(
+            downloaded_file
+        )
+
+
+        # ==================================================
+        # MP4でない場合の注意
+        # ==================================================
+
+        if downloaded_file.suffix.lower() != ".mp4":
+
+            print(
+                "[DEBUG] WARNING: "
+                "sourceファイルはMP4ではありません:",
+                downloaded_file,
+                flush=True
+            )
+
+
+        # ==================================================
+        # 戻り値
+        # ==================================================
+
+        result = {
 
             "path":
                 str(downloaded_file),
@@ -871,12 +1413,23 @@ def download_source(
                 info.get("duration"),
 
             "video_id":
-                info.get("id"),
+                video_id,
 
             "info":
                 info
 
         }
+
+
+        print(
+            "[DEBUG] download_source RESULT:",
+            result,
+            flush=True
+        )
+
+
+        return result
+
 
     except Exception as e:
 
@@ -890,7 +1443,12 @@ def download_source(
 
         raise
 
+
     finally:
+
+        # ==================================================
+        # Cookie削除
+        # ==================================================
 
         if temporary_cookie_path:
 
@@ -904,9 +1462,20 @@ def download_source(
                         temporary_cookie_path
                     )
 
-            except Exception:
+                    print(
+                        "[DEBUG] temporary cookie removed:",
+                        temporary_cookie_path,
+                        flush=True
+                    )
 
-                pass
+            except Exception as e:
+
+                print(
+                    "[DEBUG] temporary cookie remove ERROR:",
+                    repr(e),
+                    flush=True
+                )
+
 
         print(
             "[DEBUG] download_source END",
@@ -931,18 +1500,25 @@ def cleanup_download(
 
         return
 
+
     source_path = (
+
         download_result.get("path")
+
         if isinstance(
             download_result,
             dict
         )
+
         else None
+
     )
+
 
     if not source_path:
 
         return
+
 
     try:
 
@@ -950,15 +1526,22 @@ def cleanup_download(
             source_path
         )
 
-        if path.exists() and path.is_file():
+
+        if (
+            path.exists()
+            and
+            path.is_file()
+        ):
 
             path.unlink()
+
 
             print(
                 "[DEBUG] source removed:",
                 path,
                 flush=True
             )
+
 
     except Exception as e:
 
@@ -971,6 +1554,8 @@ def cleanup_download(
 
 # ==========================================================
 # 後方互換
+#
+# 他のコードから呼ばれている可能性があるため残す。
 # ==========================================================
 
 def _download_with_ytdlp(
@@ -990,13 +1575,16 @@ def _download_with_ytdlp(
         exist_ok=True
     )
 
+
     temporary_cookie_path = None
+
 
     try:
 
         temporary_cookie_path = (
             _prepare_cookie_file()
         )
+
 
         ydl_opts = _build_ydl_options(
 
@@ -1011,27 +1599,36 @@ def _download_with_ytdlp(
 
         )
 
+
         if merge_output_format:
 
             ydl_opts[
                 "merge_output_format"
             ] = merge_output_format
 
+
         with yt_dlp.YoutubeDL(
             ydl_opts
         ) as ydl:
 
             info = ydl.extract_info(
+
                 url,
+
                 download=True
+
             )
+
 
             if not info:
 
                 raise RuntimeError(
+
                     f"{mode_name} "
                     "extract_info() returned None"
+
                 )
+
 
             prepared_filename = (
                 ydl.prepare_filename(
@@ -1039,89 +1636,64 @@ def _download_with_ytdlp(
                 )
             )
 
-        prepared_path = Path(
-            prepared_filename
+
+        # ==================================================
+        # 完成ファイル検索
+        # ==================================================
+
+        downloaded_file = _find_downloaded_file(
+
+            output_dir=
+                output_dir,
+
+            video_id=
+                info.get("id"),
+
+            preferred_path=
+                prepared_filename,
+
+            preferred_extension=
+                merge_output_format
+
         )
 
-        downloaded_file = None
-
-        if prepared_path.is_file():
-
-            downloaded_file = prepared_path
-
-        if (
-            downloaded_file is None
-            and
-            merge_output_format
-        ):
-
-            merged_path = (
-
-                output_dir
-                /
-                f"{info.get('id')}."
-                f"{merge_output_format}"
-
-            )
-
-            if merged_path.is_file():
-
-                downloaded_file = merged_path
-
-        if downloaded_file is None:
-
-            video_id = info.get(
-                "id"
-            )
-
-            matches = list(
-                output_dir.glob(
-                    f"{video_id}.*"
-                )
-            )
-
-            matches = [
-
-                p for p in matches
-
-                if p.is_file()
-
-                and
-                p.suffix.lower()
-                not in (
-                    ".part",
-                    ".ytdl",
-                    ".temp"
-                )
-
-            ]
-
-            if matches:
-
-                matches.sort(
-
-                    key=lambda p:
-                        p.stat().st_mtime,
-
-                    reverse=True
-
-                )
-
-                downloaded_file = matches[0]
 
         if downloaded_file is None:
 
             raise FileNotFoundError(
+
                 f"{mode_name} "
                 "ダウンロードファイルが見つかりません"
+
             )
+
+
+        # ==================================================
+        # サイズ
+        # ==================================================
 
         if downloaded_file.stat().st_size <= 0:
 
             raise RuntimeError(
+
                 f"{mode_name} "
                 "ファイルサイズが0です"
+
             )
+
+
+        # ==================================================
+        # FFprobe
+        # ==================================================
+
+        _probe_source_file(
+            downloaded_file
+        )
+
+
+        # ==================================================
+        # 戻り値
+        # ==================================================
 
         return {
 
@@ -1145,6 +1717,7 @@ def _download_with_ytdlp(
                 info
 
         }
+
 
     finally:
 
