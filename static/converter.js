@@ -15,6 +15,7 @@
 // ・MP4ダウンロード表示
 // ・字幕MP4ダウンロード表示
 // ・処理詳細表示
+// ・処理ログ表示
 //
 // 注意:
 // ・converterUtils.js は使用しない
@@ -27,28 +28,28 @@
 // ・subtitle_mp4.pyが
 //   MP4 → MP3 → SRT → 字幕MP4
 //   の連続処理を担当する
-// ・上側ステータスはタイトルのみ
-// ・処理詳細は折り畳み表示
 //
 // 表示仕様:
 //
-// 通常MP3完成直後:
+// 上側:
+//     動画タイトルのみ
 //
-//     [MP3] ▲
+// 処理中:
 //
-// 展開:
+//     処理ログ
+//     14:32:01  動画情報を取得しています...
+//     14:32:04  変換ジョブを開始しました。
+//     14:32:05  MP3用動画をダウンロード中...
+//     14:32:18  MP3変換中...
+//     14:32:24  MP3変換が完了しました。
 //
-//     [MP3] ▼  Geminiへ(字幕srt)
+// 完了後:
 //
-// SRT作成完了:
-//
-//     [MP3] [SRT]
-//
-// 通常MP4:
-//
+//     [MP3]
+//     [SRT]
 //     [MP4]
 //
-// 字幕MP4:
+//     または
 //
 //     [字幕MP4]
 //
@@ -169,6 +170,9 @@
             currentSrtFile:
                 "",
 
+            currentSubtitleMp4File:
+                "",
+
             currentJobId:
                 "",
 
@@ -188,7 +192,16 @@
                 false,
 
             isProcessing:
-                false
+                false,
+
+            processingLog:
+                [],
+
+            lastJobMessage:
+                "",
+
+            lastJobStatus:
+                ""
 
         };
 
@@ -200,7 +213,7 @@
         // =====================================
         // 上側ステータス
         //
-        // 基本的にはタイトルだけ表示する。
+        // 上側にはタイトルだけ表示する。
         // =====================================
 
         function setStatus(
@@ -263,7 +276,426 @@
 
 
         // =====================================
+        // 処理ログ用DOM作成
+        // =====================================
+
+        function ensureProcessingLogArea() {
+
+            if (!downloadArea) {
+
+                return null;
+
+            }
+
+
+            let logArea =
+                downloadArea.querySelector(
+                    ".conversion-log"
+                );
+
+
+            if (logArea) {
+
+                return logArea;
+
+            }
+
+
+            const details =
+                document.createElement(
+                    "details"
+                );
+
+
+            details.className =
+                "conversion-log";
+
+
+            details.open =
+                true;
+
+
+            const summary =
+                document.createElement(
+                    "summary"
+                );
+
+
+            summary.className =
+                "conversion-log-summary";
+
+
+            summary.textContent =
+                "処理ログ";
+
+
+            details.appendChild(
+                summary
+            );
+
+
+            const body =
+                document.createElement(
+                    "div"
+                );
+
+
+            body.className =
+                "conversion-log-body";
+
+
+            details.appendChild(
+                body
+            );
+
+
+            // ---------------------------------
+            // ログをダウンロードエリアの先頭へ
+            // ---------------------------------
+
+            downloadArea.prepend(
+                details
+            );
+
+
+            return details;
+
+        }
+
+
+        // =====================================
+        // 処理ログ追加
+        // =====================================
+
+        function addProcessingLog(
+            message,
+            type
+        ) {
+
+            const text =
+                String(
+                    message || ""
+                ).trim();
+
+
+            if (!text) {
+
+                return;
+
+            }
+
+
+            const now =
+                new Date();
+
+
+            const clock =
+                formatClock(
+                    now
+                );
+
+
+            const last =
+                converterState.processingLog[
+                    converterState.processingLog.length - 1
+                ];
+
+
+            // ---------------------------------
+            // 同じメッセージの連続追加を防止
+            // ---------------------------------
+
+            if (
+                last &&
+                last.message === text
+            ) {
+
+                return;
+
+            }
+
+
+            const entry = {
+
+                time:
+                    clock,
+
+                message:
+                    text,
+
+                type:
+                    type || "normal"
+
+            };
+
+
+            converterState.processingLog.push(
+                entry
+            );
+
+
+            const details =
+                ensureProcessingLogArea();
+
+
+            if (!details) {
+
+                console.log(
+                    "[CONVERTER] LOG:",
+                    clock,
+                    text
+                );
+
+                return;
+
+            }
+
+
+            const body =
+                details.querySelector(
+                    ".conversion-log-body"
+                );
+
+
+            if (!body) {
+
+                return;
+
+            }
+
+
+            const line =
+                document.createElement(
+                    "div"
+                );
+
+
+            line.className =
+                "conversion-log-line";
+
+
+            if (entry.type === "error") {
+
+                line.classList.add(
+                    "is-error"
+                );
+
+            }
+            else if (
+                entry.type === "success"
+            ) {
+
+                line.classList.add(
+                    "is-success"
+                );
+
+            }
+
+
+            const timeSpan =
+                document.createElement(
+                    "span"
+                );
+
+
+            timeSpan.className =
+                "conversion-log-time";
+
+
+            timeSpan.textContent =
+                clock;
+
+
+            const messageSpan =
+                document.createElement(
+                    "span"
+                );
+
+
+            messageSpan.className =
+                "conversion-log-message";
+
+
+            messageSpan.textContent =
+                text;
+
+
+            line.appendChild(
+                timeSpan
+            );
+
+
+            line.appendChild(
+                messageSpan
+            );
+
+
+            body.appendChild(
+                line
+            );
+
+
+            // ---------------------------------
+            // 常に最新ログが見えるようにする
+            // ---------------------------------
+
+            body.scrollTop =
+                body.scrollHeight;
+
+
+            console.log(
+                "[CONVERTER] LOG:",
+                clock,
+                text
+            );
+
+        }
+
+
+        // =====================================
+        // 処理ログクリア
+        // =====================================
+
+        function clearProcessingLog() {
+
+            converterState.processingLog =
+                [];
+
+
+            converterState.lastJobMessage =
+                "";
+
+
+            converterState.lastJobStatus =
+                "";
+
+
+            if (!downloadArea) {
+
+                return;
+
+            }
+
+
+            const logArea =
+                downloadArea.querySelector(
+                    ".conversion-log"
+                );
+
+
+            if (logArea) {
+
+                logArea.remove();
+
+            }
+
+        }
+
+
+        // =====================================
+        // Jobメッセージをログへ追加
+        // =====================================
+
+        function addJobMessageToLog(
+            job
+        ) {
+
+            if (!job) {
+
+                return;
+
+            }
+
+
+            const message =
+                String(
+                    job.message || ""
+                ).trim();
+
+
+            const status =
+                String(
+                    job.status || ""
+                ).trim();
+
+
+            // ---------------------------------
+            // statusが変化した場合
+            // ---------------------------------
+
+            if (
+                status &&
+                status !==
+                    converterState.lastJobStatus
+            ) {
+
+                converterState.lastJobStatus =
+                    status;
+
+
+                if (
+                    status === "processing"
+                ) {
+
+                    addProcessingLog(
+                        "変換処理を開始しました。"
+                    );
+
+                }
+                else if (
+                    status === "complete"
+                ) {
+
+                    addProcessingLog(
+                        "変換処理が完了しました。",
+                        "success"
+                    );
+
+                }
+                else if (
+                    status === "error"
+                ) {
+
+                    addProcessingLog(
+                        "変換処理でエラーが発生しました。",
+                        "error"
+                    );
+
+                }
+
+            }
+
+
+            // ---------------------------------
+            // messageが変化した場合
+            // ---------------------------------
+
+            if (
+                message &&
+                message !==
+                    converterState.lastJobMessage
+            ) {
+
+                converterState.lastJobMessage =
+                    message;
+
+
+                addProcessingLog(
+                    message
+                );
+
+            }
+
+        }
+
+
+        // =====================================
         // 処理中ステータス
+        //
+        // 従来の上側ステータスへの
+        // 書き換えは行わない。
+        //
+        // 処理内容はログへ追加する。
         // =====================================
 
         function setProgress(
@@ -273,29 +705,19 @@
             const text =
                 String(
                     message || ""
-                );
+                ).trim();
 
 
-            if (conversionStatusArea) {
+            if (!text) {
 
-                conversionStatusArea.textContent =
-                    text;
-
-
-                conversionStatusArea.style.whiteSpace =
-                    "pre-line";
-
-
-                conversionStatusArea.style.display =
-                    text
-                        ? "block"
-                        : "none";
-
-
-                conversionStatusArea.style.color =
-                    "#222";
+                return;
 
             }
+
+
+            addProcessingLog(
+                text
+            );
 
 
             console.log(
@@ -683,29 +1105,29 @@
                     if (
                         value === "mp3"
                     ) {
-                    
+
                         outputs.push(
                             "mp3"
                         );
-                    
+
                     }
                     else if (
                         value === "mp4"
                     ) {
-                    
+
                         outputs.push(
                             "mp4"
                         );
-                    
+
                     }
                     else if (
                         value === "subtitle_mp4"
                     ) {
-                    
+
                         outputs.push(
                             "subtitle_mp4"
                         );
-                    
+
                     }
 
                 }
@@ -792,20 +1214,6 @@
 
         // =====================================
         // MP3用折り畳み
-        //
-        // MP3:
-        //
-        // [MP3] ▲
-        //
-        // 展開:
-        //
-        // [MP3] ▼  Geminiへ(字幕srt)
-        //
-        // SRT完成後:
-        //
-        // [MP3] [SRT]
-        //
-        // MP3とSRTは横並び。
         // =====================================
 
         function addMp3Download(
@@ -832,10 +1240,6 @@
                 );
 
 
-            // ---------------------------------
-            // 既存確認
-            // ---------------------------------
-
             const existing =
                 downloadArea.querySelector(
                     '[data-mp3-filename="' +
@@ -852,10 +1256,6 @@
 
             }
 
-
-            // ---------------------------------
-            // 横並び用コンテナ
-            // ---------------------------------
 
             let row =
                 downloadArea.querySelector(
@@ -882,10 +1282,6 @@
             }
 
 
-            // ---------------------------------
-            // MP3 details
-            // ---------------------------------
-
             const details =
                 document.createElement(
                     "details"
@@ -900,10 +1296,6 @@
                 safeFilename;
 
 
-            // ---------------------------------
-            // summary
-            // ---------------------------------
-
             const summary =
                 document.createElement(
                     "summary"
@@ -913,10 +1305,6 @@
             summary.className =
                 "download-summary";
 
-
-            // ---------------------------------
-            // MP3ラベル
-            // ---------------------------------
 
             const mp3Label =
                 document.createElement(
@@ -936,13 +1324,6 @@
                 mp3Label
             );
 
-
-            // ---------------------------------
-            // ▲
-            //
-            // details標準マーカーは消して
-            // 独自の▲▼を表示する。
-            // ---------------------------------
 
             const arrow =
                 document.createElement(
@@ -968,10 +1349,6 @@
             );
 
 
-            // ---------------------------------
-            // 展開部分
-            // ---------------------------------
-
             const body =
                 document.createElement(
                     "div"
@@ -981,10 +1358,6 @@
             body.className =
                 "download-details-body";
 
-
-            // ---------------------------------
-            // Geminiボタン
-            // ---------------------------------
 
             const geminiButton =
                 document.createElement(
@@ -1018,10 +1391,6 @@
             );
 
 
-            // ---------------------------------
-            // 開閉イベント
-            // ---------------------------------
-
             details.addEventListener(
                 "toggle",
                 function () {
@@ -1043,10 +1412,6 @@
             );
 
 
-            // ---------------------------------
-            // Geminiボタンクリック
-            // ---------------------------------
-
             geminiButton.addEventListener(
                 "click",
                 function () {
@@ -1067,7 +1432,7 @@
 
 
             console.log(
-                "[CONVERTER] MP3折り畳み追加:",
+                "[CONVERTER] MP3ダウンロード追加:",
                 safeFilename
             );
 
@@ -1121,10 +1486,6 @@
             }
 
 
-            // ---------------------------------
-            // 横並び用コンテナ
-            // ---------------------------------
-
             let row =
                 downloadArea.querySelector(
                     ".download-row"
@@ -1176,13 +1537,104 @@
 
 
         // =====================================
+        // 字幕MP4ダウンロード
+        //
+        // 字幕MP4には▲を付けない。
+        // =====================================
+
+        function addSubtitleMp4Download(
+            filename
+        ) {
+
+            if (!downloadArea) {
+
+                return;
+
+            }
+
+
+            if (!filename) {
+
+                return;
+
+            }
+
+
+            const safeFilename =
+                String(
+                    filename
+                );
+
+
+            const existing =
+                downloadArea.querySelector(
+                    '[data-subtitle-mp4-filename="' +
+                    CSS.escape(
+                        safeFilename
+                    ) +
+                    '"]'
+                );
+
+
+            if (existing) {
+
+                return;
+
+            }
+
+
+            let row =
+                downloadArea.querySelector(
+                    ".download-row"
+                );
+
+
+            if (!row) {
+
+                row =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                row.className =
+                    "download-row";
+
+
+                downloadArea.appendChild(
+                    row
+                );
+
+            }
+
+
+            const link =
+                createDownloadLink(
+                    safeFilename,
+                    "[字幕MP4]",
+                    "download-button"
+                );
+
+
+            link.dataset.subtitleMp4Filename =
+                safeFilename;
+
+
+            row.appendChild(
+                link
+            );
+
+
+            console.log(
+                "[CONVERTER] 字幕MP4ダウンロード追加:",
+                safeFilename
+            );
+
+        }
+
+
+        // =====================================
         // SRTダウンロード
-        //
-        // SRT完成後:
-        //
-        // [MP3] [SRT]
-        //
-        // 同じdownload-rowへ追加。
         // =====================================
 
         function addSrtDownload(
@@ -1278,28 +1730,6 @@
 
         // =====================================
         // MP3 → SRT作成
-        //
-        // ここでGemini用のSRT作成APIを呼ぶ。
-        //
-        // 現在の想定:
-        //
-        // POST /create-srt
-        //
-        // body:
-        //
-        // {
-        //     "filename": "xxx.mp3"
-        // }
-        //
-        // レスポンス:
-        //
-        // {
-        //     "success": true,
-        //     "job_id": "..."
-        // }
-        //
-        // 実際のバックエンドAPI名が違う場合は
-        // この関数内だけ変更する。
         // =====================================
 
         async function createSrtFromMp3(
@@ -1342,14 +1772,15 @@
 
             try {
 
+                addProcessingLog(
+                    "Geminiへ字幕SRTの作成を開始します。"
+                );
+
+
                 setProgress(
                     "Geminiへ字幕SRTを作成しています..."
                 );
 
-
-                // =================================
-                // SRT作成API
-                // =================================
 
                 const response =
                     await fetch(
@@ -1419,6 +1850,12 @@
                     button.remove();
 
 
+                    addProcessingLog(
+                        "SRT作成が完了しました。",
+                        "success"
+                    );
+
+
                     setStatus(
                         converterState.currentVideoTitle,
                         "success"
@@ -1446,6 +1883,11 @@
 
                     converterState.currentSrtJobId =
                         data.job_id;
+
+
+                    addProcessingLog(
+                        "SRT作成ジョブを開始しました。"
+                    );
 
 
                     const srtJob =
@@ -1479,6 +1921,12 @@
 
 
                     button.remove();
+
+
+                    addProcessingLog(
+                        "SRT作成が完了しました。",
+                        "success"
+                    );
 
 
                     setStatus(
@@ -1516,6 +1964,13 @@
                     error.message
                         ? error.message
                         : "不明なエラー";
+
+
+                addProcessingLog(
+                    "SRT作成中にエラーが発生しました: " +
+                    message,
+                    "error"
+                );
 
 
                 setStatus(
@@ -1615,6 +2070,10 @@
                 Date.now();
 
 
+            let lastMessage =
+                "";
+
+
             while (
                 Date.now() -
                 startedAt <
@@ -1625,6 +2084,30 @@
                     await getSrtJobStatus(
                         jobId
                     );
+
+
+                converterState.currentSrtJobStatus =
+                    job.status || "";
+
+
+                // ---------------------------------
+                // SRT側のmessageもログへ追加
+                // ---------------------------------
+
+                if (
+                    job.message &&
+                    job.message !== lastMessage
+                ) {
+
+                    lastMessage =
+                        job.message;
+
+
+                    addProcessingLog(
+                        job.message
+                    );
+
+                }
 
 
                 if (
@@ -1687,10 +2170,6 @@
 
             }
 
-
-            // ---------------------------------
-            // 代表的な形式
-            // ---------------------------------
 
             if (
                 job.filename
@@ -1782,6 +2261,10 @@
                 "";
 
 
+            converterState.currentVideoUrl =
+                "";
+
+
             converterState.currentMp3File =
                 "";
 
@@ -1791,6 +2274,10 @@
 
 
             converterState.currentSrtFile =
+                "";
+
+
+            converterState.currentSubtitleMp4File =
                 "";
 
 
@@ -1816,6 +2303,18 @@
 
             converterState.isSrtProcessing =
                 false;
+
+
+            converterState.processingLog =
+                [];
+
+
+            converterState.lastJobMessage =
+                "";
+
+
+            converterState.lastJobStatus =
+                "";
 
         }
 
@@ -1906,8 +2405,8 @@
 
                             })
 
-                    }
-                );
+                        }
+                    );
 
 
             const data =
@@ -2082,7 +2581,12 @@
 
 
         // =====================================
-        // Jobステータス表示
+        // Jobステータス処理
+        //
+        // ファイル単位のステータス表示はしない。
+        //
+        // job.message / job.statusを
+        // 処理ログとして表示する。
         // =====================================
 
         function renderJobStatus(
@@ -2102,6 +2606,15 @@
 
             converterState.currentJobStatus =
                 job.status || "";
+
+
+            // ---------------------------------
+            // Job全体のメッセージをログへ
+            // ---------------------------------
+
+            addJobMessageToLog(
+                job
+            );
 
 
             const files =
@@ -2153,53 +2666,46 @@
 
 
             // =================================
-            // 処理中
+            // 字幕MP4
             // =================================
 
             if (
-                job.status !== "complete"
+                files.subtitle_mp4 &&
+                files.subtitle_mp4.status ===
+                    "complete" &&
+                files.subtitle_mp4.filename
             ) {
 
-                const lines =
-                    [];
+                converterState.currentSubtitleMp4File =
+                    files.subtitle_mp4.filename;
 
 
-                if (job.status) {
+                addSubtitleMp4Download(
+                    files.subtitle_mp4.filename
+                );
 
-                    lines.push(
-                        "処理状態: " +
-                        job.status
-                    );
-
-                }
+            }
 
 
-                if (job.message) {
+            // =================================
+            // エラー
+            // =================================
 
-                    lines.push(
-                        job.message
-                    );
-
-                }
-
+            if (
+                job.status ===
+                "error"
+            ) {
 
                 if (
-                    job.execution_seconds_text
+                    job.message
                 ) {
 
-                    lines.push(
-                        "処理時間: " +
-                        job.execution_seconds_text
+                    addProcessingLog(
+                        job.message,
+                        "error"
                     );
 
                 }
-
-
-                setProgress(
-                    lines.join(
-                        "\n"
-                    )
-                );
 
             }
 
@@ -2403,7 +2909,7 @@
             );
 
 
-            downloadArea.prepend(
+            downloadArea.appendChild(
                 details
             );
 
@@ -2484,6 +2990,15 @@
             try {
 
                 // =================================
+                // ログ開始
+                // =================================
+
+                addProcessingLog(
+                    "変換処理を開始します。"
+                );
+
+
+                // =================================
                 // 動画情報
                 // =================================
 
@@ -2517,6 +3032,11 @@
                 setStatus(
                     converterState.currentVideoTitle,
                     ""
+                );
+
+
+                addProcessingLog(
+                    "動画情報の取得が完了しました。"
                 );
 
 
@@ -2555,6 +3075,11 @@
 
                 converterState.currentJobId =
                     jobId;
+
+
+                addProcessingLog(
+                    "変換ジョブを開始しました。"
+                );
 
 
                 // =================================
@@ -2626,6 +3151,28 @@
 
 
                 // =================================
+                // 字幕MP4
+                // =================================
+
+                if (
+                    files.subtitle_mp4 &&
+                    files.subtitle_mp4.status ===
+                        "complete" &&
+                    files.subtitle_mp4.filename
+                ) {
+
+                    converterState.currentSubtitleMp4File =
+                        files.subtitle_mp4.filename;
+
+
+                    addSubtitleMp4Download(
+                        files.subtitle_mp4.filename
+                    );
+
+                }
+
+
+                // =================================
                 // ファイル確認
                 // =================================
 
@@ -2641,9 +3188,16 @@
                     );
 
 
+                const hasSubtitleMp4 =
+                    Boolean(
+                        converterState.currentSubtitleMp4File
+                    );
+
+
                 if (
                     !hasMp3 &&
-                    !hasMp4
+                    !hasMp4 &&
+                    !hasSubtitleMp4
                 ) {
 
                     throw new Error(
@@ -2659,6 +3213,12 @@
 
                 const endTime =
                     new Date();
+
+
+                addProcessingLog(
+                    "変換が完了しました。",
+                    "success"
+                );
 
 
                 addConversionInfo(
@@ -2696,6 +3256,13 @@
                     error.message
                         ? error.message
                         : "不明なエラー";
+
+
+                addProcessingLog(
+                    "変換中にエラーが発生しました: " +
+                    message,
+                    "error"
+                );
 
 
                 setStatus(
@@ -2843,7 +3410,10 @@
 
                     return converterState;
 
-                }
+                },
+
+            addProcessingLog:
+                addProcessingLog
 
         };
 
