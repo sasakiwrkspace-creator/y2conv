@@ -3293,83 +3293,129 @@
                 // =================================
                 // 最終ファイル
                 // =================================
-
+                
                 const files =
                     completedJob.files ||
                     {};
-
-
+                
+                
                 // =================================
                 // MP3
                 // =================================
-
+                
                 if (
                     files.mp3 &&
-                    files.mp3.status ===
-                        "complete" &&
+                    files.mp3.status === "complete" &&
                     files.mp3.filename
                 ) {
-
+                
                     converterState.currentMp3File =
                         files.mp3.filename;
-
-
+                
                     addMp3Download(
                         files.mp3.filename
                     );
-
+                
                 }
-
-
+                
+                
                 // =================================
                 // MP4
                 // =================================
-
+                
                 if (
                     files.mp4 &&
-                    files.mp4.status ===
-                        "complete" &&
+                    files.mp4.status === "complete" &&
                     files.mp4.filename
                 ) {
-
+                
                     converterState.currentMp4File =
                         files.mp4.filename;
-
-
+                
                     addMp4Download(
                         files.mp4.filename
                     );
-
+                
                 }
-
-
+                
+                
+                // =================================
+                // SRT
+                // =================================
+                
+                if (
+                    files.srt &&
+                    files.srt.status === "complete" &&
+                    files.srt.filename
+                ) {
+                
+                    converterState.currentSrtFile =
+                        files.srt.filename;
+                
+                    addSrtDownload(
+                        files.srt.filename
+                    );
+                
+                }
+                
+                
+                // =================================
+                // 字幕MP4
+                // =================================
+                
+                if (
+                    files.subtitle_mp4 &&
+                    files.subtitle_mp4.status === "complete" &&
+                    files.subtitle_mp4.filename
+                ) {
+                
+                    converterState.currentSubtitleMp4File =
+                        files.subtitle_mp4.filename;
+                
+                    addSubtitleMp4Download(
+                        files.subtitle_mp4.filename
+                    );
+                
+                }
+                
+                
                 // =================================
                 // ファイル確認
                 // =================================
-
+                
                 const hasMp3 =
                     Boolean(
                         converterState.currentMp3File
                     );
-
-
+                
                 const hasMp4 =
                     Boolean(
                         converterState.currentMp4File
                     );
-
-
+                
+                const hasSrt =
+                    Boolean(
+                        converterState.currentSrtFile
+                    );
+                
+                const hasSubtitleMp4 =
+                    Boolean(
+                        converterState.currentSubtitleMp4File
+                    );
+                
+                
                 if (
                     !hasMp3 &&
-                    !hasMp4
+                    !hasMp4 &&
+                    !hasSrt &&
+                    !hasSubtitleMp4
                 ) {
-
+                
                     throw new Error(
                         "変換は完了しましたが、作成されたファイルが確認できませんでした。"
                     );
-
+                
                 }
-
 
                 // =================================
                 // 完了
