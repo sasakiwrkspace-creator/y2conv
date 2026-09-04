@@ -349,10 +349,6 @@
             );
 
 
-            // ---------------------------------
-            // ログをダウンロードエリアの先頭へ
-            // ---------------------------------
-
             downloadArea.prepend(
                 details
             );
@@ -395,10 +391,16 @@
                 );
 
 
+            const lastIndex =
+                converterState.processingLog.length - 1;
+
+
             const last =
-                converterState.processingLog[
-                    converterState.processingLog.length - 1
-                ];
+                lastIndex >= 0
+                    ? converterState.processingLog[
+                        lastIndex
+                    ]
+                    : null;
 
 
             // ---------------------------------
@@ -474,7 +476,9 @@
                 "conversion-log-line";
 
 
-            if (entry.type === "error") {
+            if (
+                entry.type === "error"
+            ) {
 
                 line.classList.add(
                     "is-error"
@@ -534,10 +538,6 @@
                 line
             );
 
-
-            // ---------------------------------
-            // 常に最新ログが見えるようにする
-            // ---------------------------------
 
             body.scrollTop =
                 body.scrollHeight;
@@ -691,11 +691,6 @@
 
         // =====================================
         // 処理中ステータス
-        //
-        // 従来の上側ステータスへの
-        // 書き換えは行わない。
-        //
-        // 処理内容はログへ追加する。
         // =====================================
 
         function setProgress(
@@ -1213,6 +1208,49 @@
 
 
         // =====================================
+        // ダウンロード行取得
+        // =====================================
+
+        function ensureDownloadRow() {
+
+            if (!downloadArea) {
+
+                return null;
+
+            }
+
+
+            let row =
+                downloadArea.querySelector(
+                    ".download-row"
+                );
+
+
+            if (!row) {
+
+                row =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                row.className =
+                    "download-row";
+
+
+                downloadArea.appendChild(
+                    row
+                );
+
+            }
+
+
+            return row;
+
+        }
+
+
+        // =====================================
         // MP3用折り畳み
         // =====================================
 
@@ -1220,14 +1258,7 @@
             filename
         ) {
 
-            if (!downloadArea) {
-
-                return;
-
-            }
-
-
-            if (!filename) {
+            if (!downloadArea || !filename) {
 
                 return;
 
@@ -1257,27 +1288,13 @@
             }
 
 
-            let row =
-                downloadArea.querySelector(
-                    ".download-row"
-                );
+            const row =
+                ensureDownloadRow();
 
 
             if (!row) {
 
-                row =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                row.className =
-                    "download-row";
-
-
-                downloadArea.appendChild(
-                    row
-                );
+                return;
 
             }
 
@@ -1442,21 +1459,14 @@
         // =====================================
         // MP4ダウンロード
         //
-        // MP4には▲を付けない。
+        // MP4には折り畳み・▲を付けない。
         // =====================================
 
         function addMp4Download(
             filename
         ) {
 
-            if (!downloadArea) {
-
-                return;
-
-            }
-
-
-            if (!filename) {
+            if (!downloadArea || !filename) {
 
                 return;
 
@@ -1486,27 +1496,13 @@
             }
 
 
-            let row =
-                downloadArea.querySelector(
-                    ".download-row"
-                );
+            const row =
+                ensureDownloadRow();
 
 
             if (!row) {
 
-                row =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                row.className =
-                    "download-row";
-
-
-                downloadArea.appendChild(
-                    row
-                );
+                return;
 
             }
 
@@ -1539,21 +1535,14 @@
         // =====================================
         // 字幕MP4ダウンロード
         //
-        // 字幕MP4には▲を付けない。
+        // 字幕MP4には折り畳み・▲を付けない。
         // =====================================
 
         function addSubtitleMp4Download(
             filename
         ) {
 
-            if (!downloadArea) {
-
-                return;
-
-            }
-
-
-            if (!filename) {
+            if (!downloadArea || !filename) {
 
                 return;
 
@@ -1583,27 +1572,13 @@
             }
 
 
-            let row =
-                downloadArea.querySelector(
-                    ".download-row"
-                );
+            const row =
+                ensureDownloadRow();
 
 
             if (!row) {
 
-                row =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                row.className =
-                    "download-row";
-
-
-                downloadArea.appendChild(
-                    row
-                );
+                return;
 
             }
 
@@ -1641,14 +1616,7 @@
             filename
         ) {
 
-            if (!downloadArea) {
-
-                return;
-
-            }
-
-
-            if (!filename) {
+            if (!downloadArea || !filename) {
 
                 return;
 
@@ -1678,27 +1646,13 @@
             }
 
 
-            let row =
-                downloadArea.querySelector(
-                    ".download-row"
-                );
+            const row =
+                ensureDownloadRow();
 
 
             if (!row) {
 
-                row =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                row.className =
-                    "download-row";
-
-
-                downloadArea.appendChild(
-                    row
-                );
+                return;
 
             }
 
@@ -1747,7 +1701,7 @@
             }
 
 
-            if (!mp3Filename) {
+            if (!mp3Filename || !button) {
 
                 return;
 
@@ -2090,10 +2044,6 @@
                     job.status || "";
 
 
-                // ---------------------------------
-                // SRT側のmessageもログへ追加
-                // ---------------------------------
-
                 if (
                     job.message &&
                     job.message !== lastMessage
@@ -2301,10 +2251,6 @@
                 "";
 
 
-            converterState.isSrtProcessing =
-                false;
-
-
             converterState.processingLog =
                 [];
 
@@ -2405,8 +2351,8 @@
 
                             })
 
-                        }
-                    );
+                    }
+                );
 
 
             const data =
@@ -2581,10 +2527,96 @@
 
 
         // =====================================
+        // Job内ファイルを表示
+        // =====================================
+
+        function renderJobFiles(
+            job
+        ) {
+
+            if (!job) {
+
+                return;
+
+            }
+
+
+            const files =
+                job.files || {};
+
+
+            // ---------------------------------
+            // MP3
+            // ---------------------------------
+
+            if (
+                files.mp3 &&
+                files.mp3.status ===
+                    "complete" &&
+                files.mp3.filename
+            ) {
+
+                converterState.currentMp3File =
+                    files.mp3.filename;
+
+
+                addMp3Download(
+                    files.mp3.filename
+                );
+
+            }
+
+
+            // ---------------------------------
+            // MP4
+            // ---------------------------------
+
+            if (
+                files.mp4 &&
+                files.mp4.status ===
+                    "complete" &&
+                files.mp4.filename
+            ) {
+
+                converterState.currentMp4File =
+                    files.mp4.filename;
+
+
+                addMp4Download(
+                    files.mp4.filename
+                );
+
+            }
+
+
+            // ---------------------------------
+            // 字幕MP4
+            // ---------------------------------
+
+            if (
+                files.subtitle_mp4 &&
+                files.subtitle_mp4.status ===
+                    "complete" &&
+                files.subtitle_mp4.filename
+            ) {
+
+                converterState.currentSubtitleMp4File =
+                    files.subtitle_mp4.filename;
+
+
+                addSubtitleMp4Download(
+                    files.subtitle_mp4.filename
+                );
+
+            }
+
+        }
+
+
+        // =====================================
         // Jobステータス処理
         //
         // ファイル単位のステータス表示はしない。
-        //
         // job.message / job.statusを
         // 処理ログとして表示する。
         // =====================================
@@ -2608,88 +2640,19 @@
                 job.status || "";
 
 
-            // ---------------------------------
-            // Job全体のメッセージをログへ
-            // ---------------------------------
-
             addJobMessageToLog(
                 job
             );
 
 
-            const files =
-                job.files || {};
+            renderJobFiles(
+                job
+            );
 
 
-            // =================================
-            // MP3
-            // =================================
-
-            if (
-                files.mp3 &&
-                files.mp3.status ===
-                    "complete" &&
-                files.mp3.filename
-            ) {
-
-                converterState.currentMp3File =
-                    files.mp3.filename;
-
-
-                addMp3Download(
-                    files.mp3.filename
-                );
-
-            }
-
-
-            // =================================
-            // MP4
-            // =================================
-
-            if (
-                files.mp4 &&
-                files.mp4.status ===
-                    "complete" &&
-                files.mp4.filename
-            ) {
-
-                converterState.currentMp4File =
-                    files.mp4.filename;
-
-
-                addMp4Download(
-                    files.mp4.filename
-                );
-
-            }
-
-
-            // =================================
-            // 字幕MP4
-            // =================================
-
-            if (
-                files.subtitle_mp4 &&
-                files.subtitle_mp4.status ===
-                    "complete" &&
-                files.subtitle_mp4.filename
-            ) {
-
-                converterState.currentSubtitleMp4File =
-                    files.subtitle_mp4.filename;
-
-
-                addSubtitleMp4Download(
-                    files.subtitle_mp4.filename
-                );
-
-            }
-
-
-            // =================================
-            // エラー
-            // =================================
+            // ---------------------------------
+            // Jobエラー
+            // ---------------------------------
 
             if (
                 job.status ===
@@ -2955,10 +2918,15 @@
                 getSelectedOutputs();
 
 
+            // =================================
+            // 修正点:
+            // subtitle_mp4単独選択も許可する。
+            // =================================
+
             if (!outputs.length) {
 
                 setStatus(
-                    "MP3またはMP4を選択してください。",
+                    "MP3、MP4、または字幕MP4を選択してください。",
                     "error"
                 );
 
@@ -3098,78 +3066,12 @@
 
 
                 // =================================
-                // 最終ファイル
+                // 最終ファイル反映
                 // =================================
 
-                const files =
-                    completedJob.files ||
-                    {};
-
-
-                // =================================
-                // MP3
-                // =================================
-
-                if (
-                    files.mp3 &&
-                    files.mp3.status ===
-                        "complete" &&
-                    files.mp3.filename
-                ) {
-
-                    converterState.currentMp3File =
-                        files.mp3.filename;
-
-
-                    addMp3Download(
-                        files.mp3.filename
-                    );
-
-                }
-
-
-                // =================================
-                // MP4
-                // =================================
-
-                if (
-                    files.mp4 &&
-                    files.mp4.status ===
-                        "complete" &&
-                    files.mp4.filename
-                ) {
-
-                    converterState.currentMp4File =
-                        files.mp4.filename;
-
-
-                    addMp4Download(
-                        files.mp4.filename
-                    );
-
-                }
-
-
-                // =================================
-                // 字幕MP4
-                // =================================
-
-                if (
-                    files.subtitle_mp4 &&
-                    files.subtitle_mp4.status ===
-                        "complete" &&
-                    files.subtitle_mp4.filename
-                ) {
-
-                    converterState.currentSubtitleMp4File =
-                        files.subtitle_mp4.filename;
-
-
-                    addSubtitleMp4Download(
-                        files.subtitle_mp4.filename
-                    );
-
-                }
+                renderJobFiles(
+                    completedJob
+                );
 
 
                 // =================================
