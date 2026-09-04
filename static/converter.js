@@ -6,9 +6,9 @@
 //
 // 役割:
 // ・YouTube URL受付
-// ・MP3 / MP4 変換API実行
+// ・MP3 / MP4 / 字幕MP4 変換API実行
 // ・job_idによる処理状況監視
-// ・MP3 / MP4ダウンロード表示
+// ・MP3 / MP4 / 字幕MP4ダウンロード表示
 // ・処理詳細表示
 //
 // 注意:
@@ -128,6 +128,9 @@
                 "",
 
             currentMp4File:
+                "",
+
+            currentSubtitleMp4File:
                 "",
 
             currentJobId:
@@ -609,6 +612,17 @@
 
         // =====================================
         // 出力形式
+        //
+        // ★重要
+        //
+        // subtitle_mp4 は mp4 に変換しない。
+        //
+        // Python側の converter.py は
+        //
+        //     if "subtitle_mp4" in outputs:
+        //
+        // で専用ルートへ分岐するため、
+        // ここでは必ず subtitle_mp4 のまま送信する。
         // =====================================
 
         function getSelectedOutputs() {
@@ -654,8 +668,9 @@
                         value === "subtitle_mp4"
                     ) {
 
+                        // ★ここが重要
                         outputs.push(
-                            "mp4"
+                            "subtitle_mp4"
                         );
 
                     }
@@ -793,7 +808,8 @@
 
             console.log(
                 "[CONVERTER] ダウンロードボタン追加:",
-                safeFilename
+                safeFilename,
+                type
             );
 
         }
@@ -842,6 +858,10 @@
 
 
             converterState.currentMp4File =
+                "";
+
+
+            converterState.currentSubtitleMp4File =
                 "";
 
 
@@ -1000,6 +1020,12 @@
                     timeRange.end_time
 
             };
+
+
+            console.log(
+                "[CONVERTER] /convert request:",
+                requestBody
+            );
 
 
             const response =
@@ -1185,6 +1211,36 @@
                 addDownloadButton(
                     files.mp4.filename,
                     "mp4"
+                );
+
+            }
+
+
+            // =================================
+            // 字幕MP4
+            // =================================
+            //
+            // Python側:
+            //
+            // files["subtitle_mp4"]
+            //
+            // に完成ファイルが入る。
+            // =================================
+
+            if (
+                files.subtitle_mp4 &&
+                files.subtitle_mp4.status ===
+                    "complete" &&
+                files.subtitle_mp4.filename
+            ) {
+
+                converterState.currentSubtitleMp4File =
+                    files.subtitle_mp4.filename;
+
+
+                addDownloadButton(
+                    files.subtitle_mp4.filename,
+                    "subtitle_mp4"
                 );
 
             }
@@ -1505,7 +1561,7 @@
             if (!outputs.length) {
 
                 setStatus(
-                    "MP3またはMP4を選択してください。",
+                    "MP3、MP4、または字幕MP4を選択してください。",
                     "error"
                 );
 
@@ -1634,8 +1690,14 @@
                     {};
 
 
+                // =================================
+                // MP3
+                // =================================
+
                 if (
                     files.mp3 &&
+                    files.mp3.status ===
+                        "complete" &&
                     files.mp3.filename
                 ) {
 
@@ -1651,8 +1713,14 @@
                 }
 
 
+                // =================================
+                // MP4
+                // =================================
+
                 if (
                     files.mp4 &&
+                    files.mp4.status ===
+                        "complete" &&
                     files.mp4.filename
                 ) {
 
@@ -1663,6 +1731,29 @@
                     addDownloadButton(
                         files.mp4.filename,
                         "mp4"
+                    );
+
+                }
+
+
+                // =================================
+                // 字幕MP4
+                // =================================
+
+                if (
+                    files.subtitle_mp4 &&
+                    files.subtitle_mp4.status ===
+                        "complete" &&
+                    files.subtitle_mp4.filename
+                ) {
+
+                    converterState.currentSubtitleMp4File =
+                        files.subtitle_mp4.filename;
+
+
+                    addDownloadButton(
+                        files.subtitle_mp4.filename,
+                        "subtitle_mp4"
                     );
 
                 }
@@ -1684,9 +1775,16 @@
                     );
 
 
+                const hasSubtitleMp4 =
+                    Boolean(
+                        converterState.currentSubtitleMp4File
+                    );
+
+
                 if (
                     !hasMp3 &&
-                    !hasMp4
+                    !hasMp4 &&
+                    !hasSubtitleMp4
                 ) {
 
                     throw new Error(
