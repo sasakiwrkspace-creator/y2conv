@@ -672,20 +672,29 @@
                     if (
                         value === "mp3"
                     ) {
-
+                    
                         outputs.push(
                             "mp3"
                         );
-
+                    
                     }
                     else if (
                         value === "mp4"
                     ) {
-
+                    
                         outputs.push(
                             "mp4"
                         );
-
+                    
+                    }
+                    else if (
+                        value === "subtitle_mp4"
+                    ) {
+                    
+                        outputs.push(
+                            "subtitle_mp4"
+                        );
+                    
                     }
 
                 }
