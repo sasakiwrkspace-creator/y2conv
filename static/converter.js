@@ -716,10 +716,15 @@
         // =====================================
         // ダウンロードボタン
         //
-        // [MP3] ▲ / [MP4] ▲
+        // MP3：
+        //   [MP3] ▲
+        //     ↓ クリック
+        //   ファイル名
         //
-        // 折り畳み式で表示する。
-        // 初期状態は閉じる。
+        // MP4：
+        //   [MP4]
+        //
+        // MP3だけ折り畳み表示。
         // =====================================
 
         function addDownloadButton(
@@ -782,67 +787,207 @@
 
 
             // =====================================
-            // details
+            // MP3
             // =====================================
 
-            const details =
-                document.createElement(
-                    "details"
+            if (
+                safeType === "mp3"
+            ) {
+
+                const details =
+                    document.createElement(
+                        "details"
+                    );
+
+
+                details.className =
+                    "download-details";
+
+
+                details.dataset.filename =
+                    safeFilename;
+
+
+                // ---------------------------------
+                // summary
+                // ---------------------------------
+
+                const summary =
+                    document.createElement(
+                        "summary"
+                    );
+
+
+                summary.className =
+                    "download-summary";
+
+
+                summary.textContent =
+                    "[MP3]";
+
+
+                // ---------------------------------
+                // MP3用矢印
+                // ---------------------------------
+
+                const arrow =
+                    document.createElement(
+                        "span"
+                    );
+
+
+                arrow.className =
+                    "download-arrow";
+
+
+                arrow.textContent =
+                    "▲";
+
+
+                summary.appendChild(
+                    arrow
                 );
 
 
-            details.className =
-                "download-details";
+                details.appendChild(
+                    summary
+                );
 
 
-            details.dataset.filename =
+                // ---------------------------------
+                // 内容
+                // ---------------------------------
+
+                const body =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                body.className =
+                    "download-details-body";
+
+
+                const link =
+                    document.createElement(
+                        "a"
+                    );
+
+
+                link.href =
+                    makeDownloadUrl(
+                        safeFilename
+                    );
+
+
+                link.download =
+                    safeFilename;
+
+
+                link.className =
+                    "download-button";
+
+
+                link.textContent =
+                    safeFilename;
+
+
+                body.appendChild(
+                    link
+                );
+
+
+                details.appendChild(
+                    body
+                );
+
+
+                downloadArea.appendChild(
+                    details
+                );
+
+
+                // ---------------------------------
+                // 開閉で矢印変更
+                // ---------------------------------
+
+                details.addEventListener(
+                    "toggle",
+                    function () {
+
+                        if (details.open) {
+
+                            arrow.textContent =
+                                "▼";
+
+                        }
+                        else {
+
+                            arrow.textContent =
+                                "▲";
+
+                        }
+
+                    }
+                );
+
+
+                console.log(
+                    "[CONVERTER] MP3折り畳み追加:",
+                    safeFilename
+                );
+
+
+                return;
+
+            }
+
+
+            // =====================================
+            // MP4
+            //
+            // MP4には▲を付けない。
+            // =====================================
+
+            const link =
+                document.createElement(
+                    "a"
+                );
+
+
+            link.href =
+                makeDownloadUrl(
+                    safeFilename
+                );
+
+
+            link.download =
                 safeFilename;
 
 
-            /*
-                初期状態は閉じる。
-                open属性は設定しない。
-            */
+            link.className =
+                "download-button";
 
 
-            // =====================================
-            // summary
-            // =====================================
-
-            const summary =
-                document.createElement(
-                    "summary"
-                );
+            link.dataset.filename =
+                safeFilename;
 
 
-            summary.className =
-                "download-summary";
+            link.textContent =
+                "[MP4]";
 
 
-            summary.textContent =
-                "[" +
-                safeType.toUpperCase() +
-                "]";
-
-
-            /*
-                <summary> にはブラウザ標準の
-                折り畳みマーカーが表示される。
-
-                閉じている時：
-                ▶
-
-                開いている時：
-                ▼
-
-                CSS側で必要に応じて
-                ▲ に変更可能。
-            */
-
-
-            details.appendChild(
-                summary
+            downloadArea.appendChild(
+                link
             );
+
+
+            console.log(
+                "[CONVERTER] MP4ダウンロード追加:",
+                safeFilename
+            );
+
+        }
 
 
             // =====================================
