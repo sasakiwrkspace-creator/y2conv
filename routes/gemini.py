@@ -35,6 +35,8 @@ client = genai.Client(
 
 # ==========================================================
 # Geminiモデル
+#
+# ※ 現在使用しているモデル名をここで指定。
 # ==========================================================
 
 GEMINI_MODEL = "gemini-3.5-flash"
@@ -43,7 +45,7 @@ GEMINI_MODEL = "gemini-3.5-flash"
 # ==========================================================
 # Gemini APIリトライ設定
 #
-# 502 / 503 / 504 / 429
+# 429 / 500 / 502 / 503 / 504
 # などの一時的なエラーが発生した場合、
 # 少し待ってから再試行する。
 #
@@ -97,9 +99,293 @@ def is_retryable_gemini_error(
 
 
 # ==========================================================
+# Geminiレスポンス詳細ログ
+#
+# response.text が空だった場合に、
+# candidates / prompt_feedback /
+# usage_metadata などを確認する。
+# ==========================================================
+
+def log_gemini_response_details(
+    response
+):
+
+    print(
+        "=========================================="
+    )
+
+    print(
+        "Geminiレスポンス詳細"
+    )
+
+    print(
+        "=========================================="
+    )
+
+
+    # ------------------------------------------------------
+    # response type
+    # ------------------------------------------------------
+
+    try:
+
+        print(
+            "response type:",
+            type(response).__name__
+        )
+
+    except Exception as e:
+
+        print(
+            "response type取得失敗:",
+            repr(e)
+        )
+
+
+    # ------------------------------------------------------
+    # response repr
+    # ------------------------------------------------------
+
+    try:
+
+        print(
+            "response repr:"
+        )
+
+        print(
+            repr(response)
+        )
+
+    except Exception as e:
+
+        print(
+            "response repr取得失敗:",
+            repr(e)
+        )
+
+
+    # ------------------------------------------------------
+    # response.text
+    # ------------------------------------------------------
+
+    try:
+
+        response_text = getattr(
+            response,
+            "text",
+            None
+        )
+
+        print(
+            "response.text:"
+        )
+
+        print(
+            repr(response_text)
+        )
+
+    except Exception as e:
+
+        print(
+            "response.text取得失敗:",
+            repr(e)
+        )
+
+
+    # ------------------------------------------------------
+    # candidates
+    # ------------------------------------------------------
+
+    try:
+
+        candidates = getattr(
+            response,
+            "candidates",
+            None
+        )
+
+        print(
+            "candidates:"
+        )
+
+        print(
+            repr(candidates)
+        )
+
+    except Exception as e:
+
+        print(
+            "candidates取得失敗:",
+            repr(e)
+        )
+
+
+    # ------------------------------------------------------
+    # candidates詳細
+    # ------------------------------------------------------
+
+    try:
+
+        candidates = getattr(
+            response,
+            "candidates",
+            None
+        )
+
+
+        if candidates:
+
+            print(
+                "candidate count:",
+                len(candidates)
+            )
+
+
+            for index, candidate in enumerate(
+                candidates
+            ):
+
+                print(
+                    "------------------------------------------"
+                )
+
+                print(
+                    "candidate:",
+                    index
+                )
+
+                print(
+                    "candidate repr:"
+                )
+
+                print(
+                    repr(candidate)
+                )
+
+
+                try:
+
+                    finish_reason = getattr(
+                        candidate,
+                        "finish_reason",
+                        None
+                    )
+
+                    print(
+                        "finish_reason:",
+                        repr(finish_reason)
+                    )
+
+                except Exception as e:
+
+                    print(
+                        "finish_reason取得失敗:",
+                        repr(e)
+                    )
+
+
+                try:
+
+                    content = getattr(
+                        candidate,
+                        "content",
+                        None
+                    )
+
+                    print(
+                        "content:"
+                    )
+
+                    print(
+                        repr(content)
+                    )
+
+                except Exception as e:
+
+                    print(
+                        "content取得失敗:",
+                        repr(e)
+                    )
+
+        else:
+
+            print(
+                "candidateはありません"
+            )
+
+    except Exception as e:
+
+        print(
+            "candidates詳細取得失敗:",
+            repr(e)
+        )
+
+
+    # ------------------------------------------------------
+    # prompt_feedback
+    # ------------------------------------------------------
+
+    try:
+
+        prompt_feedback = getattr(
+            response,
+            "prompt_feedback",
+            None
+        )
+
+        print(
+            "prompt_feedback:"
+        )
+
+        print(
+            repr(prompt_feedback)
+        )
+
+    except Exception as e:
+
+        print(
+            "prompt_feedback取得失敗:",
+            repr(e)
+        )
+
+
+    # ------------------------------------------------------
+    # usage_metadata
+    # ------------------------------------------------------
+
+    try:
+
+        usage_metadata = getattr(
+            response,
+            "usage_metadata",
+            None
+        )
+
+        print(
+            "usage_metadata:"
+        )
+
+        print(
+            repr(usage_metadata)
+        )
+
+    except Exception as e:
+
+        print(
+            "usage_metadata取得失敗:",
+            repr(e)
+        )
+
+
+    print(
+        "=========================================="
+    )
+
+
+# ==========================================================
 # GeminiへMP3送信
 #
-# 重要
+# 重要:
 #
 # Gemini側では時間を一切判断しない。
 #
@@ -116,7 +402,6 @@ def is_retryable_gemini_error(
 # SRT
 #
 # という構成。
-#
 # ==========================================================
 
 def transcribe_mp3(
@@ -124,7 +409,9 @@ def transcribe_mp3(
 ):
 
     mp3_path = os.path.abspath(
-        mp3_path
+        str(
+            mp3_path
+        )
     )
 
 
@@ -269,7 +556,7 @@ def transcribe_mp3(
 
         if temp_size <= 0:
 
-            raise Exception(
+            raise RuntimeError(
                 "Gemini送信用MP3が0 bytesです"
             )
 
@@ -305,7 +592,7 @@ def transcribe_mp3(
 
             print(
                 ">>> uploaded_file:",
-                uploaded_file
+                repr(uploaded_file)
             )
 
 
@@ -329,6 +616,17 @@ def transcribe_mp3(
 
 
         # ==================================================
+        # アップロード結果確認
+        # ==================================================
+
+        if uploaded_file is None:
+
+            raise RuntimeError(
+                "Gemini Files APIからアップロード結果が返されませんでした"
+            )
+
+
+        # ==================================================
         # Geminiプロンプト
         #
         # 重要:
@@ -336,16 +634,6 @@ def transcribe_mp3(
         # Geminiに時間範囲を判断させない。
         #
         # 渡されたMP3全体を文字起こしする。
-        #
-        # MP3はconvert.py側ですでに指定時間に
-        # カットされている。
-        #
-        # そのためGemini側では、
-        #
-        # 「どこからどこまで」
-        #
-        # を判断する必要はない。
-        #
         # ==================================================
 
         prompt = """
@@ -481,9 +769,7 @@ SRT形式:
                 retryable = (
 
                     is_retryable_gemini_error(
-
                         e
-
                     )
 
                 )
@@ -536,9 +822,7 @@ SRT形式:
                 # ------------------------------------------
 
                 wait_seconds = (
-
                     attempt * 3
-
                 )
 
 
@@ -558,26 +842,95 @@ SRT形式:
         # レスポンス確認
         # ==================================================
 
-        if not response:
+        if response is None:
 
-            raise Exception(
-                "Geminiからレスポンスがありません"
+            raise RuntimeError(
+                "Geminiからレスポンスが返されませんでした"
             )
 
 
-        if not response.text:
+        # ==================================================
+        # response.text取得
+        # ==================================================
 
-            raise Exception(
-                "Gemini結果が空です"
+        response_text = None
+
+
+        try:
+
+            response_text = getattr(
+                response,
+                "text",
+                None
             )
 
+        except Exception as e:
+
+            print(
+                "Gemini response.text取得エラー"
+            )
+
+            print(
+                "TYPE:",
+                type(e).__name__
+            )
+
+            print(
+                "ERROR:",
+                repr(e)
+            )
+
+
+        # ==================================================
+        # テキストが取得できた場合
+        # ==================================================
+
+        if response_text:
+
+            response_text = str(
+                response_text
+            ).strip()
+
+
+        if response_text:
+
+            print(
+                "=========================================="
+            )
+
+            print(
+                "Gemini解析完了"
+            )
+
+            print(
+                "Gemini結果文字数:",
+                len(response_text)
+            )
+
+            print(
+                "=========================================="
+            )
+
+
+            return response_text
+
+
+        # ==================================================
+        # response.text が空の場合
+        #
+        # 原因調査用に詳細ログを出す。
+        # ==================================================
 
         print(
             "=========================================="
         )
 
         print(
-            "Gemini解析完了"
+            "Gemini結果が空です"
+        )
+
+        print(
+            "response.text は空でした"
         )
 
         print(
@@ -585,7 +938,19 @@ SRT形式:
         )
 
 
-        return response.text
+        log_gemini_response_details(
+            response
+        )
+
+
+        raise RuntimeError(
+
+            "Gemini結果が空です。"
+            "Geminiのcandidates / "
+            "prompt_feedback / "
+            "finish_reasonを確認してください。"
+
+        )
 
 
     finally:
@@ -641,6 +1006,32 @@ def save_srt(
     srt_text
 ):
 
+    mp3_path = os.path.abspath(
+        str(
+            mp3_path
+        )
+    )
+
+
+    if not srt_text:
+
+        raise ValueError(
+            "SRTとして保存するテキストが空です"
+        )
+
+
+    srt_text = str(
+        srt_text
+    ).strip()
+
+
+    if not srt_text:
+
+        raise ValueError(
+            "SRTとして保存するテキストが空です"
+        )
+
+
     srt_path = (
 
         os.path.splitext(
@@ -667,9 +1058,55 @@ def save_srt(
         )
 
 
+    # ======================================================
+    # 保存確認
+    # ======================================================
+
+    if not os.path.exists(
+        srt_path
+    ):
+
+        raise IOError(
+            "SRTファイルが作成されませんでした: "
+            +
+            srt_path
+        )
+
+
+    if not os.path.isfile(
+        srt_path
+    ):
+
+        raise IOError(
+            "SRT保存先がファイルではありません: "
+            +
+            srt_path
+        )
+
+
+    srt_size = os.path.getsize(
+        srt_path
+    )
+
+
+    if srt_size <= 0:
+
+        raise IOError(
+            "SRTファイルが0 bytesです: "
+            +
+            srt_path
+        )
+
+
     print(
         "SRT保存:",
         srt_path
+    )
+
+    print(
+        "SRTサイズ:",
+        srt_size,
+        "bytes"
     )
 
 
@@ -693,7 +1130,6 @@ def save_srt(
 # などが送信されても使用しない。
 #
 # 必要なのはMP3ファイル名だけ。
-#
 # ==========================================================
 
 def register_gemini(
@@ -775,6 +1211,15 @@ def register_gemini(
 
 
             # ==================================================
+            # ファイル名をbasenameに限定
+            # ==================================================
+
+            filename = os.path.basename(
+                filename
+            )
+
+
+            # ==================================================
             # MP3以外禁止
             # ==================================================
 
@@ -796,11 +1241,13 @@ def register_gemini(
             # ==================================================
             # downloadsの絶対パス
             #
-            # paths.pyのDOWNLOAD_DIRを使用
+            # config.pyのDOWNLOAD_DIRを使用
             # ==================================================
 
             download_root = os.path.abspath(
-                DOWNLOAD_DIR
+                str(
+                    DOWNLOAD_DIR
+                )
             )
 
 
@@ -1054,6 +1501,11 @@ def register_gemini(
             print(
                 "ERROR:",
                 str(e)
+            )
+
+            print(
+                "REPR:",
+                repr(e)
             )
 
             print(
