@@ -416,8 +416,7 @@ def _add_job_log(
         )
 
         # 従来のmessageも最新ログに合わせる
-        job["message"] =
-            str(message)
+        job["message"] = str(message)
 
 
 # ==========================================================
