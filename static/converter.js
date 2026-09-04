@@ -18,6 +18,8 @@
 // ・タブ1の実行ボタンは #convertBtn
 // ・上側ステータスはタイトルのみ
 // ・処理詳細は折り畳み表示
+// ・MP3だけダウンロード項目を折り畳む
+// ・MP4 / 字幕MP4には▲を付けない
 // =====================================
 
 
@@ -617,7 +619,7 @@
         //
         // subtitle_mp4 は mp4 に変換しない。
         //
-        // Python側の converter.py は
+        // Python側の converter.py が
         //
         //     if "subtitle_mp4" in outputs:
         //
@@ -668,7 +670,7 @@
                         value === "subtitle_mp4"
                     ) {
 
-                        // ★ここが重要
+                        // ★ subtitle_mp4 のまま送信
                         outputs.push(
                             "subtitle_mp4"
                         );
@@ -718,13 +720,17 @@
         //
         // MP3：
         //   [MP3] ▲
-        //     ↓ クリック
+        //       ↓ クリック
         //   ファイル名
         //
         // MP4：
         //   [MP4]
         //
+        // 字幕MP4：
+        //   [MP4]
+        //
         // MP3だけ折り畳み表示。
+        // MP4 / 字幕MP4には▲を付けない。
         // =====================================
 
         function addDownloadButton(
@@ -788,6 +794,8 @@
 
             // =====================================
             // MP3
+            //
+            // MP3だけ <details> を使用する。
             // =====================================
 
             if (
@@ -823,7 +831,7 @@
 
 
                 summary.textContent =
-                    "[MP3]";
+                    "[MP3] ";
 
 
                 // ---------------------------------
@@ -840,6 +848,7 @@
                     "download-arrow";
 
 
+                // 初期状態は閉じているので▲
                 arrow.textContent =
                     "▲";
 
@@ -855,7 +864,7 @@
 
 
                 // ---------------------------------
-                // 内容
+                // MP3内容
                 // ---------------------------------
 
                 const body =
@@ -902,6 +911,10 @@
                 );
 
 
+                // ---------------------------------
+                // downloadAreaへ追加
+                // ---------------------------------
+
                 downloadArea.appendChild(
                     details
                 );
@@ -944,9 +957,10 @@
 
 
             // =====================================
-            // MP4
+            // MP4 / 字幕MP4
             //
-            // MP4には▲を付けない。
+            // 折り畳まない。
+            // ▲も▼も付けない。
             // =====================================
 
             const link =
@@ -984,79 +998,6 @@
 
             console.log(
                 "[CONVERTER] MP4ダウンロード追加:",
-                safeFilename
-            );
-
-        }
-
-
-            // =====================================
-            // 内容
-            // =====================================
-
-            const body =
-                document.createElement(
-                    "div"
-                );
-
-
-            body.className =
-                "download-details-body";
-
-
-            // =====================================
-            // ダウンロードリンク
-            // =====================================
-
-            const link =
-                document.createElement(
-                    "a"
-                );
-
-
-            link.href =
-                makeDownloadUrl(
-                    safeFilename
-                );
-
-
-            link.download =
-                safeFilename;
-
-
-            link.className =
-                "download-button";
-
-
-            link.dataset.filename =
-                safeFilename;
-
-
-            link.textContent =
-                safeFilename;
-
-
-            body.appendChild(
-                link
-            );
-
-
-            details.appendChild(
-                body
-            );
-
-
-            // =====================================
-            // downloadAreaへ追加
-            // =====================================
-
-            downloadArea.appendChild(
-                details
-            );
-
-
-            console.log(
-                "[CONVERTER] ダウンロード折り畳み追加:",
                 safeFilename
             );
 
@@ -1467,13 +1408,6 @@
             // =================================
             // 字幕MP4
             // =================================
-            //
-            // Python側:
-            //
-            // files["subtitle_mp4"]
-            //
-            // に完成ファイルが入る。
-            // =================================
 
             if (
                 files.subtitle_mp4 &&
@@ -1678,10 +1612,8 @@
                 "conversion-details";
 
 
-            /*
-                完了時は閉じた状態にする。
-                open属性は付けない。
-            */
+            // 完了時は閉じた状態にする
+            // open属性は付けない。
 
 
             const summary =
@@ -1755,11 +1687,7 @@
             );
 
 
-            /*
-                ダウンロードボタンより
-                必ず上に表示する。
-            */
-
+            // ダウンロードボタンより必ず上に表示
             downloadArea.prepend(
                 details
             );
@@ -2050,11 +1978,8 @@
                     new Date();
 
 
-                /*
-                    処理詳細を先に作る。
-                    その後ダウンロードボタンが
-                    下に並ぶ。
-                */
+                // 処理詳細を先に作る。
+                // その後ダウンロード項目が下に並ぶ。
 
                 addConversionInfo(
                     startTime,
@@ -2062,11 +1987,9 @@
                 );
 
 
-                /*
-                    上側はタイトルだけ。
-                    「MP3の変換が完了しました」
-                    「処理時間」などは表示しない。
-                */
+                // =================================
+                // 上側はタイトルだけ
+                // =================================
 
                 setStatus(
                     converterState.currentVideoTitle,
