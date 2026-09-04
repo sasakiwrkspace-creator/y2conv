@@ -1,107 +1,41 @@
-# ==========================================================
-# completed_files.py
+# =====================================
+# 完成ファイル確認
 #
-# 完成済みファイル確認専用
+# タイトル + 時間指定 + ラジオボタン
+# から完成済みファイルを検索する。
 #
-# 役割:
+# 判定:
 #
-#   ・タイトル
-#   ・ラジオボタンの選択
-#   ・開始時間
-#   ・終了時間
+# mp3
+#   -> MP3のみ
 #
-# を基準に downloads フォルダを検索する。
+# mp4
+#   -> MP4のみ
 #
-# ==========================================================
+# subtitle_mp4
+#   -> 字幕MP4
+#   -> MP4
+#   -> MP3
+#   -> SRT
 #
-# 判定ルール
-#
-# ----------------------------------------------------------
-#
-# ラジオボタン:
-#
-#   mp3
-#       ↓
-#   タイトル.mp3
-#       ↓
-#   [MP3]
-#
-#
-#   mp4
-#       ↓
-#   タイトル.mp4
-#       ↓
-#   [MP4]
-#
-#
-#   subtitle_mp4
-#       ↓
-#   タイトル_字幕.mp4
-#   タイトル.mp4
-#   タイトル.mp3
-#   タイトル.srt
-#       ↓
-#   [字幕MP4] [MP4] [MP3] [SRT]
-#
-# ----------------------------------------------------------
-#
-# 時間指定あり:
-#
-#   タイトル_000600_000630.mp4
-#   タイトル_000600_000630.mp3
-#   タイトル_000600_000630.srt
-#   タイトル_000600_000630_字幕.mp4
-#
-# ----------------------------------------------------------
-#
-# 重要:
-#
-#   ・実際にファイルが存在するものだけ返す。
-#   ・ファイルが存在しない場合はボタンを返さない。
-#   ・ラジオボタンの種類も必ず確認する。
-#   ・SRTはリネームしない。
-#   ・字幕MP4は "_字幕.mp4" を使用する。
-#
-# ==========================================================
-
+# =====================================
 
 import re
-
 from pathlib import Path
 
 
-# ==========================================================
-# デフォルト出力先
-# ==========================================================
-
-DEFAULT_DOWNLOAD_DIR = (
-    Path.cwd()
-    /
-    "downloads"
-)
-
-
-# ==========================================================
+# =====================================
 # ファイル名安全化
-#
-# routes.convert.py / subtitle_mp4.py と同じルール
-# ==========================================================
+# =====================================
 
-def sanitize_filename(
-    value
-):
+def _find_sanitize_filename(value):
 
     text = str(
         value or "YouTube Video"
     ).strip()
 
     if not text:
-
         text = "YouTube Video"
-
-    # ------------------------------------------------------
-    # 改行・タブ
-    # ------------------------------------------------------
 
     text = re.sub(
         r"[\r\n\t]+",
@@ -109,19 +43,11 @@ def sanitize_filename(
         text
     )
 
-    # ------------------------------------------------------
-    # Windowsで使用できない文字
-    # ------------------------------------------------------
-
     text = re.sub(
         r'[\\/:*?"<>|]',
         "_",
         text
     )
-
-    # ------------------------------------------------------
-    # 制御文字
-    # ------------------------------------------------------
 
     text = re.sub(
         r"[\x00-\x1f\x7f]",
@@ -129,122 +55,61 @@ def sanitize_filename(
         text
     )
 
-    # ------------------------------------------------------
-    # 連続スペース
-    # ------------------------------------------------------
-
     text = re.sub(
         r"\s+",
         " ",
         text
     )
 
-    # ------------------------------------------------------
-    # ファイル名末尾の
-    # スペース / ドット
-    # ------------------------------------------------------
-
-    text = text.rstrip(
-        " ."
-    )
+    text = text.rstrip(" .")
 
     if not text:
-
         text = "YouTube Video"
-
-    # ------------------------------------------------------
-    # 長すぎるタイトルを制限
-    # ------------------------------------------------------
 
     text = text[:180]
 
-    text = text.rstrip(
-        " ."
-    )
+    text = text.rstrip(" .")
 
     if not text:
-
         text = "YouTube Video"
 
     return text
 
 
-# ==========================================================
+# =====================================
 # 時間 → 秒
-#
-# 対応:
-#
-#   00:00:00
-#   00:01:30
-#   01:02:03
-#   90
-#   90.5
-#
-# ==========================================================
+# =====================================
 
-def time_to_seconds(
-    value
-):
+def _find_time_to_seconds(value):
 
     if value is None:
-
         return 0.0
 
-    text = str(
-        value
-    ).strip()
+    text = str(value).strip()
 
     if not text:
-
         return 0.0
 
     parts = text.split(":")
 
     try:
 
-        # --------------------------------------------------
-        # HH:MM:SS
-        # --------------------------------------------------
-
         if len(parts) == 3:
 
             return (
-
                 float(parts[0]) * 3600
-
-                +
-
-                float(parts[1]) * 60
-
-                +
-
-                float(parts[2])
-
+                + float(parts[1]) * 60
+                + float(parts[2])
             )
-
-        # --------------------------------------------------
-        # MM:SS
-        # --------------------------------------------------
 
         if len(parts) == 2:
 
             return (
-
                 float(parts[0]) * 60
-
-                +
-
-                float(parts[1])
-
+                + float(parts[1])
             )
 
-        # --------------------------------------------------
-        # 秒
-        # --------------------------------------------------
-
-        return float(
-            text
-        )
+        return float(text)
 
     except Exception as error:
 
@@ -253,33 +118,13 @@ def time_to_seconds(
         ) from error
 
 
-# ==========================================================
-# 時間 → ファイル名用6桁
-#
-# 例:
-#
-#   0
-#       -> 000000
-#
-#   5
-#       -> 000005
-#
-#   65
-#       -> 000105
-#
-#   3600
-#       -> 010000
-#
-#   3665
-#       -> 010105
-#
-# ==========================================================
+# =====================================
+# ファイル名用時間
+# =====================================
 
-def format_filename_time(
-    value
-):
+def _find_format_filename_time(value):
 
-    seconds = time_to_seconds(
+    seconds = _find_time_to_seconds(
         value
     )
 
@@ -288,423 +133,194 @@ def format_filename_time(
     )
 
     hours = (
-        total_seconds
-        //
-        3600
+        total_seconds // 3600
     )
 
     minutes = (
-        total_seconds
-        %
-        3600
+        total_seconds % 3600
     ) // 60
 
     secs = (
-        total_seconds
-        %
-        60
+        total_seconds % 60
     )
 
     return (
-
         f"{hours:02d}"
         f"{minutes:02d}"
         f"{secs:02d}"
-
     )
 
 
-# ==========================================================
-# 全体ダウンロード判定
-#
-# 00:00:00 ～ 00:00:00
-#       ↓
-# 全体
-#
-# ==========================================================
+# =====================================
+# 時間サフィックス
+# =====================================
 
-def is_full_download(
+def _find_build_range_suffix(
     start_time=None,
     end_time=None
 ):
 
-    start_seconds = time_to_seconds(
+    start_seconds = _find_time_to_seconds(
         start_time
     )
 
-    end_seconds = time_to_seconds(
+    end_seconds = _find_time_to_seconds(
         end_time
     )
 
-    return (
-
+    if (
         start_seconds == 0
-
         and
-
         end_seconds == 0
-
-    )
-
-
-# ==========================================================
-# 時間サフィックス
-#
-# 全体:
-#
-#   ""
-#
-# 指定区間:
-#
-#   _000600_000630
-#
-# ==========================================================
-
-def build_range_suffix(
-    start_time=None,
-    end_time=None
-):
-
-    if is_full_download(
-        start_time=start_time,
-        end_time=end_time
     ):
 
         return ""
 
     return (
-
         "_"
-
-        +
-
-        format_filename_time(
+        + _find_format_filename_time(
             start_time
         )
-
-        +
-
-        "_"
-
-        +
-
-        format_filename_time(
+        + "_"
+        + _find_format_filename_time(
             end_time
         )
-
     )
 
 
-# ==========================================================
-# ファイル存在確認
-#
-# 戻り値:
-#
-# {
-#     "exists": True,
-#     "filename": "...",
-#     "path": "..."
-# }
-#
-# ==========================================================
+# =====================================
+# ファイル情報
+# =====================================
 
-def get_file_info(
-    path
-):
-
-    path = Path(
-        path
-    )
-
-    # ------------------------------------------------------
-    # ファイルがない
-    # ------------------------------------------------------
+def _find_file_info(path):
 
     if not path.is_file():
 
         return {
-
-            "exists":
-                False,
-
-            "filename":
-                None,
-
-            "path":
-                None
-
-        }
-
-    # ------------------------------------------------------
-    # ファイルサイズ確認
-    #
-    # 0 bytesのファイルは完成ファイルとして扱わない。
-    # ------------------------------------------------------
-
-    try:
-
-        size = path.stat().st_size
-
-    except OSError:
-
-        return {
-
-            "exists":
-                False,
-
-            "filename":
-                None,
-
-            "path":
-                None
-
-        }
-
-    if size <= 0:
-
-        return {
-
-            "exists":
-                False,
-
-            "filename":
-                None,
-
-            "path":
-                None
-
+            "exists": False,
+            "filename": None,
+            "path": None
         }
 
     return {
-
-        "exists":
-            True,
-
-        "filename":
-            path.name,
-
-        "path":
-            str(path)
-
+        "exists": True,
+        "filename": path.name,
+        "path": str(path)
     }
 
 
-# ==========================================================
+# =====================================
 # 完成ファイル検索
-#
-# この関数が本体。
-#
-# ==========================================================
+# =====================================
 
-def find_completed_files(
+def _find_completed_files(
     title,
     output_type,
     start_time=None,
     end_time=None,
-    output_dir=None
+    download_dir=None
 ):
 
-    # ======================================================
-    # タイトル確認
-    # ======================================================
-
-    if not title:
-
-        raise ValueError(
-            "タイトルが指定されていません。"
-        )
-
-    # ======================================================
-    # ラジオボタン確認
-    # ======================================================
-
-    if output_type not in (
-        "mp3",
-        "mp4",
-        "subtitle_mp4"
-    ):
-
-        raise ValueError(
-            "出力形式が不正です: "
-            +
-            str(output_type)
-        )
-
-    # ======================================================
-    # 時間確認
-    # ======================================================
-
-    start_seconds = time_to_seconds(
-        start_time
-    )
-
-    end_seconds = time_to_seconds(
-        end_time
-    )
-
-    if start_seconds < 0:
-
-        raise ValueError(
-            "開始時間は0秒以上にしてください。"
-        )
-
-    if end_seconds < 0:
-
-        raise ValueError(
-            "終了時間は0秒以上にしてください。"
-        )
-
-    # ------------------------------------------------------
-    # 全体ではない場合
-    # ------------------------------------------------------
-
-    if not (
-        start_seconds == 0
-        and
-        end_seconds == 0
-    ):
-
-        if end_seconds <= start_seconds:
-
-            raise ValueError(
-                "終了時間は開始時間より後にしてください。"
-            )
-
-    # ======================================================
-    # 出力先
-    # ======================================================
-
-    if output_dir:
-
-        output_dir = Path(
-            output_dir
-        )
-
-    else:
-
-        output_dir = (
-            DEFAULT_DOWNLOAD_DIR
-        )
-
-    # ======================================================
-    # タイトル
-    # ======================================================
-
-    safe_title = sanitize_filename(
+    safe_title = _find_sanitize_filename(
         title
     )
 
-    # ======================================================
-    # 時間サフィックス
-    # ======================================================
-
-    range_suffix = build_range_suffix(
-
-        start_time=
-            start_time,
-
-        end_time=
-            end_time
-
+    range_suffix = _find_build_range_suffix(
+        start_time=start_time,
+        end_time=end_time
     )
-
-    # ======================================================
-    # 基本ファイル名
-    # ======================================================
 
     base_name = (
-
         safe_title
-
-        +
-
-        range_suffix
-
+        + range_suffix
     )
 
-    # ======================================================
+    if download_dir is None:
+
+        raise ValueError(
+            "DOWNLOAD_DIRが指定されていません。"
+        )
+
+    output_dir = Path(
+        download_dir
+    )
+
+    # =================================
     # ファイルパス
-    # ======================================================
+    # =================================
 
     mp3_path = (
-
         output_dir
-        /
-        f"{base_name}.mp3"
-
+        / f"{base_name}.mp3"
     )
 
     mp4_path = (
-
         output_dir
-        /
-        f"{base_name}.mp4"
-
+        / f"{base_name}.mp4"
     )
 
     srt_path = (
-
         output_dir
-        /
-        f"{base_name}.srt"
-
+        / f"{base_name}.srt"
     )
 
     subtitle_mp4_path = (
-
         output_dir
-        /
-        f"{base_name}_字幕.mp4"
-
+        / f"{base_name}_字幕.mp4"
     )
 
-    # ======================================================
-    # 全ファイル情報
-    #
-    # 実際の存在状況をここで確認する。
-    # ======================================================
+    # =================================
+    # 基本結果
+    # =================================
 
-    files = {
+    result = {
 
-        "mp3":
-            get_file_info(
-                mp3_path
-            ),
+        "title":
+            title,
 
-        "mp4":
-            get_file_info(
-                mp4_path
-            ),
+        "output_type":
+            output_type,
 
-        "srt":
-            get_file_info(
-                srt_path
-            ),
+        "base_name":
+            base_name,
 
-        "subtitle_mp4":
-            get_file_info(
-                subtitle_mp4_path
-            )
+        "files": {
+
+            "mp3":
+                _find_file_info(
+                    mp3_path
+                ),
+
+            "mp4":
+                _find_file_info(
+                    mp4_path
+                ),
+
+            "srt":
+                _find_file_info(
+                    srt_path
+                ),
+
+            "subtitle_mp4":
+                _find_file_info(
+                    subtitle_mp4_path
+                )
+
+        },
+
+        "buttons": []
 
     }
 
-    # ======================================================
-    # ボタン
-    # ======================================================
-
-    buttons = []
-
-    # ======================================================
-    # MP3ラジオボタン
-    #
-    # MP3だけ表示
-    # ======================================================
+    # =================================
+    # MP3
+    # =================================
 
     if output_type == "mp3":
 
-        if files["mp3"]["exists"]:
+        if mp3_path.is_file():
 
-            buttons.append({
+            result["buttons"].append({
 
                 "type":
                     "mp3",
@@ -713,24 +329,22 @@ def find_completed_files(
                     "[MP3]",
 
                 "filename":
-                    files["mp3"]["filename"],
+                    mp3_path.name,
 
                 "path":
-                    files["mp3"]["path"]
+                    str(mp3_path)
 
             })
 
-    # ======================================================
-    # MP4ラジオボタン
-    #
-    # MP4だけ表示
-    # ======================================================
+    # =================================
+    # MP4
+    # =================================
 
     elif output_type == "mp4":
 
-        if files["mp4"]["exists"]:
+        if mp4_path.is_file():
 
-            buttons.append({
+            result["buttons"].append({
 
                 "type":
                     "mp4",
@@ -739,35 +353,29 @@ def find_completed_files(
                     "[MP4]",
 
                 "filename":
-                    files["mp4"]["filename"],
+                    mp4_path.name,
 
                 "path":
-                    files["mp4"]["path"]
+                    str(mp4_path)
 
             })
 
-    # ======================================================
-    # 字幕MP4ラジオボタン
+    # =================================
+    # 字幕MP4
     #
-    # 表示順:
+    # 順番:
     #
-    #   [字幕MP4]
-    #   [MP4]
-    #   [MP3]
-    #   [SRT]
-    #
-    # 実際に存在するものだけ。
-    # ======================================================
+    # [字幕MP4]
+    # [MP4]
+    # [MP3]
+    # [SRT]
+    # =================================
 
     elif output_type == "subtitle_mp4":
 
-        # --------------------------------------------------
-        # 字幕MP4
-        # --------------------------------------------------
+        if subtitle_mp4_path.is_file():
 
-        if files["subtitle_mp4"]["exists"]:
-
-            buttons.append({
+            result["buttons"].append({
 
                 "type":
                     "subtitle_mp4",
@@ -776,20 +384,16 @@ def find_completed_files(
                     "[字幕MP4]",
 
                 "filename":
-                    files["subtitle_mp4"]["filename"],
+                    subtitle_mp4_path.name,
 
                 "path":
-                    files["subtitle_mp4"]["path"]
+                    str(subtitle_mp4_path)
 
             })
 
-        # --------------------------------------------------
-        # MP4
-        # --------------------------------------------------
+        if mp4_path.is_file():
 
-        if files["mp4"]["exists"]:
-
-            buttons.append({
+            result["buttons"].append({
 
                 "type":
                     "mp4",
@@ -798,20 +402,16 @@ def find_completed_files(
                     "[MP4]",
 
                 "filename":
-                    files["mp4"]["filename"],
+                    mp4_path.name,
 
                 "path":
-                    files["mp4"]["path"]
+                    str(mp4_path)
 
             })
 
-        # --------------------------------------------------
-        # MP3
-        # --------------------------------------------------
+        if mp3_path.is_file():
 
-        if files["mp3"]["exists"]:
-
-            buttons.append({
+            result["buttons"].append({
 
                 "type":
                     "mp3",
@@ -820,20 +420,16 @@ def find_completed_files(
                     "[MP3]",
 
                 "filename":
-                    files["mp3"]["filename"],
+                    mp3_path.name,
 
                 "path":
-                    files["mp3"]["path"]
+                    str(mp3_path)
 
             })
 
-        # --------------------------------------------------
-        # SRT
-        # --------------------------------------------------
+        if srt_path.is_file():
 
-        if files["srt"]["exists"]:
-
-            buttons.append({
+            result["buttons"].append({
 
                 "type":
                     "srt",
@@ -842,372 +438,201 @@ def find_completed_files(
                     "[SRT]",
 
                 "filename":
-                    files["srt"]["filename"],
+                    srt_path.name,
 
                 "path":
-                    files["srt"]["path"]
+                    str(srt_path)
 
             })
 
-    # ======================================================
-    # 結果
-    # ======================================================
-
-    return {
-
-        "success":
-            True,
-
-        "title":
-            title,
-
-        "safe_title":
-            safe_title,
-
-        "output_type":
-            output_type,
-
-        "start_time":
-            start_time,
-
-        "end_time":
-            end_time,
-
-        "full_download":
-            is_full_download(
-                start_time=start_time,
-                end_time=end_time
-            ),
-
-        "range_suffix":
-            range_suffix,
-
-        "base_name":
-            base_name,
-
-        "output_dir":
-            str(output_dir),
-
-        "files":
-            files,
-
-        "buttons":
-            buttons
-
-    }
+    return result
 
 
-# ==========================================================
-# 互換用関数
-#
-# find_completed_files() を使用するだけでもよいが、
-# 外部から確認しやすいように用意。
-# ==========================================================
+# =====================================
+# Route登録
+# =====================================
 
-def has_completed_file(
-    title,
-    output_type,
-    start_time=None,
-    end_time=None,
-    output_dir=None
+def register_completed_files(
+    app,
+    download_dir
 ):
 
-    result = find_completed_files(
-
-        title=
-            title,
-
-        output_type=
-            output_type,
-
-        start_time=
-            start_time,
-
-        end_time=
-            end_time,
-
-        output_dir=
-            output_dir
-
+    from flask import (
+        jsonify,
+        request
     )
 
-    return len(
-        result["buttons"]
-    ) > 0
-
-
-# ==========================================================
-# デバッグ表示
-# ==========================================================
-
-def print_completed_files(
-    result
-):
-
-    print(
-        "=========================================="
+    @app.route(
+        "/find-completed-files",
+        methods=["POST"]
     )
+    def find_completed_files():
 
-    print(
-        "[COMPLETED_FILES]"
-    )
+        try:
 
-    print(
-        "=========================================="
-    )
+            data = (
+                request.get_json(
+                    silent=True
+                )
+                or {}
+            )
 
-    print(
-        "title:",
-        result.get("title")
-    )
+            title = data.get(
+                "title"
+            )
 
-    print(
-        "output_type:",
-        result.get("output_type")
-    )
+            output_type = data.get(
+                "output_type"
+            )
 
-    print(
-        "start_time:",
-        result.get("start_time")
-    )
+            start_time = data.get(
+                "start_time"
+            )
 
-    print(
-        "end_time:",
-        result.get("end_time")
-    )
+            end_time = data.get(
+                "end_time"
+            )
 
-    print(
-        "full_download:",
-        result.get("full_download")
-    )
+            # =================================
+            # タイトル確認
+            # =================================
 
-    print(
-        "base_name:",
-        result.get("base_name")
-    )
+            if not title:
 
-    print(
-        "------------------------------------------"
-    )
+                return jsonify({
 
-    print(
-        "files:"
-    )
+                    "success":
+                        False,
 
-    files = result.get(
-        "files",
-        {}
-    )
+                    "message":
+                        "タイトルが指定されていません。"
 
-    for key, info in files.items():
+                }), 400
 
-        print(
-            f"  {key}:",
-            info
-        )
+            # =================================
+            # 出力形式確認
+            # =================================
 
-    print(
-        "------------------------------------------"
-    )
-
-    print(
-        "buttons:"
-    )
-
-    for button in result.get(
-        "buttons",
-        []
-    ):
-
-        print(
-            " ",
-            button
-        )
-
-    print(
-        "=========================================="
-    )
-
-
-# ==========================================================
-# 単体テスト
-#
-# python completed_files.py
-#
-# ==========================================================
-
-if __name__ == "__main__":
-
-    print()
-
-    print(
-        "=========================================="
-    )
-
-    print(
-        "completed_files.py TEST"
-    )
-
-    print(
-        "=========================================="
-    )
-
-    # ======================================================
-    # テスト1
-    # ======================================================
-
-    print()
-    print(
-        "[TEST 1] MP3"
-    )
-
-    try:
-
-        result = find_completed_files(
-
-            title=
-                "YouTube Video",
-
-            output_type=
+            if output_type not in (
                 "mp3",
-
-            start_time=
-                "00:00:00",
-
-            end_time=
-                "00:00:00"
-
-        )
-
-        print_completed_files(
-            result
-        )
-
-    except Exception as error:
-
-        print(
-            "[TEST 1 ERROR]",
-            error
-        )
-
-    # ======================================================
-    # テスト2
-    # ======================================================
-
-    print()
-    print(
-        "[TEST 2] MP4"
-    )
-
-    try:
-
-        result = find_completed_files(
-
-            title=
-                "YouTube Video",
-
-            output_type=
                 "mp4",
+                "subtitle_mp4"
+            ):
 
-            start_time=
-                "00:00:00",
+                return jsonify({
 
-            end_time=
-                "00:00:00"
+                    "success":
+                        False,
 
-        )
+                    "message":
+                        "出力形式が不正です。"
 
-        print_completed_files(
-            result
-        )
+                }), 400
 
-    except Exception as error:
+            # =================================
+            # 時間確認
+            # =================================
 
-        print(
-            "[TEST 2 ERROR]",
-            error
-        )
+            try:
 
-    # ======================================================
-    # テスト3
-    # ======================================================
+                start_seconds = (
+                    _find_time_to_seconds(
+                        start_time
+                    )
+                )
 
-    print()
+                end_seconds = (
+                    _find_time_to_seconds(
+                        end_time
+                    )
+                )
+
+                if start_seconds < 0:
+
+                    raise ValueError(
+                        "開始時間は0秒以上にしてください。"
+                    )
+
+                if end_seconds < 0:
+
+                    raise ValueError(
+                        "終了時間は0秒以上にしてください。"
+                    )
+
+                if not (
+                    start_seconds == 0
+                    and
+                    end_seconds == 0
+                ):
+
+                    if end_seconds <= start_seconds:
+
+                        raise ValueError(
+                            "終了時間は開始時間より後にしてください。"
+                        )
+
+            except Exception as error:
+
+                return jsonify({
+
+                    "success":
+                        False,
+
+                    "message":
+                        str(error)
+
+                }), 400
+
+            # =================================
+            # 検索
+            # =================================
+
+            result = _find_completed_files(
+
+                title=
+                    title,
+
+                output_type=
+                    output_type,
+
+                start_time=
+                    start_time,
+
+                end_time=
+                    end_time,
+
+                download_dir=
+                    download_dir
+
+            )
+
+            return jsonify({
+
+                "success":
+                    True,
+
+                **result
+
+            })
+
+        except Exception as error:
+
+            print(
+                "[APP] /find-completed-files ERROR:",
+                repr(error),
+                flush=True
+            )
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "message":
+                    str(error)
+
+            }), 500
+
     print(
-        "[TEST 3] 字幕MP4"
+        "[APP] Registered /find-completed-files"
     )
-
-    try:
-
-        result = find_completed_files(
-
-            title=
-                "YouTube Video",
-
-            output_type=
-                "subtitle_mp4",
-
-            start_time=
-                "00:00:00",
-
-            end_time=
-                "00:00:00"
-
-        )
-
-        print_completed_files(
-            result
-        )
-
-    except Exception as error:
-
-        print(
-            "[TEST 3 ERROR]",
-            error
-        )
-
-    # ======================================================
-    # テスト4
-    # ======================================================
-
-    print()
-    print(
-        "[TEST 4] 字幕MP4 + 時間指定"
-    )
-
-    try:
-
-        result = find_completed_files(
-
-            title=
-                "YouTube Video",
-
-            output_type=
-                "subtitle_mp4",
-
-            start_time=
-                "00:06:00",
-
-            end_time=
-                "00:06:30"
-
-        )
-
-        print_completed_files(
-            result
-        )
-
-    except Exception as error:
-
-        print(
-            "[TEST 4 ERROR]",
-            error
-        )
-
-    print()
-
-    print(
-        "completed_files.py TEST END"
-    )
-
-    print()
