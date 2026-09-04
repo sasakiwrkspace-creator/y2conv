@@ -63,18 +63,14 @@ def _prepare_cookie_file():
             COOKIES_SOURCE
         )
 
-    temporary_cookie = (
-        tempfile.NamedTemporaryFile(
-            mode="w",
-            suffix=".txt",
-            prefix="y2conv_stream_cookies_",
-            delete=False
-        )
+    temporary_cookie = tempfile.NamedTemporaryFile(
+        mode="w",
+        suffix=".txt",
+        prefix="y2conv_stream_cookies_",
+        delete=False
     )
 
-    temporary_path = (
-        temporary_cookie.name
-    )
+    temporary_path = temporary_cookie.name
 
     temporary_cookie.close()
 
@@ -152,9 +148,7 @@ def _base_ydl_opts(
 
     if cookie_path:
 
-        opts[
-            "cookiefile"
-        ] = cookie_path
+        opts["cookiefile"] = cookie_path
 
     return opts
 
@@ -205,23 +199,19 @@ def _time_to_seconds(
         if len(parts) == 3:
 
             return (
-
                 float(parts[0]) * 3600
                 +
                 float(parts[1]) * 60
                 +
                 float(parts[2])
-
             )
 
         if len(parts) == 2:
 
             return (
-
                 float(parts[0]) * 60
                 +
                 float(parts[1])
-
             )
 
         return float(text)
@@ -245,9 +235,7 @@ def _extract_info(
 
     try:
 
-        cookie_path = (
-            _prepare_cookie_file()
-        )
+        cookie_path = _prepare_cookie_file()
 
         opts = _base_ydl_opts(
             cookie_path
@@ -258,11 +246,8 @@ def _extract_info(
         ) as ydl:
 
             info = ydl.extract_info(
-
                 url,
-
                 download=False
-
             )
 
         if not info:
@@ -304,18 +289,13 @@ def _get_http_headers(
 
         return {}
 
-    headers = (
-        fmt.get("http_headers")
-        or {}
-    )
-
     return dict(
-        headers
+        fmt.get("http_headers") or {}
     )
 
 
 # ==========================================================
-# FFmpeg HTTPヘッダー文字列
+# FFmpeg HTTPヘッダー
 # ==========================================================
 
 def _headers_to_ffmpeg(
@@ -355,15 +335,8 @@ def _headers_to_ffmpeg(
         return []
 
     return [
-
         "-headers",
-
-        "\r\n".join(
-            values
-        )
-        +
-        "\r\n"
-
+        "\r\n".join(values) + "\r\n"
     ]
 
 
@@ -426,35 +399,25 @@ def _select_mp4_format(
         combined.sort(
 
             key=lambda fmt: (
-
                 fmt.get("height") or 0,
-
                 fmt.get("tbr") or 0,
-
                 fmt.get("filesize")
                 or
                 fmt.get("filesize_approx")
                 or
                 0
-
             ),
 
             reverse=True
-
         )
 
         return {
-
-            "_separate":
-                False,
-
-            "format":
-                combined[0]
-
+            "_separate": False,
+            "format": combined[0]
         }
 
     # ======================================================
-    # separate video
+    # separate video/audio
     # ======================================================
 
     video_candidates = []
@@ -520,21 +483,16 @@ def _select_mp4_format(
     video_candidates.sort(
 
         key=lambda fmt: (
-
             fmt.get("height") or 0,
-
             fmt.get("tbr") or 0,
-
             fmt.get("filesize")
             or
             fmt.get("filesize_approx")
             or
             0
-
         ),
 
         reverse=True
-
     )
 
     video_fmt = video_candidates[0]
@@ -546,41 +504,29 @@ def _select_mp4_format(
         audio_candidates.sort(
 
             key=lambda fmt: (
-
                 fmt.get("abr") or 0,
-
                 fmt.get("tbr") or 0,
-
                 fmt.get("filesize")
                 or
                 fmt.get("filesize_approx")
                 or
                 0
-
             ),
 
             reverse=True
-
         )
 
         audio_fmt = audio_candidates[0]
 
     return {
-
-        "_separate":
-            True,
-
-        "video":
-            video_fmt,
-
-        "audio":
-            audio_fmt
-
+        "_separate": True,
+        "video": video_fmt,
+        "audio": audio_fmt
     }
 
 
 # ==========================================================
-# FFmpeg 単一URL
+# FFmpeg 単一ストリーム
 # ==========================================================
 
 def _run_ffmpeg_single(
@@ -728,9 +674,7 @@ def create_mp4_full(
 
     try:
 
-        cookie_path = (
-            _prepare_cookie_file()
-        )
+        cookie_path = _prepare_cookie_file()
 
         opts = _base_ydl_opts(
             cookie_path
@@ -763,11 +707,8 @@ def create_mp4_full(
         ) as ydl:
 
             info = ydl.extract_info(
-
                 url,
-
                 download=True
-
             )
 
             if not info:
@@ -880,11 +821,11 @@ def create_mp4_full(
 
         }
 
-    except Exception as e:
+    except Exception as error:
 
         print(
             "[YTDLP_STREAM] create_mp4_full ERROR:",
-            repr(e),
+            repr(error),
             flush=True
         )
 
@@ -980,24 +921,22 @@ def create_mp4_range(
         info
     )
 
-    temporary_name = (
-
-        "."
-        +
-        video_id
-        +
-        "_"
-        +
-        uuid.uuid4().hex
-        +
-        ".mp4"
-
-    )
-
     output_path = (
+
         output_dir
         /
-        temporary_name
+        (
+            "."
+            +
+            video_id
+            +
+            "_"
+            +
+            uuid.uuid4().hex
+            +
+            ".mp4"
+        )
+
     )
 
     try:
@@ -1010,9 +949,7 @@ def create_mp4_range(
             "_separate"
         ):
 
-            fmt = selected.get(
-                "format"
-            )
+            fmt = selected["format"]
 
             stream_url = fmt.get(
                 "url"
@@ -1026,12 +963,6 @@ def create_mp4_range(
 
             headers = _get_http_headers(
                 fmt
-            )
-
-            print(
-                "[YTDLP_STREAM] Direct combined MP4:",
-                fmt.get("format_id"),
-                flush=True
             )
 
             _run_ffmpeg_single(
@@ -1054,7 +985,7 @@ def create_mp4_range(
             )
 
         # ==================================================
-        # separate video/audio
+        # separate
         # ==================================================
 
         else:
@@ -1085,23 +1016,19 @@ def create_mp4_range(
                     "MP4映像ストリームURLを取得できませんでした。"
                 )
 
-            video_headers = (
-                _get_http_headers(
-                    video_fmt
-                )
+            video_headers = _get_http_headers(
+                video_fmt
             )
 
-            audio_headers = (
-                _get_http_headers(
-                    audio_fmt
-                )
-                if audio_fmt
-                else {}
+            audio_headers = _get_http_headers(
+                audio_fmt
             )
 
-            # ----------------------------------------------
-            # video only
-            # ----------------------------------------------
+            duration_seconds = (
+                end_seconds
+                -
+                start_seconds
+            )
 
             if not audio_url:
 
@@ -1124,19 +1051,9 @@ def create_mp4_range(
 
                 )
 
-            # ----------------------------------------------
-            # video + audio
-            # ----------------------------------------------
-
             else:
 
                 ffmpeg_path = _check_ffmpeg()
-
-                duration_seconds = (
-                    end_seconds
-                    -
-                    start_seconds
-                )
 
                 command = [
 
