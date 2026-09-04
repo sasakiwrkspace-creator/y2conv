@@ -3206,3 +3206,405 @@
                 // =================================
 
                 setProgress(
+                    "動画情報を取得しています..."
+                );
+
+
+                const info =
+                    await getVideoInfo(
+                        url
+                    );
+
+
+                converterState.currentVideoTitle =
+                    info.title ||
+                    info.video_title ||
+                    "不明";
+
+
+                converterState.currentVideoDuration =
+                    info.duration ??
+                    info.video_duration ??
+                    0;
+
+
+                // =================================
+                // 上側にはタイトルだけ表示
+                // =================================
+
+                setStatus(
+                    converterState.currentVideoTitle,
+                    ""
+                );
+
+
+                // =================================
+                // 時間範囲
+                // =================================
+
+                const timeRange =
+                    getTimeRange();
+
+
+                // =================================
+                // 変換開始
+                // =================================
+
+                setProgress(
+                    "変換ジョブを開始しています..."
+                );
+
+
+                const data =
+                    await convertVideo(
+
+                        url,
+
+                        outputs,
+
+                        timeRange
+
+                    );
+
+
+                const jobId =
+                    data.job_id;
+
+
+                converterState.currentJobId =
+                    jobId;
+
+
+                // =================================
+                // Job監視
+                // =================================
+
+                setProgress(
+                    "変換処理中..."
+                );
+
+
+                const completedJob =
+                    await waitForJob(
+                        jobId
+                    );
+
+
+                // =================================
+                // 最終ファイル
+                // =================================
+
+                const files =
+                    completedJob.files ||
+                    {};
+
+
+                // =================================
+                // MP3
+                // =================================
+
+                if (
+                    files.mp3 &&
+                    files.mp3.status ===
+                        "complete" &&
+                    files.mp3.filename
+                ) {
+
+                    converterState.currentMp3File =
+                        files.mp3.filename;
+
+
+                    addMp3Download(
+                        files.mp3.filename
+                    );
+
+                }
+
+
+                // =================================
+                // MP4
+                // =================================
+
+                if (
+                    files.mp4 &&
+                    files.mp4.status ===
+                        "complete" &&
+                    files.mp4.filename
+                ) {
+
+                    converterState.currentMp4File =
+                        files.mp4.filename;
+
+
+                    addMp4Download(
+                        files.mp4.filename
+                    );
+
+                }
+
+
+                // =================================
+                // ファイル確認
+                // =================================
+
+                const hasMp3 =
+                    Boolean(
+                        converterState.currentMp3File
+                    );
+
+
+                const hasMp4 =
+                    Boolean(
+                        converterState.currentMp4File
+                    );
+
+
+                if (
+                    !hasMp3 &&
+                    !hasMp4
+                ) {
+
+                    throw new Error(
+                        "変換は完了しましたが、作成されたファイルが確認できませんでした。"
+                    );
+
+                }
+
+
+                // =================================
+                // 完了
+                // =================================
+
+                const endTime =
+                    new Date();
+
+
+                addConversionInfo(
+                    startTime,
+                    endTime
+                );
+
+
+                // =================================
+                // 上側はタイトルだけ
+                // =================================
+
+                setStatus(
+                    converterState.currentVideoTitle,
+                    "success"
+                );
+
+
+                console.log(
+                    "[CONVERTER] 変換完了:",
+                    completedJob
+                );
+
+            }
+            catch (error) {
+
+                console.error(
+                    "[CONVERTER] エラー:",
+                    error
+                );
+
+
+                const message =
+                    error &&
+                    error.message
+                        ? error.message
+                        : "不明なエラー";
+
+
+                setStatus(
+
+                    "変換中にエラーが発生しました。\n" +
+                    message,
+
+                    "error"
+
+                );
+
+            }
+            finally {
+
+                converterState.isProcessing =
+                    false;
+
+
+                convertButton.disabled =
+                    false;
+
+
+                console.log(
+                    "[CONVERTER] 処理終了"
+                );
+
+            }
+
+        }
+
+
+        // =====================================
+        // クリック
+        // =====================================
+
+        if (
+            convertButton.dataset.converterBound !==
+            "true"
+        ) {
+
+            convertButton.addEventListener(
+                "click",
+                startConversion
+            );
+
+
+            convertButton.dataset.converterBound =
+                "true";
+
+        }
+
+
+        // =====================================
+        // Enter
+        // =====================================
+
+        if (
+            urlInput.dataset.converterEnterBound !==
+            "true"
+        ) {
+
+            urlInput.addEventListener(
+                "keydown",
+                function (event) {
+
+                    if (
+                        event.key ===
+                        "Enter"
+                    ) {
+
+                        event.preventDefault();
+
+                        startConversion();
+
+                    }
+
+                }
+            );
+
+
+            urlInput.dataset.converterEnterBound =
+                "true";
+
+        }
+
+
+        // =====================================
+        // 時間入力
+        // =====================================
+
+        const timeInputs =
+            document.querySelectorAll(
+                ".time-input"
+            );
+
+
+        timeInputs.forEach(
+            function (input) {
+
+                if (
+                    input.dataset.converterTimeBound ===
+                    "true"
+                ) {
+
+                    return;
+
+                }
+
+
+                input.addEventListener(
+                    "input",
+                    function () {
+
+                        this.value =
+                            this.value.replace(
+                                /[^0-9]/g,
+                                ""
+                            );
+
+                    }
+                );
+
+
+                input.dataset.converterTimeBound =
+                    "true";
+
+            }
+        );
+
+
+        // =====================================
+        // 公開API
+        // =====================================
+
+        const publicApi = {
+
+            start:
+                startConversion,
+
+            clearResults:
+                clearResults,
+
+            getState:
+                function () {
+
+                    return converterState;
+
+                }
+
+        };
+
+
+        window.converterMain =
+            publicApi;
+
+
+        window.ConverterMain =
+            publicApi;
+
+
+        console.log(
+            "[CONVERTER] converter.js 読み込み完了"
+        );
+
+    }
+
+
+    // =====================================
+    // DOMContentLoaded
+    // =====================================
+
+    if (
+        document.readyState ===
+        "loading"
+    ) {
+
+        document.addEventListener(
+            "DOMContentLoaded",
+            initializeConverter,
+            {
+                once:
+                    true
+            }
+        );
+
+    }
+    else {
+
+        initializeConverter();
+
+    }
+
+
+})();
