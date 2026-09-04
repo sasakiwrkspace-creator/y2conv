@@ -34,18 +34,16 @@
 // 上側:
 //     動画タイトルのみ
 //
-// 処理中:
-//
-//     処理ログ
-//     14:32:01  動画情報を取得しています...
-//     14:32:04  変換ジョブを開始しました。
-//     14:32:05  MP3用動画をダウンロード中...
-//     14:32:18  MP3変換中...
-//     14:32:24  MP3変換が完了しました。
-//
 // 完了後:
 //
 //     [字幕MP4] [MP3] [MP4] [SRT]
+//
+//     ▼ 処理詳細
+//        再生時間
+//        実行開始
+//        実行終了
+//        処理時間
+//        処理ログ
 //
 // MP4 / 字幕MP4には
 // 折り畳み・▲を付けない。
@@ -270,91 +268,12 @@
 
 
         // =====================================
-        // 処理ログ用DOM作成
-        // =====================================
-
-        function ensureProcessingLogArea() {
-
-            if (!downloadArea) {
-
-                return null;
-
-            }
-
-
-            let logArea =
-                downloadArea.querySelector(
-                    ".conversion-log"
-                );
-
-
-            if (logArea) {
-
-                return logArea;
-
-            }
-
-
-            const details =
-                document.createElement(
-                    "details"
-                );
-
-
-            details.className =
-                "conversion-log";
-
-
-            details.open =
-                true;
-
-
-            const summary =
-                document.createElement(
-                    "summary"
-                );
-
-
-            summary.className =
-                "conversion-log-summary";
-
-
-            summary.textContent =
-                "処理ログ";
-
-
-            details.appendChild(
-                summary
-            );
-
-
-            const body =
-                document.createElement(
-                    "div"
-                );
-
-
-            body.className =
-                "conversion-log-body";
-
-
-            details.appendChild(
-                body
-            );
-
-
-            downloadArea.prepend(
-                details
-            );
-
-
-            return details;
-
-        }
-
-
-        // =====================================
         // 処理ログ追加
+        //
+        // 処理ログは画面上に独立表示しない。
+        //
+        // converterState.processingLog に保存し、
+        // 最後に「処理詳細」の中へ表示する。
         // =====================================
 
         function addProcessingLog(
@@ -430,113 +349,6 @@
             );
 
 
-            const details =
-                ensureProcessingLogArea();
-
-
-            if (!details) {
-
-                console.log(
-                    "[CONVERTER] LOG:",
-                    clock,
-                    text
-                );
-
-                return;
-
-            }
-
-
-            const body =
-                details.querySelector(
-                    ".conversion-log-body"
-                );
-
-
-            if (!body) {
-
-                return;
-
-            }
-
-
-            const line =
-                document.createElement(
-                    "div"
-                );
-
-
-            line.className =
-                "conversion-log-line";
-
-
-            if (
-                entry.type === "error"
-            ) {
-
-                line.classList.add(
-                    "is-error"
-                );
-
-            }
-            else if (
-                entry.type === "success"
-            ) {
-
-                line.classList.add(
-                    "is-success"
-                );
-
-            }
-
-
-            const timeSpan =
-                document.createElement(
-                    "span"
-                );
-
-
-            timeSpan.className =
-                "conversion-log-time";
-
-
-            timeSpan.textContent =
-                clock;
-
-
-            const messageSpan =
-                document.createElement(
-                    "span"
-                );
-
-
-            messageSpan.className =
-                "conversion-log-message";
-
-
-            messageSpan.textContent =
-                text;
-
-
-            line.appendChild(
-                timeSpan
-            );
-
-
-            line.appendChild(
-                messageSpan
-            );
-
-
-            body.appendChild(
-                line
-            );
-
-
-            body.scrollTop =
-                body.scrollHeight;
-
-
             console.log(
                 "[CONVERTER] LOG:",
                 clock,
@@ -562,26 +374,6 @@
 
             converterState.lastJobStatus =
                 "";
-
-
-            if (!downloadArea) {
-
-                return;
-
-            }
-
-
-            const logArea =
-                downloadArea.querySelector(
-                    ".conversion-log"
-                );
-
-
-            if (logArea) {
-
-                logArea.remove();
-
-            }
 
         }
 
@@ -2490,8 +2282,8 @@
 
                             })
 
-                        }
-                    );
+                    }
+                );
 
 
             const data =
@@ -2782,7 +2574,7 @@
         //
         // ファイル単位のステータス表示はしない。
         // job.message / job.statusを
-        // 処理ログとして表示する。
+        // 処理ログとして保存する。
         // =====================================
 
         function renderJobStatus(
@@ -2824,7 +2616,9 @@
             ) {
 
                 if (
-                    job.message
+                    job.message &&
+                    job.message !==
+                        converterState.lastJobMessage
                 ) {
 
                     addProcessingLog(
@@ -2924,6 +2718,8 @@
 
         // =====================================
         // 処理詳細
+        //
+        // 「処理ログ」をこの中へ入れる。
         // =====================================
 
         function addConversionInfo(
@@ -2934,6 +2730,23 @@
             if (!downloadArea) {
 
                 return;
+
+            }
+
+
+            // ---------------------------------
+            // 既存の処理詳細を削除
+            // ---------------------------------
+
+            const existingDetails =
+                downloadArea.querySelector(
+                    ".conversion-details"
+                );
+
+
+            if (existingDetails) {
+
+                existingDetails.remove();
 
             }
 
@@ -2965,6 +2778,10 @@
                 "conversion-details";
 
 
+            details.open =
+                true;
+
+
             const summary =
                 document.createElement(
                     "summary"
@@ -2990,7 +2807,11 @@
                 "conversion-details-body";
 
 
-            detailBody.innerHTML = `
+            // ---------------------------------
+            // 基本情報
+            // ---------------------------------
+
+            const infoHtml = `
 
                 <div>
                     再生時間：
@@ -3029,6 +2850,139 @@
                 </div>
 
             `;
+
+
+            detailBody.innerHTML =
+                infoHtml;
+
+
+            // ---------------------------------
+            // 処理ログタイトル
+            // ---------------------------------
+
+            if (
+                converterState.processingLog.length > 0
+            ) {
+
+                const logTitle =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                logTitle.className =
+                    "conversion-log-title";
+
+
+                logTitle.textContent =
+                    "処理ログ";
+
+
+                detailBody.appendChild(
+                    logTitle
+                );
+
+
+                // ---------------------------------
+                // 処理ログ本体
+                // ---------------------------------
+
+                const logBody =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                logBody.className =
+                    "conversion-log-body";
+
+
+                converterState.processingLog.forEach(
+                    function (entry) {
+
+                        const line =
+                            document.createElement(
+                                "div"
+                            );
+
+
+                        line.className =
+                            "conversion-log-line";
+
+
+                        if (
+                            entry.type ===
+                            "error"
+                        ) {
+
+                            line.classList.add(
+                                "is-error"
+                            );
+
+                        }
+                        else if (
+                            entry.type ===
+                            "success"
+                        ) {
+
+                            line.classList.add(
+                                "is-success"
+                            );
+
+                        }
+
+
+                        const timeSpan =
+                            document.createElement(
+                                "span"
+                            );
+
+
+                        timeSpan.className =
+                            "conversion-log-time";
+
+
+                        timeSpan.textContent =
+                            entry.time;
+
+
+                        const messageSpan =
+                            document.createElement(
+                                "span"
+                            );
+
+
+                        messageSpan.className =
+                            "conversion-log-message";
+
+
+                        messageSpan.textContent =
+                            entry.message;
+
+
+                        line.appendChild(
+                            timeSpan
+                        );
+
+
+                        line.appendChild(
+                            messageSpan
+                        );
+
+
+                        logBody.appendChild(
+                            line
+                        );
+
+                    }
+                );
+
+
+                detailBody.appendChild(
+                    logBody
+                );
+
+            }
 
 
             details.appendChild(
@@ -3293,6 +3247,12 @@
                 );
 
 
+                // ---------------------------------
+                // 処理詳細
+                //
+                // ログもここへまとめる。
+                // ---------------------------------
+
                 addConversionInfo(
                     startTime,
                     endTime
@@ -3334,6 +3294,20 @@
                     "変換中にエラーが発生しました: " +
                     message,
                     "error"
+                );
+
+
+                // ---------------------------------
+                // エラー時も処理詳細を表示
+                // ---------------------------------
+
+                const endTime =
+                    new Date();
+
+
+                addConversionInfo(
+                    startTime,
+                    endTime
                 );
 
 
