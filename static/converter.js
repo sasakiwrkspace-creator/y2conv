@@ -1445,209 +1445,272 @@
 
         // =====================================
         // MP3用折り畳み
+        //
+        // 表示:
+        //
+        // ▼ [MP3] ▲
+        //     [MP3]
+        //     Geminiへ(字幕srt)
+        //
+        // MP3はdetailsの中に
+        // ・MP3ダウンロードボタン
+        // ・Geminiへ(字幕srt)
+        // を表示する。
         // =====================================
-
+        
         function addMp3Download(
             filename
         ) {
-
+        
             if (!downloadArea || !filename) {
-
+        
                 return;
-
+        
             }
-
-
+        
+        
             const safeFilename =
                 String(
                     filename
                 );
-
-
+        
+        
             if (
                 hasDownloadButton(
                     "mp3Filename",
                     safeFilename
                 )
             ) {
-
+        
                 return;
-
+        
             }
-
-
+        
+        
             const row =
                 ensureDownloadRow();
-
-
+        
+        
             if (!row) {
-
+        
                 return;
-
+        
             }
-
-
+        
+        
+            // =====================================
+            // details
+            // =====================================
+        
             const details =
                 document.createElement(
                     "details"
                 );
-
-
+        
+        
             details.className =
                 "download-details";
-
-
+        
+        
             details.dataset.mp3Filename =
                 safeFilename;
-
-
+        
+        
             details.dataset.downloadOrder =
                 "2";
-
-
+        
+        
+            // =====================================
+            // summary
+            // =====================================
+        
             const summary =
                 document.createElement(
                     "summary"
                 );
-
-
+        
+        
             summary.className =
                 "download-summary";
-
-
+        
+        
             const mp3Label =
                 document.createElement(
                     "span"
                 );
-
-
+        
+        
             mp3Label.className =
                 "download-type-label";
-
-
+        
+        
             mp3Label.textContent =
                 "[MP3]";
-
-
+        
+        
             summary.appendChild(
                 mp3Label
             );
-
-
+        
+        
             const arrow =
                 document.createElement(
                     "span"
                 );
-
-
+        
+        
             arrow.className =
                 "download-arrow";
-
-
+        
+        
+            // 初期状態は閉じているので ▲
             arrow.textContent =
                 "▲";
-
-
+        
+        
             summary.appendChild(
                 arrow
             );
-
-
+        
+        
             details.appendChild(
                 summary
             );
-
-
+        
+        
+            // =====================================
+            // details本体
+            // =====================================
+        
             const body =
                 document.createElement(
                     "div"
                 );
-
-
+        
+        
             body.className =
                 "download-details-body";
-
-
+        
+        
+            // =====================================
+            // ★MP3ダウンロードボタン
+            // =====================================
+        
+            const mp3DownloadButton =
+                createDownloadLink(
+                    safeFilename,
+                    "[MP3]",
+                    "download-button"
+                );
+        
+        
+            mp3DownloadButton.dataset.mp3Filename =
+                safeFilename;
+        
+        
+            body.appendChild(
+                mp3DownloadButton
+            );
+        
+        
+            // =====================================
+            // Geminiボタン
+            // =====================================
+        
             const geminiButton =
                 document.createElement(
                     "button"
                 );
-
-
+        
+        
             geminiButton.type =
                 "button";
-
-
+        
+        
             geminiButton.className =
                 "gemini-srt-button";
-
-
+        
+        
             geminiButton.textContent =
                 "Geminiへ(字幕srt)";
-
-
+        
+        
             geminiButton.dataset.mp3Filename =
                 safeFilename;
-
-
+        
+        
             body.appendChild(
                 geminiButton
             );
-
-
+        
+        
             details.appendChild(
                 body
             );
-
-
+        
+        
+            // =====================================
+            // 開閉状態による矢印変更
+            // =====================================
+        
             details.addEventListener(
                 "toggle",
                 function () {
-
+        
                     if (details.open) {
-
+        
+                        // 展開中
                         arrow.textContent =
                             "▼";
-
+        
                     }
                     else {
-
+        
+                        // 閉じている
                         arrow.textContent =
                             "▲";
-
+        
                     }
-
+        
                 }
             );
-
-
+        
+        
+            // =====================================
+            // Geminiクリック
+            // =====================================
+        
             geminiButton.addEventListener(
                 "click",
                 function () {
-
+        
                     createSrtFromMp3(
                         safeFilename,
                         details,
                         geminiButton
                     );
-
+        
                 }
             );
-
-
+        
+        
+            // =====================================
+            // 行へ追加
+            // =====================================
+        
             row.appendChild(
                 details
             );
-
-
+        
+        
             sortDownloadButtons();
-
-
+        
+        
             console.log(
                 "[CONVERTER] MP3ダウンロード追加:",
                 safeFilename
             );
-
+        
         }
 
 
