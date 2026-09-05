@@ -18,7 +18,6 @@
 #   - 元動画の解像度を維持
 #   - 日本語字幕対応
 #   - subtitle_font.pyの設定を使用
-#   - 選択フォントを優先
 #   - 日本語フォントを明示
 #   - 文字色を反映
 #   - 縁色を反映
@@ -161,11 +160,14 @@ def validate_input_file(
 #   ↓
 # video_sub_embed.mp4
 #
+# すでに _sub_embed が付いている場合も
+# 無限に _sub_embed を増やさない。
+#
+# 例:
+#
 # video_sub_embed.mp4
 #   ↓
 # video_sub_embed_2.mp4
-#
-# 既存ファイルを上書きしない。
 # =====================================
 
 def make_output_path(
@@ -295,7 +297,7 @@ def check_ffmpeg():
 # =====================================
 # SRT UTF-8確認
 #
-# SRT全体を読み込まない。
+# SRT全体をPythonメモリへ読み込まない。
 # 最初の4096文字だけ確認する。
 # =====================================
 
@@ -328,7 +330,7 @@ def validate_srt_encoding(
         raise RuntimeError(
 
             "SRTファイルをUTF-8として"
-            "読み込めませんでした。\n"
+            "読み込めませんでした。"
             "SRTをUTF-8形式で保存してください。"
 
         ) from error
@@ -365,12 +367,83 @@ def validate_srt_encoding(
 
 
 # =====================================
+# フォントファミリー取得
+# =====================================
+
+def get_font_family_from_path(
+    font_path
+):
+
+    fc_scan = shutil.which(
+        "fc-scan"
+    )
+
+    if not fc_scan:
+
+        return None
+
+    try:
+
+        result = subprocess.run(
+
+            [
+                fc_scan,
+
+                "--format=%{family}",
+
+                str(font_path)
+
+            ],
+
+            stdout=subprocess.PIPE,
+
+            stderr=subprocess.PIPE,
+
+            text=True,
+
+            encoding="utf-8",
+
+            errors="replace",
+
+            timeout=30
+
+        )
+
+    except Exception:
+
+        return None
+
+    if result.returncode != 0:
+
+        return None
+
+    family = (
+        result.stdout.strip()
+    )
+
+    if not family:
+
+        return None
+
+    if "," in family:
+
+        family = (
+            family.split(
+                ",",
+                1
+            )[0].strip()
+        )
+
+    return family
+
+
+# =====================================
 # 日本語フォント検索
 #
-# requested_font:
-#   subtitle_font.pyで選択されたフォント
+# subtitle_font.pyで選択された
+# フォントを優先する。
 #
-# 選択フォントが存在しない場合は
+# 指定フォントが存在しない場合は
 # 日本語フォントへフォールバック。
 # =====================================
 
@@ -392,9 +465,11 @@ def find_japanese_font(
 
     if environment_font:
 
-        environment_font_path = Path(
-            environment_font
-        ).expanduser().resolve()
+        environment_font_path = (
+            Path(
+                environment_font
+            ).expanduser().resolve()
+        )
 
         if environment_font_path.is_file():
 
@@ -510,8 +585,7 @@ def find_japanese_font(
                     )
 
                     log(
-                        f"family: "
-                        f"{actual_family or requested_font}"
+                        f"family: {actual_family or requested_font}"
                     )
 
                     log(
@@ -606,50 +680,57 @@ def find_japanese_font(
 
                 continue
 
+            font_file = ""
+
             for line in result.stdout.splitlines():
 
                 line = line.strip()
 
-                if not line:
+                if line:
 
-                    continue
+                    font_file = line
 
-                font_path = Path(
-                    line
+                    break
+
+            if not font_file:
+
+                continue
+
+            font_path = Path(
+                font_file
+            )
+
+            if not font_path.is_file():
+
+                continue
+
+            actual_family = (
+                get_font_family_from_path(
+                    font_path
                 )
+            )
 
-                if not font_path.is_file():
+            log(
+                "日本語フォント検出:"
+            )
 
-                    continue
+            log(
+                f"family: {actual_family or family}"
+            )
 
-                actual_family = (
-                    get_font_family_from_path(
-                        font_path
-                    )
-                )
+            log(
+                f"path: {font_path}"
+            )
 
-                log(
-                    "日本語フォント検出:"
-                )
+            return {
 
-                log(
-                    f"family: "
-                    f"{actual_family or family}"
-                )
+                "path":
+                    font_path,
 
-                log(
-                    f"path: {font_path}"
-                )
+                "family":
+                    actual_family or family
 
-                return {
-
-                    "path":
-                        font_path,
-
-                    "family":
-                        actual_family or family
-
-                }
+            }
 
     # =================================
     # fc-list
@@ -894,78 +975,7 @@ def find_japanese_font(
 
 
 # =====================================
-# フォントファミリー取得
-# =====================================
-
-def get_font_family_from_path(
-    font_path
-):
-
-    fc_scan = shutil.which(
-        "fc-scan"
-    )
-
-    if not fc_scan:
-
-        return None
-
-    try:
-
-        result = subprocess.run(
-
-            [
-                fc_scan,
-
-                "--format=%{family}",
-
-                str(font_path)
-
-            ],
-
-            stdout=subprocess.PIPE,
-
-            stderr=subprocess.PIPE,
-
-            text=True,
-
-            encoding="utf-8",
-
-            errors="replace",
-
-            timeout=30
-
-        )
-
-    except Exception:
-
-        return None
-
-    if result.returncode != 0:
-
-        return None
-
-    family = (
-        result.stdout.strip()
-    )
-
-    if not family:
-
-        return None
-
-    if "," in family:
-
-        family = (
-            family.split(
-                ",",
-                1
-            )[0].strip()
-        )
-
-    return family
-
-
-# =====================================
-# FFmpeg用パスエスケープ
+# FFmpegフィルターパスエスケープ
 # =====================================
 
 def escape_ffmpeg_filter_path(
@@ -975,6 +985,10 @@ def escape_ffmpeg_filter_path(
     path = str(
         Path(file_path).resolve()
     )
+
+    # Linux / Renderを想定。
+    # Windows形式のパスにも対応できるよう
+    # 最低限のエスケープを行う。
 
     path = path.replace(
         "\\",
@@ -1005,7 +1019,7 @@ def escape_ffmpeg_filter_path(
 
 
 # =====================================
-# FFmpeg字幕値エスケープ
+# FFmpeg force_style値エスケープ
 # =====================================
 
 def escape_ffmpeg_value(
@@ -1106,6 +1120,12 @@ def make_subtitle_filter(
         )
     )
 
+    if selected_font is not None:
+
+        selected_font = str(
+            selected_font
+        ).strip()
+
     # =================================
     # 文字色
     # =================================
@@ -1202,6 +1222,9 @@ def make_subtitle_filter(
 
     # =================================
     # fontsdir
+    #
+    # 実際に見つかったフォントの
+    # ディレクトリをFFmpegへ渡す。
     # =================================
 
     if font_info:
@@ -1213,7 +1236,9 @@ def make_subtitle_filter(
         if font_path:
 
             font_directory = (
-                Path(font_path).resolve().parent
+                Path(
+                    font_path
+                ).resolve().parent
             )
 
             font_directory_escaped = (
@@ -1262,7 +1287,9 @@ def make_subtitle_filter(
 
         "Outline="
         +
-        str(outline_width),
+        str(
+            outline_width
+        ),
 
     ]
 
@@ -1287,27 +1314,38 @@ def make_subtitle_filter(
     )
 
     log(
-        f"FontName: {font_name}"
+        f"Preset: "
+        f"{subtitle_settings.get('preset')}"
     )
 
     log(
-        f"文字色: {text_color_name}"
+        f"FontName: "
+        f"{font_name}"
     )
 
     log(
-        f"文字色ASS: {text_color}"
+        f"文字色: "
+        f"{text_color_name}"
     )
 
     log(
-        f"縁色: {outline_color_name}"
+        f"文字色ASS: "
+        f"{text_color}"
     )
 
     log(
-        f"縁色ASS: {outline_color}"
+        f"縁色: "
+        f"{outline_color_name}"
     )
 
     log(
-        f"縁太さ: {outline_width}"
+        f"縁色ASS: "
+        f"{outline_color}"
+    )
+
+    log(
+        f"縁太さ: "
+        f"{outline_width}"
     )
 
     return video_filter
@@ -1426,9 +1464,11 @@ def embed_subtitle(
 
     if output_path:
 
-        output_path = Path(
-            output_path
-        ).resolve()
+        output_path = (
+            Path(
+                output_path
+            ).resolve()
+        )
 
     else:
 
@@ -1552,7 +1592,9 @@ def embed_subtitle(
 
         log(
             str(
-                font_info.get("path")
+                font_info.get(
+                    "path"
+                )
             )
         )
 
@@ -1562,7 +1604,9 @@ def embed_subtitle(
 
         log(
             str(
-                font_info.get("family")
+                font_info.get(
+                    "family"
+                )
             )
         )
 
@@ -1714,7 +1758,7 @@ def embed_subtitle(
         FFMPEG_CRF,
 
         # ---------------------------------
-        # Audioは再エンコードしない
+        # Audioはそのまま
         # ---------------------------------
 
         "-c:a",
@@ -1731,7 +1775,9 @@ def embed_subtitle(
         # 出力
         # ---------------------------------
 
-        str(output_path)
+        str(
+            output_path
+        )
 
     ]
 
@@ -1974,8 +2020,9 @@ def embed_subtitle(
 
         raise RuntimeError(
 
-            f"出力ファイルを確認できませんでした: "
-            f"{error}"
+            "出力ファイルを確認できませんでした: "
+            +
+            str(error)
 
         ) from error
 
