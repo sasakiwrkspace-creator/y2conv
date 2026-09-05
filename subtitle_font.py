@@ -6,52 +6,9 @@
 #
 # MP4動画へSRT字幕を焼き込む
 #
-# 入力:
-#   config.py の DOWNLOAD_DIR/xxx.mp4
-#   config.py の DOWNLOAD_DIR/xxx.srt
+# subtitle_font.pyで選択した設定と
+# 確実に連動する版
 #
-# 出力:
-#   入力MP4と同じディレクトリ
-#   xxx_sub_embed.mp4
-#
-# FFmpegを使用
-#
-# 重要:
-#   - 元動画の解像度を維持
-#   - 日本語字幕対応
-#   - subtitle_font.pyの設定を使用
-#   - フォントを明示
-#   - 文字色を反映
-#   - 縁色を反映
-#   - 縁の太さを反映
-#   - 動画は再エンコード
-#   - audioはcopy
-#   - FFmpegを1スレッドに制限
-#   - ultrafastでメモリ負荷を抑制
-#   - FFmpegログを最大100行だけ保持
-#   - downloadsの場所はconfig.pyで管理
-#
-# subtitle_font.py との連携:
-#
-#   settings = select_subtitle_font(...)
-#
-#   create_subtitle_mp4(
-#       mp4_path,
-#       srt_path,
-#       subtitle_settings=settings
-#   )
-#
-#   ↓
-#
-#   subtitle.py
-#
-#   ↓
-#
-#   FFmpeg force_style
-#
-#   ↓
-#
-#   字幕付きMP4
 # =====================================
 
 import os
@@ -156,19 +113,6 @@ def validate_input_file(
 
 # =====================================
 # 出力ファイル名
-#
-# 通常:
-#
-#   video.mp4
-#       ↓
-#   video_sub_embed.mp4
-#
-# すでに _sub_embed の場合:
-#
-#   video_sub_embed.mp4
-#       ↓
-#   video_sub_embed_2.mp4
-#
 # =====================================
 
 def make_output_path(
@@ -293,8 +237,6 @@ def check_ffmpeg():
 
 # =====================================
 # SRT文字コード確認
-#
-# ファイル全体をメモリに読み込まない
 # =====================================
 
 def validate_srt_encoding(
@@ -363,13 +305,85 @@ def validate_srt_encoding(
 
 
 # =====================================
+# フォントファミリー取得
+# =====================================
+
+def get_font_family_from_path(
+    font_path
+):
+
+    fc_scan = shutil.which(
+        "fc-scan"
+    )
+
+    if not fc_scan:
+
+        return None
+
+    try:
+
+        result = subprocess.run(
+
+            [
+                fc_scan,
+
+                "--format=%{family}",
+
+                str(font_path)
+
+            ],
+
+            stdout=subprocess.PIPE,
+
+            stderr=subprocess.PIPE,
+
+            text=True,
+
+            encoding="utf-8",
+
+            errors="replace",
+
+            timeout=30
+
+        )
+
+    except Exception:
+
+        return None
+
+    if result.returncode != 0:
+
+        return None
+
+    family = (
+        result.stdout.strip()
+    )
+
+    if not family:
+
+        return None
+
+    # fc-scanが複数familyを返した場合
+    if "," in family:
+
+        family = family.split(
+            ",",
+            1
+        )[0].strip()
+
+    return family
+
+
+# =====================================
 # 日本語フォント検索
 #
-# subtitle_font.pyで選択された
-# フォントを優先する。
+# 重要:
 #
-# 選択フォントが実際に存在しない場合は
-# 自動検出へフォールバックする。
+# requested_font が指定されている場合、
+# 必ず最初にそのフォントを検索する。
+#
+# 実際に検出されたフォントファイルから
+# family名を取得して返す。
 # =====================================
 
 def find_japanese_font(
@@ -381,7 +395,10 @@ def find_japanese_font(
     )
 
     # =================================
-    # 環境変数
+    # 1. 環境変数
+    #
+    # SUBTITLE_FONTが明示されている場合は
+    # 最優先。
     # =================================
 
     environment_font = os.environ.get(
@@ -396,14 +413,22 @@ def find_japanese_font(
 
         if environment_font_path.is_file():
 
-            log(
-                "環境変数指定フォント:"
+            family = (
+                get_font_family_from_path(
+                    environment_font_path
+                )
             )
 
             log(
-                str(
-                    environment_font_path
-                )
+                "環境変数指定フォントを使用:"
+            )
+
+            log(
+                f"path: {environment_font_path}"
+            )
+
+            log(
+                f"family: {family}"
             )
 
             return {
@@ -412,9 +437,7 @@ def find_japanese_font(
                     environment_font_path,
 
                 "family":
-                    get_font_family_from_path(
-                        environment_font_path
-                    )
+                    family
 
             }
 
@@ -430,7 +453,8 @@ def find_japanese_font(
         )
 
     # =================================
-    # 指定フォントをfc-match
+    # 2. subtitle_font.pyで選択された
+    # フォントを検索
     # =================================
 
     fc_match = shutil.which(
@@ -438,6 +462,14 @@ def find_japanese_font(
     )
 
     if fc_match and requested_font:
+
+        log(
+            "選択フォントを検索:"
+        )
+
+        log(
+            f"requested_font: {requested_font}"
+        )
 
         try:
 
@@ -485,16 +517,42 @@ def find_japanese_font(
 
                         continue
 
+                    actual_family = (
+                        get_font_family_from_path(
+                            font_path
+                        )
+                    )
+
+                    # fc-scanでfamilyを取得できない場合は
+                    # requested_fontを使用
+                    if not actual_family:
+
+                        actual_family = (
+                            requested_font
+                        )
+
                     log(
-                        "選択されたフォントを検出:"
+                        "====================================="
                     )
 
                     log(
-                        f"family: {requested_font}"
+                        "選択されたフォントを使用します"
                     )
 
                     log(
-                        f"path: {font_path}"
+                        f"選択値: {requested_font}"
+                    )
+
+                    log(
+                        f"実ファイル: {font_path}"
+                    )
+
+                    log(
+                        f"実FontName: {actual_family}"
+                    )
+
+                    log(
+                        "====================================="
                     )
 
                     return {
@@ -503,6 +561,9 @@ def find_japanese_font(
                             font_path,
 
                         "family":
+                            actual_family,
+
+                        "requested":
                             requested_font
 
                     }
@@ -514,7 +575,7 @@ def find_japanese_font(
             )
 
     # =================================
-    # fc-matchによる日本語フォント検索
+    # 3. 日本語フォントへフォールバック
     # =================================
 
     if fc_match:
@@ -585,54 +646,59 @@ def find_japanese_font(
 
                 continue
 
-            font_file = ""
-
             for line in result.stdout.splitlines():
 
                 line = line.strip()
 
-                if line:
+                if not line:
 
-                    font_file = line
+                    continue
 
-                    break
+                font_path = Path(
+                    line
+                )
 
-            if not font_file:
+                if not font_path.is_file():
 
-                continue
+                    continue
 
-            font_path = Path(
-                font_file
-            )
+                actual_family = (
+                    get_font_family_from_path(
+                        font_path
+                    )
+                )
 
-            if not font_path.is_file():
+                if not actual_family:
 
-                continue
+                    actual_family = family
 
-            log(
-                "日本語フォント検出:"
-            )
+                log(
+                    "日本語フォントへフォールバック:"
+                )
 
-            log(
-                f"family: {family}"
-            )
+                log(
+                    f"family: {actual_family}"
+                )
 
-            log(
-                f"path: {font_path}"
-            )
+                log(
+                    f"path: {font_path}"
+                )
 
-            return {
+                return {
 
-                "path":
-                    font_path,
+                    "path":
+                        font_path,
 
-                "family":
-                    family
+                    "family":
+                        actual_family,
 
-            }
+                    "requested":
+                        requested_font
+
+                }
 
     # =================================
-    # fc-list
+    # 4. fc-list
     # =================================
 
     fc_list = shutil.which(
@@ -711,6 +777,13 @@ def find_japanese_font(
 
                         continue
 
+                    if "," in family:
+
+                        family = family.split(
+                            ",",
+                            1
+                        )[0].strip()
+
                     log(
                         "fc-list日本語フォント検出:"
                     )
@@ -729,7 +802,10 @@ def find_japanese_font(
                             font_path,
 
                         "family":
-                            family
+                            family,
+
+                        "requested":
+                            requested_font
 
                     }
 
@@ -740,7 +816,7 @@ def find_japanese_font(
             )
 
     # =================================
-    # 手動検索
+    # 5. 手動検索
     # =================================
 
     preferred_fonts = [
@@ -821,14 +897,26 @@ def find_japanese_font(
 
                         continue
 
+                    family = (
+                        get_font_family_from_path(
+                            match
+                        )
+                    )
+
+                    if not family:
+
+                        family = font_name
+
                     log(
                         "日本語フォント検出:"
                     )
 
                     log(
-                        str(
-                            match
-                        )
+                        f"path: {match}"
+                    )
+
+                    log(
+                        f"family: {family}"
                     )
 
                     return {
@@ -837,9 +925,10 @@ def find_japanese_font(
                             match,
 
                         "family":
-                            get_font_family_from_path(
-                                match
-                            )
+                            family,
+
+                        "requested":
+                            requested_font
 
                     }
 
@@ -856,75 +945,6 @@ def find_japanese_font(
     )
 
     return None
-
-
-# =====================================
-# フォントファミリー取得
-# =====================================
-
-def get_font_family_from_path(
-    font_path
-):
-
-    fc_scan = shutil.which(
-        "fc-scan"
-    )
-
-    if not fc_scan:
-
-        return None
-
-    try:
-
-        result = subprocess.run(
-
-            [
-                fc_scan,
-
-                "--format=%{family}",
-
-                str(font_path)
-
-            ],
-
-            stdout=subprocess.PIPE,
-
-            stderr=subprocess.PIPE,
-
-            text=True,
-
-            encoding="utf-8",
-
-            errors="replace",
-
-            timeout=30
-
-        )
-
-    except Exception:
-
-        return None
-
-    if result.returncode != 0:
-
-        return None
-
-    family = (
-        result.stdout.strip()
-    )
-
-    if not family:
-
-        return None
-
-    if "," in family:
-
-        family = family.split(
-            ",",
-            1
-        )[0].strip()
-
-    return family
 
 
 # =====================================
@@ -1045,7 +1065,7 @@ def make_subtitle_filter(
         )
 
     # =================================
-    # フォント
+    # 選択フォント
     # =================================
 
     selected_font = (
@@ -1133,6 +1153,35 @@ def make_subtitle_filter(
     )
 
     # =================================
+    # FontName決定
+    #
+    # 最優先:
+    # 実際に検出されたフォントfamily
+    #
+    # 次:
+    # subtitle_font.pyの選択値
+    #
+    # 最後:
+    # Noto Sans CJK JP
+    # =================================
+
+    font_name = None
+
+    if font_info:
+
+        font_name = font_info.get(
+            "family"
+        )
+
+    if not font_name:
+
+        font_name = selected_font
+
+    if not font_name:
+
+        font_name = "Noto Sans CJK JP"
+
+    # =================================
     # フォントディレクトリ
     # =================================
 
@@ -1171,28 +1220,6 @@ def make_subtitle_filter(
                     font_directory
                 )
             )
-
-    # =================================
-    # FontName
-    #
-    # subtitle_font.pyで選択したフォントを
-    # 優先する。
-    #
-    # 実際に検出されたフォント名がある場合は
-    # それをフォールバックとして使用する。
-    # =================================
-
-    font_name = selected_font
-
-    if not font_name and font_info:
-
-        font_name = font_info.get(
-            "family"
-        )
-
-    if not font_name:
-
-        font_name = "Noto Sans CJK JP"
 
     # =================================
     # ASS force_style
@@ -1237,12 +1264,29 @@ def make_subtitle_filter(
     # =================================
 
     log(
+        "====================================="
+    )
+
+    log(
         "字幕スタイル:"
     )
 
     log(
-        f"FontName: {font_name}"
+        f"subtitle_font.py選択値: "
+        f"{selected_font}"
     )
+
+    log(
+        f"実際に使用するFontName: "
+        f"{font_name}"
+    )
+
+    if font_info:
+
+        log(
+            f"フォントファイル: "
+            f"{font_info.get('path')}"
+        )
 
     log(
         f"文字色: {text_color_name}"
@@ -1262,6 +1306,10 @@ def make_subtitle_filter(
 
     log(
         f"縁太さ: {outline_width}"
+    )
+
+    log(
+        "====================================="
     )
 
     return video_filter
@@ -1302,19 +1350,13 @@ def embed_subtitle(
     # =================================
 
     mp4_path = validate_input_file(
-
         mp4_path,
-
         ".mp4"
-
     )
 
     srt_path = validate_input_file(
-
         srt_path,
-
         ".srt"
-
     )
 
     # =================================
@@ -1403,11 +1445,8 @@ def embed_subtitle(
     # =================================
 
     output_path.parent.mkdir(
-
         parents=True,
-
         exist_ok=True
-
     )
 
     # =================================
@@ -1443,7 +1482,7 @@ def embed_subtitle(
     ffmpeg_path = check_ffmpeg()
 
     # =================================
-    # 選択フォント
+    # subtitle_font.pyの選択フォント
     # =================================
 
     requested_font = (
@@ -1463,7 +1502,7 @@ def embed_subtitle(
     )
 
     # =================================
-    # 日本語フォント検索
+    # フォント検索
     # =================================
 
     font_info = find_japanese_font(
@@ -1473,23 +1512,21 @@ def embed_subtitle(
     if font_info:
 
         log(
-            "日本語字幕フォント:"
+            "字幕フォント確定:"
         )
 
         log(
-            str(
-                font_info.get("path")
-            )
+            f"選択値: {requested_font}"
         )
 
         log(
-            "検出フォント名:"
+            f"ファイル: "
+            f"{font_info.get('path')}"
         )
 
         log(
-            str(
-                font_info.get("family")
-            )
+            f"FontName: "
+            f"{font_info.get('family')}"
         )
 
     else:
@@ -1709,9 +1746,7 @@ def embed_subtitle(
     # =================================
 
     ffmpeg_output_lines = deque(
-
         maxlen=MAX_FFMPEG_LOG_LINES
-
     )
 
     # =================================
@@ -1920,9 +1955,6 @@ def embed_subtitle(
 
 # =====================================
 # 外部向け正式関数
-#
-# subtitle_routes.py から使用
-#
 # =====================================
 
 def create_subtitle_mp4(
@@ -2024,9 +2056,6 @@ def format_elapsed_time(
 
 # =====================================
 # downloads内から実行
-#
-# コマンドライン実行時は
-# subtitle_font.pyの標準設定を使用。
 # =====================================
 
 def embed_from_downloads(
@@ -2044,11 +2073,8 @@ def embed_from_downloads(
     ).name
 
     DOWNLOADS_DIR.mkdir(
-
         parents=True,
-
         exist_ok=True
-
     )
 
     mp4_path = (
@@ -2121,11 +2147,6 @@ def main():
     start_time = time.monotonic()
 
     try:
-
-        # ---------------------------------
-        # コマンドラインでは
-        # subtitle_font.pyの標準設定を使用
-        # ---------------------------------
 
         subtitle_settings = (
             get_default_subtitle_font_settings()
