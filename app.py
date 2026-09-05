@@ -143,8 +143,7 @@ register_subtitle_routes(app)
 # -------------------------------------
 
 register_completed_files(
-    app,
-    DOWNLOAD_DIR
+    app
 )
 
 
