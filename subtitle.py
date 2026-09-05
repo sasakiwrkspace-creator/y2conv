@@ -819,6 +819,8 @@ def get_font_family_from_path(
 # FFmpeg subtitles filter用
 # ファイルパスエスケープ
 #
+# Render / Linux環境を想定
+#
 # subtitles='filename'
 # のfilename用。
 # =====================================
@@ -829,20 +831,6 @@ def escape_ffmpeg_filter_path(
 
     path = str(
         Path(file_path).resolve()
-    )
-
-    # FFmpeg filtergraphでは
-    # Windows/Linuxどちらでも
-    # スラッシュ形式に統一する。
-    path = path.replace(
-        "\\",
-        "/"
-    )
-
-    # バックスラッシュ
-    path = path.replace(
-        "\\",
-        "\\\\"
     )
 
     # アポストロフィ
@@ -870,7 +858,6 @@ def escape_ffmpeg_filter_path(
     )
 
     return path
-
 
 # =====================================
 # FFmpeg字幕値エスケープ
