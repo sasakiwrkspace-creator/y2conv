@@ -12,6 +12,11 @@
 // ・タブ1のイベントを登録しない
 // ・タブ1のDOMを操作しない
 // ・/subtitle-* APIのみ使用
+//
+// フォント設定:
+// ・#subtitle-font-button を使用
+// ・選択中のプリセット名を保持
+// ・字幕MP4作成時にpreset_nameをAPIへ送信
 // =====================================
 
 (function () {
@@ -105,9 +110,13 @@
             );
 
 
-        const statusElement =
+        // =================================
+        // フォント選択ボタン
+        // =================================
+
+        const subtitleFontButton =
             document.getElementById(
-                "status"
+                "subtitle-font-button"
             );
 
 
@@ -193,6 +202,20 @@
             generatedSubtitleMp4Filename:
                 "",
 
+            // ---------------------------------
+            // 字幕フォントプリセット
+            // ---------------------------------
+            //
+            // 初期値:
+            // 標準
+            //
+            // subtitle_font.py側の
+            // プリセット名と一致させる。
+            // ---------------------------------
+
+            fontPreset:
+                "標準",
+
             isProcessing:
                 false
 
@@ -201,6 +224,196 @@
 
         window.subtitleState =
             subtitleState;
+
+
+        // =====================================
+        // フォントプリセット初期表示
+        // =====================================
+
+        function updateFontButton() {
+
+            if (!subtitleFontButton) {
+
+                return;
+
+            }
+
+
+            const presetName =
+                subtitleState.fontPreset ||
+                "標準";
+
+
+            subtitleFontButton.textContent =
+                presetName;
+
+
+            subtitleFontButton.title =
+                "字幕フォント: " +
+                presetName;
+
+        }
+
+
+        // =====================================
+        // フォントプリセット選択
+        //
+        // 現段階では5種類程度を
+        // JavaScript側で候補として持つ。
+        //
+        // 最終的なフォント設定値は
+        // subtitle_font.py側で管理する。
+        // =====================================
+
+        const FONT_PRESETS = [
+
+            "標準",
+
+            "ゴシック",
+
+            "明朝",
+
+            "太字ゴシック",
+
+            "太字明朝"
+
+        ];
+
+
+        function selectFontPreset() {
+
+            const currentIndex =
+                FONT_PRESETS.indexOf(
+                    subtitleState.fontPreset
+                );
+
+
+            const currentName =
+                subtitleState.fontPreset ||
+                "標準";
+
+
+            const message =
+                "字幕フォントを選択してください。\n\n" +
+                FONT_PRESETS
+                    .map(
+                        function (name, index) {
+
+                            return (
+                                (index + 1) +
+                                ". " +
+                                name
+                            );
+
+                        }
+                    )
+                    .join("\n") +
+                "\n\n" +
+                "現在: " +
+                currentName;
+
+
+            const input =
+                window.prompt(
+                    message,
+                    String(
+                        currentIndex >= 0
+                            ? currentIndex + 1
+                            : 1
+                    )
+                );
+
+
+            if (
+                input === null
+            ) {
+
+                return;
+
+            }
+
+
+            const selectedNumber =
+                Number(
+                    String(
+                        input
+                    ).trim()
+                );
+
+
+            if (
+                !Number.isInteger(
+                    selectedNumber
+                ) ||
+                selectedNumber < 1 ||
+                selectedNumber > FONT_PRESETS.length
+            ) {
+
+                alert(
+                    "フォント番号が正しくありません。"
+                );
+
+                return;
+
+            }
+
+
+            const selectedPreset =
+                FONT_PRESETS[
+                    selectedNumber - 1
+                ];
+
+
+            subtitleState.fontPreset =
+                selectedPreset;
+
+
+            updateFontButton();
+
+
+            console.log(
+                "[SUBTITLE] font preset selected:",
+                selectedPreset
+            );
+
+        }
+
+
+        // =====================================
+        // フォントボタン
+        // =====================================
+
+        if (subtitleFontButton) {
+
+            subtitleFontButton.addEventListener(
+                "click",
+                function (event) {
+
+                    event.preventDefault();
+
+
+                    if (
+                        subtitleState.isProcessing
+                    ) {
+
+                        return;
+
+                    }
+
+
+                    selectFontPreset();
+
+                }
+            );
+
+        }
+        else {
+
+            console.warn(
+                "[SUBTITLE] #subtitle-font-button がありません"
+            );
+
+        }
 
 
         // =====================================
@@ -217,8 +430,6 @@
 
         // =====================================
         // 経過時間フォーマット
-        //
-        // converterUtils.js は使用しない。
         // =====================================
 
         function formatElapsed(
@@ -290,8 +501,6 @@
 
         // =====================================
         // ダウンロードURL
-        //
-        // converterUtils.js は使用しない。
         // =====================================
 
         function makeDownloadUrl(
@@ -467,33 +676,6 @@
                 );
 
 
-            if (statusElement) {
-
-                statusElement.textContent =
-                    text;
-
-
-                statusElement.style.whiteSpace =
-                    "pre-line";
-
-
-                statusElement.classList.remove(
-                    "error",
-                    "success"
-                );
-
-
-                if (type) {
-
-                    statusElement.classList.add(
-                        type
-                    );
-
-                }
-
-            }
-
-
             if (conversionStatusArea) {
 
                 conversionStatusArea.textContent =
@@ -528,20 +710,6 @@
         // =====================================
 
         function clearStatus() {
-
-            if (statusElement) {
-
-                statusElement.textContent =
-                    "";
-
-
-                statusElement.classList.remove(
-                    "error",
-                    "success"
-                );
-
-            }
-
 
             if (conversionStatusArea) {
 
@@ -734,8 +902,6 @@
 
         // =====================================
         // MP3 → SRT
-        //
-        // タブ2専用
         // =====================================
 
         async function createSrtWithGemini(
@@ -812,6 +978,9 @@
 
         // =====================================
         // 字幕MP4
+        //
+        // ★変更:
+        // preset_nameをサーバーへ送信
         // =====================================
 
         async function embedSubtitle(
@@ -835,6 +1004,17 @@
                 );
 
             }
+
+
+            const presetName =
+                subtitleState.fontPreset ||
+                "標準";
+
+
+            console.log(
+                "[SUBTITLE] subtitle preset:",
+                presetName
+            );
 
 
             const response =
@@ -861,7 +1041,10 @@
                                     mp4Filename,
 
                                 srt_file:
-                                    srtFilename
+                                    srtFilename,
+
+                                preset_name:
+                                    presetName
 
                             })
 
@@ -1063,8 +1246,6 @@
 
         // =====================================
         // MP3選択
-        //
-        // タブ2のボタンだけ
         // =====================================
 
         mp3SelectButton.addEventListener(
@@ -1223,8 +1404,6 @@
 
         // =====================================
         // Geminiボタン
-        //
-        // タブ2専用
         // =====================================
 
         geminiButton.addEventListener(
@@ -1293,10 +1472,6 @@
 
 
                 try {
-
-                    // ---------------------------------
-                    // MP3 → Gemini → SRT
-                    // ---------------------------------
 
                     startElapsedTimer(
                         "MP3をアップロードしています..."
@@ -1403,9 +1578,6 @@
 
         // =====================================
         // 字幕MP4作成
-        //
-        // MP4 + SRTをアップロードして
-        // 字幕MP4を作成
         // =====================================
 
         subtitleMp4Button.addEventListener(
@@ -1502,6 +1674,14 @@
                     true;
 
 
+                if (subtitleFontButton) {
+
+                    subtitleFontButton.disabled =
+                        true;
+
+                }
+
+
                 startProcessing();
 
 
@@ -1580,6 +1760,9 @@
                     setStatus(
 
                         "字幕mp4の作成が完了しました。\n\n" +
+                        "フォント: " +
+                        subtitleState.fontPreset +
+                        "\n\n" +
                         getElapsedText(),
 
                         "success"
@@ -1602,6 +1785,7 @@
                         "[SUBTITLE] 字幕MP4作成完了:",
                         embedResult.filename
                     );
+
 
                 }
                 catch (error) {
@@ -1645,6 +1829,14 @@
                         null;
 
 
+                    if (subtitleFontButton) {
+
+                        subtitleFontButton.disabled =
+                            false;
+
+                    }
+
+
                     updateSubtitleMp4Button();
 
                 }
@@ -1655,10 +1847,6 @@
 
         // =====================================
         // 外部公開
-        //
-        // 関数を公開するだけ。
-        //
-        // タブ1のイベント登録はしない。
         // =====================================
 
         mainObject.createSrtWithGemini =
@@ -1689,6 +1877,40 @@
             };
 
 
+        mainObject.getFontPreset =
+            function () {
+
+                return subtitleState.fontPreset;
+
+            };
+
+
+        mainObject.setFontPreset =
+            function (presetName) {
+
+                if (
+                    !FONT_PRESETS.includes(
+                        presetName
+                    )
+                ) {
+
+                    throw new Error(
+                        "存在しないフォントプリセットです: " +
+                        presetName
+                    );
+
+                }
+
+
+                subtitleState.fontPreset =
+                    presetName;
+
+
+                updateFontButton();
+
+            };
+
+
         mainObject.clearResult =
             clearStatus;
 
@@ -1696,6 +1918,9 @@
         // =====================================
         // 初期表示
         // =====================================
+
+        updateFontButton();
+
 
         updateFileDisplay(
 
