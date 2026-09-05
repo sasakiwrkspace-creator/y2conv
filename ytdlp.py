@@ -10,24 +10,78 @@ from pathlib import Path
 
 
 # ==========================================================
+# config
+# ==========================================================
+
+try:
+
+    from config import (
+        COOKIES_FILE,
+        DENO_PATH as CONFIG_DENO_PATH
+    )
+
+except Exception as e:
+
+    print(
+        "[DEBUG] config import ERROR:",
+        repr(e),
+        flush=True
+    )
+
+    traceback.print_exc()
+
+    raise
+
+
+# ==========================================================
 # 起動時 DEBUG
 # ==========================================================
 
-print("==========================================", flush=True)
-print("[DEBUG] ytdlp.py loaded", flush=True)
-print("[DEBUG] Python:", sys.version, flush=True)
-print("[DEBUG] Python executable:", sys.executable, flush=True)
-print("[DEBUG] Current working directory:", os.getcwd(), flush=True)
-print("[DEBUG] yt-dlp module loading...", flush=True)
+print(
+    "==========================================",
+    flush=True
+)
+
+print(
+    "[DEBUG] ytdlp.py loaded",
+    flush=True
+)
+
+print(
+    "[DEBUG] Python:",
+    sys.version,
+    flush=True
+)
+
+print(
+    "[DEBUG] Python executable:",
+    sys.executable,
+    flush=True
+)
+
+print(
+    "[DEBUG] Current working directory:",
+    os.getcwd(),
+    flush=True
+)
+
+print(
+    "[DEBUG] yt-dlp module loading...",
+    flush=True
+)
 
 
 # ==========================================================
 # Deno PATH
+#
+# config.py の設定を使用。
+#
+# config.py 側で shutil.which("deno") を使用しているため、
+# Render環境のPATHに存在するDenoを利用する。
 # ==========================================================
 
-DENO_PATH = os.environ.get(
-    "DENO_PATH",
-    "/app/.deno/bin/deno"
+DENO_PATH = (
+    CONFIG_DENO_PATH
 )
 
 print(
@@ -45,10 +99,26 @@ print(
 
 # ==========================================================
 # Cookie
+#
+# config.py の COOKIES_FILE を使用。
 # ==========================================================
 
 COOKIES_SOURCE = (
-    "/etc/secrets/cookies.txt"
+    COOKIES_FILE
+)
+
+print(
+    "[DEBUG] COOKIES_SOURCE:",
+    COOKIES_SOURCE,
+    flush=True
+)
+
+print(
+    "[DEBUG] COOKIES_SOURCE exists:",
+    os.path.isfile(
+        COOKIES_SOURCE
+    ),
+    flush=True
 )
 
 
@@ -132,13 +202,26 @@ print(
 
 print(
     "[DEBUG] Deno exists:",
-    os.path.isfile(DENO_PATH),
+    bool(
+        DENO_PATH
+        and
+        os.path.isfile(
+            DENO_PATH
+        )
+    ),
     flush=True
 )
 
 print(
     "[DEBUG] Deno executable:",
-    os.access(DENO_PATH, os.X_OK),
+    bool(
+        DENO_PATH
+        and
+        os.access(
+            DENO_PATH,
+            os.X_OK
+        )
+    ),
     flush=True
 )
 
@@ -149,7 +232,11 @@ print(
 )
 
 
-if os.path.isfile(DENO_PATH):
+if (
+    DENO_PATH
+    and
+    os.path.isfile(DENO_PATH)
+):
 
     try:
 
@@ -341,6 +428,14 @@ def _sanitize_filename(
 
 # ==========================================================
 # Cookie準備
+#
+# Render Secret File:
+#
+# /etc/secrets/cookies.txt
+#
+# を一時ファイルへコピーしてyt-dlpへ渡す。
+#
+# Cookieの内容そのものはログへ出さない。
 # ==========================================================
 
 def _prepare_cookie_file():
@@ -361,6 +456,12 @@ def _prepare_cookie_file():
         flush=True
     )
 
+    if not COOKIES_SOURCE:
+
+        raise RuntimeError(
+            "COOKIES_FILE が設定されていません。"
+        )
+
     if not os.path.isfile(
         COOKIES_SOURCE
     ):
@@ -368,7 +469,7 @@ def _prepare_cookie_file():
         raise FileNotFoundError(
             "Cookieファイルが見つかりません: "
             +
-            COOKIES_SOURCE
+            str(COOKIES_SOURCE)
         )
 
     temporary_cookie_path = None
@@ -391,8 +492,61 @@ def _prepare_cookie_file():
             raise RuntimeError(
                 "Cookieファイルのサイズが0です: "
                 +
-                COOKIES_SOURCE
+                str(COOKIES_SOURCE)
             )
+
+        # ==================================================
+        # Cookieのデータ行数確認
+        #
+        # 内容そのものは出力しない。
+        # ==================================================
+
+        cookie_data_lines = 0
+
+        try:
+
+            with open(
+                COOKIES_SOURCE,
+                "r",
+                encoding="utf-8",
+                errors="replace"
+            ) as cookie_file:
+
+                for line in cookie_file:
+
+                    stripped = line.strip()
+
+                    if not stripped:
+                        continue
+
+                    if stripped.startswith("#"):
+                        continue
+
+                    cookie_data_lines += 1
+
+        except Exception as e:
+
+            print(
+                "[DEBUG] Cookie line check ERROR:",
+                repr(e),
+                flush=True
+            )
+
+        print(
+            "[DEBUG] Cookie data lines:",
+            cookie_data_lines,
+            flush=True
+        )
+
+        if cookie_data_lines <= 0:
+
+            raise RuntimeError(
+                "CookieファイルにCookieデータがありません。"
+            )
+
+        # ==================================================
+        # 一時Cookie
+        # ==================================================
 
         temporary_cookie_file = (
             tempfile.NamedTemporaryFile(
@@ -436,6 +590,24 @@ def _prepare_cookie_file():
             raise RuntimeError(
                 "一時Cookieファイルのサイズが0です。"
             )
+
+        # ==================================================
+        # 権限確認
+        # ==================================================
+
+        if not os.access(
+            temporary_cookie_path,
+            os.R_OK
+        ):
+
+            raise RuntimeError(
+                "一時Cookieファイルを読み込めません。"
+            )
+
+        print(
+            "[DEBUG] Cookie準備完了",
+            flush=True
+        )
 
         return temporary_cookie_path
 
@@ -530,6 +702,27 @@ def _build_ydl_options(
 
             "ejs:github"
 
+        },
+
+        # ==================================================
+        # YouTube HTTP headers
+        # ==================================================
+
+        "http_headers": {
+
+            "User-Agent":
+                (
+                    "Mozilla/5.0 "
+                    "(Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 "
+                    "(KHTML, like Gecko) "
+                    "Chrome/131.0.0.0 "
+                    "Safari/537.36"
+                ),
+
+            "Accept-Language":
+                "ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7"
+
         }
 
     }
@@ -543,6 +736,13 @@ def _build_ydl_options(
         ydl_opts[
             "cookiefile"
         ] = temporary_cookie_path
+
+    else:
+
+        print(
+            "[DEBUG] WARNING: cookiefile is NOT configured",
+            flush=True
+        )
 
     # ======================================================
     # DEBUG
@@ -583,33 +783,6 @@ def _build_ydl_options(
         ),
         flush=True
     )
-
-    # ======================================================
-    # YouTube用HTTP設定
-    #
-    # Cookieを利用するための基本設定。
-    # ======================================================
-
-    ydl_opts.update({
-
-        "http_headers": {
-
-            "User-Agent":
-                (
-                    "Mozilla/5.0 "
-                    "(Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 "
-                    "(KHTML, like Gecko) "
-                    "Chrome/131.0.0.0 "
-                    "Safari/537.36"
-                ),
-
-            "Accept-Language":
-                "en-US,en;q=0.9"
-
-        }
-
-    })
 
     return ydl_opts
 
@@ -724,7 +897,10 @@ def get_youtube_info(
 # YouTube → source
 #
 # MP3用途なので、
-# 「best」ではなく「bestaudio/best」を使用する。
+# bestaudio/best を使用。
+#
+# extract_info()を1回だけ実行して
+# download=Trueで取得する。
 # ==========================================================
 
 def download_source(
@@ -753,7 +929,9 @@ def download_source(
             "YouTube URLが空です"
         )
 
-    output_dir = _get_download_dir()
+    output_dir = (
+        _get_download_dir()
+    )
 
     temporary_cookie_path = None
 
@@ -768,9 +946,7 @@ def download_source(
         )
 
         # ==================================================
-        # MP3用source
-        #
-        # 音声優先。
+        # yt-dlp options
         # ==================================================
 
         ydl_opts = _build_ydl_options(
@@ -799,13 +975,17 @@ def download_source(
         ) as ydl:
 
             print(
-                "[DEBUG] download_source extract START",
+                "[DEBUG] download_source extract/download START",
                 flush=True
             )
 
+            # ==================================================
+            # 1回だけextract_info
+            # ==================================================
+
             info = ydl.extract_info(
                 url,
-                download=False
+                download=True
             )
 
             if info is None:
@@ -843,26 +1023,6 @@ def download_source(
                 expected_filename,
                 flush=True
             )
-
-            print(
-                "[DEBUG] download_source download START",
-                flush=True
-            )
-
-            # ==================================================
-            # extract_info(download=True)を使用
-            #
-            # download(url)より一貫した処理にする。
-            # ==================================================
-
-            downloaded_info = ydl.extract_info(
-                url,
-                download=True
-            )
-
-            if downloaded_info:
-
-                info = downloaded_info
 
             print(
                 "[DEBUG] download_source download SUCCESS",
@@ -1158,6 +1318,12 @@ def _download_with_ytdlp(
             ydl_opts
         ) as ydl:
 
+            print(
+                "[DEBUG] _download_with_ytdlp START:",
+                mode_name,
+                flush=True
+            )
+
             info = ydl.extract_info(
                 url,
                 download=True
@@ -1265,6 +1431,12 @@ def _download_with_ytdlp(
                 f"{mode_name} "
                 "ファイルサイズが0です"
             )
+
+        print(
+            "[DEBUG] _download_with_ytdlp COMPLETE:",
+            downloaded_file,
+            flush=True
+        )
 
         return {
 
