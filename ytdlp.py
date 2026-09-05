@@ -10,109 +10,25 @@ from pathlib import Path
 
 
 # ==========================================================
-# config
-# ==========================================================
-
-try:
-
-    from config import (
-        COOKIES_FILE,
-        DENO_PATH,
-        FFMPEG_PATH,
-        FFPROBE_PATH
-    )
-
-except Exception as e:
-
-    print(
-        "[DEBUG] config import ERROR:",
-        repr(e),
-        flush=True
-    )
-
-    traceback.print_exc()
-
-    raise
-
-
-# ==========================================================
 # 起動時 DEBUG
 # ==========================================================
 
-print(
-    "==========================================",
-    flush=True
-)
-
-print(
-    "[DEBUG] ytdlp.py loaded",
-    flush=True
-)
-
-print(
-    "[DEBUG] Python:",
-    sys.version,
-    flush=True
-)
-
-print(
-    "[DEBUG] Python executable:",
-    sys.executable,
-    flush=True
-)
-
-print(
-    "[DEBUG] Current working directory:",
-    os.getcwd(),
-    flush=True
-)
-
-print(
-    "[DEBUG] yt-dlp module loading...",
-    flush=True
-)
-
-
-# ==========================================================
-# YouTube Cookie
-# ==========================================================
-
-COOKIES_SOURCE = COOKIES_FILE
-
-
-print(
-    "[DEBUG] COOKIES_SOURCE:",
-    COOKIES_SOURCE,
-    flush=True
-)
-
-print(
-    "[DEBUG] Cookie exists:",
-    os.path.isfile(COOKIES_SOURCE),
-    flush=True
-)
-
-if os.path.isfile(COOKIES_SOURCE):
-
-    try:
-
-        print(
-            "[DEBUG] Cookie size:",
-            os.path.getsize(
-                COOKIES_SOURCE
-            ),
-            "bytes",
-            flush=True
-        )
-
-    except Exception:
-
-        pass
+print("==========================================", flush=True)
+print("[DEBUG] ytdlp.py loaded", flush=True)
+print("[DEBUG] Python:", sys.version, flush=True)
+print("[DEBUG] Python executable:", sys.executable, flush=True)
+print("[DEBUG] Current working directory:", os.getcwd(), flush=True)
+print("[DEBUG] yt-dlp module loading...", flush=True)
 
 
 # ==========================================================
 # Deno
 # ==========================================================
+
+DENO_PATH = os.environ.get(
+    "DENO_PATH",
+    "/app/.deno/bin/deno"
+)
 
 print(
     "[DEBUG] DENO_PATH:",
@@ -126,93 +42,24 @@ print(
     flush=True
 )
 
+
+# ==========================================================
+# Cookie
+# ==========================================================
+
+COOKIES_SOURCE = "/etc/secrets/cookies.txt"
+
 print(
-    "[DEBUG] deno which:",
-    shutil.which("deno"),
+    "[DEBUG] COOKIES_SOURCE:",
+    COOKIES_SOURCE,
     flush=True
 )
 
-if DENO_PATH:
-
-    print(
-        "[DEBUG] Deno exists:",
-        os.path.isfile(
-            DENO_PATH
-        ),
-        flush=True
-    )
-
-    print(
-        "[DEBUG] Deno executable:",
-        os.access(
-            DENO_PATH,
-            os.X_OK
-        ),
-        flush=True
-    )
-
-else:
-
-    print(
-        "[DEBUG] Deno NOT FOUND",
-        flush=True
-    )
-
-
-# ==========================================================
-# Deno version
-# ==========================================================
-
-if (
-    DENO_PATH
-    and
-    os.path.isfile(DENO_PATH)
-):
-
-    try:
-
-        result = subprocess.run(
-
-            [
-                DENO_PATH,
-                "--version"
-            ],
-
-            capture_output=True,
-
-            text=True,
-
-            timeout=10
-
-        )
-
-        print(
-            "[DEBUG] deno returncode:",
-            result.returncode,
-            flush=True
-        )
-
-        print(
-            "[DEBUG] deno stdout:",
-            result.stdout,
-            flush=True
-        )
-
-        print(
-            "[DEBUG] deno stderr:",
-            result.stderr,
-            flush=True
-        )
-
-    except Exception as e:
-
-        print(
-            "[DEBUG] deno execution ERROR:",
-            repr(e),
-            flush=True
-        )
-
-        traceback.print_exc()
+print(
+    "[DEBUG] Cookie exists:",
+    os.path.isfile(COOKIES_SOURCE),
+    flush=True
+)
 
 
 # ==========================================================
@@ -254,7 +101,7 @@ except Exception as e:
 
 
 # ==========================================================
-# yt-dlp-ejs
+# yt-dlp-ejs確認
 # ==========================================================
 
 try:
@@ -284,61 +131,155 @@ except Exception as e:
 
 
 # ==========================================================
-# FFmpeg
+# Deno確認
 # ==========================================================
 
 print(
-    "[DEBUG] FFMPEG_PATH:",
-    FFMPEG_PATH,
+    "[DEBUG] Deno configured path:",
+    DENO_PATH,
     flush=True
 )
 
 print(
-    "[DEBUG] FFPROBE_PATH:",
-    FFPROBE_PATH,
+    "[DEBUG] Deno exists:",
+    os.path.isfile(DENO_PATH),
     flush=True
 )
 
 print(
-    "[DEBUG] ffmpeg which:",
+    "[DEBUG] Deno executable:",
+    os.access(DENO_PATH, os.X_OK),
+    flush=True
+)
+
+print(
+    "[DEBUG] Deno which:",
+    shutil.which("deno"),
+    flush=True
+)
+
+
+if os.path.isfile(DENO_PATH):
+
+    try:
+
+        result = subprocess.run(
+            [
+                DENO_PATH,
+                "--version"
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+
+        print(
+            "[DEBUG] deno returncode:",
+            result.returncode,
+            flush=True
+        )
+
+        print(
+            "[DEBUG] deno stdout:",
+            result.stdout,
+            flush=True
+        )
+
+        print(
+            "[DEBUG] deno stderr:",
+            result.stderr,
+            flush=True
+        )
+
+    except Exception as e:
+
+        print(
+            "[DEBUG] deno execution ERROR:",
+            repr(e),
+            flush=True
+        )
+
+        traceback.print_exc()
+
+else:
+
+    print(
+        "[DEBUG] Deno NOT FOUND:",
+        DENO_PATH,
+        flush=True
+    )
+
+
+# ==========================================================
+# FFmpeg確認
+# ==========================================================
+
+print(
+    "[DEBUG] ffmpeg path:",
     shutil.which("ffmpeg"),
     flush=True
 )
 
 print(
-    "[DEBUG] ffprobe which:",
+    "[DEBUG] ffprobe path:",
     shutil.which("ffprobe"),
     flush=True
 )
 
-print(
-    "==========================================",
-    flush=True
-)
+
+try:
+
+    result = subprocess.run(
+        [
+            "ffmpeg",
+            "-version"
+        ],
+        capture_output=True,
+        text=True,
+        timeout=10
+    )
+
+    print(
+        "[DEBUG] ffmpeg returncode:",
+        result.returncode,
+        flush=True
+    )
+
+    if result.stdout:
+
+        print(
+            "[DEBUG] ffmpeg version:",
+            result.stdout.splitlines()[0],
+            flush=True
+        )
+
+except Exception as e:
+
+    print(
+        "[DEBUG] ffmpeg execution ERROR:",
+        repr(e),
+        flush=True
+    )
+
+
+print("==========================================", flush=True)
 
 
 # ==========================================================
-# downloads
+# downloadsフォルダ
 # ==========================================================
 
 def _get_download_dir():
 
     download_dir = (
-
-        Path(
-            os.getcwd()
-        )
+        Path(os.getcwd())
         /
         "downloads"
-
     )
 
     download_dir.mkdir(
-
         parents=True,
-
         exist_ok=True
-
     )
 
     return download_dir
@@ -348,9 +289,7 @@ def _get_download_dir():
 # ファイル名安全化
 # ==========================================================
 
-def _sanitize_filename(
-    title
-):
+def _sanitize_filename(title):
 
     if not title:
 
@@ -412,6 +351,11 @@ def _sanitize_filename(
 def _validate_cookie_file():
 
     print(
+        "==========================================",
+        flush=True
+    )
+
+    print(
         "[DEBUG] Cookie validation START",
         flush=True
     )
@@ -420,23 +364,21 @@ def _validate_cookie_file():
         COOKIES_SOURCE
     )
 
-    if not cookie_path.is_file():
-
-        raise FileNotFoundError(
-
-            "Cookieファイルが見つかりません: "
-            +
-            str(cookie_path)
-
-        )
-
-    size = cookie_path.stat().st_size
-
     print(
         "[DEBUG] Cookie path:",
         cookie_path,
         flush=True
     )
+
+    if not cookie_path.is_file():
+
+        raise FileNotFoundError(
+            "Cookieファイルが見つかりません: "
+            +
+            str(cookie_path)
+        )
+
+    size = cookie_path.stat().st_size
 
     print(
         "[DEBUG] Cookie size:",
@@ -448,36 +390,28 @@ def _validate_cookie_file():
     if size <= 0:
 
         raise RuntimeError(
-
             "Cookieファイルのサイズが0です: "
             +
             str(cookie_path)
-
         )
 
     # ------------------------------------------------------
-    # Cookieファイル形式確認
-    #
-    # Cookieの値そのものはログに出さない。
+    # Netscape形式確認
+    # Cookieの値そのものはログに出さない
     # ------------------------------------------------------
 
     try:
 
         with open(
-
             cookie_path,
-
             "r",
-
             encoding="utf-8",
-
             errors="replace"
-
         ) as f:
 
             first_lines = []
 
-            for _ in range(10):
+            for _ in range(20):
 
                 line = f.readline()
 
@@ -486,21 +420,16 @@ def _validate_cookie_file():
                     break
 
                 first_lines.append(
-                    line.rstrip(
-                        "\r\n"
-                    )
+                    line.rstrip("\r\n")
                 )
 
         valid_header = any(
-
             line.strip()
             in (
                 "# HTTP Cookie File",
                 "# Netscape HTTP Cookie File"
             )
-
             for line in first_lines
-
         )
 
         print(
@@ -508,12 +437,6 @@ def _validate_cookie_file():
             valid_header,
             flush=True
         )
-
-        # --------------------------------------------------
-        # Cookie行数
-        #
-        # 値は表示しない。
-        # --------------------------------------------------
 
         cookie_line_count = 0
 
@@ -562,6 +485,11 @@ def _validate_cookie_file():
         flush=True
     )
 
+    print(
+        "==========================================",
+        flush=True
+    )
+
     return str(
         cookie_path
     )
@@ -570,8 +498,7 @@ def _validate_cookie_file():
 # ==========================================================
 # Cookie準備
 #
-# Render Secret等から取得したCookieを
-# 一時ファイルへコピーする。
+# 元Cookieを一時ファイルへコピーする。
 # ==========================================================
 
 def _prepare_cookie_file():
@@ -592,20 +519,30 @@ def _prepare_cookie_file():
 
     try:
 
-        temporary_cookie_file = (
+        source_size = os.path.getsize(
+            source_path
+        )
 
-            tempfile.NamedTemporaryFile(
+        print(
+            "[DEBUG] 元Cookieサイズ:",
+            source_size,
+            "bytes",
+            flush=True
+        )
 
-                mode="wb",
+        if source_size <= 0:
 
-                suffix=".txt",
-
-                prefix="y2conv_cookies_",
-
-                delete=False
-
+            raise RuntimeError(
+                "元Cookieファイルのサイズが0です。"
             )
 
+        temporary_cookie_file = (
+            tempfile.NamedTemporaryFile(
+                mode="wb",
+                suffix=".txt",
+                prefix="y2conv_cookies_",
+                delete=False
+            )
         )
 
         temporary_cookie_path = (
@@ -615,11 +552,8 @@ def _prepare_cookie_file():
         temporary_cookie_file.close()
 
         shutil.copyfile(
-
             source_path,
-
             temporary_cookie_path
-
         )
 
         copied_size = os.path.getsize(
@@ -648,9 +582,7 @@ def _prepare_cookie_file():
         if copied_size <= 0:
 
             raise RuntimeError(
-
                 "一時Cookieファイルのサイズが0です。"
-
             )
 
         return temporary_cookie_path
@@ -706,19 +638,14 @@ def _build_ydl_options(
     )
 
     output_dir.mkdir(
-
         parents=True,
-
         exist_ok=True
-
     )
 
     download_template = str(
-
         output_dir
         /
         "%(id)s.%(ext)s"
-
     )
 
     ydl_opts = {
@@ -758,23 +685,7 @@ def _build_ydl_options(
             True,
 
         # --------------------------------------------------
-        # JavaScript Runtime
-        # --------------------------------------------------
-
-        "js_runtimes":
-            {},
-
-        # --------------------------------------------------
-        # EJS
-        # --------------------------------------------------
-
-        "remote_components":
-            {
-                "ejs:github"
-            },
-
-        # --------------------------------------------------
-        # HTTP Headers
+        # HTTP
         # --------------------------------------------------
 
         "http_headers": {
@@ -792,6 +703,14 @@ def _build_ydl_options(
             "Accept-Language":
                 "ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7"
 
+        },
+
+        # --------------------------------------------------
+        # EJS
+        # --------------------------------------------------
+
+        "remote_components": {
+            "ejs:github"
         }
 
     }
@@ -800,43 +719,38 @@ def _build_ydl_options(
     # Deno
     # ======================================================
 
-    if DENO_PATH:
+    if (
+        DENO_PATH
+        and
+        os.path.isfile(DENO_PATH)
+        and
+        os.access(DENO_PATH, os.X_OK)
+    ):
 
-        deno_path = Path(
-            DENO_PATH
-        )
+        ydl_opts[
+            "js_runtimes"
+        ] = {
 
-        if deno_path.is_file():
+            "deno": {
 
-            ydl_opts[
-                "js_runtimes"
-            ] = {
-
-                "deno": {
-
-                    "path":
-                        str(deno_path)
-
-                }
+                "path":
+                    DENO_PATH
 
             }
 
-            print(
-                "[DEBUG] Deno runtime ENABLED:",
-                deno_path,
-                flush=True
-            )
+        }
 
-        else:
-
-            print(
-                "[DEBUG] WARNING: "
-                "DENO_PATH does not point to a file:",
-                DENO_PATH,
-                flush=True
-            )
+        print(
+            "[DEBUG] Deno runtime ENABLED:",
+            DENO_PATH,
+            flush=True
+        )
 
     else:
+
+        ydl_opts[
+            "js_runtimes"
+        ] = {}
 
         print(
             "[DEBUG] Deno runtime DISABLED",
@@ -856,11 +770,9 @@ def _build_ydl_options(
         if not cookie_path.is_file():
 
             raise FileNotFoundError(
-
                 "一時Cookieファイルが存在しません: "
                 +
                 str(cookie_path)
-
             )
 
         cookie_size = cookie_path.stat().st_size
@@ -895,7 +807,7 @@ def _build_ydl_options(
 
     print(
         "[DEBUG] yt-dlp Deno:",
-        DENO_PATH,
+        ydl_opts.get("js_runtimes"),
         flush=True
     )
 
@@ -906,46 +818,20 @@ def _build_ydl_options(
     )
 
     print(
-        "[DEBUG] yt-dlp cookie exists:",
+        "[DEBUG] yt-dlp cookie enabled:",
         bool(
-
-            temporary_cookie_path
-            and
-            os.path.isfile(
-                temporary_cookie_path
+            ydl_opts.get(
+                "cookiefile"
             )
-
         ),
         flush=True
     )
 
     print(
-        "[DEBUG] yt-dlp options:",
-        {
-            "format":
-                ydl_opts.get("format"),
-
-            "outtmpl":
-                ydl_opts.get("outtmpl"),
-
-            "cookiefile":
-                bool(
-                    ydl_opts.get(
-                        "cookiefile"
-                    )
-                ),
-
-            "js_runtimes":
-                ydl_opts.get(
-                    "js_runtimes"
-                ),
-
-            "remote_components":
-                ydl_opts.get(
-                    "remote_components"
-                )
-
-        },
+        "[DEBUG] yt-dlp EJS:",
+        ydl_opts.get(
+            "remote_components"
+        ),
         flush=True
     )
 
@@ -956,9 +842,7 @@ def _build_ydl_options(
 # YouTube情報取得
 # ==========================================================
 
-def get_youtube_info(
-    url
-):
+def get_youtube_info(url):
 
     temporary_cookie_path = None
 
@@ -987,7 +871,7 @@ def get_youtube_info(
             )
 
         # --------------------------------------------------
-        # Cookie準備
+        # Cookie
         # --------------------------------------------------
 
         temporary_cookie_path = (
@@ -995,7 +879,7 @@ def get_youtube_info(
         )
 
         # --------------------------------------------------
-        # yt-dlp options
+        # Options
         # --------------------------------------------------
 
         ydl_opts = _build_ydl_options(
@@ -1021,11 +905,8 @@ def get_youtube_info(
         ) as ydl:
 
             info = ydl.extract_info(
-
                 url,
-
                 download=False
-
             )
 
         if not info:
@@ -1049,6 +930,20 @@ def get_youtube_info(
         print(
             "[INFO] Duration:",
             info.get("duration"),
+            flush=True
+        )
+
+        print(
+            "[INFO] Extractor:",
+            info.get("extractor"),
+            flush=True
+        )
+
+        print(
+            "[INFO] Format count:",
+            len(
+                info.get("formats") or []
+            ),
             flush=True
         )
 
@@ -1116,9 +1011,7 @@ def get_youtube_info(
 # MP3用途
 # ==========================================================
 
-def download_source(
-    url
-):
+def download_source(url):
 
     print(
         "==========================================",
@@ -1157,7 +1050,7 @@ def download_source(
         )
 
         # --------------------------------------------------
-        # yt-dlp options
+        # MP3用途なので音声優先
         # --------------------------------------------------
 
         ydl_opts = _build_ydl_options(
@@ -1185,21 +1078,27 @@ def download_source(
             ydl_opts
         ) as ydl:
 
-            # ==================================================
-            # 情報取得
-            # ==================================================
-
             print(
-                "[DEBUG] download_source extract START",
+                "[DEBUG] download_source extract/download START",
                 flush=True
             )
 
+            # --------------------------------------------------
+            # ここで一度だけ extract_info(download=True)
+            #
+            # 以前のコードでは
+            #
+            # extract_info(download=False)
+            # ↓
+            # ydl.download()
+            #
+            # と二重にYouTubeへアクセスしていた。
+            #
+            # --------------------------------------------------
+
             info = ydl.extract_info(
-
                 url,
-
-                download=False
-
+                download=True
             )
 
             if info is None:
@@ -1226,9 +1125,11 @@ def download_source(
                 flush=True
             )
 
-            # ==================================================
-            # 期待ファイル名
-            # ==================================================
+            print(
+                "[DEBUG] source extractor:",
+                info.get("extractor"),
+                flush=True
+            )
 
             expected_filename = (
                 ydl.prepare_filename(
@@ -1242,29 +1143,6 @@ def download_source(
                 flush=True
             )
 
-            # ==================================================
-            # ダウンロード
-            # ==================================================
-
-            print(
-                "[DEBUG] download_source download START",
-                flush=True
-            )
-
-            downloaded_info = (
-                ydl.extract_info(
-
-                    url,
-
-                    download=True
-
-                )
-            )
-
-            if downloaded_info:
-
-                info = downloaded_info
-
             print(
                 "[DEBUG] download_source download SUCCESS",
                 flush=True
@@ -1277,7 +1155,7 @@ def download_source(
         downloaded_file = None
 
         # ------------------------------------------------------
-        # 期待ファイル
+        # 1. prepare_filename
         # ------------------------------------------------------
 
         if expected_filename:
@@ -1299,7 +1177,7 @@ def download_source(
                 )
 
         # ------------------------------------------------------
-        # ID検索
+        # 2. ID検索
         # ------------------------------------------------------
 
         if downloaded_file is None:
@@ -1317,17 +1195,13 @@ def download_source(
                 ):
 
                     if not path.is_file():
-
                         continue
 
                     if path.suffix.lower() in (
-
                         ".part",
                         ".ytdl",
                         ".temp"
-
                     ):
-
                         continue
 
                     try:
@@ -1339,7 +1213,6 @@ def download_source(
                         size = 0
 
                     if size <= 0:
-
                         continue
 
                     possible_files.append(
@@ -1349,12 +1222,9 @@ def download_source(
                 if possible_files:
 
                     possible_files.sort(
-
                         key=lambda p:
                             p.stat().st_mtime,
-
                         reverse=True
-
                     )
 
                     downloaded_file = (
@@ -1367,17 +1237,15 @@ def download_source(
                         flush=True
                     )
 
-        # ======================================================
-        # 最終確認
-        # ======================================================
+        # ------------------------------------------------------
+        # 3. 最終確認
+        # ------------------------------------------------------
 
         if downloaded_file is None:
 
             raise FileNotFoundError(
-
                 "ダウンロードしたsourceファイルを"
                 "確認できませんでした"
-
             )
 
         file_size = (
@@ -1513,21 +1381,9 @@ def download_source(
 
 # ==========================================================
 # Cookieを使ったYouTube接続テスト
-#
-# 本番処理とは別に、
-# Cookie + Deno + yt-dlp が正常に動くか確認するための関数。
-#
-# 例:
-#
-# test_youtube_cookie(
-#     "https://www.youtube.com/watch?v=Wb11ihveUCk"
-# )
-#
 # ==========================================================
 
-def test_youtube_cookie(
-    url
-):
+def test_youtube_cookie(url):
 
     temporary_cookie_path = None
 
@@ -1556,7 +1412,7 @@ def test_youtube_cookie(
             )
 
         # --------------------------------------------------
-        # Cookie準備
+        # Cookie
         # --------------------------------------------------
 
         temporary_cookie_path = (
@@ -1570,7 +1426,7 @@ def test_youtube_cookie(
         )
 
         # --------------------------------------------------
-        # yt-dlp
+        # Options
         # --------------------------------------------------
 
         ydl_opts = _build_ydl_options(
@@ -1596,11 +1452,8 @@ def test_youtube_cookie(
         ) as ydl:
 
             info = ydl.extract_info(
-
                 url,
-
                 download=False
-
             )
 
         if not info:
@@ -1608,10 +1461,6 @@ def test_youtube_cookie(
             raise RuntimeError(
                 "YouTube情報を取得できませんでした"
             )
-
-        # --------------------------------------------------
-        # 成功
-        # --------------------------------------------------
 
         print(
             "[TEST] ==========================================",
@@ -1638,6 +1487,14 @@ def test_youtube_cookie(
         print(
             "[TEST] DURATION:",
             info.get("duration"),
+            flush=True
+        )
+
+        print(
+            "[TEST] FORMAT COUNT:",
+            len(
+                info.get("formats") or []
+            ),
             flush=True
         )
 
@@ -1712,9 +1569,7 @@ def test_youtube_cookie(
 # source削除
 # ==========================================================
 
-def cleanup_download(
-    download_result
-):
+def cleanup_download(download_result):
 
     if not download_result:
 
@@ -1744,13 +1599,9 @@ def cleanup_download(
         )
 
         if (
-
             path.exists()
-
             and
-
             path.is_file()
-
         ):
 
             path.unlink()
@@ -1787,16 +1638,25 @@ def _download_with_ytdlp(
     )
 
     output_dir.mkdir(
-
         parents=True,
-
         exist_ok=True
-
     )
 
     temporary_cookie_path = None
 
     try:
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+        print(
+            "[DEBUG]",
+            mode_name,
+            "START",
+            flush=True
+        )
 
         temporary_cookie_path = (
             _prepare_cookie_file()
@@ -1833,20 +1693,15 @@ def _download_with_ytdlp(
         ) as ydl:
 
             info = ydl.extract_info(
-
                 url,
-
                 download=True
-
             )
 
             if not info:
 
                 raise RuntimeError(
-
                     f"{mode_name} "
                     "extract_info() returned None"
-
                 )
 
             prepared_filename = (
@@ -1871,18 +1726,22 @@ def _download_with_ytdlp(
                 prepared_path
             )
 
+            print(
+                "[DEBUG]",
+                mode_name,
+                "prepared file found:",
+                downloaded_file,
+                flush=True
+            )
+
         # --------------------------------------------------
         # merged file
         # --------------------------------------------------
 
         if (
-
             downloaded_file is None
-
             and
-
             merge_output_format
-
         ):
 
             merged_path = (
@@ -1900,6 +1759,14 @@ def _download_with_ytdlp(
                     merged_path
                 )
 
+                print(
+                    "[DEBUG]",
+                    mode_name,
+                    "merged file found:",
+                    downloaded_file,
+                    flush=True
+                )
+
         # --------------------------------------------------
         # ID検索
         # --------------------------------------------------
@@ -1910,47 +1777,44 @@ def _download_with_ytdlp(
                 "id"
             )
 
-            matches = list(
+            if video_id:
 
-                output_dir.glob(
-                    f"{video_id}.*"
+                matches = list(
+                    output_dir.glob(
+                        f"{video_id}.*"
+                    )
                 )
 
-            )
+                matches = [
 
-            matches = [
+                    p
 
-                p
+                    for p in matches
 
-                for p in matches
+                    if p.is_file()
 
-                if p.is_file()
+                    and
 
-                and
+                    p.suffix.lower()
+                    not in (
+                        ".part",
+                        ".ytdl",
+                        ".temp"
+                    )
 
-                p.suffix.lower()
-                not in (
-                    ".part",
-                    ".ytdl",
-                    ".temp"
-                )
+                ]
 
-            ]
+                if matches:
 
-            if matches:
+                    matches.sort(
+                        key=lambda p:
+                            p.stat().st_mtime,
+                        reverse=True
+                    )
 
-                matches.sort(
-
-                    key=lambda p:
-                        p.stat().st_mtime,
-
-                    reverse=True
-
-                )
-
-                downloaded_file = (
-                    matches[0]
-                )
+                    downloaded_file = (
+                        matches[0]
+                    )
 
         # --------------------------------------------------
         # 最終確認
@@ -1959,19 +1823,19 @@ def _download_with_ytdlp(
         if downloaded_file is None:
 
             raise FileNotFoundError(
-
                 f"{mode_name} "
                 "ダウンロードファイルが見つかりません"
-
             )
 
-        if downloaded_file.stat().st_size <= 0:
+        file_size = (
+            downloaded_file.stat().st_size
+        )
+
+        if file_size <= 0:
 
             raise RuntimeError(
-
                 f"{mode_name} "
                 "ファイルサイズが0です"
-
             )
 
         print(
@@ -2038,12 +1902,21 @@ def _download_with_ytdlp(
                         flush=True
                     )
 
-            except Exception:
+            except Exception as e:
 
-                pass
+                print(
+                    "[DEBUG] 一時Cookie削除ERROR:",
+                    repr(e),
+                    flush=True
+                )
 
         print(
             "[DEBUG] _download_with_ytdlp END:",
             mode_name,
+            flush=True
+        )
+
+        print(
+            "==========================================",
             flush=True
         )
