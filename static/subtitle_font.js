@@ -1,23 +1,30 @@
 // =====================================
-// YouTube Converter - Subtitle
-// subtitle.js
+// YouTube Converter - Subtitle Font
+// subtitle_font.js
 //
 // タブ2専用
 //
-// 重要:
-// ・converterUtils.js は使用しない
-// ・converter.js には触れない
-// ・converterStatus.js には触れない
-// ・#convertBtnには触れない
-// ・タブ1のイベントを登録しない
-// ・タブ1のDOMを操作しない
-// ・/subtitle-* APIのみ使用
+// 役割:
+// ・字幕フォント選択UI
+// ・#subtitle-font-button の操作
+// ・選択中プリセットの保持
 //
-// フォント設定:
-// ・フォントUIは subtitle_font.js が担当
-// ・subtitle.js はフォントUIを操作しない
-// ・subtitle_font.js から現在のプリセットを取得
-// ・字幕MP4作成時にpreset_nameをAPIへ送信
+// 重要:
+// ・converter.jsには触れない
+// ・converterUtils.jsは使用しない
+// ・converterStatus.jsには触れない
+// ・タブ1のDOMを操作しない
+// ・#convertBtnには触れない
+// ・subtitle.jsの処理には直接介入しない
+//
+// subtitle.jsから使用するAPI:
+//
+//   window.subtitleFont.getPreset()
+//
+//   window.subtitleFont.setPreset("ゴシック")
+//
+//   window.subtitleFont.getPresets()
+//
 // =====================================
 
 (function () {
@@ -26,7 +33,7 @@
 
 
     console.log(
-        "[SUBTITLE] subtitle.js loaded"
+        "[SUBTITLE_FONT] subtitle_font.js loaded"
     );
 
 
@@ -34,10 +41,10 @@
     // 初期化
     // =====================================
 
-    function initializeSubtitle() {
+    function initializeSubtitleFont() {
 
         console.log(
-            "[SUBTITLE] initializeSubtitle() start"
+            "[SUBTITLE_FONT] initialize start"
         );
 
 
@@ -46,12 +53,12 @@
         // ---------------------------------
 
         if (
-            window.subtitleMain &&
-            window.subtitleMain.__initialized
+            window.subtitleFont &&
+            window.subtitleFont.__initialized
         ) {
 
             console.log(
-                "[SUBTITLE] already initialized"
+                "[SUBTITLE_FONT] already initialized"
             );
 
             return;
@@ -59,87 +66,20 @@
         }
 
 
-        // =================================
-        // タブ2 DOMのみ取得
-        // =================================
+        // =====================================
+        // DOM
+        // =====================================
 
-        const mp3Input =
+        const fontButton =
             document.getElementById(
-                "subtitle-mp3-input"
+                "subtitle-font-button"
             );
 
 
-        const mp3SelectButton =
-            document.getElementById(
-                "subtitle-mp3-select"
-            );
+        if (!fontButton) {
 
-
-        const geminiButton =
-            document.getElementById(
-                "gemini-send-button"
-            );
-
-
-        const mp4Input =
-            document.getElementById(
-                "subtitle-mp4-input"
-            );
-
-
-        const mp4SelectButton =
-            document.getElementById(
-                "subtitle-mp4-select"
-            );
-
-
-        const srtInput =
-            document.getElementById(
-                "subtitle-srt-input"
-            );
-
-
-        const srtSelectButton =
-            document.getElementById(
-                "subtitle-srt-select"
-            );
-
-
-        const subtitleMp4Button =
-            document.getElementById(
-                "subtitle-mp4-create-button"
-            );
-
-
-        const conversionStatusArea =
-            document.getElementById(
-                "conversion-status-area"
-            );
-
-
-        const downloadArea =
-            document.getElementById(
-                "downloadArea"
-            );
-
-
-        // =================================
-        // 必須DOM確認
-        // =================================
-
-        if (
-            !mp3Input ||
-            !mp3SelectButton ||
-            !geminiButton ||
-            !mp4Input ||
-            !mp4SelectButton ||
-            !srtInput ||
-            !srtSelectButton ||
-            !subtitleMp4Button
-        ) {
-
-            console.error(
-                "[SUBTITLE] 必須DOMが見つかりません"
+            console.warn(
+                "[SUBTITLE_FONT] #subtitle-font-button がありません"
             );
 
             return;
@@ -147,1142 +87,461 @@
         }
 
 
-        // =================================
-        // メインオブジェクト
-        // =================================
+        // =====================================
+        // フォントプリセット
+        //
+        // subtitle_font.py側と
+        // 同じ名前を使用する。
+        // =====================================
 
-        const mainObject = {
+        const FONT_PRESETS = [
 
-            __initialized:
-                true
+            "標準",
 
-        };
+            "ゴシック",
 
+            "明朝",
 
-        window.subtitleMain =
-            mainObject;
+            "太字ゴシック",
+
+            "太字明朝"
+
+        ];
 
 
         // =====================================
         // State
         // =====================================
 
-        const subtitleState = {
-
-            mp3File:
-                null,
-
-            mp3Filename:
-                "",
-
-            mp4File:
-                null,
-
-            mp4Filename:
-                "",
-
-            srtFile:
-                null,
-
-            srtFilename:
-                "",
-
-            generatedSrtFilename:
-                "",
-
-            generatedSubtitleMp4Filename:
-                "",
-
-            isProcessing:
-                false
-
-        };
-
-
-        window.subtitleState =
-            subtitleState;
+        let selectedPreset =
+            "標準";
 
 
         // =====================================
-        // フォントプリセット取得
-        //
-        // subtitle_font.js が管理する。
-        //
-        // まだ読み込まれていない場合は
-        // 「標準」を使用する。
+        // ボタン表示更新
         // =====================================
 
-        function getFontPreset() {
-
-            if (
-                window.subtitleFont &&
-                typeof window.subtitleFont.getPreset ===
-                    "function"
-            ) {
-
-                const preset =
-                    window.subtitleFont.getPreset();
-
-
-                if (
-                    typeof preset === "string" &&
-                    preset.trim()
-                ) {
-
-                    return preset.trim();
-
-                }
-
-            }
-
-
-            return "標準";
-
-        }
-
-
-        // =====================================
-        // タイマー
-        // =====================================
-
-        let elapsedTimerId =
-            null;
-
-
-        let processingStartTime =
-            null;
-
-
-        // =====================================
-        // 経過時間フォーマット
-        // =====================================
-
-        function formatElapsed(
-            seconds
-        ) {
-
-            const total =
-                Math.max(
-                    0,
-                    Math.floor(
-                        Number(seconds) || 0
-                    )
-                );
-
-
-            const hours =
-                Math.floor(
-                    total / 3600
-                );
-
-
-            const minutes =
-                Math.floor(
-                    (total % 3600) / 60
-                );
-
-
-            const secs =
-                total % 60;
-
-
-            if (
-                hours > 0
-            ) {
-
-                return (
-                    hours +
-                    "時間 " +
-                    minutes +
-                    "分 " +
-                    secs +
-                    "秒"
-                );
-
-            }
-
-
-            if (
-                minutes > 0
-            ) {
-
-                return (
-                    minutes +
-                    "分 " +
-                    secs +
-                    "秒"
-                );
-
-            }
-
-
-            return (
-                secs +
-                "秒"
-            );
-
-        }
-
-
-        // =====================================
-        // タイマー停止
-        // =====================================
-
-        function stopElapsedTimer() {
-
-            if (
-                elapsedTimerId !== null
-            ) {
-
-                clearTimeout(
-                    elapsedTimerId
-                );
-
-
-                elapsedTimerId =
-                    null;
-
-            }
-
-        }
-
-
-        // =====================================
-        // 処理開始
-        // =====================================
-
-        function startProcessing() {
-
-            processingStartTime =
-                Date.now();
-
-
-            stopElapsedTimer();
-
-        }
-
-
-        // =====================================
-        // 経過秒数
-        // =====================================
-
-        function getElapsedSeconds() {
-
-            if (
-                processingStartTime === null
-            ) {
-
-                return 0;
-
-            }
-
-
-            return Math.max(
-
-                0,
-
-                Math.floor(
-
-                    (
-                        Date.now() -
-                        processingStartTime
-                    ) / 1000
-
-                )
-
-            );
-
-        }
-
-
-        // =====================================
-        // 経過時間表示
-        // =====================================
-
-        function getElapsedText() {
-
-            return (
-                "処理時間: " +
-                formatElapsed(
-                    getElapsedSeconds()
-                )
-            );
-
-        }
-
-
-        // =====================================
-        // 経過時間タイマー
-        // =====================================
-
-        function startElapsedTimer(
-            message
-        ) {
-
-            stopElapsedTimer();
-
-
-            function update() {
-
-                if (
-                    processingStartTime === null
-                ) {
-
-                    elapsedTimerId =
-                        null;
-
-                    return;
-
-                }
-
-
-                setStatus(
-
-                    message +
-                    "\n" +
-                    getElapsedText(),
-
-                    null
-
-                );
-
-
-                elapsedTimerId =
-                    setTimeout(
-                        update,
-                        1000
-                    );
-
-            }
-
-
-            update();
-
-        }
-
-
-        // =====================================
-        // ステータス
-        // =====================================
-
-        function setStatus(
-            message,
-            type
-        ) {
-
-            const text =
-                String(
-                    message || ""
-                );
-
-
-            if (conversionStatusArea) {
-
-                conversionStatusArea.textContent =
-                    text;
-
-
-                conversionStatusArea.style.whiteSpace =
-                    "pre-line";
-
-
-                conversionStatusArea.classList.remove(
-                    "error",
-                    "success"
-                );
-
-
-                if (type) {
-
-                    conversionStatusArea.classList.add(
-                        type
-                    );
-
-                }
-
-            }
-
-        }
-
-
-        // =====================================
-        // ステータスクリア
-        // =====================================
-
-        function clearStatus() {
-
-            if (conversionStatusArea) {
-
-                conversionStatusArea.textContent =
-                    "";
-
-
-                conversionStatusArea.classList.remove(
-                    "error",
-                    "success"
-                );
-
-            }
-
-        }
-
-
-        // =====================================
-        // JSON解析
-        // =====================================
-
-        async function parseResponse(
-            response
-        ) {
-
-            const text =
-                await response.text();
-
-
-            if (!text) {
-
-                return null;
-
-            }
-
-
-            try {
-
-                return JSON.parse(
-                    text
-                );
-
-            }
-            catch (error) {
-
-                console.error(
-                    "[SUBTITLE] JSON解析エラー:",
-                    error
-                );
-
-
-                console.error(
-                    "[SUBTITLE] response:",
-                    text
-                );
-
-
-                return null;
-
-            }
-
-        }
-
-
-        // =====================================
-        // APIエラーメッセージ
-        // =====================================
-
-        function getResponseErrorMessage(
-            data,
-            defaultMessage
-        ) {
-
-            if (
-                data &&
-                typeof data.message ===
-                    "string" &&
-                data.message.trim()
-            ) {
-
-                return data.message.trim();
-
-            }
-
-
-            if (
-                data &&
-                typeof data.error ===
-                    "string" &&
-                data.error.trim()
-            ) {
-
-                return data.error.trim();
-
-            }
-
-
-            return defaultMessage;
-
-        }
-
-
-        // =====================================
-        // 共通POST FormData
-        // =====================================
-
-        async function uploadToEndpoint(
-            endpoint,
-            file
-        ) {
-
-            if (!file) {
-
-                throw new Error(
-                    "アップロードするファイルがありません。"
-                );
-
-            }
-
-
-            const formData =
-                new FormData();
-
-
-            formData.append(
-                "file",
-                file
-            );
-
-
-            console.log(
-                "[SUBTITLE] upload:",
-                endpoint,
-                file.name
-            );
-
-
-            const response =
-                await fetch(
-                    endpoint,
-                    {
-
-                        method:
-                            "POST",
-
-                        body:
-                            formData
-
-                    }
-                );
-
-
-            const data =
-                await parseResponse(
-                    response
-                );
-
-
-            if (!response.ok) {
-
-                throw new Error(
-                    getResponseErrorMessage(
-                        data,
-                        "ファイルのアップロードに失敗しました。"
-                    )
-                );
-
-            }
-
-
-            if (
-                !data ||
-                data.success !== true
-            ) {
-
-                throw new Error(
-                    getResponseErrorMessage(
-                        data,
-                        "ファイル処理に失敗しました。"
-                    )
-                );
-
-            }
-
-
-            return data;
-
-        }
-
-
-        // =====================================
-        // MP3 → SRT
-        //
-        // /subtitle-upload-mp3
-        //
-        // サーバー側で
-        //
-        // MP3保存
-        // ↓
-        // Gemini
-        // ↓
-        // SRT保存
-        //
-        // まで行う。
-        // =====================================
-
-        async function createSrtWithGemini(
-            file
-        ) {
-
-            if (!file) {
-
-                throw new Error(
-                    "MP3ファイルがありません。"
-                );
-
-            }
-
-
-            const result =
-                await uploadToEndpoint(
-                    "/subtitle-upload-mp3",
-                    file
-                );
-
-
-            if (!result.srt_file) {
-
-                throw new Error(
-                    "作成されたSRTファイル名を取得できませんでした。"
-                );
-
-            }
-
-
-            return result;
-
-        }
-
-
-        // =====================================
-        // MP4アップロード
-        // =====================================
-
-        async function uploadMp4(
-            file
-        ) {
-
-            return await uploadToEndpoint(
-
-                "/subtitle-upload-mp4",
-
-                file
-
-            );
-
-        }
-
-
-        // =====================================
-        // SRTアップロード
-        // =====================================
-
-        async function uploadSrt(
-            file
-        ) {
-
-            return await uploadToEndpoint(
-
-                "/subtitle-upload-srt",
-
-                file
-
-            );
-
-        }
-
-
-        // =====================================
-        // 字幕MP4作成
-        //
-        // /subtitle-create-mp4
-        //
-        // subtitle_font.jsから
-        // 現在のフォントプリセットを取得。
-        //
-        // preset_nameをサーバーへ送信する。
-        // =====================================
-
-        async function embedSubtitle(
-            mp4Filename,
-            srtFilename
-        ) {
-
-            if (!mp4Filename) {
-
-                throw new Error(
-                    "MP4ファイル名がありません。"
-                );
-
-            }
-
-
-            if (!srtFilename) {
-
-                throw new Error(
-                    "SRTファイル名がありません。"
-                );
-
-            }
-
+        function updateButton() {
 
             const presetName =
-                getFontPreset();
+                selectedPreset ||
+                "標準";
 
 
-            console.log(
-                "[SUBTITLE] subtitle preset:",
-                presetName
-            );
+            fontButton.textContent =
+                presetName;
 
 
-            const response =
-                await fetch(
-
-                    "/subtitle-create-mp4",
-
-                    {
-
-                        method:
-                            "POST",
-
-                        headers: {
-
-                            "Content-Type":
-                                "application/json"
-
-                        },
-
-                        body:
-                            JSON.stringify({
-
-                                mp4_file:
-                                    mp4Filename,
-
-                                srt_file:
-                                    srtFilename,
-
-                                preset_name:
-                                    presetName
-
-                            })
-
-                    }
-
-                );
-
-
-            const data =
-                await parseResponse(
-                    response
-                );
-
-
-            if (!response.ok) {
-
-                throw new Error(
-                    getResponseErrorMessage(
-                        data,
-                        "字幕焼き込みに失敗しました。"
-                    )
-                );
-
-            }
-
-
-            if (
-                !data ||
-                data.success !== true
-            ) {
-
-                throw new Error(
-                    getResponseErrorMessage(
-                        data,
-                        "字幕焼き込みに失敗しました。"
-                    )
-                );
-
-            }
-
-
-            const filename =
-                data.subtitle_mp4_file ||
-                data.filename;
-
-
-            if (!filename) {
-
-                throw new Error(
-                    "字幕付きMP4のファイル名を取得できませんでした。"
-                );
-
-            }
-
-
-            return {
-
-                ...data,
-
-                filename:
-                    filename
-
-            };
+            fontButton.title =
+                "字幕フォント: " +
+                presetName;
 
         }
 
 
         // =====================================
-        // ダウンロードURL
+        // セレクトダイアログ
+        //
+        // prompt()ではなく、
+        // HTMLのselectを使用する。
+        //
+        // これにより
+        // 「ダイアログのセレクトボックス」
+        // として確実に選択できる。
         // =====================================
 
-        function makeDownloadUrl(
-            filename
-        ) {
+        function selectFontPreset() {
 
-            if (!filename) {
+            // ---------------------------------
+            // ダイアログ背景
+            // ---------------------------------
 
-                return "";
-
-            }
-
-
-            return (
-                "/download/" +
-                encodeURIComponent(
-                    String(filename)
-                )
-            );
-
-        }
-
-
-        // =====================================
-        // ダウンロードボタン
-        // =====================================
-
-        function createDownloadButton(
-            label,
-            filename,
-            downloadUrl
-        ) {
-
-            if (!downloadArea) {
-
-                return;
-
-            }
-
-
-            if (!filename) {
-
-                return;
-
-            }
-
-
-            const url =
-                downloadUrl ||
-                makeDownloadUrl(
-                    filename
-                );
-
-
-            if (!url) {
-
-                return;
-
-            }
-
-
-            const wrapper =
+            const overlay =
                 document.createElement(
                     "div"
                 );
 
 
-            wrapper.className =
-                "subtitle-download-item";
+            overlay.className =
+                "subtitle-font-dialog-overlay";
 
 
-            const button =
+            // ---------------------------------
+            // ダイアログ本体
+            // ---------------------------------
+
+            const dialog =
                 document.createElement(
-                    "a"
+                    "div"
                 );
 
 
-            button.className =
-                "download-button";
+            dialog.className =
+                "subtitle-font-dialog";
 
 
-            button.href =
-                url;
+            // ---------------------------------
+            // タイトル
+            // ---------------------------------
+
+            const title =
+                document.createElement(
+                    "div"
+                );
 
 
-            button.download =
-                filename;
+            title.className =
+                "subtitle-font-dialog-title";
 
 
-            button.textContent =
-                label;
+            title.textContent =
+                "字幕フォントを選択";
 
 
-            wrapper.appendChild(
-                button
+            // ---------------------------------
+            // select
+            // ---------------------------------
+
+            const select =
+                document.createElement(
+                    "select"
+                );
+
+
+            select.className =
+                "subtitle-font-select";
+
+
+            select.name =
+                "subtitle-font-preset";
+
+
+            // ---------------------------------
+            // option作成
+            // ---------------------------------
+
+            FONT_PRESETS.forEach(
+                function (presetName) {
+
+                    const option =
+                        document.createElement(
+                            "option"
+                        );
+
+
+                    option.value =
+                        presetName;
+
+
+                    option.textContent =
+                        presetName;
+
+
+                    if (
+                        presetName ===
+                        selectedPreset
+                    ) {
+
+                        option.selected =
+                            true;
+
+                    }
+
+
+                    select.appendChild(
+                        option
+                    );
+
+                }
             );
 
 
-            downloadArea.appendChild(
-                wrapper
+            // ---------------------------------
+            // ボタンエリア
+            // ---------------------------------
+
+            const buttonArea =
+                document.createElement(
+                    "div"
+                );
+
+
+            buttonArea.className =
+                "subtitle-font-dialog-buttons";
+
+
+            // ---------------------------------
+            // キャンセル
+            // ---------------------------------
+
+            const cancelButton =
+                document.createElement(
+                    "button"
+                );
+
+
+            cancelButton.type =
+                "button";
+
+
+            cancelButton.className =
+                "subtitle-font-dialog-cancel";
+
+
+            cancelButton.textContent =
+                "キャンセル";
+
+
+            // ---------------------------------
+            // 決定
+            // ---------------------------------
+
+            const okButton =
+                document.createElement(
+                    "button"
+                );
+
+
+            okButton.type =
+                "button";
+
+
+            okButton.className =
+                "subtitle-font-dialog-ok";
+
+
+            okButton.textContent =
+                "決定";
+
+
+            // ---------------------------------
+            // DOM構築
+            // ---------------------------------
+
+            buttonArea.appendChild(
+                cancelButton
+            );
+
+
+            buttonArea.appendChild(
+                okButton
+            );
+
+
+            dialog.appendChild(
+                title
+            );
+
+
+            dialog.appendChild(
+                select
+            );
+
+
+            dialog.appendChild(
+                buttonArea
+            );
+
+
+            overlay.appendChild(
+                dialog
+            );
+
+
+            document.body.appendChild(
+                overlay
+            );
+
+
+            // =================================
+            // selectへフォーカス
+            // =================================
+
+            setTimeout(
+                function () {
+
+                    select.focus();
+
+                },
+                0
+            );
+
+
+            // =================================
+            // 閉じる
+            // =================================
+
+            function closeDialog() {
+
+                if (
+                    overlay.parentNode
+                ) {
+
+                    overlay.parentNode.removeChild(
+                        overlay
+                    );
+
+                }
+
+            }
+
+
+            // =================================
+            // キャンセル
+            // =================================
+
+            cancelButton.addEventListener(
+                "click",
+                function (event) {
+
+                    event.preventDefault();
+
+                    closeDialog();
+
+                }
+            );
+
+
+            // =================================
+            // 決定
+            // =================================
+
+            okButton.addEventListener(
+                "click",
+                function (event) {
+
+                    event.preventDefault();
+
+
+                    const value =
+                        select.value;
+
+
+                    if (
+                        !FONT_PRESETS.includes(
+                            value
+                        )
+                    ) {
+
+                        return;
+
+                    }
+
+
+                    selectedPreset =
+                        value;
+
+
+                    updateButton();
+
+
+                    console.log(
+                        "[SUBTITLE_FONT] preset selected:",
+                        selectedPreset
+                    );
+
+
+                    closeDialog();
+
+                }
+            );
+
+
+            // =================================
+            // 背景クリック
+            //
+            // ダイアログ本体をクリックした場合は
+            // 閉じない。
+            // =================================
+
+            overlay.addEventListener(
+                "click",
+                function (event) {
+
+                    if (
+                        event.target ===
+                        overlay
+                    ) {
+
+                        closeDialog();
+
+                    }
+
+                }
+            );
+
+
+            // =================================
+            // ESC
+            // =================================
+
+            function keydownHandler(
+                event
+            ) {
+
+                if (
+                    event.key ===
+                    "Escape"
+                ) {
+
+                    closeDialog();
+
+                    document.removeEventListener(
+                        "keydown",
+                        keydownHandler
+                    );
+
+                }
+
+            }
+
+
+            document.addEventListener(
+                "keydown",
+                keydownHandler
+            );
+
+
+            // =================================
+            // ダイアログ終了時の後処理
+            // =================================
+
+            const originalClose =
+                closeDialog;
+
+
+            // ---------------------------------
+            // select変更ログ
+            // ---------------------------------
+
+            select.addEventListener(
+                "change",
+                function () {
+
+                    console.log(
+                        "[SUBTITLE_FONT] select changed:",
+                        select.value
+                    );
+
+                }
             );
 
         }
 
 
         // =====================================
-        // ファイル表示
+        // フォントボタン
         // =====================================
 
-        function updateFileDisplay(
-            button,
-            file,
-            defaultText
-        ) {
-
-            if (!button) {
-
-                return;
-
-            }
-
-
-            if (file) {
-
-                button.textContent =
-                    file.name;
-
-
-                button.title =
-                    file.name;
-
-            }
-            else {
-
-                button.textContent =
-                    defaultText;
-
-
-                button.title =
-                    "";
-
-            }
-
-        }
-
-
-        // =====================================
-        // 字幕MP4ボタン状態
-        // =====================================
-
-        function updateSubtitleMp4Button() {
-
-            const hasMp4 =
-                !!(
-                    mp4Input.files &&
-                    mp4Input.files.length
-                );
-
-
-            const hasSrt =
-                !!(
-                    srtInput.files &&
-                    srtInput.files.length
-                );
-
-
-            subtitleMp4Button.disabled =
-                !hasMp4 ||
-                !hasSrt ||
-                subtitleState.isProcessing;
-
-        }
-
-
-        // =====================================
-        // MP3選択
-        // =====================================
-
-        mp3SelectButton.addEventListener(
+        fontButton.addEventListener(
             "click",
             function (event) {
 
                 event.preventDefault();
 
 
-                mp3Input.click();
-
-            }
-        );
-
-
-        mp3Input.addEventListener(
-            "change",
-            function () {
-
-                const file =
-                    this.files &&
-                    this.files.length
-                        ? this.files[0]
-                        : null;
-
-
-                subtitleState.mp3File =
-                    file;
-
-
-                subtitleState.mp3Filename =
-                    file
-                        ? file.name
-                        : "";
-
-
-                updateFileDisplay(
-
-                    mp3SelectButton,
-
-                    file,
-
-                    "ファイルが選択されていません → mp3ファイルを選択してください"
-
-                );
-
-
-                geminiButton.disabled =
-                    !file ||
-                    subtitleState.isProcessing;
-
-            }
-        );
-
-
-        // =====================================
-        // MP4選択
-        // =====================================
-
-        mp4SelectButton.addEventListener(
-            "click",
-            function (event) {
-
-                event.preventDefault();
-
-
-                mp4Input.click();
-
-            }
-        );
-
-
-        mp4Input.addEventListener(
-            "change",
-            function () {
-
-                const file =
-                    this.files &&
-                    this.files.length
-                        ? this.files[0]
-                        : null;
-
-
-                subtitleState.mp4File =
-                    file;
-
-
-                subtitleState.mp4Filename =
-                    file
-                        ? file.name
-                        : "";
-
-
-                updateFileDisplay(
-
-                    mp4SelectButton,
-
-                    file,
-
-                    "MP4ファイルを選択してください"
-
-                );
-
-
-                updateSubtitleMp4Button();
-
-            }
-        );
-
-
-        // =====================================
-        // SRT選択
-        // =====================================
-
-        srtSelectButton.addEventListener(
-            "click",
-            function (event) {
-
-                event.preventDefault();
-
-
-                srtInput.click();
-
-            }
-        );
-
-
-        srtInput.addEventListener(
-            "change",
-            function () {
-
-                const file =
-                    this.files &&
-                    this.files.length
-                        ? this.files[0]
-                        : null;
-
-
-                subtitleState.srtFile =
-                    file;
-
-
-                subtitleState.srtFilename =
-                    file
-                        ? file.name
-                        : "";
-
-
-                updateFileDisplay(
-
-                    srtSelectButton,
-
-                    file,
-
-                    "SRTファイルを選択してください"
-
-                );
-
-
-                updateSubtitleMp4Button();
-
-            }
-        );
-
-
-        // =====================================
-        // Geminiボタン
-        // =====================================
-
-        geminiButton.addEventListener(
-            "click",
-            async function (event) {
-
-                event.preventDefault();
-
-
                 if (
-                    subtitleState.isProcessing
+                    fontButton.disabled
                 ) {
 
                     return;
@@ -1290,483 +549,7 @@
                 }
 
 
-                const file =
-                    mp3Input.files &&
-                    mp3Input.files.length
-                        ? mp3Input.files[0]
-                        : null;
-
-
-                if (!file) {
-
-                    setStatus(
-                        "MP3ファイルを選択してください。",
-                        "error"
-                    );
-
-                    return;
-
-                }
-
-
-                if (
-                    !file.name
-                        .toLowerCase()
-                        .endsWith(".mp3")
-                ) {
-
-                    setStatus(
-                        "MP3ファイルを選択してください。",
-                        "error"
-                    );
-
-                    return;
-
-                }
-
-
-                subtitleState.isProcessing =
-                    true;
-
-
-                geminiButton.disabled =
-                    true;
-
-
-                if (window.subtitleFont) {
-
-                    if (
-                        typeof window.subtitleFont.setDisabled ===
-                            "function"
-                    ) {
-
-                        window.subtitleFont.setDisabled(
-                            true
-                        );
-
-                    }
-
-                }
-
-
-                startProcessing();
-
-
-                clearStatus();
-
-
-                try {
-
-                    startElapsedTimer(
-                        "MP3をアップロードしています..."
-                    );
-
-
-                    const result =
-                        await createSrtWithGemini(
-                            file
-                        );
-
-
-                    subtitleState.mp3Filename =
-                        result.mp3_file ||
-                        result.filename ||
-                        file.name;
-
-
-                    subtitleState.generatedSrtFilename =
-                        result.srt_file;
-
-
-                    stopElapsedTimer();
-
-
-                    setStatus(
-
-                        "SRTファイルの作成が完了しました。\n\n" +
-                        "SRT: " +
-                        result.srt_file +
-                        "\n\n" +
-                        getElapsedText(),
-
-                        "success"
-
-                    );
-
-
-                    createDownloadButton(
-
-                        "SRTをダウンロード",
-
-                        result.srt_file,
-
-                        result.download_url
-
-                    );
-
-
-                    console.log(
-                        "[SUBTITLE] SRT作成完了:",
-                        result.srt_file
-                    );
-
-                }
-                catch (error) {
-
-                    stopElapsedTimer();
-
-
-                    console.error(
-                        "[SUBTITLE] SRT作成エラー:",
-                        error
-                    );
-
-
-                    setStatus(
-
-                        "SRT作成中にエラーが発生しました。\n" +
-                        (
-                            error &&
-                            error.message
-                                ? error.message
-                                : "不明なエラー"
-                        ) +
-                        "\n\n" +
-                        getElapsedText(),
-
-                        "error"
-
-                    );
-
-                }
-                finally {
-
-                    stopElapsedTimer();
-
-
-                    subtitleState.isProcessing =
-                        false;
-
-
-                    processingStartTime =
-                        null;
-
-
-                    if (window.subtitleFont) {
-
-                        if (
-                            typeof window.subtitleFont.setDisabled ===
-                                "function"
-                        ) {
-
-                            window.subtitleFont.setDisabled(
-                                false
-                            );
-
-                        }
-
-                    }
-
-
-                    geminiButton.disabled =
-                        !(
-                            mp3Input.files &&
-                            mp3Input.files.length
-                        );
-
-                }
-
-            }
-        );
-
-
-        // =====================================
-        // 字幕MP4作成
-        // =====================================
-
-        subtitleMp4Button.addEventListener(
-            "click",
-            async function (event) {
-
-                event.preventDefault();
-
-
-                if (
-                    subtitleState.isProcessing
-                ) {
-
-                    return;
-
-                }
-
-
-                const mp4File =
-                    mp4Input.files &&
-                    mp4Input.files.length
-                        ? mp4Input.files[0]
-                        : null;
-
-
-                const srtFile =
-                    srtInput.files &&
-                    srtInput.files.length
-                        ? srtInput.files[0]
-                        : null;
-
-
-                if (!mp4File) {
-
-                    setStatus(
-                        "MP4ファイルを選択してください。",
-                        "error"
-                    );
-
-                    return;
-
-                }
-
-
-                if (!srtFile) {
-
-                    setStatus(
-                        "SRTファイルを選択してください。",
-                        "error"
-                    );
-
-                    return;
-
-                }
-
-
-                if (
-                    !mp4File.name
-                        .toLowerCase()
-                        .endsWith(".mp4")
-                ) {
-
-                    setStatus(
-                        "MP4ファイルを選択してください。",
-                        "error"
-                    );
-
-                    return;
-
-                }
-
-
-                if (
-                    !srtFile.name
-                        .toLowerCase()
-                        .endsWith(".srt")
-                ) {
-
-                    setStatus(
-                        "SRTファイルを選択してください。",
-                        "error"
-                    );
-
-                    return;
-
-                }
-
-
-                subtitleState.isProcessing =
-                    true;
-
-
-                subtitleMp4Button.disabled =
-                    true;
-
-
-                if (window.subtitleFont) {
-
-                    if (
-                        typeof window.subtitleFont.setDisabled ===
-                            "function"
-                    ) {
-
-                        window.subtitleFont.setDisabled(
-                            true
-                        );
-
-                    }
-
-                }
-
-
-                startProcessing();
-
-
-                clearStatus();
-
-
-                try {
-
-                    // =================================
-                    // MP4アップロード
-                    // =================================
-
-                    startElapsedTimer(
-                        "MP4をアップロードしています..."
-                    );
-
-
-                    const mp4Result =
-                        await uploadMp4(
-                            mp4File
-                        );
-
-
-                    subtitleState.mp4Filename =
-                        mp4Result.mp4_file ||
-                        mp4Result.filename ||
-                        mp4File.name;
-
-
-                    // =================================
-                    // SRTアップロード
-                    // =================================
-
-                    startElapsedTimer(
-                        "SRTをアップロードしています..."
-                    );
-
-
-                    const srtResult =
-                        await uploadSrt(
-                            srtFile
-                        );
-
-
-                    subtitleState.srtFilename =
-                        srtResult.srt_file ||
-                        srtResult.filename ||
-                        srtFile.name;
-
-
-                    // =================================
-                    // 字幕焼き込み
-                    // =================================
-
-                    startElapsedTimer(
-
-                        "字幕を動画に付けています...\n" +
-                        "しばらくお待ちください。"
-
-                    );
-
-
-                    const embedResult =
-                        await embedSubtitle(
-
-                            subtitleState.mp4Filename,
-
-                            subtitleState.srtFilename
-
-                        );
-
-
-                    subtitleState.generatedSubtitleMp4Filename =
-                        embedResult.filename;
-
-
-                    stopElapsedTimer();
-
-
-                    setStatus(
-
-                        "字幕mp4の作成が完了しました。\n\n" +
-                        "フォント: " +
-                        getFontPreset() +
-                        "\n\n" +
-                        "ファイル: " +
-                        embedResult.filename +
-                        "\n\n" +
-                        getElapsedText(),
-
-                        "success"
-
-                    );
-
-
-                    createDownloadButton(
-
-                        "字幕付きMP4をダウンロード",
-
-                        embedResult.filename,
-
-                        embedResult.download_url
-
-                    );
-
-
-                    console.log(
-                        "[SUBTITLE] 字幕MP4作成完了:",
-                        embedResult.filename
-                    );
-
-
-                }
-                catch (error) {
-
-                    stopElapsedTimer();
-
-
-                    console.error(
-                        "[SUBTITLE] 字幕MP4作成エラー:",
-                        error
-                    );
-
-
-                    setStatus(
-
-                        "字幕mp4作成中にエラーが発生しました。\n" +
-                        (
-                            error &&
-                            error.message
-                                ? error.message
-                                : "不明なエラー"
-                        ) +
-                        "\n\n" +
-                        getElapsedText(),
-
-                        "error"
-
-                    );
-
-                }
-                finally {
-
-                    stopElapsedTimer();
-
-
-                    subtitleState.isProcessing =
-                        false;
-
-
-                    processingStartTime =
-                        null;
-
-
-                    if (window.subtitleFont) {
-
-                        if (
-                            typeof window.subtitleFont.setDisabled ===
-                                "function"
-                        ) {
-
-                            window.subtitleFont.setDisabled(
-                                false
-                            );
-
-                        }
-
-                    }
-
-
-                    updateSubtitleMp4Button();
-
-                }
+                selectFontPreset();
 
             }
         );
@@ -1776,92 +559,95 @@
         // 外部公開
         // =====================================
 
-        mainObject.createSrtWithGemini =
-            createSrtWithGemini;
+        const fontObject = {
+
+            __initialized:
+                true,
 
 
-        mainObject.uploadMp4 =
-            uploadMp4;
+            // ---------------------------------
+            // 現在のプリセット取得
+            // ---------------------------------
+
+            getPreset:
+                function () {
+
+                    return selectedPreset;
+
+                },
 
 
-        mainObject.uploadSrt =
-            uploadSrt;
+            // ---------------------------------
+            // プリセット設定
+            // ---------------------------------
+
+            setPreset:
+                function (presetName) {
+
+                    if (
+                        !FONT_PRESETS.includes(
+                            presetName
+                        )
+                    ) {
+
+                        throw new Error(
+                            "存在しないフォントプリセットです: " +
+                            presetName
+                        );
+
+                    }
 
 
-        mainObject.embedSubtitle =
-            embedSubtitle;
+                    selectedPreset =
+                        presetName;
 
 
-        mainObject.createDownloadButton =
-            createDownloadButton;
+                    updateButton();
 
 
-        mainObject.getState =
-            function () {
+                    console.log(
+                        "[SUBTITLE_FONT] preset set:",
+                        selectedPreset
+                    );
 
-                return subtitleState;
-
-            };
-
-
-        mainObject.getFontPreset =
-            function () {
-
-                return getFontPreset();
-
-            };
+                },
 
 
-        mainObject.clearResult =
-            clearStatus;
+            // ---------------------------------
+            // プリセット一覧
+            // ---------------------------------
+
+            getPresets:
+                function () {
+
+                    return FONT_PRESETS.slice();
+
+                },
+
+
+            // ---------------------------------
+            // 表示更新
+            // ---------------------------------
+
+            update:
+                updateButton
+
+        };
+
+
+        window.subtitleFont =
+            fontObject;
 
 
         // =====================================
         // 初期表示
         // =====================================
 
-        updateFileDisplay(
-
-            mp3SelectButton,
-
-            null,
-
-            "ファイルが選択されていません → mp3ファイルを選択してください"
-
-        );
-
-
-        updateFileDisplay(
-
-            mp4SelectButton,
-
-            null,
-
-            "MP4ファイルを選択してください"
-
-        );
-
-
-        updateFileDisplay(
-
-            srtSelectButton,
-
-            null,
-
-            "SRTファイルを選択してください"
-
-        );
-
-
-        geminiButton.disabled =
-            true;
-
-
-        updateSubtitleMp4Button();
+        updateButton();
 
 
         console.log(
-            "[SUBTITLE] initializeSubtitle() complete"
+            "[SUBTITLE_FONT] initialize complete"
         );
 
     }
@@ -1878,7 +664,7 @@
 
         document.addEventListener(
             "DOMContentLoaded",
-            initializeSubtitle,
+            initializeSubtitleFont,
             {
                 once:
                     true
@@ -1888,7 +674,7 @@
     }
     else {
 
-        initializeSubtitle();
+        initializeSubtitleFont();
 
     }
 
