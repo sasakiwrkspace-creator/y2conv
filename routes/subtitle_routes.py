@@ -67,6 +67,7 @@
 
 
 import os
+import traceback
 
 
 from flask import (
@@ -125,11 +126,8 @@ ALLOWED_SRT_EXTENSIONS = {
 def ensure_download_dir():
 
     os.makedirs(
-
         DOWNLOAD_ROOT,
-
         exist_ok=True
-
     )
 
 
@@ -384,11 +382,8 @@ def save_uploaded_file(
         )
 
     safe_filename = make_safe_filename(
-
         original_filename,
-
         extension
-
     )
 
     save_path = make_download_path(
@@ -482,19 +477,10 @@ def save_uploaded_file(
     )
 
     return {
-
-        "filename":
-            safe_filename,
-
-        "path":
-            save_path,
-
-        "size":
-            file_size,
-
-        "overwritten":
-            existed
-
+        "filename": safe_filename,
+        "path": save_path,
+        "size": file_size,
+        "overwritten": existed
     }
 
 
@@ -570,6 +556,16 @@ def get_download_file(
 # MP3 → SRT
 #
 # タブ1・タブ2共通
+#
+# ★重要
+#
+# この関数自身ではリトライしない。
+#
+# タブ1の subtitle_mp4.py 側で
+# Gemini一時エラーのリトライを行う。
+#
+# タブ2から呼び出した場合は、
+# ここで通常どおり1回実行する。
 # ==========================================================
 
 def create_srt_from_mp3(
@@ -638,7 +634,9 @@ def create_srt_from_mp3(
 
     print(
         "[SUBTITLE] MP3 size:",
-        os.path.getsize(mp3_path),
+        os.path.getsize(
+            mp3_path
+        ),
         "bytes",
         flush=True
     )
@@ -682,11 +680,8 @@ def create_srt_from_mp3(
     )
 
     srt_path = save_srt(
-
         mp3_path,
-
         srt_text
-
     )
 
     if not srt_path:
@@ -750,7 +745,9 @@ def create_srt_from_mp3(
 
     print(
         "[SUBTITLE] SRT size:",
-        os.path.getsize(srt_path),
+        os.path.getsize(
+            srt_path
+        ),
         "bytes",
         flush=True
     )
@@ -761,7 +758,6 @@ def create_srt_from_mp3(
     )
 
     return {
-
         "mp3_file":
             os.path.basename(
                 mp3_path
@@ -774,7 +770,6 @@ def create_srt_from_mp3(
 
         "srt_path":
             srt_path
-
     }
 
 
@@ -782,6 +777,20 @@ def create_srt_from_mp3(
 # MP4 + SRT → 字幕MP4
 #
 # subtitle.pyを呼び出す共通関数。
+#
+# ★重要
+#
+# 戻り値は辞書形式で統一する。
+#
+# subtitle_mp4.py 側は
+#
+#   subtitle_mp4_path
+#
+# または
+#
+#   path
+#
+# を受け取れる。
 # ==========================================================
 
 def create_subtitle_mp4(
@@ -895,7 +904,9 @@ def create_subtitle_mp4(
 
     print(
         "[SUBTITLE] MP4 size:",
-        os.path.getsize(mp4_path),
+        os.path.getsize(
+            mp4_path
+        ),
         "bytes",
         flush=True
     )
@@ -908,7 +919,9 @@ def create_subtitle_mp4(
 
     print(
         "[SUBTITLE] SRT size:",
-        os.path.getsize(srt_path),
+        os.path.getsize(
+            srt_path
+        ),
         "bytes",
         flush=True
     )
@@ -958,13 +971,11 @@ def create_subtitle_mp4(
     else:
 
         raise AttributeError(
-
             "subtitle.pyに字幕MP4作成関数がありません。"
             "create_subtitle_mp4() / "
             "create_burned_subtitle() / "
             "burn_subtitles() "
             "のいずれかを実装してください。"
-
         )
 
     print(
@@ -972,7 +983,9 @@ def create_subtitle_mp4(
         getattr(
             subtitle_function,
             "__name__",
-            str(subtitle_function)
+            str(
+                subtitle_function
+            )
         ),
         flush=True
     )
@@ -987,11 +1000,8 @@ def create_subtitle_mp4(
     )
 
     result = subtitle_function(
-
         mp4_path,
-
         srt_path
-
     )
 
     print(
@@ -1005,9 +1015,62 @@ def create_subtitle_mp4(
             "字幕MP4作成処理から結果が返されませんでした"
         )
 
+    # ------------------------------------------------------
+    # subtitle.pyの戻り値を吸収
+    #
+    # 現在想定:
+    #
+    #   文字列:
+    #       "/path/output.mp4"
+    #
+    # または辞書:
+    #
+    #   {
+    #       "path": "...",
+    #   }
+    #
+    #   {
+    #       "subtitle_mp4_path": "...",
+    #   }
+    #
+    # ------------------------------------------------------
+
+    if isinstance(
+        result,
+        dict
+    ):
+
+        result_path = (
+            result.get(
+                "subtitle_mp4_path"
+            )
+            or
+            result.get(
+                "path"
+            )
+            or
+            result.get(
+                "output"
+            )
+            or
+            result.get(
+                "output_path"
+            )
+        )
+
+    else:
+
+        result_path = result
+
+    if not result_path:
+
+        raise ValueError(
+            "subtitle.pyから字幕MP4のパスを取得できませんでした"
+        )
+
     result_path = os.path.abspath(
         str(
-            result
+            result_path
         )
     )
 
@@ -1027,6 +1090,16 @@ def create_subtitle_mp4(
 
         raise IOError(
             "字幕MP4の出力先がファイルではありません"
+        )
+
+    if not result_path.lower().endswith(
+        ".mp4"
+    ):
+
+        raise ValueError(
+            "字幕MP4の出力拡張子が.mp4ではありません: "
+            +
+            result_path
         )
 
     result_size = os.path.getsize(
@@ -1072,7 +1145,6 @@ def create_subtitle_mp4(
     )
 
     return {
-
         "mp4_file":
             os.path.basename(
                 mp4_path
@@ -1087,8 +1159,10 @@ def create_subtitle_mp4(
             result_filename,
 
         "subtitle_mp4_path":
-            result_path
+            result_path,
 
+        "path":
+            result_path
     }
 
 
@@ -1135,11 +1209,8 @@ def register_subtitle_routes(
             )
 
             saved = save_uploaded_file(
-
                 uploaded_file,
-
                 ALLOWED_MP3_EXTENSIONS
-
             )
 
             print(
@@ -1153,9 +1224,7 @@ def register_subtitle_routes(
             )
 
             result = create_srt_from_mp3(
-
                 saved["path"]
-
             )
 
             return jsonify({
@@ -1171,6 +1240,9 @@ def register_subtitle_routes(
 
                 "srt_file":
                     result["srt_file"],
+
+                "srt_path":
+                    result["srt_path"],
 
                 "overwritten":
                     saved["overwritten"],
@@ -1211,13 +1283,8 @@ def register_subtitle_routes(
                 flush=True
             )
 
-            traceback_text = (
-                __import__("traceback")
-                .format_exc()
-            )
-
             print(
-                traceback_text,
+                traceback.format_exc(),
                 flush=True
             )
 
@@ -1259,16 +1326,18 @@ def register_subtitle_routes(
                 flush=True
             )
 
+            print(
+                "==========================================",
+                flush=True
+            )
+
             uploaded_file = request.files.get(
                 "file"
             )
 
             saved = save_uploaded_file(
-
                 uploaded_file,
-
                 ALLOWED_MP4_EXTENSIONS
-
             )
 
             print(
@@ -1336,16 +1405,18 @@ def register_subtitle_routes(
                 flush=True
             )
 
+            print(
+                "==========================================",
+                flush=True
+            )
+
             uploaded_file = request.files.get(
                 "file"
             )
 
             saved = save_uploaded_file(
-
                 uploaded_file,
-
                 ALLOWED_SRT_EXTENSIONS
-
             )
 
             print(
@@ -1446,11 +1517,8 @@ def register_subtitle_routes(
             # --------------------------------------------
 
             mp3_path = get_download_file(
-
                 mp3_filename,
-
                 ALLOWED_MP3_EXTENSIONS
-
             )
 
             print(
@@ -1464,9 +1532,7 @@ def register_subtitle_routes(
             # --------------------------------------------
 
             result = create_srt_from_mp3(
-
                 mp3_path
-
             )
 
             return jsonify({
@@ -1482,6 +1548,9 @@ def register_subtitle_routes(
 
                 "srt_file":
                     result["srt_file"],
+
+                "srt_path":
+                    result["srt_path"],
 
                 "files": {
 
@@ -1538,7 +1607,7 @@ def register_subtitle_routes(
             )
 
             print(
-                __import__("traceback").format_exc(),
+                traceback.format_exc(),
                 flush=True
             )
 
@@ -1627,19 +1696,13 @@ def register_subtitle_routes(
             # --------------------------------------------
 
             mp4_path = get_download_file(
-
                 mp4_filename,
-
                 ALLOWED_MP4_EXTENSIONS
-
             )
 
             srt_path = get_download_file(
-
                 srt_filename,
-
                 ALLOWED_SRT_EXTENSIONS
-
             )
 
             print(
@@ -1659,11 +1722,8 @@ def register_subtitle_routes(
             # --------------------------------------------
 
             result = create_subtitle_mp4(
-
                 mp4_path,
-
                 srt_path
-
             )
 
             return jsonify({
@@ -1682,6 +1742,9 @@ def register_subtitle_routes(
 
                 "subtitle_mp4_file":
                     result["subtitle_mp4_file"],
+
+                "subtitle_mp4_path":
+                    result["subtitle_mp4_path"],
 
                 "filename":
                     result["subtitle_mp4_file"],
@@ -1744,7 +1807,7 @@ def register_subtitle_routes(
             )
 
             print(
-                __import__("traceback").format_exc(),
+                traceback.format_exc(),
                 flush=True
             )
 
@@ -1806,11 +1869,8 @@ def register_subtitle_routes(
             # --------------------------------------------
 
             mp3_path = get_download_file(
-
                 filename,
-
                 ALLOWED_MP3_EXTENSIONS
-
             )
 
             safe_filename = os.path.basename(
@@ -1882,10 +1942,8 @@ def register_subtitle_routes(
     #
     # 本来SRT作成はPOST。
     #
-    # ただしブラウザ等からGETされた場合に
+    # ブラウザ等からGETされた場合に
     # Flask標準404/HTMLを返さずJSONを返す。
-    #
-    # これによりフロント側のエラー確認が容易になる。
     # ======================================================
 
     @app.route(
