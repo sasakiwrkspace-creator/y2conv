@@ -110,10 +110,6 @@
             );
 
 
-        // =================================
-        // フォント選択ボタン
-        // =================================
-
         const subtitleFontButton =
             document.getElementById(
                 "subtitle-font-button"
@@ -202,17 +198,6 @@
             generatedSubtitleMp4Filename:
                 "",
 
-            // ---------------------------------
-            // 字幕フォントプリセット
-            // ---------------------------------
-            //
-            // 初期値:
-            // 標準
-            //
-            // subtitle_font.py側の
-            // プリセット名と一致させる。
-            // ---------------------------------
-
             fontPreset:
                 "標準",
 
@@ -227,7 +212,26 @@
 
 
         // =====================================
-        // フォントプリセット初期表示
+        // フォントプリセット
+        // =====================================
+
+        const FONT_PRESETS = [
+
+            "標準",
+
+            "ゴシック",
+
+            "明朝",
+
+            "太字ゴシック",
+
+            "太字明朝"
+
+        ];
+
+
+        // =====================================
+        // フォントボタン表示更新
         // =====================================
 
         function updateFontButton() {
@@ -256,29 +260,8 @@
 
 
         // =====================================
-        // フォントプリセット選択
-        //
-        // 現段階では5種類程度を
-        // JavaScript側で候補として持つ。
-        //
-        // 最終的なフォント設定値は
-        // subtitle_font.py側で管理する。
+        // フォント選択
         // =====================================
-
-        const FONT_PRESETS = [
-
-            "標準",
-
-            "ゴシック",
-
-            "明朝",
-
-            "太字ゴシック",
-
-            "太字明朝"
-
-        ];
-
 
         function selectFontPreset() {
 
@@ -358,14 +341,10 @@
             }
 
 
-            const selectedPreset =
+            subtitleState.fontPreset =
                 FONT_PRESETS[
                     selectedNumber - 1
                 ];
-
-
-            subtitleState.fontPreset =
-                selectedPreset;
 
 
             updateFontButton();
@@ -373,7 +352,7 @@
 
             console.log(
                 "[SUBTITLE] font preset selected:",
-                selectedPreset
+                subtitleState.fontPreset
             );
 
         }
@@ -407,13 +386,6 @@
             );
 
         }
-        else {
-
-            console.warn(
-                "[SUBTITLE] #subtitle-font-button がありません"
-            );
-
-        }
 
 
         // =====================================
@@ -427,10 +399,6 @@
         let processingStartTime =
             null;
 
-
-        // =====================================
-        // 経過時間フォーマット
-        // =====================================
 
         function formatElapsed(
             seconds
@@ -499,35 +467,6 @@
         }
 
 
-        // =====================================
-        // ダウンロードURL
-        // =====================================
-
-        function makeDownloadUrl(
-            filename
-        ) {
-
-            if (!filename) {
-
-                return "";
-
-            }
-
-
-            return (
-                "/download/" +
-                encodeURIComponent(
-                    String(filename)
-                )
-            );
-
-        }
-
-
-        // =====================================
-        // タイマー停止
-        // =====================================
-
         function stopElapsedTimer() {
 
             if (
@@ -547,10 +486,6 @@
         }
 
 
-        // =====================================
-        // 処理開始
-        // =====================================
-
         function startProcessing() {
 
             processingStartTime =
@@ -561,10 +496,6 @@
 
         }
 
-
-        // =====================================
-        // 経過秒数
-        // =====================================
 
         function getElapsedSeconds() {
 
@@ -595,10 +526,6 @@
         }
 
 
-        // =====================================
-        // 経過時間表示
-        // =====================================
-
         function getElapsedText() {
 
             return (
@@ -610,10 +537,6 @@
 
         }
 
-
-        // =====================================
-        // 経過時間タイマー
-        // =====================================
 
         function startElapsedTimer(
             message
@@ -670,59 +593,57 @@
             type
         ) {
 
-            const text =
+            if (!conversionStatusArea) {
+
+                return;
+
+            }
+
+
+            conversionStatusArea.textContent =
                 String(
                     message || ""
                 );
 
 
-            if (conversionStatusArea) {
-
-                conversionStatusArea.textContent =
-                    text;
+            conversionStatusArea.style.whiteSpace =
+                "pre-line";
 
 
-                conversionStatusArea.style.whiteSpace =
-                    "pre-line";
+            conversionStatusArea.classList.remove(
+                "error",
+                "success"
+            );
 
 
-                conversionStatusArea.classList.remove(
-                    "error",
-                    "success"
+            if (type) {
+
+                conversionStatusArea.classList.add(
+                    type
                 );
-
-
-                if (type) {
-
-                    conversionStatusArea.classList.add(
-                        type
-                    );
-
-                }
 
             }
 
         }
 
 
-        // =====================================
-        // ステータスクリア
-        // =====================================
-
         function clearStatus() {
 
-            if (conversionStatusArea) {
+            if (!conversionStatusArea) {
 
-                conversionStatusArea.textContent =
-                    "";
-
-
-                conversionStatusArea.classList.remove(
-                    "error",
-                    "success"
-                );
+                return;
 
             }
+
+
+            conversionStatusArea.textContent =
+                "";
+
+
+            conversionStatusArea.classList.remove(
+                "error",
+                "success"
+            );
 
         }
 
@@ -785,8 +706,7 @@
 
             if (
                 data &&
-                typeof data.message ===
-                    "string" &&
+                typeof data.message === "string" &&
                 data.message.trim()
             ) {
 
@@ -797,8 +717,7 @@
 
             if (
                 data &&
-                typeof data.error ===
-                    "string" &&
+                typeof data.error === "string" &&
                 data.error.trim()
             ) {
 
@@ -813,7 +732,7 @@
 
 
         // =====================================
-        // 共通POST FormData
+        // FormDataアップロード
         // =====================================
 
         async function uploadToEndpoint(
@@ -851,13 +770,11 @@
                 await fetch(
                     endpoint,
                     {
-
                         method:
                             "POST",
 
                         body:
                             formData
-
                     }
                 );
 
@@ -902,6 +819,9 @@
 
         // =====================================
         // MP3 → SRT
+        //
+        // /subtitle-upload-mp3 が
+        // upload → Gemini → SRT保存まで行う。
         // =====================================
 
         async function createSrtWithGemini(
@@ -947,11 +867,8 @@
         ) {
 
             return await uploadToEndpoint(
-
                 "/subtitle-upload-mp4",
-
                 file
-
             );
 
         }
@@ -966,21 +883,19 @@
         ) {
 
             return await uploadToEndpoint(
-
                 "/subtitle-upload-srt",
-
                 file
-
             );
 
         }
 
 
         // =====================================
-        // 字幕MP4
+        // 字幕MP4作成
         //
-        // ★変更:
-        // preset_nameをサーバーへ送信
+        // /subtitle-create-mp4
+        //
+        // preset_nameを必ず送信する。
         // =====================================
 
         async function embedSubtitle(
@@ -1012,16 +927,23 @@
 
 
             console.log(
-                "[SUBTITLE] subtitle preset:",
-                presetName
+                "[SUBTITLE] create subtitle MP4",
+                {
+                    mp4_file:
+                        mp4Filename,
+
+                    srt_file:
+                        srtFilename,
+
+                    preset_name:
+                        presetName
+                }
             );
 
 
             const response =
                 await fetch(
-
                     "/subtitle-create-mp4",
-
                     {
 
                         method:
@@ -1049,7 +971,6 @@
                             })
 
                     }
-
                 );
 
 
@@ -1086,7 +1007,12 @@
             }
 
 
-            if (!data.filename) {
+            const filename =
+                data.subtitle_mp4_file ||
+                data.filename;
+
+
+            if (!filename) {
 
                 throw new Error(
                     "字幕付きMP4のファイル名を取得できませんでした。"
@@ -1095,7 +1021,44 @@
             }
 
 
-            return data;
+            return {
+
+                ...data,
+
+                filename:
+                    filename
+
+            };
+
+        }
+
+
+        // =====================================
+        // ダウンロードURL
+        //
+        // 今回のsubtitle_routes.pyには
+        // subtitle-download-mp4は存在しない。
+        //
+        // そのため既存の /download/ を使用する。
+        // =====================================
+
+        function makeDownloadUrl(
+            filename
+        ) {
+
+            if (!filename) {
+
+                return "";
+
+            }
+
+
+            return (
+                "/download/" +
+                encodeURIComponent(
+                    String(filename)
+                )
+            );
 
         }
 
@@ -1110,14 +1073,10 @@
             downloadUrl
         ) {
 
-            if (!downloadArea) {
-
-                return;
-
-            }
-
-
-            if (!filename) {
+            if (
+                !downloadArea ||
+                !filename
+            ) {
 
                 return;
 
@@ -1129,6 +1088,13 @@
                 makeDownloadUrl(
                     filename
                 );
+
+
+            if (!url) {
+
+                return;
+
+            }
 
 
             const wrapper =
@@ -1250,7 +1216,9 @@
 
         mp3SelectButton.addEventListener(
             "click",
-            function () {
+            function (event) {
+
+                event.preventDefault();
 
                 mp3Input.click();
 
@@ -1304,7 +1272,9 @@
 
         mp4SelectButton.addEventListener(
             "click",
-            function () {
+            function (event) {
+
+                event.preventDefault();
 
                 mp4Input.click();
 
@@ -1356,7 +1326,9 @@
 
         srtSelectButton.addEventListener(
             "click",
-            function () {
+            function (event) {
+
+                event.preventDefault();
 
                 srtInput.click();
 
@@ -1465,6 +1437,14 @@
                     true;
 
 
+                if (subtitleFontButton) {
+
+                    subtitleFontButton.disabled =
+                        true;
+
+                }
+
+
                 startProcessing();
 
 
@@ -1486,7 +1466,8 @@
 
                     subtitleState.mp3Filename =
                         result.mp3_file ||
-                        result.filename;
+                        result.filename ||
+                        file.name;
 
 
                     subtitleState.generatedSrtFilename =
@@ -1499,6 +1480,9 @@
                     setStatus(
 
                         "SRTファイルの作成が完了しました。\n\n" +
+                        "SRT: " +
+                        result.srt_file +
+                        "\n\n" +
                         getElapsedText(),
 
                         "success"
@@ -1690,9 +1674,9 @@
 
                 try {
 
-                    // ---------------------------------
+                    // =================================
                     // MP4アップロード
-                    // ---------------------------------
+                    // =================================
 
                     startElapsedTimer(
                         "MP4をアップロードしています..."
@@ -1706,12 +1690,14 @@
 
 
                     subtitleState.mp4Filename =
-                        mp4Result.filename;
+                        mp4Result.mp4_file ||
+                        mp4Result.filename ||
+                        mp4File.name;
 
 
-                    // ---------------------------------
+                    // =================================
                     // SRTアップロード
-                    // ---------------------------------
+                    // =================================
 
                     startElapsedTimer(
                         "SRTをアップロードしています..."
@@ -1725,12 +1711,14 @@
 
 
                     subtitleState.srtFilename =
-                        srtResult.filename;
+                        srtResult.srt_file ||
+                        srtResult.filename ||
+                        srtFile.name;
 
 
-                    // ---------------------------------
+                    // =================================
                     // 字幕焼き込み
-                    // ---------------------------------
+                    // =================================
 
                     startElapsedTimer(
 
@@ -1743,9 +1731,9 @@
                     const embedResult =
                         await embedSubtitle(
 
-                            mp4Result.filename,
+                            subtitleState.mp4Filename,
 
-                            srtResult.filename
+                            subtitleState.srtFilename
 
                         );
 
@@ -1762,6 +1750,9 @@
                         "字幕mp4の作成が完了しました。\n\n" +
                         "フォント: " +
                         subtitleState.fontPreset +
+                        "\n\n" +
+                        "ファイル: " +
+                        embedResult.filename +
                         "\n\n" +
                         getElapsedText(),
 
@@ -1785,7 +1776,6 @@
                         "[SUBTITLE] 字幕MP4作成完了:",
                         embedResult.filename
                     );
-
 
                 }
                 catch (error) {
