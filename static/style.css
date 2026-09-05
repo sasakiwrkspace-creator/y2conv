@@ -792,6 +792,43 @@ body {
     font-weight: bold;
 }
 
+/* =========================================
+   ファイル変換タイトル + ボタン
+========================================= */
+
+.file-conversion-title-with-button {
+    display: flex;
+
+    align-items: center;
+
+    flex-wrap: wrap;
+
+    margin-bottom: 15px;
+}
+
+
+/*
+    ラベルとボタンの間を
+    約1文字分空ける。
+*/
+
+.file-title-button {
+    margin-left: 1em;
+
+    flex: 0 0 auto;
+}
+
+
+/*
+    タイトル側
+*/
+
+.file-conversion-label {
+    display: inline-block;
+
+    flex: 0 0 auto;
+}
+
 
 /* =========================================
    ファイル選択
