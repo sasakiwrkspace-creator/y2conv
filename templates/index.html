@@ -140,7 +140,8 @@
 
 
             <!--
-                タブ1専用の実行ボタン
+                タブ1専用実行ボタン
+                converter.jsが使用
             -->
 
             <button
@@ -402,35 +403,27 @@
 
 
             <!-- ---------------------------------
-                 タイトル + Gemini
+                 タイトル
             ---------------------------------- -->
 
-            <div class="file-conversion-title file-conversion-title-with-button">
+            <div class="file-conversion-title">
 
-                <span class="file-conversion-label">
-                    MP3からSRT(字幕ファイル)を作成
-                </span>
-
-
-                <button
-                    id="gemini-send-button"
-                    class="execute-button file-title-button"
-                    type="button"
-                    disabled
-                >
-                    Geminiへ
-                </button>
+                MP3からSRT(字幕ファイル)を作成
 
             </div>
 
 
 
             <!-- ---------------------------------
-                 MP3ファイル
+                 MP3選択 + Gemini
             ---------------------------------- -->
 
             <div class="file-select-row">
 
+
+                <!-- =================================
+                     MP3ファイル
+                ================================== -->
 
                 <input
                     id="subtitle-mp3-input"
@@ -439,6 +432,12 @@
                     accept=".mp3,audio/mpeg"
                 >
 
+
+                <!--
+                    MP3ファイル選択
+                    表示部分をクリックして
+                    ファイル選択画面を開く。
+                -->
 
                 <button
                     id="subtitle-mp3-select"
@@ -449,6 +448,23 @@
 
                     ファイルが選択されていません
                     → mp3ファイルを選択してください
+
+                </button>
+
+
+
+                <!-- =================================
+                     Gemini送信
+                ================================== -->
+
+                <button
+                    id="gemini-send-button"
+                    class="execute-button"
+                    type="button"
+                    disabled
+                >
+
+                    Geminiへ
 
                 </button>
 
@@ -471,23 +487,21 @@
                  タイトル + フォント
             ---------------------------------- -->
 
-            <div class="file-conversion-title file-conversion-title-with-button">
+            <div class="file-conversion-title subtitle-title-row">
 
-                <span class="file-conversion-label">
+                <span>
                     MP4とSRTから字幕MP4を作成
                 </span>
 
 
                 <!--
-                    フォント設定
-
-                    ラベルとの間に
-                    約1文字分の余白をCSSで設定。
+                    フォントボタンは
+                    ラベルの右側に約1文字分空けて配置
                 -->
 
                 <button
                     id="subtitle-font-button"
-                    class="subtitle-font-button file-title-button"
+                    class="subtitle-font-button"
                     type="button"
                 >
                     Noto Sans CJK JP
@@ -497,9 +511,9 @@
 
 
 
-            <!-- ---------------------------------
+            <!-- =================================
                  MP4
-            ---------------------------------- -->
+            ================================== -->
 
             <div class="file-select-row">
 
@@ -511,6 +525,11 @@
                     accept=".mp4,video/mp4"
                 >
 
+
+                <!--
+                    表示部分をクリックして
+                    MP4ファイルを選択する。
+                -->
 
                 <button
                     id="subtitle-mp4-select"
@@ -529,9 +548,9 @@
 
 
 
-            <!-- ---------------------------------
+            <!-- =================================
                  SRT
-            ---------------------------------- -->
+            ================================== -->
 
             <div class="file-select-row">
 
@@ -543,6 +562,11 @@
                     accept=".srt,text/plain"
                 >
 
+
+                <!--
+                    表示部分をクリックして
+                    SRTファイルを選択する。
+                -->
 
                 <button
                     id="subtitle-srt-select"
@@ -561,9 +585,9 @@
 
 
 
-            <!-- ---------------------------------
+            <!-- =================================
                  字幕MP4作成
-            ---------------------------------- -->
+            ================================== -->
 
             <div class="subtitle-create-row">
 
@@ -602,6 +626,9 @@
 
         <!-- =====================================
              処理状況
+
+             ステータス表示はここ1か所だけ。
+             #status は作らない。
         ====================================== -->
 
         <div
@@ -632,7 +659,22 @@
 
 <!-- =========================================
      JavaScript
+
+     converter.js
+     -------------------------
+     タブ1のYouTube変換専用
+
+     subtitle_font.js
+     -------------------------
+     タブ2の字幕フォント設定専用
+
+     subtitle.js
+     -------------------------
+     タブ2のファイル変換専用
+
+     両者を混在させない。
 ========================================== -->
+
 
 <script
     src="/static/converter.js"
@@ -695,6 +737,35 @@ document.addEventListener(
             document.getElementById(
                 "file-tab"
             );
+
+
+
+        // =====================================
+        // DOM確認
+        // =====================================
+
+        console.log(
+            "[INDEX] youtubeTabButton:",
+            youtubeTabButton
+        );
+
+
+        console.log(
+            "[INDEX] fileTabButton:",
+            fileTabButton
+        );
+
+
+        console.log(
+            "[INDEX] youtubeTab:",
+            youtubeTab
+        );
+
+
+        console.log(
+            "[INDEX] fileTab:",
+            fileTab
+        );
 
 
 
@@ -831,6 +902,11 @@ document.addEventListener(
 
         // =====================================
         // 初期状態
+        //
+        // 時間入力のイベントは
+        // converter.js側で管理する。
+        //
+        // ここでは登録しない。
         // =====================================
 
         showTab(
