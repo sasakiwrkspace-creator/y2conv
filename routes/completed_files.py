@@ -1,150 +1,146 @@
 # =====================================
-# 完成ファイル確認
+# completed_files.py
 #
-# タイトル + 時間指定 + ラジオボタン
-# から完成済みファイルを検索する。
+# 完了ファイル判定
 #
-# 判定:
+# 役割:
+# ・タブ1 / タブ2を完全に分離
+# ・タイトルを基準に完成ファイルを検索
+# ・時間指定6桁をファイル名判定に使用
+# ・00:00:00 ～ 00:00:00 の場合は数字なし
+# ・存在するファイルだけを返す
+# ・MP3は「MP3本体 + Gemini SRT作成ボタン」の
+#   1セットとして扱う
 #
-# mp3
-#   -> MP3のみ
+# タブ1:
+#   MP3
+#   MP4
+#   SRT
+#   字幕MP4
 #
-# mp4
-#   -> MP4のみ
+# タブ2:
+#   SRT
+#   字幕SRT
 #
-# subtitle_mp4
-#   -> 字幕MP4
-#   -> MP4
-#   -> MP3
-#   -> SRT
-#
+# 注意:
+# ・タブ1のラジオボタン情報をタブ2では使用しない
+# ・タブ2の判定にタブ1のoutput-formatを混ぜない
 # =====================================
 
-import re
+from __future__ import annotations
+
 from pathlib import Path
-
-from flask import request, jsonify
-
-
-# =====================================
-# ファイル名安全化
-# =====================================
-
-def _find_sanitize_filename(value):
-
-    text = str(
-        value or "YouTube Video"
-    ).strip()
-
-    if not text:
-        text = "YouTube Video"
-
-    text = re.sub(
-        r"[\r\n\t]+",
-        " ",
-        text
-    )
-
-    text = re.sub(
-        r'[\\/:*?"<>|]',
-        "_",
-        text
-    )
-
-    text = re.sub(
-        r"[\x00-\x1f\x7f]",
-        "",
-        text
-    )
-
-    text = re.sub(
-        r"\s+",
-        " ",
-        text
-    )
-
-    text = text.rstrip(" .")
-
-    if not text:
-        text = "YouTube Video"
-
-    text = text[:180]
-
-    text = text.rstrip(" .")
-
-    if not text:
-        text = "YouTube Video"
-
-    return text
+from typing import Any
+import re
 
 
 # =====================================
-# 時間 → 秒
+# 設定
 # =====================================
 
-def _find_time_to_seconds(value):
+# completed_files.py から見た
+# 完成ファイル保存ディレクトリ。
+#
+# 必要に応じて既存プロジェクトの
+# 保存先に変更してください。
+#
+# 環境変数などで変更できる構成にする場合は
+# ここを差し替えます。
+# =====================================
+
+BASE_DIR = Path(__file__).resolve().parent
+
+DOWNLOAD_DIR = BASE_DIR / "downloads"
+
+
+# =====================================
+# 共通
+# =====================================
+
+def normalize_title(title: str) -> str:
+    """
+    タイトルをファイル名検索用に正規化する。
+
+    実際のファイル名を壊さないため、
+    ここでは前後空白の除去を中心に行う。
+    """
+
+    if title is None:
+        return ""
+
+    return str(title).strip()
+
+
+def normalize_time(value: Any) -> int:
+    """
+    時間を秒に変換する。
+
+    None / 空文字 / 不正値
+    → 0
+    """
 
     if value is None:
-        return 0.0
+        return 0
 
-    text = str(value).strip()
-
-    if not text:
-        return 0.0
-
-    parts = text.split(":")
+    if isinstance(value, bool):
+        return 0
 
     try:
-
-        if len(parts) == 3:
-
-            return (
-                float(parts[0]) * 3600
-                + float(parts[1]) * 60
-                + float(parts[2])
-            )
-
-        if len(parts) == 2:
-
-            return (
-                float(parts[0]) * 60
-                + float(parts[1])
-            )
-
-        return float(text)
-
-    except Exception as error:
-
-        raise ValueError(
-            f"時間形式が不正です: {value}"
-        ) from error
+        return max(0, int(float(value)))
+    except (TypeError, ValueError):
+        return 0
 
 
-# =====================================
-# ファイル名用時間
-# =====================================
+def make_time_suffix(
+    start_time: Any = 0,
+    end_time: Any = 0,
+) -> str:
+    """
+    時間指定用6桁文字列を作る。
 
-def _find_format_filename_time(value):
+    00:00:00 ～ 00:00:00
+        → ""
 
-    seconds = _find_time_to_seconds(
-        value
+    01:02:03 ～ 04:05:06
+        → "_010203_040506"
+
+    秒数を HHMMSS に変換する。
+    """
+
+    start = normalize_time(start_time)
+    end = normalize_time(end_time)
+
+    # ---------------------------------
+    # 両方00:00:00の場合
+    # 数字なし
+    # ---------------------------------
+
+    if start == 0 and end == 0:
+        return ""
+
+    return (
+        "_"
+        + seconds_to_hhmmss(start)
+        + "_"
+        + seconds_to_hhmmss(end)
     )
 
-    total_seconds = int(
-        seconds
-    )
 
-    hours = (
-        total_seconds // 3600
-    )
+def seconds_to_hhmmss(seconds: int) -> str:
+    """
+    秒数を6桁 HHMMSS にする。
 
-    minutes = (
-        total_seconds % 3600
-    ) // 60
+    例:
+        0     → 000000
+        3661  → 010101
+        5430  → 013030
+    """
 
-    secs = (
-        total_seconds % 60
-    )
+    seconds = max(0, int(seconds))
+
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    secs = seconds % 60
 
     return (
         f"{hours:02d}"
@@ -153,488 +149,799 @@ def _find_format_filename_time(value):
     )
 
 
-# =====================================
-# 時間サフィックス
-# =====================================
+def build_base_name(
+    title: str,
+    start_time: Any = 0,
+    end_time: Any = 0,
+) -> str:
+    """
+    タイトル + 時間指定から
+    共通ファイル名部分を作る。
 
-def _find_build_range_suffix(
-    start_time=None,
-    end_time=None
-):
+    例:
 
-    start_seconds = _find_time_to_seconds(
-        start_time
-    )
+    タイトル:
+        sample
 
-    end_seconds = _find_time_to_seconds(
-        end_time
-    )
+    時間なし:
+        sample
 
-    if (
-        start_seconds == 0
-        and
-        end_seconds == 0
-    ):
+    時間あり:
+        sample_013045_021530
+    """
 
+    title = normalize_title(title)
+
+    if not title:
         return ""
 
-    return (
-        "_"
-        + _find_format_filename_time(
-            start_time
-        )
-        + "_"
-        + _find_format_filename_time(
-            end_time
-        )
+    suffix = make_time_suffix(
+        start_time,
+        end_time,
     )
+
+    return title + suffix
+
+
+# =====================================
+# ファイル名安全処理
+# =====================================
+
+def is_safe_filename(filename: str) -> bool:
+    """
+    filenameが保存ディレクトリ外を
+    指せないことを確認する。
+
+    ファイル名検索では基本的にbasenameのみ
+    使用する。
+    """
+
+    if not filename:
+        return False
+
+    filename = str(filename)
+
+    if "/" in filename:
+        return False
+
+    if "\\" in filename:
+        return False
+
+    if filename in (".", ".."):
+        return False
+
+    return True
+
+
+# =====================================
+# ファイル検索
+# =====================================
+
+def find_exact_file(
+    directory: Path,
+    filename: str,
+) -> Path | None:
+    """
+    完全一致でファイルを検索する。
+    """
+
+    if not filename:
+        return None
+
+    if not is_safe_filename(filename):
+        return None
+
+    path = directory / filename
+
+    if path.is_file():
+        return path
+
+    return None
+
+
+def find_by_base_name(
+    directory: Path,
+    base_name: str,
+    extensions: list[str],
+) -> Path | None:
+    """
+    base_name + 拡張子で検索する。
+
+    例:
+        sample_010203_020304.mp3
+    """
+
+    if not base_name:
+        return None
+
+    for extension in extensions:
+
+        if not extension.startswith("."):
+            extension = "." + extension
+
+        filename = (
+            base_name +
+            extension
+        )
+
+        path = find_exact_file(
+            directory,
+            filename,
+        )
+
+        if path:
+            return path
+
+    return None
 
 
 # =====================================
 # ファイル情報
 # =====================================
 
-def _find_file_info(path):
+def file_info(
+    path: Path | None,
+) -> dict[str, Any]:
+    """
+    フロントエンドへ返すファイル情報。
+    """
 
-    if not path.is_file():
-
+    if path is None:
         return {
             "exists": False,
-            "filename": None,
-            "path": None
+            "filename": "",
         }
 
     return {
         "exists": True,
         "filename": path.name,
-        "path": str(path)
     }
 
 
 # =====================================
-# 完成ファイル検索
+# タブ1
 # =====================================
 
-def _find_completed_files(
-    title,
-    output_type,
-    start_time=None,
-    end_time=None,
-    download_dir=None
-):
+def find_tab1_files(
+    title: str,
+    start_time: Any = 0,
+    end_time: Any = 0,
+    selected_outputs: list[str] | None = None,
+) -> dict[str, Any]:
+    """
+    タブ1の完成ファイルを判定する。
 
-    safe_title = _find_sanitize_filename(
-        title
+    selected_outputs:
+        タブ1のラジオボタン選択状態。
+
+    重要:
+        この値はタブ1だけで使用する。
+
+    タブ2の判定には絶対に渡さない。
+    """
+
+    base_name = build_base_name(
+        title,
+        start_time,
+        end_time,
     )
 
-    range_suffix = _find_build_range_suffix(
-        start_time=start_time,
-        end_time=end_time
-    )
+    if not base_name:
+        return {
+            "tab": 1,
+            "title": normalize_title(title),
+            "time_suffix": "",
+            "files": {},
+        }
 
-    base_name = (
-        safe_title
-        + range_suffix
-    )
-
-    if download_dir is None:
-
-        raise ValueError(
-            "DOWNLOAD_DIRが指定されていません。"
+    selected = {
+        str(value).lower()
+        for value in (
+            selected_outputs or []
         )
-
-    output_dir = Path(
-        download_dir
-    )
-
-    # =================================
-    # ファイルパス
-    # =================================
-
-    mp3_path = (
-        output_dir
-        / f"{base_name}.mp3"
-    )
-
-    mp4_path = (
-        output_dir
-        / f"{base_name}.mp4"
-    )
-
-    srt_path = (
-        output_dir
-        / f"{base_name}.srt"
-    )
-
-    subtitle_mp4_path = (
-        output_dir
-        / f"{base_name}_字幕.mp4"
-    )
-
-    # =================================
-    # 基本結果
-    # =================================
+    }
 
     result = {
-
-        "title":
-            title,
-
-        "output_type":
-            output_type,
-
-        "base_name":
-            base_name,
-
-        "files": {
-
-            "mp3":
-                _find_file_info(
-                    mp3_path
-                ),
-
-            "mp4":
-                _find_file_info(
-                    mp4_path
-                ),
-
-            "srt":
-                _find_file_info(
-                    srt_path
-                ),
-
-            "subtitle_mp4":
-                _find_file_info(
-                    subtitle_mp4_path
-                )
-
-        },
-
-        "buttons": []
-
+        "tab": 1,
+        "title": normalize_title(title),
+        "time_suffix": make_time_suffix(
+            start_time,
+            end_time,
+        ),
+        "files": {},
     }
 
-    # =================================
+    # ---------------------------------
     # MP3
-    # =================================
+    #
+    # MP3が存在した場合、
+    # MP3ボタン + Gemini SRTボタン
+    # を表示できるようにする。
+    # ---------------------------------
 
-    if output_type == "mp3":
+    if (
+        not selected
+        or "mp3" in selected
+    ):
 
-        if mp3_path.is_file():
+        mp3 = find_by_base_name(
+            DOWNLOAD_DIR,
+            base_name,
+            [".mp3"],
+        )
 
-            result["buttons"].append({
+        result["files"]["mp3"] = \
+            file_info(mp3)
 
-                "type":
-                    "mp3",
+        if mp3:
+            result["files"]["mp3"][
+                "show_gemini_srt"
+            ] = True
+        else:
+            result["files"]["mp3"][
+                "show_gemini_srt"
+            ] = False
 
-                "label":
-                    "[MP3]",
-
-                "filename":
-                    mp3_path.name,
-
-                "path":
-                    str(mp3_path)
-
-            })
-
-    # =================================
+    # ---------------------------------
     # MP4
-    # =================================
+    # ---------------------------------
 
-    elif output_type == "mp4":
+    if (
+        not selected
+        or "mp4" in selected
+    ):
 
-        if mp4_path.is_file():
+        mp4 = find_by_base_name(
+            DOWNLOAD_DIR,
+            base_name,
+            [".mp4"],
+        )
 
-            result["buttons"].append({
+        result["files"]["mp4"] = \
+            file_info(mp4)
 
-                "type":
-                    "mp4",
-
-                "label":
-                    "[MP4]",
-
-                "filename":
-                    mp4_path.name,
-
-                "path":
-                    str(mp4_path)
-
-            })
-
-    # =================================
+    # ---------------------------------
     # 字幕MP4
+    # ---------------------------------
+
+    if (
+        not selected
+        or "subtitle_mp4" in selected
+    ):
+
+        subtitle_mp4 = find_by_base_name(
+            DOWNLOAD_DIR,
+            base_name,
+            [
+                "_subtitle.mp4",
+            ],
+        )
+
+        # ---------------------------------
+        # 上記形式で見つからない場合、
+        # subtitle_mp4を含む候補も確認する。
+        # ---------------------------------
+
+        if subtitle_mp4 is None:
+
+            subtitle_mp4 = find_subtitle_mp4(
+                DOWNLOAD_DIR,
+                base_name,
+            )
+
+        result["files"]["subtitle_mp4"] = \
+            file_info(subtitle_mp4)
+
+    # ---------------------------------
+    # SRT
     #
-    # 順番:
-    #
-    # [字幕MP4]
-    # [MP4]
-    # [MP3]
-    # [SRT]
-    # =================================
+    # タブ1のGemini SRT。
+    # ---------------------------------
 
-    elif output_type == "subtitle_mp4":
+    if (
+        not selected
+        or "srt" in selected
+        or "mp3" in selected
+    ):
 
-        if subtitle_mp4_path.is_file():
+        srt = find_by_base_name(
+            DOWNLOAD_DIR,
+            base_name,
+            [".srt"],
+        )
 
-            result["buttons"].append({
-
-                "type":
-                    "subtitle_mp4",
-
-                "label":
-                    "[字幕MP4]",
-
-                "filename":
-                    subtitle_mp4_path.name,
-
-                "path":
-                    str(subtitle_mp4_path)
-
-            })
-
-        if mp4_path.is_file():
-
-            result["buttons"].append({
-
-                "type":
-                    "mp4",
-
-                "label":
-                    "[MP4]",
-
-                "filename":
-                    mp4_path.name,
-
-                "path":
-                    str(mp4_path)
-
-            })
-
-        if mp3_path.is_file():
-
-            result["buttons"].append({
-
-                "type":
-                    "mp3",
-
-                "label":
-                    "[MP3]",
-
-                "filename":
-                    mp3_path.name,
-
-                "path":
-                    str(mp3_path)
-
-            })
-
-        if srt_path.is_file():
-
-            result["buttons"].append({
-
-                "type":
-                    "srt",
-
-                "label":
-                    "[SRT]",
-
-                "filename":
-                    srt_path.name,
-
-                "path":
-                    str(srt_path)
-
-            })
+        result["files"]["srt"] = \
+            file_info(srt)
 
     return result
 
 
 # =====================================
-# Route登録
+# 字幕MP4検索
 # =====================================
 
-def register_completed_files(
-    app,
-    download_dir
-):
+def find_subtitle_mp4(
+    directory: Path,
+    base_name: str,
+) -> Path | None:
+    """
+    字幕MP4を検索する。
 
-    from flask import (
-        jsonify,
-        request
+    想定候補:
+
+        title_subtitle.mp4
+        title_subtitle_mp4.mp4
+
+    実際のsubtitle_mp4.pyの命名規則に
+    合わせてここを一本化できます。
+    """
+
+    candidates = [
+        f"{base_name}_subtitle.mp4",
+        f"{base_name}_subtitle_mp4.mp4",
+    ]
+
+    for filename in candidates:
+
+        path = find_exact_file(
+            directory,
+            filename,
+        )
+
+        if path:
+            return path
+
+    return None
+
+
+# =====================================
+# タブ2
+# =====================================
+
+def find_tab2_files(
+    title: str,
+    start_time: Any = 0,
+    end_time: Any = 0,
+) -> dict[str, Any]:
+    """
+    タブ2の完成ファイルを判定する。
+
+    重要:
+
+    ・タブ1のselected_outputsを受け取らない
+    ・タブ1のラジオボタンを見ない
+    ・タブ1のoutput-formatに影響されない
+
+    タブ2は、
+
+        上側 → SRT
+        下側 → 字幕SRT
+
+    として独立して判定する。
+    """
+
+    base_name = build_base_name(
+        title,
+        start_time,
+        end_time,
     )
 
-    @app.route(
-        "/find-completed-files",
-        methods=["POST"]
+    result = {
+        "tab": 2,
+        "title": normalize_title(title),
+        "time_suffix": make_time_suffix(
+            start_time,
+            end_time,
+        ),
+        "files": {},
+    }
+
+    if not base_name:
+        return result
+
+    # ---------------------------------
+    # タブ2 上側
+    # SRT
+    # ---------------------------------
+
+    srt = find_tab2_srt(
+        DOWNLOAD_DIR,
+        base_name,
     )
-    def find_completed_files():
 
-        try:
+    result["files"]["srt"] = \
+        file_info(srt)
 
-            data = (
-                request.get_json(
-                    silent=True
-                )
-                or {}
-            )
+    # ---------------------------------
+    # タブ2 下側
+    # 字幕SRT
+    # ---------------------------------
 
-            title = data.get(
-                "title"
-            )
+    subtitle_srt = find_tab2_subtitle_srt(
+        DOWNLOAD_DIR,
+        base_name,
+    )
 
-            output_type = data.get(
-                "output_type"
-            )
+    result["files"]["subtitle_srt"] = \
+        file_info(subtitle_srt)
 
-            start_time = data.get(
-                "start_time"
-            )
+    return result
 
-            end_time = data.get(
-                "end_time"
-            )
 
-            # =================================
-            # タイトル確認
-            # =================================
+# =====================================
+# タブ2 SRT
+# =====================================
 
-            if not title:
+def find_tab2_srt(
+    directory: Path,
+    base_name: str,
+) -> Path | None:
+    """
+    タブ2上側のSRTを検索する。
 
-                return jsonify({
+    タブ1のSRTとは別の命名規則を
+    想定できるよう関数を分離している。
+    """
 
-                    "success":
-                        False,
+    candidates = [
+        f"{base_name}_tab2.srt",
+        f"{base_name}_srt.srt",
+    ]
 
-                    "message":
-                        "タイトルが指定されていません。"
+    for filename in candidates:
 
-                }), 400
+        path = find_exact_file(
+            directory,
+            filename,
+        )
 
-            # =================================
-            # 出力形式確認
-            # =================================
+        if path:
+            return path
 
-            if output_type not in (
-                "mp3",
-                "mp4",
-                "subtitle_mp4"
-            ):
+    return None
 
-                return jsonify({
 
-                    "success":
-                        False,
+# =====================================
+# タブ2 字幕SRT
+# =====================================
 
-                    "message":
-                        "出力形式が不正です。"
+def find_tab2_subtitle_srt(
+    directory: Path,
+    base_name: str,
+) -> Path | None:
+    """
+    タブ2下側の字幕SRTを検索する。
+    """
 
-                }), 400
+    candidates = [
+        f"{base_name}_subtitle.srt",
+        f"{base_name}_subtitle_srt.srt",
+    ]
 
-            # =================================
-            # 時間確認
-            # =================================
+    for filename in candidates:
 
-            try:
+        path = find_exact_file(
+            directory,
+            filename,
+        )
 
-                start_seconds = (
-                    _find_time_to_seconds(
-                        start_time
-                    )
-                )
+        if path:
+            return path
 
-                end_seconds = (
-                    _find_time_to_seconds(
-                        end_time
-                    )
-                )
+    return None
 
-                if start_seconds < 0:
 
-                    raise ValueError(
-                        "開始時間は0秒以上にしてください。"
-                    )
+# =====================================
+# 完了ファイル統合
+# =====================================
 
-                if end_seconds < 0:
+def get_completed_files(
+    tab1_title: str = "",
+    tab1_start_time: Any = 0,
+    tab1_end_time: Any = 0,
+    tab1_outputs: list[str] | None = None,
 
-                    raise ValueError(
-                        "終了時間は0秒以上にしてください。"
-                    )
+    tab2_title: str = "",
+    tab2_start_time: Any = 0,
+    tab2_end_time: Any = 0,
+) -> dict[str, Any]:
+    """
+    タブ1 + タブ2の完成ファイルを取得する。
 
-                if not (
-                    start_seconds == 0
-                    and
-                    end_seconds == 0
-                ):
+    ここでも重要なのは、
 
-                    if end_seconds <= start_seconds:
+        tab1_outputs
+            ↓
+        タブ1だけ
 
-                        raise ValueError(
-                            "終了時間は開始時間より後にしてください。"
-                        )
+    という完全分離。
+    """
 
-            except Exception as error:
+    tab1 = find_tab1_files(
+        title=tab1_title,
+        start_time=tab1_start_time,
+        end_time=tab1_end_time,
+        selected_outputs=tab1_outputs,
+    )
 
-                return jsonify({
+    tab2 = find_tab2_files(
+        title=tab2_title,
+        start_time=tab2_start_time,
+        end_time=tab2_end_time,
+    )
 
-                    "success":
-                        False,
+    return {
+        "success": True,
 
-                    "message":
-                        str(error)
+        "tab1": tab1,
 
-                }), 400
+        "tab2": tab2,
+    }
 
-            # =================================
-            # 検索
-            # =================================
 
-            result = _find_completed_files(
+# =====================================
+# ダウンロード表示用
+# =====================================
 
-                title=
-                    title,
+def make_download_display(
+    completed: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    フロントエンドがそのまま
+    ダウンロードエリアを作れる形式にする。
 
-                output_type=
-                    output_type,
+    表示順:
 
-                start_time=
-                    start_time,
+        [字幕mp4]
+        [mp4]
+        [mp3] ▲Geminiへ(字幕srt)
+        [srt]
 
-                end_time=
-                    end_time,
+    ただし、存在するものだけ。
+    """
 
-                download_dir=
-                    download_dir
+    display = []
 
-            )
+    tab1 = (
+        completed.get("tab1", {})
+        .get("files", {})
+    )
 
-            return jsonify({
+    tab2 = (
+        completed.get("tab2", {})
+        .get("files", {})
+    )
 
-                "success":
-                    True,
+    # ---------------------------------
+    # タブ1 字幕MP4
+    # ---------------------------------
 
-                **result
+    subtitle_mp4 = tab1.get(
+        "subtitle_mp4",
+        {},
+    )
 
-            })
+    if subtitle_mp4.get("exists"):
 
-        except Exception as error:
+        display.append({
+            "tab": 1,
+            "type": "subtitle_mp4",
+            "filename":
+                subtitle_mp4["filename"],
+            "label": "[字幕mp4]",
+        })
 
-            print(
-                "[APP] /find-completed-files ERROR:",
-                repr(error),
-                flush=True
-            )
+    # ---------------------------------
+    # タブ1 MP4
+    # ---------------------------------
 
-            return jsonify({
+    mp4 = tab1.get(
+        "mp4",
+        {},
+    )
 
-                "success":
-                    False,
+    if mp4.get("exists"):
 
-                "message":
-                    str(error)
+        display.append({
+            "tab": 1,
+            "type": "mp4",
+            "filename":
+                mp4["filename"],
+            "label": "[mp4]",
+        })
 
-            }), 500
+    # ---------------------------------
+    # タブ1 MP3
+    #
+    # MP3本体とGeminiボタンは
+    # 必ずセット。
+    # ---------------------------------
+
+    mp3 = tab1.get(
+        "mp3",
+        {},
+    )
+
+    if mp3.get("exists"):
+
+        display.append({
+            "tab": 1,
+            "type": "mp3_group",
+            "filename":
+                mp3["filename"],
+            "label": "[mp3]",
+            "show_gemini_srt": True,
+            "gemini_label":
+                "▲geminiへ(字幕srt)",
+        })
+
+    # ---------------------------------
+    # タブ1 SRT
+    # ---------------------------------
+
+    srt = tab1.get(
+        "srt",
+        {},
+    )
+
+    if srt.get("exists"):
+
+        display.append({
+            "tab": 1,
+            "type": "srt",
+            "filename":
+                srt["filename"],
+            "label": "[srt]",
+        })
+
+    # ---------------------------------
+    # タブ2 SRT
+    #
+    # タブ1とは完全に別。
+    # ---------------------------------
+
+    tab2_srt = tab2.get(
+        "srt",
+        {},
+    )
+
+    if tab2_srt.get("exists"):
+
+        display.append({
+            "tab": 2,
+            "type": "tab2_srt",
+            "filename":
+                tab2_srt["filename"],
+            "label": "[タブ2 srt]",
+        })
+
+    # ---------------------------------
+    # タブ2 字幕SRT
+    # ---------------------------------
+
+    tab2_subtitle_srt = tab2.get(
+        "subtitle_srt",
+        {},
+    )
+
+    if tab2_subtitle_srt.get("exists"):
+
+        display.append({
+            "tab": 2,
+            "type": "tab2_subtitle_srt",
+            "filename":
+                tab2_subtitle_srt["filename"],
+            "label": "[タブ2 字幕srt]",
+        })
+
+    return {
+        "success": True,
+        "items": display,
+    }
+
+
+# =====================================
+# 一括処理
+# =====================================
+
+def check_completed_files(
+    tab1_title: str = "",
+    tab1_start_time: Any = 0,
+    tab1_end_time: Any = 0,
+    tab1_outputs: list[str] | None = None,
+
+    tab2_title: str = "",
+    tab2_start_time: Any = 0,
+    tab2_end_time: Any = 0,
+) -> dict[str, Any]:
+    """
+    外部から呼び出すメイン関数。
+
+    1.
+        完成ファイルを確認
+
+    2.
+        ダウンロード表示情報を作成
+
+    3.
+        JSON化しやすい辞書を返す。
+    """
+
+    completed = get_completed_files(
+
+        tab1_title=tab1_title,
+
+        tab1_start_time=tab1_start_time,
+
+        tab1_end_time=tab1_end_time,
+
+        tab1_outputs=tab1_outputs,
+
+        tab2_title=tab2_title,
+
+        tab2_start_time=tab2_start_time,
+
+        tab2_end_time=tab2_end_time,
+
+    )
+
+    display = make_download_display(
+        completed
+    )
+
+    return {
+        "success": True,
+
+        "completed": completed,
+
+        "download_display": display[
+            "items"
+        ],
+    }
+
+
+# =====================================
+# テスト
+# =====================================
+
+if __name__ == "__main__":
+
+    result = check_completed_files(
+
+        # -----------------------------
+        # タブ1
+        # -----------------------------
+
+        tab1_title="テスト動画",
+
+        tab1_start_time=0,
+
+        tab1_end_time=0,
+
+        tab1_outputs=[
+            "mp3",
+            "mp4",
+            "subtitle_mp4",
+        ],
+
+        # -----------------------------
+        # タブ2
+        # -----------------------------
+
+        tab2_title="テスト動画",
+
+        tab2_start_time=0,
+
+        tab2_end_time=0,
+
+    )
+
+    import json
 
     print(
-        "[APP] Registered /find-completed-files"
+        json.dumps(
+            result,
+            ensure_ascii=False,
+            indent=2,
+        )
     )
