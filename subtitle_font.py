@@ -665,7 +665,7 @@ def update_subtitle_font_settings(
 #
 # settings = select_subtitle_font(
 #     font="Noto Sans JP",
-#     text_color="黄色",
+#     text_color="黄",
 #     outline_color="黒",
 #     outline_width=3
 # )
