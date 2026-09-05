@@ -34,11 +34,26 @@
 #       ↓
 #   字幕MP4
 #
+# Gemini SRT生成:
+#
+#   ・503 UNAVAILABLE等の一時的なGeminiエラーのみ
+#     自動リトライする。
+#   ・リトライ待機時間:
+#
+#       1回目失敗 → 10秒
+#       2回目失敗 → 30秒
+#       3回目失敗 → 60秒
+#       4回目失敗 → 120秒
+#
+#   ・最大4回リトライ。
+#   ・503以外のエラーは即座に失敗。
+#
 # ==========================================================
 
 
 import os
 import re
+import time
 import traceback
 
 from pathlib import Path
@@ -77,6 +92,38 @@ from routes.subtitle_routes import (
 
 
 # ==========================================================
+# Gemini SRT リトライ設定
+# ==========================================================
+
+# 最大リトライ回数
+#
+# 初回実行
+#   +
+# 4回リトライ
+#
+# 合計最大5回 Geminiへアクセスする。
+#
+SRT_MAX_RETRIES = 4
+
+
+# ==========================================================
+# リトライ待機時間
+#
+# 1回目失敗 → 10秒
+# 2回目失敗 → 30秒
+# 3回目失敗 → 60秒
+# 4回目失敗 → 120秒
+# ==========================================================
+
+SRT_RETRY_DELAYS = [
+    10,
+    30,
+    60,
+    120
+]
+
+
+# ==========================================================
 # 共通ログ
 # ==========================================================
 
@@ -90,17 +137,225 @@ def log(message):
 
 
 # ==========================================================
+# Gemini一時エラー判定
+#
+# 503 UNAVAILABLE等だけをリトライ対象にする。
+#
+# ==========================================================
+
+def is_gemini_temporary_error(error):
+
+    if error is None:
+
+        return False
+
+    error_text = str(error)
+
+    error_text_lower = (
+        error_text
+        .lower()
+    )
+
+    # ------------------------------------------------------
+    # HTTP / API 503
+    # ------------------------------------------------------
+
+    if "503" in error_text:
+
+        return True
+
+    if "unavailable" in error_text_lower:
+
+        return True
+
+    # ------------------------------------------------------
+    # Geminiの高負荷メッセージ
+    # ------------------------------------------------------
+
+    if "high demand" in error_text_lower:
+
+        return True
+
+    if "spikes in demand" in error_text_lower:
+
+        return True
+
+    # ------------------------------------------------------
+    # 一時的なサービス利用不可
+    # ------------------------------------------------------
+
+    if "service unavailable" in error_text_lower:
+
+        return True
+
+    if "temporarily unavailable" in error_text_lower:
+
+        return True
+
+    return False
+
+
+# ==========================================================
+# SRT作成
+#
+# Gemini 503リトライ対応
+# ==========================================================
+
+def create_srt_with_retry(
+    mp3_path
+):
+
+    log(
+        "=========================================="
+    )
+
+    log(
+        "Gemini SRT作成開始"
+    )
+
+    log(
+        f"MP3: {mp3_path}"
+    )
+
+    log(
+        f"最大リトライ回数: {SRT_MAX_RETRIES}"
+    )
+
+    log(
+        f"リトライ待機: {SRT_RETRY_DELAYS}秒"
+    )
+
+    log(
+        "=========================================="
+    )
+
+    attempt = 0
+
+    while True:
+
+        attempt += 1
+
+        log(
+            f"SRT作成試行 {attempt}/{SRT_MAX_RETRIES + 1}"
+        )
+
+        try:
+
+            result = create_srt_from_mp3(
+                str(mp3_path)
+            )
+
+            log(
+                f"SRT作成成功: 試行 {attempt}"
+            )
+
+            return result
+
+        except Exception as error:
+
+            log(
+                f"SRT作成エラー: 試行 {attempt}"
+            )
+
+            log(
+                repr(error)
+            )
+
+            # --------------------------------------------------
+            # 503等の一時エラーか確認
+            # --------------------------------------------------
+
+            temporary_error = (
+                is_gemini_temporary_error(
+                    error
+                )
+            )
+
+            if not temporary_error:
+
+                log(
+                    "一時的なGeminiエラーではないため、"
+                    "リトライせず終了します。"
+                )
+
+                raise
+
+            # --------------------------------------------------
+            # 最大リトライ回数確認
+            # --------------------------------------------------
+
+            if attempt > SRT_MAX_RETRIES:
+
+                log(
+                    "Gemini SRT作成の最大リトライ回数に到達しました。"
+                )
+
+                raise
+
+            # --------------------------------------------------
+            # 待機時間取得
+            # --------------------------------------------------
+
+            retry_index = attempt - 1
+
+            if retry_index < len(
+                SRT_RETRY_DELAYS
+            ):
+
+                delay = (
+                    SRT_RETRY_DELAYS[
+                        retry_index
+                    ]
+                )
+
+            else:
+
+                # 念のため設定より試行回数が増えた場合
+                delay = (
+                    SRT_RETRY_DELAYS[-1]
+                )
+
+            log(
+                "Geminiが一時的に利用できません。"
+            )
+
+            log(
+                f"リトライします: "
+                f"{delay}秒後"
+            )
+
+            log(
+                f"次回試行: "
+                f"{attempt + 1}/{SRT_MAX_RETRIES + 1}"
+            )
+
+            # --------------------------------------------------
+            # 待機
+            # --------------------------------------------------
+
+            time.sleep(
+                delay
+            )
+
+            log(
+                "リトライ待機終了"
+            )
+
+
+# ==========================================================
 # 時間 → 秒
 # ==========================================================
 
 def time_to_seconds(value):
 
     if value is None:
+
         return 0.0
 
     text = str(value).strip()
 
     if not text:
+
         return 0.0
 
     parts = text.split(":")
@@ -1124,8 +1379,12 @@ def create_subtitle_mp4_pipeline(
             "create_srt_from_mp3() を実行します"
         )
 
-        srt_result = create_srt_from_mp3(
-            str(mp3_path)
+        # --------------------------------------------------
+        # ★Gemini 503リトライ対応
+        # --------------------------------------------------
+
+        srt_result = create_srt_with_retry(
+            mp3_path
         )
 
         log(
