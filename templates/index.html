@@ -140,12 +140,7 @@
 
 
             <!--
-                重要:
-                この実行ボタンはタブ1専用。
-
-                converter.jsが使用する。
-
-                subtitle.jsからは操作しない。
+                タブ1専用の実行ボタン
             -->
 
             <button
@@ -320,7 +315,6 @@
 
             <label class="output-format-option">
 
-
                 <input
                     type="radio"
                     name="output-format"
@@ -328,11 +322,9 @@
                     checked
                 >
 
-
                 <span>
                     mp3
                 </span>
-
 
             </label>
 
@@ -342,18 +334,15 @@
 
             <label class="output-format-option">
 
-
                 <input
                     type="radio"
                     name="output-format"
                     value="mp4"
                 >
 
-
                 <span>
                     mp4
                 </span>
-
 
             </label>
 
@@ -363,18 +352,15 @@
 
             <label class="output-format-option">
 
-
                 <input
                     type="radio"
                     name="output-format"
                     value="subtitle_mp4"
                 >
 
-
                 <span>
                     字幕MP4
                 </span>
-
 
             </label>
 
@@ -413,31 +399,38 @@
         ====================================== -->
 
         <div class="file-conversion-section">
-        
-            <div class="file-conversion-title">
-        
-                <span>
-                    MP4とSRTから字幕MP4を作成
+
+
+            <!-- ---------------------------------
+                 タイトル + Gemini
+            ---------------------------------- -->
+
+            <div class="file-conversion-title file-conversion-title-with-button">
+
+                <span class="file-conversion-label">
+                    MP3からSRT(字幕ファイル)を作成
                 </span>
-        
+
+
                 <button
-                    id="subtitle-font-button"
-                    class="subtitle-font-button"
+                    id="gemini-send-button"
+                    class="execute-button file-title-button"
                     type="button"
+                    disabled
                 >
-                    Noto Sans CJK JP
+                    Geminiへ
                 </button>
-        
+
             </div>
 
 
 
+            <!-- ---------------------------------
+                 MP3ファイル
+            ---------------------------------- -->
+
             <div class="file-select-row">
 
-
-                <!-- =================================
-                     MP3ファイル選択
-                ================================== -->
 
                 <input
                     id="subtitle-mp3-input"
@@ -446,13 +439,6 @@
                     accept=".mp3,audio/mpeg"
                 >
 
-
-                <!--
-                    ここ自体をクリックして
-                    ファイル選択画面を開く。
-
-                    右側に別の選択ボタンは置かない。
-                -->
 
                 <button
                     id="subtitle-mp3-select"
@@ -463,23 +449,6 @@
 
                     ファイルが選択されていません
                     → mp3ファイルを選択してください
-
-                </button>
-
-
-
-                <!-- =================================
-                     Gemini送信
-                ================================== -->
-
-                <button
-                    id="gemini-send-button"
-                    class="execute-button"
-                    type="button"
-                    disabled
-                >
-
-                    Geminiへ送る
 
                 </button>
 
@@ -498,17 +467,39 @@
         <div class="file-conversion-section">
 
 
-            <div class="file-conversion-title">
+            <!-- ---------------------------------
+                 タイトル + フォント
+            ---------------------------------- -->
 
-                MP4とSRTから字幕MP4を作成
+            <div class="file-conversion-title file-conversion-title-with-button">
+
+                <span class="file-conversion-label">
+                    MP4とSRTから字幕MP4を作成
+                </span>
+
+
+                <!--
+                    フォント設定
+
+                    ラベルとの間に
+                    約1文字分の余白をCSSで設定。
+                -->
+
+                <button
+                    id="subtitle-font-button"
+                    class="subtitle-font-button file-title-button"
+                    type="button"
+                >
+                    Noto Sans CJK JP
+                </button>
 
             </div>
 
 
 
-            <!-- =================================
+            <!-- ---------------------------------
                  MP4
-            ================================== -->
+            ---------------------------------- -->
 
             <div class="file-select-row">
 
@@ -520,11 +511,6 @@
                     accept=".mp4,video/mp4"
                 >
 
-
-                <!--
-                    表示部分をクリックして
-                    MP4ファイルを選択する。
-                -->
 
                 <button
                     id="subtitle-mp4-select"
@@ -543,9 +529,9 @@
 
 
 
-            <!-- =================================
+            <!-- ---------------------------------
                  SRT
-            ================================== -->
+            ---------------------------------- -->
 
             <div class="file-select-row">
 
@@ -557,11 +543,6 @@
                     accept=".srt,text/plain"
                 >
 
-
-                <!--
-                    表示部分をクリックして
-                    SRTファイルを選択する。
-                -->
 
                 <button
                     id="subtitle-srt-select"
@@ -580,9 +561,9 @@
 
 
 
-            <!-- =================================
+            <!-- ---------------------------------
                  字幕MP4作成
-            ================================== -->
+            ---------------------------------- -->
 
             <div class="subtitle-create-row">
 
@@ -621,10 +602,6 @@
 
         <!-- =====================================
              処理状況
-             
-             重要:
-             ステータス表示はここ1か所だけ。
-             #status は作らない。
         ====================================== -->
 
         <div
@@ -655,29 +632,20 @@
 
 <!-- =========================================
      JavaScript
-
-     converter.js
-     -------------------------
-     タブ1のYouTube変換専用
-
-     subtitle.js
-     -------------------------
-     タブ2のファイル変換専用
-
-     両者を混在させない。
 ========================================== -->
-
 
 <script
     src="/static/converter.js"
     defer
 ></script>
 
+
 <script
     src="/static/subtitle_font.js"
     defer
 ></script>
-    
+
+
 <script
     src="/static/subtitle.js"
     defer
@@ -727,35 +695,6 @@ document.addEventListener(
             document.getElementById(
                 "file-tab"
             );
-
-
-
-        // =====================================
-        // DOM確認
-        // =====================================
-
-        console.log(
-            "[INDEX] youtubeTabButton:",
-            youtubeTabButton
-        );
-
-
-        console.log(
-            "[INDEX] fileTabButton:",
-            fileTabButton
-        );
-
-
-        console.log(
-            "[INDEX] youtubeTab:",
-            youtubeTab
-        );
-
-
-        console.log(
-            "[INDEX] fileTab:",
-            fileTab
-        );
 
 
 
@@ -892,11 +831,6 @@ document.addEventListener(
 
         // =====================================
         // 初期状態
-        //
-        // 時間入力のイベントは
-        // converter.js側で管理する。
-        //
-        // ここでは登録しない。
         // =====================================
 
         showTab(
