@@ -55,6 +55,7 @@
 # /subtitle-upload-srt
 # /subtitle-create-srt
 # /subtitle-create-mp4
+# /subtitle-download-mp3
 #
 # 登録しない:
 #
@@ -70,7 +71,8 @@ import os
 
 from flask import (
     request,
-    jsonify
+    jsonify,
+    send_from_directory
 )
 
 
@@ -404,10 +406,6 @@ def save_uploaded_file(
             save_path
         )
 
-    # ---------------------------------
-    # 保存
-    # ---------------------------------
-
     uploaded_file.save(
         save_path
     )
@@ -635,6 +633,10 @@ def create_srt_from_mp3(
     # Gemini
     # =====================================
 
+    print(
+        "[SUBTITLE] Gemini transcribe START"
+    )
+
     srt_text = transcribe_mp3(
         mp3_path
     )
@@ -645,9 +647,17 @@ def create_srt_from_mp3(
             "GeminiからSRT結果を取得できませんでした"
         )
 
+    print(
+        "[SUBTITLE] Gemini transcribe COMPLETE"
+    )
+
     # =====================================
     # SRT保存
     # =====================================
+
+    print(
+        "[SUBTITLE] SRT save START"
+    )
 
     srt_path = save_srt(
 
@@ -1232,6 +1242,8 @@ def register_subtitle_routes(
 
     # ======================================================
     # MP3 → SRT
+    #
+    # POST /subtitle-create-srt
     # ======================================================
 
     @app.route(
@@ -1239,6 +1251,10 @@ def register_subtitle_routes(
         methods=["POST"]
     )
     def subtitle_create_srt():
+
+        print(
+            "[SUBTITLE] POST /subtitle-create-srt"
+        )
 
         try:
 
@@ -1274,6 +1290,10 @@ def register_subtitle_routes(
 
                 }), 400
 
+            # --------------------------------------------
+            # downloadsからMP3取得
+            # --------------------------------------------
+
             mp3_path = get_download_file(
 
                 mp3_filename,
@@ -1281,6 +1301,15 @@ def register_subtitle_routes(
                 ALLOWED_MP3_EXTENSIONS
 
             )
+
+            print(
+                "[SUBTITLE] MP3 for SRT:",
+                mp3_path
+            )
+
+            # --------------------------------------------
+            # Gemini → SRT
+            # --------------------------------------------
 
             result = create_srt_from_mp3(
 
@@ -1544,6 +1573,149 @@ def register_subtitle_routes(
             }), 500
 
     # ======================================================
+    # MP3ダウンロード
+    #
+    # GET /subtitle-download-mp3?filename=VIDEO_ID.mp3
+    #
+    # [MP3]▲ ボタンからここを呼び出す。
+    # ======================================================
+
+    @app.route(
+        "/subtitle-download-mp3",
+        methods=["GET"]
+    )
+    def subtitle_download_mp3():
+
+        print(
+            "[SUBTITLE] GET /subtitle-download-mp3"
+        )
+
+        try:
+
+            filename = request.args.get(
+                "filename",
+                ""
+            ).strip()
+
+            if not filename:
+
+                return jsonify({
+
+                    "success":
+                        False,
+
+                    "message":
+                        "MP3ファイル名がありません"
+
+                }), 400
+
+            # --------------------------------------------
+            # downloads内のMP3だけ取得
+            # --------------------------------------------
+
+            mp3_path = get_download_file(
+
+                filename,
+
+                ALLOWED_MP3_EXTENSIONS
+
+            )
+
+            safe_filename = os.path.basename(
+                mp3_path
+            )
+
+            print(
+                "[SUBTITLE] MP3 download:",
+                mp3_path
+            )
+
+            # --------------------------------------------
+            # MP3ダウンロード
+            # --------------------------------------------
+
+            return send_from_directory(
+
+                DOWNLOAD_ROOT,
+
+                safe_filename,
+
+                as_attachment=True,
+
+                download_name=safe_filename
+
+            )
+
+        except FileNotFoundError as e:
+
+            print(
+                "[SUBTITLE] MP3 download 404:",
+                str(e)
+            )
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "message":
+                    str(e)
+
+            }), 404
+
+        except Exception as e:
+
+            print(
+                "[SUBTITLE] MP3 download error:",
+                repr(e)
+            )
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "message":
+                    str(e)
+
+            }), 500
+
+    # ======================================================
+    # Route確認用
+    #
+    # GET /subtitle-create-srt
+    #
+    # 本来SRT作成はPOST。
+    #
+    # ただしブラウザ等からGETされた場合に
+    # Flask標準404/HTMLを返さずJSONを返す。
+    #
+    # これによりフロント側のエラー確認が容易になる。
+    # ======================================================
+
+    @app.route(
+        "/subtitle-create-srt",
+        methods=["GET"]
+    )
+    def subtitle_create_srt_get():
+
+        return jsonify({
+
+            "success":
+                False,
+
+            "message":
+                "このURLはPOSTで使用してください。",
+
+            "endpoint":
+                "/subtitle-create-srt",
+
+            "method":
+                "POST"
+
+        }), 405
+
+    # ======================================================
     # 登録完了
     # ======================================================
 
@@ -1573,6 +1745,10 @@ def register_subtitle_routes(
 
     print(
         "[SUBTITLE] POST /subtitle-create-mp4"
+    )
+
+    print(
+        "[SUBTITLE] GET  /subtitle-download-mp3"
     )
 
     print(
