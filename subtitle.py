@@ -11,7 +11,8 @@
 #   config.py の DOWNLOAD_DIR/xxx.srt
 #
 # 出力:
-#   config.py の DOWNLOAD_DIR/xxx_sub_embed.mp4
+#   入力MP4と同じディレクトリ
+#   xxx_sub_embed.mp4
 #
 # FFmpegを使用
 #
@@ -25,6 +26,21 @@
 #   - ultrafastでメモリ負荷を抑制
 #   - FFmpegログを最大100行だけ保持
 #   - downloadsの場所はconfig.pyで管理
+#
+# subtitle_routes.py との連携:
+#
+#   create_subtitle_mp4(
+#       mp4_path,
+#       srt_path
+#   )
+#
+#   ↓
+#
+#   subtitle.py
+#
+#   ↓
+#
+#   字幕付きMP4のPathを返す
 # =====================================
 
 import os
@@ -111,7 +127,7 @@ def validate_input_file(
 
         raise RuntimeError(
             f"ファイルサイズを確認できません: {error}"
-        )
+        ) from error
 
     if size <= 0:
 
@@ -124,6 +140,19 @@ def validate_input_file(
 
 # =====================================
 # 出力ファイル名
+#
+# 通常:
+#
+#   video.mp4
+#       ↓
+#   video_sub_embed.mp4
+#
+# すでに _sub_embed の場合:
+#
+#   video_sub_embed.mp4
+#       ↓
+#   video_sub_embed_2.mp4
+#
 # =====================================
 
 def make_output_path(
@@ -221,7 +250,7 @@ def check_ffmpeg():
 
         raise RuntimeError(
             f"FFmpegを起動できません: {error}"
-        )
+        ) from error
 
     if result.returncode != 0:
 
@@ -387,9 +416,6 @@ def find_japanese_font():
 
     # =================================
     # fc-match
-    #
-    # システムフォントから
-    # 日本語対応フォントを探す
     # =================================
 
     fc_match = shutil.which(
@@ -506,9 +532,6 @@ def find_japanese_font():
 
     # =================================
     # fc-list
-    #
-    # 日本語をサポートするフォントを
-    # 直接検索
     # =================================
 
     fc_list = shutil.which(
@@ -561,7 +584,9 @@ def find_japanese_font():
                         1
                     )
 
-                    font_file = parts[0].strip()
+                    font_file = (
+                        parts[0].strip()
+                    )
 
                     family = (
 
@@ -791,8 +816,6 @@ def get_font_family_from_path(
 
         return None
 
-    # 複数familyが返る場合
-    # 最初のものを使用
     if "," in family:
 
         family = family.split(
@@ -815,25 +838,21 @@ def escape_ffmpeg_filter_path(
         Path(file_path).resolve()
     )
 
-    # Linux / FFmpeg filter用
     path = path.replace(
         "\\",
         "/"
     )
 
-    # バックスラッシュ
     path = path.replace(
         "\\",
         "\\\\"
     )
 
-    # シングルクォート
     path = path.replace(
         "'",
         "\\'"
     )
 
-    # コロン
     path = path.replace(
         ":",
         "\\:"
@@ -944,7 +963,7 @@ def make_subtitle_filter(
             )
 
         # ---------------------------------
-        # フォント名を明示
+        # フォント名
         # ---------------------------------
 
         if font_family:
@@ -1047,6 +1066,14 @@ def embed_subtitle(
         output_path = make_output_path(
             mp4_path
         )
+
+    # =================================
+    # 絶対パス化
+    # =================================
+
+    output_path = Path(
+        output_path
+    ).resolve()
 
     # =================================
     # 入力と出力が同じにならないようにする
@@ -1230,39 +1257,66 @@ def embed_subtitle(
 
         "-nostdin",
 
+        # ---------------------------------
         # 入力
+        # ---------------------------------
+
         "-i",
         str(mp4_path),
 
+        # ---------------------------------
         # 字幕
+        # ---------------------------------
+
         "-vf",
         video_filter,
 
+        # ---------------------------------
         # Video
+        # ---------------------------------
+
         "-c:v",
         "libx264",
 
+        # ---------------------------------
         # 512MB対策
+        # ---------------------------------
+
         "-threads",
         FFMPEG_THREADS,
 
+        # ---------------------------------
         # 高速・低メモリ
+        # ---------------------------------
+
         "-preset",
         FFMPEG_PRESET,
 
+        # ---------------------------------
         # 画質
+        # ---------------------------------
+
         "-crf",
         FFMPEG_CRF,
 
+        # ---------------------------------
         # Audioは再エンコードしない
+        # ---------------------------------
+
         "-c:a",
         "copy",
 
+        # ---------------------------------
         # MP4
+        # ---------------------------------
+
         "-movflags",
         "+faststart",
 
+        # ---------------------------------
         # 出力
+        # ---------------------------------
+
         str(output_path)
 
     ]
@@ -1539,6 +1593,9 @@ def embed_subtitle(
 
 # =====================================
 # 外部向け正式関数
+#
+# subtitle_routes.py から使用
+#
 # =====================================
 
 def create_subtitle_mp4(
