@@ -18,6 +18,10 @@
 #
 # タブ2:
 # ・ファイル変換
+# ・MP3アップロード → SRT
+# ・MP4アップロード
+# ・SRTアップロード
+# ・MP4 + SRT → 字幕MP4
 #
 # 完成ファイル確認:
 # ・/find-completed-files
@@ -30,7 +34,9 @@
 
 from flask import Flask
 
+
 import config
+
 
 from routes.index import register_index
 from routes.files import register_files
@@ -38,6 +44,7 @@ from routes.convert import register_convert
 from routes.check import register_video_info, register_check
 from routes.gemini import register_gemini
 from routes.completed_files import register_completed_files
+from routes.subtitle_routes import register_subtitle_routes
 
 
 # =====================================
@@ -100,6 +107,31 @@ register_check(app)
 # -------------------------------------
 
 register_gemini(app)
+
+
+# -------------------------------------
+# subtitle
+#
+# タブ2:
+#
+# MP3アップロード
+#     ↓
+# Gemini
+#     ↓
+# SRT
+#
+# MP4アップロード
+# SRTアップロード
+#     ↓
+# MP4 + SRT
+#     ↓
+# 字幕付きMP4
+#
+# MP3ダウンロード
+#
+# -------------------------------------
+
+register_subtitle_routes(app)
 
 
 # -------------------------------------
