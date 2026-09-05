@@ -3,41 +3,15 @@
 #
 # Gemini 音声文字起こし
 #
-# 役割:
-#
-#   MP3
-#     ↓
-#   Gemini Files API
-#     ↓
-#   Gemini
-#     ↓
-#   SRT形式文字起こし
+# MP3
+#   ↓
+# Gemini Files API
+#   ↓
+# Gemini generate_content
+#   ↓
+# SRT
 #
 # ==========================================================
-#
-# 使用箇所:
-#
-# routes/subtitle_routes.py
-#
-#     from routes.gemini import (
-#         transcribe_mp3,
-#         save_srt
-#     )
-#
-# ==========================================================
-#
-# 重要:
-#
-# Gemini側では時間範囲をカットしない。
-#
-# MP4 / MP3の時間指定は、
-# subtitle_mp4.py / media_extract.py側で
-# すでに処理済みのものを使用する。
-#
-# Geminiには完成したMP3全体を渡す。
-#
-# ==========================================================
-
 
 import os
 import re
@@ -45,6 +19,7 @@ import uuid
 import shutil
 import tempfile
 import time
+import traceback
 
 
 from dotenv import load_dotenv
@@ -86,32 +61,17 @@ if not GEMINI_API_KEY:
 # ==========================================================
 
 client = genai.Client(
-
     api_key=GEMINI_API_KEY
-
 )
 
 
 # ==========================================================
 # Geminiモデル
-#
-# Renderなどの環境変数で変更可能。
-#
-# GEMINI_MODEL が設定されていれば、
-# それを優先する。
-#
-# 未設定の場合:
-#
-#   gemini-3.5-flash
-#
 # ==========================================================
 
 GEMINI_MODEL = os.getenv(
-
     "GEMINI_MODEL",
-
     "gemini-3.5-flash"
-
 )
 
 
@@ -120,84 +80,90 @@ GEMINI_MODEL = os.getenv(
 # ==========================================================
 
 GEMINI_MAX_RETRIES = int(
-
     os.getenv(
-
         "GEMINI_MAX_RETRIES",
-
         "3"
-
     )
-
 )
 
 
 GEMINI_RETRY_WAIT_SECONDS = int(
-
     os.getenv(
-
         "GEMINI_RETRY_WAIT_SECONDS",
-
         "3"
-
     )
-
 )
 
 
 # ==========================================================
-# Geminiレスポンス待機
-#
-# Files APIでアップロードしたファイルが
-# 処理中の場合に備える。
-#
+# Files API 状態確認
 # ==========================================================
 
 GEMINI_FILE_WAIT_SECONDS = int(
-
     os.getenv(
-
         "GEMINI_FILE_WAIT_SECONDS",
-
         "2"
-
     )
-
 )
 
 
 GEMINI_FILE_MAX_WAIT = int(
-
     os.getenv(
-
         "GEMINI_FILE_MAX_WAIT",
-
         "60"
-
     )
-
 )
 
 
 # ==========================================================
 # SRT最小文字数
-#
-# 完全に空の場合だけでなく、
-# Geminiが説明文だけ返した場合も検知しやすくする。
-#
 # ==========================================================
 
 MIN_SRT_TEXT_LENGTH = int(
-
     os.getenv(
-
         "MIN_SRT_TEXT_LENGTH",
-
         "5"
+    )
+)
 
+
+# ==========================================================
+# ログヘルパー
+# ==========================================================
+
+def gemini_log(message):
+
+    print(
+        f"[GEMINI] {message}",
+        flush=True
     )
 
-)
+
+def gemini_separator():
+
+    print(
+        "==========================================",
+        flush=True
+    )
+
+
+# ==========================================================
+# エラー全文取得
+# ==========================================================
+
+def format_exception(error):
+
+    try:
+
+        return (
+            f"TYPE={type(error).__name__}\n"
+            f"STR={str(error)}\n"
+            f"REPR={repr(error)}"
+        )
+
+    except Exception:
+
+        return repr(error)
 
 
 # ==========================================================
@@ -215,7 +181,10 @@ def is_retryable_gemini_error(
 
     retryable_codes = [
 
+        "408",
+        "409",
         "429",
+
         "500",
         "502",
         "503",
@@ -223,10 +192,13 @@ def is_retryable_gemini_error(
 
         "too many requests",
         "rate limit",
+
         "temporarily unavailable",
         "service unavailable",
+
         "bad gateway",
         "gateway timeout",
+
         "internal server error",
 
         "timeout",
@@ -237,7 +209,7 @@ def is_retryable_gemini_error(
 
         "connection reset",
         "connection aborted",
-        "connection error"
+        "connection error",
 
     ]
 
@@ -260,283 +232,248 @@ def log_response_debug(
     response
 ):
 
-    print(
-        "=========================================="
-    )
+    gemini_separator()
 
-    print(
-        "[GEMINI] RESPONSE DEBUG"
-    )
+    gemini_log("RESPONSE DEBUG")
 
-    print(
-        "response type:",
-        type(response).__name__
-    )
+    try:
+
+        gemini_log(
+            "response type: "
+            +
+            type(response).__name__
+        )
+
+    except Exception:
+        pass
 
 
-    # ------------------------------------------------------
+    # ======================================================
     # response.text
-    # ------------------------------------------------------
+    # ======================================================
 
     try:
 
         response_text = getattr(
-
             response,
-
             "text",
-
             None
-
         )
 
 
-        print(
-            "response.text type:",
+        gemini_log(
+            "response.text type: "
+            +
             type(response_text).__name__
         )
 
 
         if response_text is None:
 
-            print(
+            gemini_log(
                 "response.text: None"
             )
 
         else:
 
-            print(
-                "response.text length:",
-                len(
-                    str(
-                        response_text
+            response_text_string = str(
+                response_text
+            )
+
+
+            gemini_log(
+                "response.text length: "
+                +
+                str(
+                    len(
+                        response_text_string
                     )
                 )
             )
 
-            print(
-                "response.text preview:",
-                str(
-                    response_text
-                )[:500]
+
+            gemini_log(
+                "response.text preview: "
+                +
+                response_text_string[:500]
             )
 
 
     except Exception as error:
 
-        print(
-            "response.text取得エラー:",
+        gemini_log(
+            "response.text取得エラー: "
+            +
             repr(error)
         )
 
 
-    # ------------------------------------------------------
+    # ======================================================
     # candidates
-    # ------------------------------------------------------
+    # ======================================================
 
     try:
 
         candidates = getattr(
-
             response,
-
             "candidates",
-
             None
-
         )
 
 
         if candidates is None:
 
-            print(
+            gemini_log(
                 "candidates: None"
             )
 
         else:
 
-            print(
-                "candidates count:",
-                len(candidates)
+            gemini_log(
+                "candidates count: "
+                +
+                str(
+                    len(candidates)
+                )
             )
 
 
             for index, candidate in enumerate(
-
                 candidates
-
             ):
 
-                print(
-                    f"candidate[{index}] type:",
-                    type(candidate).__name__
-                )
-
-
                 finish_reason = getattr(
-
                     candidate,
-
                     "finish_reason",
-
                     None
-
                 )
 
 
-                print(
-                    f"candidate[{index}] finish_reason:",
-                    finish_reason
+                gemini_log(
+                    f"candidate[{index}] "
+                    f"finish_reason: "
+                    f"{finish_reason}"
                 )
 
 
                 safety_ratings = getattr(
-
                     candidate,
-
                     "safety_ratings",
-
                     None
-
                 )
 
 
-                print(
-                    f"candidate[{index}] safety_ratings:",
-                    safety_ratings
+                gemini_log(
+                    f"candidate[{index}] "
+                    f"safety_ratings: "
+                    f"{safety_ratings}"
                 )
 
 
                 content = getattr(
-
                     candidate,
-
                     "content",
-
                     None
-
                 )
 
 
                 if content is None:
 
-                    print(
-                        f"candidate[{index}] content: None"
+                    gemini_log(
+                        f"candidate[{index}] "
+                        "content: None"
                     )
 
                     continue
-
-
-                print(
-                    f"candidate[{index}] content type:",
-                    type(content).__name__
-                )
 
 
                 parts = getattr(
-
                     content,
-
                     "parts",
-
                     None
-
                 )
 
 
-                if parts is None:
+                if not parts:
 
-                    print(
-                        f"candidate[{index}] parts: None"
+                    gemini_log(
+                        f"candidate[{index}] "
+                        "parts: None"
                     )
 
                     continue
 
 
-                print(
-                    f"candidate[{index}] parts count:",
-                    len(parts)
+                gemini_log(
+                    f"candidate[{index}] "
+                    f"parts count: {len(parts)}"
                 )
 
 
                 for part_index, part in enumerate(
-
                     parts
-
                 ):
 
                     part_text = getattr(
-
                         part,
-
                         "text",
-
                         None
-
                     )
 
 
-                    print(
+                    gemini_log(
                         f"candidate[{index}] "
                         f"part[{part_index}] "
-                        f"text length:",
-                        len(
-                            str(
-                                part_text or ""
-                            )
-                        )
+                        f"text length: "
+                        f"{len(str(part_text or ''))}"
                     )
 
 
     except Exception as error:
 
-        print(
-            "candidates解析ログエラー:",
+        gemini_log(
+            "candidates解析ログエラー: "
+            +
             repr(error)
         )
 
 
-    # ------------------------------------------------------
+    # ======================================================
     # prompt feedback
-    # ------------------------------------------------------
+    # ======================================================
 
     try:
 
         prompt_feedback = getattr(
-
             response,
-
             "prompt_feedback",
-
             None
-
         )
 
 
-        print(
-            "prompt_feedback:",
-            prompt_feedback
+        gemini_log(
+            "prompt_feedback: "
+            +
+            str(
+                prompt_feedback
+            )
         )
 
 
     except Exception as error:
 
-        print(
-            "prompt_feedback取得エラー:",
+        gemini_log(
+            "prompt_feedback取得エラー: "
+            +
             repr(error)
         )
 
 
-    print(
-        "=========================================="
-    )
+    gemini_separator()
 
 
 # ==========================================================
 # Geminiレスポンスからテキスト抽出
-#
-# response.textだけに依存しない。
-#
 # ==========================================================
 
 def extract_response_text(
@@ -549,28 +486,22 @@ def extract_response_text(
 
 
     # ======================================================
-    # ① response.text
+    # response.text
     # ======================================================
 
     try:
 
         response_text = getattr(
-
             response,
-
             "text",
-
             None
-
         )
 
 
         if response_text:
 
             response_text = str(
-
                 response_text
-
             ).strip()
 
 
@@ -581,26 +512,23 @@ def extract_response_text(
 
     except Exception as error:
 
-        print(
-            "[GEMINI] response.text取得失敗:",
+        gemini_log(
+            "response.text取得失敗: "
+            +
             repr(error)
         )
 
 
     # ======================================================
-    # ② candidates
+    # candidates
     # ======================================================
 
     try:
 
         candidates = getattr(
-
             response,
-
             "candidates",
-
             None
-
         )
 
 
@@ -612,13 +540,9 @@ def extract_response_text(
             for candidate in candidates:
 
                 content = getattr(
-
                     candidate,
-
                     "content",
-
                     None
-
                 )
 
 
@@ -628,13 +552,9 @@ def extract_response_text(
 
 
                 parts = getattr(
-
                     content,
-
                     "parts",
-
                     None
-
                 )
 
 
@@ -646,33 +566,25 @@ def extract_response_text(
                 for part in parts:
 
                     part_text = getattr(
-
                         part,
-
                         "text",
-
                         None
-
                     )
 
 
                     if part_text:
 
                         collected_parts.append(
-
                             str(
                                 part_text
                             )
-
                         )
 
 
             if collected_parts:
 
                 combined_text = "\n".join(
-
                     collected_parts
-
                 ).strip()
 
 
@@ -683,23 +595,18 @@ def extract_response_text(
 
     except Exception as error:
 
-        print(
-            "[GEMINI] candidatesからのテキスト取得失敗:",
+        gemini_log(
+            "candidatesからのテキスト取得失敗: "
+            +
             repr(error)
         )
 
-
-    # ======================================================
-    # ③ それでも取れない
-    # ======================================================
 
     return ""
 
 
 # ==========================================================
-# Geminiが返したSRTを整形
-#
-# Markdownコードブロックなどを除去。
+# SRT整形
 # ==========================================================
 
 def clean_srt_text(
@@ -721,88 +628,61 @@ def clean_srt_text(
         return ""
 
 
-    # ------------------------------------------------------
-    # ```srt
-    # ```
-    # ------------------------------------------------------
+    # ======================================================
+    # Markdownコードブロック除去
+    # ======================================================
 
     text = re.sub(
-
         r"^\s*```(?:srt|text)?\s*",
-
         "",
-
         text,
-
         flags=re.IGNORECASE
-
     )
 
 
     text = re.sub(
-
         r"\s*```\s*$",
-
         "",
-
         text,
-
         flags=re.IGNORECASE
-
     )
 
 
     text = text.strip()
 
 
-    # ------------------------------------------------------
-    # BOM
-    # ------------------------------------------------------
+    # ======================================================
+    # BOM除去
+    # ======================================================
 
     text = text.lstrip(
         "\ufeff"
     )
 
 
-    # ------------------------------------------------------
+    # ======================================================
     # 改行統一
-    # ------------------------------------------------------
+    # ======================================================
 
     text = text.replace(
-
         "\r\n",
-
         "\n"
-
     )
 
 
     text = text.replace(
-
         "\r",
-
         "\n"
-
     )
 
 
-    # ------------------------------------------------------
-    # 先頭の説明文を除去
-    #
-    # Geminiが
-    #
-    # "以下がSRTです:"
-    #
-    # のような文を付けた場合、
-    # 最初のSRT番号から開始する。
-    # ------------------------------------------------------
+    # ======================================================
+    # 先頭説明文除去
+    # ======================================================
 
     match = re.search(
-
         r"(?m)^\s*1\s*$",
-
         text
-
     )
 
 
@@ -813,14 +693,7 @@ def clean_srt_text(
         ]
 
 
-    # ------------------------------------------------------
-    # 末尾空白除去
-    # ------------------------------------------------------
-
-    text = text.strip()
-
-
-    return text
+    return text.strip()
 
 
 # ==========================================================
@@ -846,21 +719,19 @@ def validate_srt_text(
     if len(text) < MIN_SRT_TEXT_LENGTH:
 
         raise ValueError(
-
             "Gemini結果が短すぎます: "
             +
-            str(len(text))
+            str(
+                len(text)
+            )
             +
             "文字"
-
         )
 
 
-    # ------------------------------------------------------
-    # SRTの時間形式
-    #
-    # 00:00:00,000 --> 00:00:05,000
-    # ------------------------------------------------------
+    # ======================================================
+    # 時間情報
+    # ======================================================
 
     timestamp_pattern = re.compile(
 
@@ -876,28 +747,21 @@ def validate_srt_text(
     ):
 
         raise ValueError(
-
             "Gemini結果にSRTの時間情報がありません"
-
         )
 
 
-    # ------------------------------------------------------
-    # SRT番号
-    # ------------------------------------------------------
+    # ======================================================
+    # 字幕番号
+    # ======================================================
 
     if not re.search(
-
         r"(?m)^\s*\d+\s*$",
-
         text
-
     ):
 
         raise ValueError(
-
             "Gemini結果にSRT字幕番号がありません"
-
         )
 
 
@@ -905,7 +769,7 @@ def validate_srt_text(
 
 
 # ==========================================================
-# Gemini Files APIの状態取得
+# Files API state
 # ==========================================================
 
 def get_uploaded_file_state(
@@ -917,42 +781,21 @@ def get_uploaded_file_state(
         return None
 
 
-    # ------------------------------------------------------
-    # state
-    # ------------------------------------------------------
-
     try:
 
-        state = getattr(
-
+        return getattr(
             uploaded_file,
-
             "state",
-
             None
-
         )
-
-
-        if state is not None:
-
-            return state
-
 
     except Exception:
 
-        pass
-
-
-    return None
+        return None
 
 
 # ==========================================================
-# Gemini Files APIアップロード後の状態確認
-#
-# 音声ファイルが処理中の場合、
-# ACTIVEになるまで少し待つ。
-#
+# Files API状態待機
 # ==========================================================
 
 def wait_for_uploaded_file_ready(
@@ -966,30 +809,30 @@ def wait_for_uploaded_file_ready(
         )
 
 
-    print(
-        ">>> Gemini uploaded file 状態確認開始"
+    gemini_separator()
+
+    gemini_log(
+        "STEP: Gemini Files API ファイル状態確認"
+    )
+
+
+    current_state = get_uploaded_file_state(
+        uploaded_file
     )
 
 
     # ======================================================
     # stateが取れない場合
-    #
-    # SDKのバージョンによってはstateが直接取得できる。
-    # 取れない場合はそのまま進む。
     # ======================================================
-
-    current_state = get_uploaded_file_state(
-
-        uploaded_file
-
-    )
-
 
     if current_state is None:
 
-        print(
-            ">>> uploaded_file.state を取得できません。"
-            "そのまま generate_content を実行します。"
+        gemini_log(
+            "uploaded_file.state を取得できません"
+        )
+
+        gemini_log(
+            "そのまま generate_content を実行します"
         )
 
         return uploaded_file
@@ -1003,47 +846,42 @@ def wait_for_uploaded_file_ready(
         state_name = str(
 
             getattr(
-
                 current_state,
-
                 "name",
-
                 current_state
-
             )
 
         ).upper()
 
 
-        print(
-            ">>> Gemini file state:",
+        gemini_log(
+            "Gemini file state: "
+            +
             state_name
         )
 
 
-        # --------------------------------------------------
+        # ==================================================
         # ACTIVE
-        # --------------------------------------------------
+        # ==================================================
 
         if "ACTIVE" in state_name:
 
-            print(
-                ">>> Gemini file ACTIVE"
+            gemini_log(
+                "Gemini file ACTIVE"
             )
 
             return uploaded_file
 
 
-        # --------------------------------------------------
+        # ==================================================
         # FAILED
-        # --------------------------------------------------
+        # ==================================================
 
         if (
-
             "FAILED" in state_name
             or
             "ERROR" in state_name
-
         ):
 
             raise RuntimeError(
@@ -1055,16 +893,14 @@ def wait_for_uploaded_file_ready(
             )
 
 
-        # --------------------------------------------------
+        # ==================================================
         # タイムアウト
-        # --------------------------------------------------
+        # ==================================================
 
         elapsed = (
-
             time.time()
             -
             start_time
-
         )
 
 
@@ -1079,43 +915,37 @@ def wait_for_uploaded_file_ready(
             )
 
 
-        print(
-
-            ">>> Gemini file 処理中。"
-            f" {GEMINI_FILE_WAIT_SECONDS}秒待機します"
-
+        gemini_log(
+            "Gemini file 処理中。"
+            +
+            str(
+                GEMINI_FILE_WAIT_SECONDS
+            )
+            +
+            "秒待機します"
         )
 
 
         time.sleep(
-
             GEMINI_FILE_WAIT_SECONDS
-
         )
 
 
-        # --------------------------------------------------
-        # files.get
-        #
-        # nameが取れる場合は最新状態を取得する。
-        # --------------------------------------------------
+        # ==================================================
+        # 最新状態取得
+        # ==================================================
 
         file_name = getattr(
-
             uploaded_file,
-
             "name",
-
             None
-
         )
 
 
         if not file_name:
 
-            print(
-                ">>> uploaded_file.name が取得できないため、"
-                "現在の状態のまま再確認します。"
+            gemini_log(
+                "uploaded_file.name が取得できません"
             )
 
             continue
@@ -1124,23 +954,19 @@ def wait_for_uploaded_file_ready(
         try:
 
             uploaded_file = client.files.get(
-
                 name=file_name
-
             )
 
 
             current_state = get_uploaded_file_state(
-
                 uploaded_file
-
             )
 
 
             if current_state is None:
 
-                print(
-                    ">>> 最新stateが取得できません。"
+                gemini_log(
+                    "最新stateが取得できません"
                 )
 
                 return uploaded_file
@@ -1148,24 +974,18 @@ def wait_for_uploaded_file_ready(
 
         except Exception as error:
 
-            print(
-                ">>> Gemini file state取得エラー:",
-                repr(error)
+            gemini_log(
+                "Gemini file state取得エラー"
             )
 
+            gemini_log(
+                format_exception(error)
+            )
 
-            # ファイル状態取得だけの一時エラーなら
-            # 少し待って再確認する。
 
             if is_retryable_gemini_error(
                 error
             ):
-
-                time.sleep(
-
-                    GEMINI_FILE_WAIT_SECONDS
-
-                )
 
                 continue
 
@@ -1182,16 +1002,14 @@ def transcribe_mp3(
 ):
 
     mp3_path = os.path.abspath(
-
         str(
             mp3_path
         )
-
     )
 
 
     # ======================================================
-    # MP3存在確認
+    # MP3確認
     # ======================================================
 
     if not os.path.exists(
@@ -1199,9 +1017,7 @@ def transcribe_mp3(
     ):
 
         raise FileNotFoundError(
-
             f"MP3がありません: {mp3_path}"
-
         )
 
 
@@ -1210,9 +1026,7 @@ def transcribe_mp3(
     ):
 
         raise ValueError(
-
             "指定されたパスはファイルではありません"
-
         )
 
 
@@ -1221,79 +1035,63 @@ def transcribe_mp3(
     ):
 
         raise ValueError(
-
             "MP3ファイルを指定してください"
-
         )
 
 
-    # ======================================================
-    # MP3サイズ確認
-    # ======================================================
-
     mp3_size = os.path.getsize(
-
         mp3_path
-
     )
 
 
     if mp3_size <= 0:
 
         raise ValueError(
-
             "MP3ファイルが0 bytesです"
-
         )
 
 
     # ======================================================
-    # ログ
+    # 開始ログ
     # ======================================================
 
-    print(
-        "=========================================="
-    )
+    gemini_separator()
 
-    print(
-        "[GEMINI] 解析開始"
-    )
+    gemini_log("解析開始")
 
-    print(
-        "[GEMINI] MP3:",
+    gemini_log(
+        "MP3: "
+        +
         mp3_path
     )
 
-    print(
-        "[GEMINI] MP3サイズ:",
-        mp3_size,
-        "bytes"
+    gemini_log(
+        "MP3サイズ: "
+        +
+        str(mp3_size)
+        +
+        " bytes"
     )
 
-    print(
-        "[GEMINI] モデル:",
+    gemini_log(
+        "モデル: "
+        +
         GEMINI_MODEL
     )
 
-    print(
-        "[GEMINI] 時間カット:",
-        "なし"
+    gemini_log(
+        "時間カット: なし"
     )
 
-    print(
-        "[GEMINI] MP3全体をGeminiへ送信"
+    gemini_log(
+        "MP3全体をGeminiへ送信"
     )
 
-    print(
-        "=========================================="
-    )
+    gemini_separator()
 
 
     # ======================================================
-    # 日本語ファイル名対策
-    #
-    # Gemini upload用の一時ファイルを作る。
-    # 元MP3は変更しない。
+    # 一時MP3
     # ======================================================
 
     temp_mp3 = os.path.join(
@@ -1315,59 +1113,58 @@ def transcribe_mp3(
     try:
 
         # ==================================================
-        # 一時MP3作成
+        # STEP 1
         # ==================================================
+
+        gemini_separator()
+
+        gemini_log(
+            "STEP 1 / 4"
+        )
+
+        gemini_log(
+            "Gemini Files API upload開始"
+        )
+
+        gemini_separator()
+
 
         shutil.copy2(
-
             mp3_path,
-
-            temp_mp3
-
-        )
-
-
-        print(
-            "[GEMINI] upload用一時MP3:",
             temp_mp3
         )
 
-
-        # ==================================================
-        # 一時MP3確認
-        # ==================================================
 
         temp_size = os.path.getsize(
-
             temp_mp3
-
         )
 
 
         if temp_size <= 0:
 
             raise RuntimeError(
-
                 "Gemini送信用MP3が0 bytesです"
-
             )
 
 
-        print(
-            "[GEMINI] upload用MP3サイズ:",
-            temp_size,
-            "bytes"
+        gemini_log(
+            "upload用一時MP3: "
+            +
+            temp_mp3
+        )
+
+        gemini_log(
+            "upload用MP3サイズ: "
+            +
+            str(temp_size)
+            +
+            " bytes"
         )
 
 
         # ==================================================
-        # Gemini Files API
+        # Files API upload
         # ==================================================
-
-        print(
-            ">>> Gemini Files API upload開始"
-        )
-
 
         upload_exception = None
 
@@ -1382,29 +1179,47 @@ def transcribe_mp3(
 
             try:
 
-                print(
-
-                    ">>> upload試行:",
-                    f"{upload_attempt}/{GEMINI_MAX_RETRIES}"
-
+                gemini_log(
+                    "upload試行: "
+                    +
+                    f"{upload_attempt}/"
+                    +
+                    f"{GEMINI_MAX_RETRIES}"
                 )
+
+
+                upload_start = time.time()
 
 
                 uploaded_file = client.files.upload(
-
                     file=temp_mp3
-
                 )
 
 
-                print(
-                    ">>> Gemini Files API upload成功"
+                upload_elapsed = (
+                    time.time()
+                    -
+                    upload_start
                 )
 
 
-                print(
-                    ">>> uploaded_file:",
-                    uploaded_file
+                gemini_log(
+                    "Gemini Files API upload成功"
+                )
+
+
+                gemini_log(
+                    f"upload時間: "
+                    f"{upload_elapsed:.2f}秒"
+                )
+
+
+                gemini_log(
+                    "uploaded_file: "
+                    +
+                    str(
+                        uploaded_file
+                    )
                 )
 
 
@@ -1419,40 +1234,32 @@ def transcribe_mp3(
                 upload_exception = error
 
 
-                print(
-                    ">>> Gemini Files API upload失敗"
+                gemini_log(
+                    "Gemini Files API upload失敗"
                 )
 
-                print(
-                    ">>> TYPE:",
-                    type(error).__name__
-                )
 
-                print(
-                    ">>> ERROR:",
-                    repr(error)
+                gemini_log(
+                    format_exception(error)
                 )
 
 
                 retryable = is_retryable_gemini_error(
-
                     error
-
                 )
 
 
-                print(
-                    ">>> リトライ対象:",
-                    retryable
+                gemini_log(
+                    "リトライ対象: "
+                    +
+                    str(retryable)
                 )
 
 
                 if (
-
                     upload_attempt
                     >=
                     GEMINI_MAX_RETRIES
-
                 ):
 
                     raise
@@ -1464,25 +1271,20 @@ def transcribe_mp3(
 
 
                 wait_seconds = (
-
                     upload_attempt
                     *
                     GEMINI_RETRY_WAIT_SECONDS
-
                 )
 
 
-                print(
-                    ">>>",
-                    wait_seconds,
-                    "秒待ってuploadを再試行します"
+                gemini_log(
+                    f"{wait_seconds}秒待って"
+                    "uploadを再試行します"
                 )
 
 
                 time.sleep(
-
                     wait_seconds
-
                 )
 
 
@@ -1494,26 +1296,35 @@ def transcribe_mp3(
         if uploaded_file is None:
 
             raise RuntimeError(
-
                 "Gemini Files APIから"
                 "uploaded_fileが返されませんでした"
-
             )
 
 
         # ==================================================
-        # Files API状態確認
+        # STEP 2
         # ==================================================
 
+        gemini_separator()
+
+        gemini_log(
+            "STEP 2 / 4"
+        )
+
+        gemini_log(
+            "Gemini Files API ファイル状態確認"
+        )
+
+        gemini_separator()
+
+
         uploaded_file = wait_for_uploaded_file_ready(
-
             uploaded_file
-
         )
 
 
         # ==================================================
-        # Geminiプロンプト
+        # プロンプト
         # ==================================================
 
         prompt = """
@@ -1533,13 +1344,12 @@ def transcribe_mp3(
 ・可能な限り正確に聞き取る
 ・日本語で文字起こしする
 ・字幕として読みやすい単位に分割する
-・各字幕に正確な時間情報を付ける
+・各字幕に時間情報を付ける
 ・SRT形式で出力する
 ・説明文を書かない
 ・前置きを書かない
 ・後書きを書かない
 ・Markdownのコードブロックを使用しない
-・```srt を付けない
 ・SRT以外の文章を出力しない
 
 このMP3は、必要な時間範囲がすでに切り出されています。
@@ -1564,16 +1374,38 @@ SRT形式:
 
 
         # ==================================================
-        # Gemini generate_content
+        # STEP 3
         # ==================================================
 
-        print(
-            ">>> Gemini generate_content開始"
+        gemini_separator()
+
+        gemini_log(
+            "STEP 3 / 4"
         )
+
+        gemini_log(
+            "Gemini 音声解析開始"
+        )
+
+        gemini_log(
+            "ここから Gemini generate_content を"
+            "実行しています"
+        )
+
+        gemini_log(
+            "※ この処理は音声時間によって"
+            "しばらく時間がかかる場合があります"
+        )
+
+        gemini_separator()
 
 
         response = None
 
+
+        # ==================================================
+        # generate_content
+        # ==================================================
 
         for attempt in range(
 
@@ -1585,22 +1417,34 @@ SRT形式:
 
             try:
 
-                print(
+                gemini_log(
                     "------------------------------------------"
                 )
 
-                print(
-                    "[GEMINI] generate_content"
+                gemini_log(
+                    "generate_content 試行 "
+                    +
+                    f"{attempt}/"
+                    +
+                    f"{GEMINI_MAX_RETRIES}"
                 )
 
-                print(
-                    "[GEMINI] 試行:",
-                    f"{attempt}/{GEMINI_MAX_RETRIES}"
+                gemini_log(
+                    "Geminiへ音声解析リクエスト送信"
                 )
 
-                print(
+                gemini_log(
+                    "モデル: "
+                    +
+                    GEMINI_MODEL
+                )
+
+                gemini_log(
                     "------------------------------------------"
                 )
+
+
+                generate_start = time.time()
 
 
                 response = client.models.generate_content(
@@ -1618,66 +1462,67 @@ SRT形式:
                 )
 
 
-                print(
-                    ">>> Gemini generate_content API成功"
+                generate_elapsed = (
+                    time.time()
+                    -
+                    generate_start
                 )
 
 
-                # --------------------------------------------------
-                # レスポンス詳細
-                # --------------------------------------------------
+                gemini_log(
+                    "Gemini generate_content API成功"
+                )
+
+
+                gemini_log(
+                    f"Gemini応答時間: "
+                    f"{generate_elapsed:.2f}秒"
+                )
+
+
+                # ==================================================
+                # response debug
+                # ==================================================
 
                 log_response_debug(
-
                     response
-
                 )
 
 
-                # --------------------------------------------------
+                # ==================================================
                 # テキスト抽出
-                # --------------------------------------------------
+                # ==================================================
 
                 raw_text = extract_response_text(
-
                     response
-
                 )
 
 
-                print(
-                    ">>> 抽出テキスト長:",
-                    len(
-                        raw_text
+                gemini_log(
+                    "抽出テキスト長: "
+                    +
+                    str(
+                        len(raw_text)
                     )
                 )
 
 
-                # --------------------------------------------------
+                # ==================================================
                 # 空レスポンス
-                #
-                # API自体は成功しているが、
-                # テキストが取れなかった場合。
-                # --------------------------------------------------
+                # ==================================================
 
                 if not raw_text:
 
-                    print(
-                        ">>> Geminiレスポンスに"
+                    gemini_log(
+                        "Geminiレスポンスに"
                         "テキストがありません"
                     )
 
 
-                    # ----------------------------------------------
-                    # 最終試行なら詳細エラー
-                    # ----------------------------------------------
-
                     if (
-
                         attempt
                         >=
                         GEMINI_MAX_RETRIES
-
                     ):
 
                         raise RuntimeError(
@@ -1689,102 +1534,95 @@ SRT形式:
                         )
 
 
-                    print(
-
-                        ">>> 空レスポンスのため"
-                        "リトライします"
-
-                    )
-
-
                     wait_seconds = (
-
                         attempt
                         *
                         GEMINI_RETRY_WAIT_SECONDS
+                    )
 
+
+                    gemini_log(
+                        f"{wait_seconds}秒待って再試行します"
                     )
 
 
                     time.sleep(
-
                         wait_seconds
-
                     )
 
 
                     continue
 
 
-                # --------------------------------------------------
+                # ==================================================
                 # SRT整形
-                # --------------------------------------------------
+                # ==================================================
 
-                srt_text = clean_srt_text(
-
-                    raw_text
-
+                gemini_log(
+                    "Gemini結果をSRT形式に整形しています"
                 )
 
 
-                print(
-                    ">>> 整形後SRT長:",
-                    len(
-                        srt_text
+                srt_text = clean_srt_text(
+                    raw_text
+                )
+
+
+                gemini_log(
+                    "整形後SRT長: "
+                    +
+                    str(
+                        len(srt_text)
                     )
                 )
 
 
-                # --------------------------------------------------
-                # SRT形式確認
-                # --------------------------------------------------
+                # ==================================================
+                # SRT検証
+                # ==================================================
 
                 try:
 
                     validate_srt_text(
-
                         srt_text
-
                     )
 
 
                 except Exception as validation_error:
 
-                    print(
-                        ">>> SRT形式チェック失敗"
+                    gemini_log(
+                        "SRT形式チェック失敗"
                     )
 
-                    print(
-                        ">>> ERROR:",
-                        repr(
+
+                    gemini_log(
+                        format_exception(
                             validation_error
                         )
                     )
 
-                    print(
-                        ">>> Gemini raw result:"
-                    )
 
-                    print(
-                        raw_text[:3000]
+                    gemini_log(
+                        "Gemini raw result:"
                     )
 
 
-                    # SRT形式がおかしい場合も、
-                    # 一時的な生成異常を考慮して
-                    # 再試行する。
+                    print(
+                        raw_text[:3000],
+                        flush=True
+                    )
+
 
                     if (
-
                         attempt
                         >=
                         GEMINI_MAX_RETRIES
-
                     ):
 
                         raise RuntimeError(
 
-                            "Geminiから有効なSRTを取得できませんでした: "
+                            "Geminiから有効なSRTを"
+                            "取得できませんでした: "
                             +
                             str(
                                 validation_error
@@ -1794,55 +1632,45 @@ SRT形式:
 
 
                     wait_seconds = (
-
                         attempt
                         *
                         GEMINI_RETRY_WAIT_SECONDS
-
                     )
 
 
-                    print(
-
-                        ">>>",
-                        wait_seconds,
-                        "秒待って再生成します"
-
+                    gemini_log(
+                        f"{wait_seconds}秒待って"
+                        "再生成します"
                     )
 
 
                     time.sleep(
-
                         wait_seconds
-
                     )
 
 
                     continue
 
 
-                # --------------------------------------------------
+                # ==================================================
                 # 成功
-                # --------------------------------------------------
+                # ==================================================
 
-                print(
-                    "=========================================="
+                gemini_separator()
+
+                gemini_log(
+                    "Gemini 音声解析完了"
                 )
 
-                print(
-                    "[GEMINI] 解析完了"
-                )
-
-                print(
-                    "[GEMINI] SRT文字数:",
-                    len(
-                        srt_text
+                gemini_log(
+                    "SRT文字数: "
+                    +
+                    str(
+                        len(srt_text)
                     )
                 )
 
-                print(
-                    "=========================================="
-                )
+                gemini_separator()
 
 
                 return srt_text
@@ -1850,65 +1678,67 @@ SRT形式:
 
             except Exception as error:
 
-                print(
-                    ">>> Gemini generate_content失敗"
+                gemini_separator()
+
+                gemini_log(
+                    "Gemini generate_content失敗"
                 )
 
-                print(
-                    ">>> TYPE:",
+                gemini_log(
+                    "TYPE: "
+                    +
                     type(error).__name__
                 )
 
-                print(
-                    ">>> ERROR:",
+                gemini_log(
+                    "ERROR: "
+                    +
+                    str(error)
+                )
+
+                gemini_log(
+                    "REPR: "
+                    +
                     repr(error)
                 )
 
 
-                # ----------------------------------------------
-                # リトライ判定
-                # ----------------------------------------------
+                # ==================================================
+                # traceback
+                # ==================================================
+
+                traceback.print_exc()
+
 
                 retryable = is_retryable_gemini_error(
-
                     error
-
                 )
 
 
-                print(
-                    ">>> リトライ対象:",
-                    retryable
+                gemini_log(
+                    "リトライ対象: "
+                    +
+                    str(retryable)
                 )
 
-
-                # ----------------------------------------------
-                # 最大回数
-                # ----------------------------------------------
 
                 if (
-
                     attempt
                     >=
                     GEMINI_MAX_RETRIES
-
                 ):
 
-                    print(
-                        ">>> 最大リトライ回数に到達"
+                    gemini_log(
+                        "最大リトライ回数に到達"
                     )
 
                     raise
 
 
-                # ----------------------------------------------
-                # リトライ対象外
-                # ----------------------------------------------
-
                 if not retryable:
 
-                    print(
-                        ">>> 一時的エラーではないため"
+                    gemini_log(
+                        "一時的エラーではないため"
                         "リトライしません"
                     )
 
@@ -1916,49 +1746,36 @@ SRT形式:
 
 
                 wait_seconds = (
-
                     attempt
                     *
                     GEMINI_RETRY_WAIT_SECONDS
-
                 )
 
 
-                print(
-                    ">>>",
-                    wait_seconds,
-                    "秒待って再試行します"
+                gemini_log(
+                    f"{wait_seconds}秒待って"
+                    "再試行します"
                 )
 
 
                 time.sleep(
-
                     wait_seconds
-
                 )
 
 
         # ======================================================
-        # ここまで来た場合
+        # 到達しない想定
         # ======================================================
 
         raise RuntimeError(
-
             "Gemini文字起こし処理が完了しませんでした"
-
         )
 
 
     finally:
 
         # ======================================================
-        # Gemini Files APIのファイル削除
-        #
-        # アップロードしたファイルを削除できる場合は
-        # 削除する。
-        #
-        # SDK / APIの状態によって削除失敗しても、
-        # ローカルMP3処理自体は壊さない。
+        # Gemini Files API削除
         # ======================================================
 
         if uploaded_file is not None:
@@ -1966,51 +1783,42 @@ SRT形式:
             try:
 
                 uploaded_name = getattr(
-
                     uploaded_file,
-
                     "name",
-
                     None
-
                 )
 
 
                 if uploaded_name:
 
-                    print(
-                        "[GEMINI] uploaded file削除:",
+                    gemini_log(
+                        "uploaded file削除: "
+                        +
                         uploaded_name
                     )
 
 
                     client.files.delete(
-
                         name=uploaded_name
-
                     )
 
 
-                    print(
-                        "[GEMINI] uploaded file削除完了"
+                    gemini_log(
+                        "uploaded file削除完了"
                     )
 
 
             except Exception as error:
 
-                print(
-
-                    "[GEMINI] WARNING: "
-                    "uploaded file削除失敗:",
+                gemini_log(
+                    "WARNING: uploaded file削除失敗: "
+                    +
                     repr(error)
-
                 )
 
 
         # ======================================================
-        # ローカル一時MP3削除
-        #
-        # 元MP3は削除しない。
+        # 一時MP3削除
         # ======================================================
 
         if os.path.exists(
@@ -2020,38 +1828,28 @@ SRT形式:
             try:
 
                 os.remove(
-
                     temp_mp3
-
                 )
 
 
-                print(
-                    "[GEMINI] 一時MP3削除:",
+                gemini_log(
+                    "一時MP3削除: "
+                    +
                     temp_mp3
                 )
 
 
             except Exception as error:
 
-                print(
-
-                    "[GEMINI] WARNING: "
-                    "一時MP3削除失敗:",
+                gemini_log(
+                    "WARNING: 一時MP3削除失敗: "
+                    +
                     repr(error)
-
                 )
 
 
 # ==========================================================
 # SRT保存
-#
-# MP3と同じ名前にする。
-#
-# sample.mp3
-# ↓
-# sample.srt
-#
 # ==========================================================
 
 def save_srt(
@@ -2060,53 +1858,35 @@ def save_srt(
 ):
 
     mp3_path = os.path.abspath(
-
         str(
             mp3_path
         )
-
     )
 
-
-    # ======================================================
-    # SRT本文確認
-    # ======================================================
 
     if not srt_text:
 
         raise ValueError(
-
             "保存するSRT本文が空です"
-
         )
 
 
     srt_text = clean_srt_text(
-
         srt_text
-
     )
 
 
     if not srt_text:
 
         raise ValueError(
-
             "整形後のSRT本文が空です"
-
         )
 
-
-    # ======================================================
-    # SRTパス
-    # ======================================================
 
     srt_path = (
 
         os.path.splitext(
-
             mp3_path
-
         )[0]
 
         +
@@ -2115,16 +1895,15 @@ def save_srt(
     )
 
 
-    # ======================================================
-    # 保存
-    # ======================================================
+    gemini_separator()
 
-    print(
-        "[GEMINI] SRT保存開始:"
+    gemini_log(
+        "SRT保存開始"
     )
 
-    print(
-        "[GEMINI] SRT:",
+    gemini_log(
+        "SRT: "
+        +
         srt_path
     )
 
@@ -2140,9 +1919,7 @@ def save_srt(
     ) as f:
 
         f.write(
-
             srt_text
-
         )
 
 
@@ -2155,11 +1932,9 @@ def save_srt(
     ):
 
         raise IOError(
-
             "SRTファイルの保存に失敗しました: "
             +
             srt_path
-
         )
 
 
@@ -2168,54 +1943,49 @@ def save_srt(
     ):
 
         raise IOError(
-
             "SRT保存先がファイルではありません: "
             +
             srt_path
-
         )
 
 
     srt_size = os.path.getsize(
-
         srt_path
-
     )
 
 
     if srt_size <= 0:
 
         raise ValueError(
-
             "SRTファイルが0 bytesです: "
             +
             srt_path
-
         )
 
 
-    print(
-        "=========================================="
+    gemini_separator()
+
+    gemini_log(
+        "SRT保存完了"
     )
 
-    print(
-        "[GEMINI] SRT保存完了"
-    )
-
-    print(
-        "[GEMINI] SRT:",
+    gemini_log(
+        "SRT: "
+        +
         srt_path
     )
 
-    print(
-        "[GEMINI] SRTサイズ:",
-        srt_size,
-        "bytes"
+    gemini_log(
+        "SRTサイズ: "
+        +
+        str(
+            srt_size
+        )
+        +
+        " bytes"
     )
 
-    print(
-        "=========================================="
-    )
+    gemini_separator()
 
 
     return srt_path
@@ -2224,8 +1994,7 @@ def save_srt(
 # ==========================================================
 # Flask Route
 #
-# /gemini-transcribe
-#
+# POST /gemini-transcribe
 # ==========================================================
 
 def register_gemini(
@@ -2233,11 +2002,8 @@ def register_gemini(
 ):
 
     @app.route(
-
         "/gemini-transcribe",
-
         methods=["POST"]
-
     )
 
     def gemini_transcribe():
@@ -2249,9 +2015,7 @@ def register_gemini(
             # ==================================================
 
             data = request.get_json(
-
                 silent=True
-
             )
 
 
@@ -2273,9 +2037,7 @@ def register_gemini(
             # ==================================================
 
             filename = data.get(
-
                 "file"
-
             )
 
 
@@ -2293,9 +2055,7 @@ def register_gemini(
 
 
             filename = str(
-
                 filename
-
             ).strip()
 
 
@@ -2312,27 +2072,17 @@ def register_gemini(
                 }), 400
 
 
-            # ==================================================
-            # パス区切り文字対策
-            #
-            # basenameだけを使用。
-            # ==================================================
-
             filename = os.path.basename(
-
                 filename
-
             )
 
 
             # ==================================================
-            # MP3以外禁止
+            # MP3確認
             # ==================================================
 
             if not filename.lower().endswith(
-
                 ".mp3"
-
             ):
 
                 return jsonify({
@@ -2351,22 +2101,17 @@ def register_gemini(
             # ==================================================
 
             download_root = os.path.abspath(
-
                 str(
                     DOWNLOAD_DIR
                 )
-
             )
 
 
             mp3_path = os.path.abspath(
 
                 os.path.join(
-
                     download_root,
-
                     filename
-
                 )
 
             )
@@ -2381,11 +2126,8 @@ def register_gemini(
                 common_path = os.path.commonpath(
 
                     [
-
                         download_root,
-
                         mp3_path
-
                     ]
 
                 )
@@ -2413,9 +2155,7 @@ def register_gemini(
             # ==================================================
 
             if not os.path.exists(
-
                 mp3_path
-
             ):
 
                 return jsonify({
@@ -2430,9 +2170,7 @@ def register_gemini(
 
 
             if not os.path.isfile(
-
                 mp3_path
-
             ):
 
                 return jsonify({
@@ -2446,14 +2184,8 @@ def register_gemini(
                 }), 400
 
 
-            # ==================================================
-            # MP3サイズ
-            # ==================================================
-
             mp3_size = os.path.getsize(
-
                 mp3_path
-
             )
 
 
@@ -2471,36 +2203,36 @@ def register_gemini(
 
 
             # ==================================================
-            # ログ
+            # Route開始
             # ==================================================
 
-            print(
-                "=========================================="
+            gemini_separator()
+
+            gemini_log(
+                "GEMINI ROUTE 文字起こし開始"
             )
 
-            print(
-                "[GEMINI ROUTE] 文字起こし開始"
-            )
-
-            print(
-                "[GEMINI ROUTE] MP3:",
+            gemini_log(
+                "MP3: "
+                +
                 mp3_path
             )
 
-            print(
-                "[GEMINI ROUTE] MP3サイズ:",
-                mp3_size,
-                "bytes"
+            gemini_log(
+                "MP3サイズ: "
+                +
+                str(mp3_size)
+                +
+                " bytes"
             )
 
-            print(
-                "[GEMINI ROUTE] モデル:",
+            gemini_log(
+                "モデル: "
+                +
                 GEMINI_MODEL
             )
 
-            print(
-                "=========================================="
-            )
+            gemini_separator()
 
 
             # ==================================================
@@ -2508,9 +2240,7 @@ def register_gemini(
             # ==================================================
 
             srt_text = transcribe_mp3(
-
                 mp3_path
-
             )
 
 
@@ -2519,11 +2249,8 @@ def register_gemini(
             # ==================================================
 
             srt_path = save_srt(
-
                 mp3_path,
-
                 srt_text
-
             )
 
 
@@ -2531,27 +2258,25 @@ def register_gemini(
             # 完了
             # ==================================================
 
-            print(
-                "=========================================="
+            gemini_separator()
+
+            gemini_log(
+                "GEMINI ROUTE 完了"
             )
 
-            print(
-                "[GEMINI ROUTE] 完了"
-            )
-
-            print(
-                "[GEMINI ROUTE] MP3:",
+            gemini_log(
+                "MP3: "
+                +
                 mp3_path
             )
 
-            print(
-                "[GEMINI ROUTE] SRT:",
+            gemini_log(
+                "SRT: "
+                +
                 srt_path
             )
 
-            print(
-                "=========================================="
-            )
+            gemini_separator()
 
 
             return jsonify({
@@ -2561,16 +2286,12 @@ def register_gemini(
 
                 "srt_file":
                     os.path.basename(
-
                         srt_path
-
                     ),
 
                 "mp3_file":
                     os.path.basename(
-
                         mp3_path
-
                     ),
 
                 "text":
@@ -2581,22 +2302,17 @@ def register_gemini(
 
         except FileNotFoundError as error:
 
-            print(
-                "=========================================="
+            gemini_separator()
+
+            gemini_log(
+                "GEMINI ROUTE FILE NOT FOUND"
             )
 
-            print(
-                "[GEMINI ROUTE] FILE NOT FOUND"
-            )
-
-            print(
-                "ERROR:",
+            gemini_log(
                 str(error)
             )
 
-            print(
-                "=========================================="
-            )
+            gemini_separator()
 
 
             return jsonify({
@@ -2612,27 +2328,35 @@ def register_gemini(
 
         except Exception as error:
 
-            print(
-                "=========================================="
+            gemini_separator()
+
+            gemini_log(
+                "GEMINI ROUTE ERROR"
             )
 
-            print(
-                "[GEMINI ROUTE] Gemini ERROR"
-            )
-
-            print(
-                "TYPE:",
+            gemini_log(
+                "TYPE: "
+                +
                 type(error).__name__
             )
 
-            print(
-                "ERROR:",
+            gemini_log(
+                "ERROR: "
+                +
                 str(error)
             )
 
-            print(
-                "=========================================="
+            gemini_log(
+                "REPR: "
+                +
+                repr(error)
             )
+
+
+            traceback.print_exc()
+
+
+            gemini_separator()
 
 
             return jsonify({
