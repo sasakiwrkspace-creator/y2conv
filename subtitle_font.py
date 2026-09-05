@@ -1,2297 +1,950 @@
 # =====================================
-# Subtitle - Low Memory Edition
-# subtitle.py
+# Subtitle Font Settings
+# subtitle_font.py
 #
-# 512MB RAM環境向け
+# 字幕フォント・文字色・縁色・縁太さ管理
 #
-# MP4動画へSRT字幕を焼き込む
+# subtitle.py と連動して使用
 #
-# subtitle_font.pyで選択した設定と
-# 確実に連動する版
+# 戻り値:
+#
+# {
+#     "preset": "標準",
+#     "font": "Noto Sans CJK JP",
+#     "text_color": "白",
+#     "outline_color": "黒",
+#     "outline_width": 2
+# }
+#
+# subtitle.py側では、この設定を受け取り
+# FFmpeg subtitles filter の force_style
+# に変換する。
+# =====================================
+
+
+# =====================================
+# 字幕カラー
+#
+# ASS形式:
+#
+# &HAABBGGRR
+#
+# AA = Alpha
+# BB = Blue
+# GG = Green
+# RR = Red
+#
+# 完全不透明:
+# 00
+# =====================================
+
+SUBTITLE_COLORS = {
+
+    "白": {
+        "ass": "&H00FFFFFF",
+    },
+
+    "黒": {
+        "ass": "&H00000000",
+    },
+
+    "赤": {
+        "ass": "&H000000FF",
+    },
+
+    "青": {
+        "ass": "&H00FF0000",
+    },
+
+    "緑": {
+        "ass": "&H0000FF00",
+    },
+
+    "黄": {
+        "ass": "&H0000FFFF",
+    },
+
+    "オレンジ": {
+        "ass": "&H0000A5FF",
+    },
+
+    "水色": {
+        "ass": "&H00FFFF00",
+    },
+
+    "紫": {
+        "ass": "&H00800080",
+    },
+
+}
+
+
+# =====================================
+# フォントプリセット
+#
+# font:
+#   FFmpeg / ASS の FontName として使用
+#
+# name:
+#   UI表示用
 #
 # =====================================
 
-import os
-import sys
-import time
-import shutil
-import subprocess
+SUBTITLE_FONT_PRESETS = {
 
-from pathlib import Path
-from collections import deque
+    "標準": {
 
-from config import DOWNLOAD_DIR
+        "font": "Noto Sans CJK JP",
 
-from subtitle_font import (
-    SUBTITLE_COLORS,
-    get_default_subtitle_font_settings,
-)
+        "text_color": "白",
+
+        "outline_color": "黒",
+
+        "outline_width": 2,
+
+    },
+
+    "ゴシック": {
+
+        "font": "Noto Sans CJK JP",
+
+        "text_color": "白",
+
+        "outline_color": "黒",
+
+        "outline_width": 2,
+
+    },
+
+    "明朝": {
+
+        "font": "Noto Serif CJK JP",
+
+        "text_color": "白",
+
+        "outline_color": "黒",
+
+        "outline_width": 2,
+
+    },
+
+    "太字ゴシック": {
+
+        "font": "Noto Sans CJK JP",
+
+        "text_color": "白",
+
+        "outline_color": "黒",
+
+        "outline_width": 3,
+
+    },
+
+}
 
 
 # =====================================
-# 設定
+# デフォルト設定
 # =====================================
 
-DOWNLOADS_DIR = Path(
-    DOWNLOAD_DIR
-)
-
-MAX_FFMPEG_LOG_LINES = 100
-
-# 512MB環境向け
-FFMPEG_THREADS = "1"
-
-# CPU負荷・メモリ負荷を抑える
-FFMPEG_PRESET = "ultrafast"
-
-# 画質
-FFMPEG_CRF = "23"
+DEFAULT_SUBTITLE_PRESET = "標準"
 
 
 # =====================================
-# ログ
+# 設定値の正規化
 # =====================================
 
-def log(message):
-
-    print(
-        "[SUBTITLE]",
-        message,
-        flush=True
-    )
-
-
-# =====================================
-# 入力ファイル確認
-# =====================================
-
-def validate_input_file(
-    file_path,
-    extension
+def normalize_outline_width(
+    value,
+    default=2
 ):
-
-    path = Path(
-        file_path
-    )
-
-    if not path.exists():
-
-        raise FileNotFoundError(
-            f"ファイルがありません: {path}"
-        )
-
-    if not path.is_file():
-
-        raise ValueError(
-            f"ファイルではありません: {path}"
-        )
-
-    if path.suffix.lower() != extension.lower():
-
-        raise ValueError(
-            f"{extension} ファイルではありません: {path}"
-        )
 
     try:
 
-        size = path.stat().st_size
-
-    except OSError as error:
-
-        raise RuntimeError(
-            f"ファイルサイズを確認できません: {error}"
-        ) from error
-
-    if size <= 0:
-
-        raise ValueError(
-            f"ファイルが0 bytesです: {path}"
-        )
-
-    return path
-
-
-# =====================================
-# 出力ファイル名
-# =====================================
-
-def make_output_path(
-    mp4_path
-):
-
-    mp4_path = Path(
-        mp4_path
-    )
-
-    stem = mp4_path.stem
-
-    if stem.lower().endswith(
-        "_sub_embed"
-    ):
-
-        output_stem = (
-            stem +
-            "_2"
-        )
-
-    else:
-
-        output_stem = (
-            stem +
-            "_sub_embed"
-        )
-
-    return (
-        mp4_path.parent /
-        (
-            output_stem +
-            ".mp4"
-        )
-    )
-
-
-# =====================================
-# FFmpeg存在確認
-# =====================================
-
-def check_ffmpeg():
-
-    log(
-        "FFmpeg確認開始"
-    )
-
-    ffmpeg_path = shutil.which(
-        "ffmpeg"
-    )
-
-    if not ffmpeg_path:
-
-        raise RuntimeError(
-            "FFmpegが見つかりません。"
-            "Render側でFFmpegをインストールしてください。"
-        )
-
-    log(
-        f"FFmpeg path: {ffmpeg_path}"
-    )
-
-    try:
-
-        result = subprocess.run(
-
-            [
-                ffmpeg_path,
-                "-version"
-            ],
-
-            stdout=subprocess.PIPE,
-
-            stderr=subprocess.PIPE,
-
-            text=True,
-
-            timeout=30
-
-        )
-
-    except FileNotFoundError:
-
-        raise RuntimeError(
-            "FFmpegが見つかりません。"
-        )
-
-    except subprocess.TimeoutExpired:
-
-        raise RuntimeError(
-            "FFmpegの確認がタイムアウトしました。"
-        )
-
-    except OSError as error:
-
-        raise RuntimeError(
-            f"FFmpegを起動できません: {error}"
-        ) from error
-
-    if result.returncode != 0:
-
-        raise RuntimeError(
-            "FFmpegを実行できませんでした。"
-        )
-
-    first_line = (
-
-        result.stdout.splitlines()[0]
-
-        if result.stdout
-
-        else "FFmpeg"
-
-    )
-
-    log(
-        first_line
-    )
-
-    return ffmpeg_path
-
-
-# =====================================
-# SRT文字コード確認
-# =====================================
-
-def validate_srt_encoding(
-    srt_path
-):
-
-    srt_path = Path(
-        srt_path
-    )
-
-    try:
-
-        with open(
-
-            srt_path,
-
-            "r",
-
-            encoding="utf-8-sig"
-
-        ) as file:
-
-            first_content = file.read(
-                4096
-            )
-
-    except UnicodeDecodeError as error:
-
-        raise RuntimeError(
-
-            "SRTファイルをUTF-8として"
-            "読み込めませんでした。\n"
-            "SRTをUTF-8形式で保存してください。"
-
-        ) from error
-
-    except OSError as error:
-
-        raise RuntimeError(
-
-            f"SRTファイルを読み込めませんでした: {error}"
-
-        ) from error
-
-    if not first_content.strip():
-
-        raise RuntimeError(
-            "SRTファイルが空です。"
-        )
-
-    try:
-
-        srt_size = (
-            srt_path.stat().st_size
-        )
-
-    except OSError:
-
-        srt_size = 0
-
-    log(
-        f"SRTサイズ: {srt_size} bytes"
-    )
-
-    return True
-
-
-# =====================================
-# フォントファミリー取得
-# =====================================
-
-def get_font_family_from_path(
-    font_path
-):
-
-    fc_scan = shutil.which(
-        "fc-scan"
-    )
-
-    if not fc_scan:
-
-        return None
-
-    try:
-
-        result = subprocess.run(
-
-            [
-                fc_scan,
-
-                "--format=%{family}",
-
-                str(font_path)
-
-            ],
-
-            stdout=subprocess.PIPE,
-
-            stderr=subprocess.PIPE,
-
-            text=True,
-
-            encoding="utf-8",
-
-            errors="replace",
-
-            timeout=30
-
-        )
-
-    except Exception:
-
-        return None
-
-    if result.returncode != 0:
-
-        return None
-
-    family = (
-        result.stdout.strip()
-    )
-
-    if not family:
-
-        return None
-
-    # fc-scanが複数familyを返した場合
-    if "," in family:
-
-        family = family.split(
-            ",",
-            1
-        )[0].strip()
-
-    return family
-
-
-# =====================================
-# 日本語フォント検索
-#
-# 重要:
-#
-# requested_font が指定されている場合、
-# 必ず最初にそのフォントを検索する。
-#
-# 実際に検出されたフォントファイルから
-# family名を取得して返す。
-# =====================================
-
-def find_japanese_font(
-    requested_font=None
-):
-
-    log(
-        "日本語フォント検索開始"
-    )
-
-    # =================================
-    # 1. 環境変数
-    #
-    # SUBTITLE_FONTが明示されている場合は
-    # 最優先。
-    # =================================
-
-    environment_font = os.environ.get(
-        "SUBTITLE_FONT"
-    )
-
-    if environment_font:
-
-        environment_font_path = Path(
-            environment_font
-        )
-
-        if environment_font_path.is_file():
-
-            family = (
-                get_font_family_from_path(
-                    environment_font_path
-                )
-            )
-
-            log(
-                "環境変数指定フォントを使用:"
-            )
-
-            log(
-                f"path: {environment_font_path}"
-            )
-
-            log(
-                f"family: {family}"
-            )
-
-            return {
-
-                "path":
-                    environment_font_path,
-
-                "family":
-                    family
-
-            }
-
-        log(
-            "SUBTITLE_FONTに指定された"
-            "フォントが存在しません:"
-        )
-
-        log(
-            str(
-                environment_font_path
-            )
-        )
-
-    # =================================
-    # 2. subtitle_font.pyで選択された
-    # フォントを検索
-    # =================================
-
-    fc_match = shutil.which(
-        "fc-match"
-    )
-
-    if fc_match and requested_font:
-
-        log(
-            "選択フォントを検索:"
-        )
-
-        log(
-            f"requested_font: {requested_font}"
-        )
-
-        try:
-
-            result = subprocess.run(
-
-                [
-                    fc_match,
-
-                    "-f",
-                    "%{file}\\n",
-
-                    requested_font
-
-                ],
-
-                stdout=subprocess.PIPE,
-
-                stderr=subprocess.PIPE,
-
-                text=True,
-
-                encoding="utf-8",
-
-                errors="replace",
-
-                timeout=30
-
-            )
-
-            if result.returncode == 0:
-
-                for line in result.stdout.splitlines():
-
-                    line = line.strip()
-
-                    if not line:
-
-                        continue
-
-                    font_path = Path(
-                        line
-                    )
-
-                    if not font_path.is_file():
-
-                        continue
-
-                    actual_family = (
-                        get_font_family_from_path(
-                            font_path
-                        )
-                    )
-
-                    # fc-scanでfamilyを取得できない場合は
-                    # requested_fontを使用
-                    if not actual_family:
-
-                        actual_family = (
-                            requested_font
-                        )
-
-                    log(
-                        "====================================="
-                    )
-
-                    log(
-                        "選択されたフォントを使用します"
-                    )
-
-                    log(
-                        f"選択値: {requested_font}"
-                    )
-
-                    log(
-                        f"実ファイル: {font_path}"
-                    )
-
-                    log(
-                        f"実FontName: {actual_family}"
-                    )
-
-                    log(
-                        "====================================="
-                    )
-
-                    return {
-
-                        "path":
-                            font_path,
-
-                        "family":
-                            actual_family,
-
-                        "requested":
-                            requested_font
-
-                    }
-
-        except Exception as error:
-
-            log(
-                f"指定フォントfc-matchエラー: {error}"
-            )
-
-    # =================================
-    # 3. 日本語フォントへフォールバック
-    # =================================
-
-    if fc_match:
-
-        candidates = [
-
-            "Noto Sans CJK JP",
-
-            "Noto Sans JP",
-
-            "Noto Serif CJK JP",
-
-            "Noto Serif JP",
-
-            "IPAexGothic",
-
-            "IPAGothic",
-
-            "IPAexMincho",
-
-            "IPAMincho",
-
-            "VL Gothic",
-
-            "TakaoGothic",
-
-        ]
-
-        for family in candidates:
-
-            try:
-
-                result = subprocess.run(
-
-                    [
-                        fc_match,
-
-                        "-f",
-                        "%{file}\\n",
-
-                        family
-
-                    ],
-
-                    stdout=subprocess.PIPE,
-
-                    stderr=subprocess.PIPE,
-
-                    text=True,
-
-                    encoding="utf-8",
-
-                    errors="replace",
-
-                    timeout=30
-
-                )
-
-            except Exception as error:
-
-                log(
-                    f"fc-matchエラー: {error}"
-                )
-
-                continue
-
-            if result.returncode != 0:
-
-                continue
-
-            for line in result.stdout.splitlines():
-
-                line = line.strip()
-
-                if not line:
-
-                    continue
-
-                font_path = Path(
-                    line
-                )
-
-                if not font_path.is_file():
-
-                    continue
-
-                actual_family = (
-                    get_font_family_from_path(
-                        font_path
-                    )
-                )
-
-                if not actual_family:
-
-                    actual_family = family
-
-                log(
-                    "日本語フォントへフォールバック:"
-                )
-
-                log(
-                    f"family: {actual_family}"
-                )
-
-                log(
-                    f"path: {font_path}"
-                )
-
-                return {
-
-                    "path":
-                        font_path,
-
-                    "family":
-                        actual_family,
-
-                    "requested":
-                        requested_font
-
-                }
-
-    # =================================
-    # 4. fc-list
-    # =================================
-
-    fc_list = shutil.which(
-        "fc-list"
-    )
-
-    if fc_list:
-
-        try:
-
-            result = subprocess.run(
-
-                [
-                    fc_list,
-
-                    ":lang=ja",
-
-                    "-f",
-
-                    "%{file}|%{family}\\n"
-
-                ],
-
-                stdout=subprocess.PIPE,
-
-                stderr=subprocess.PIPE,
-
-                text=True,
-
-                encoding="utf-8",
-
-                errors="replace",
-
-                timeout=30
-
-            )
-
-            if result.returncode == 0:
-
-                for line in result.stdout.splitlines():
-
-                    line = line.strip()
-
-                    if not line:
-
-                        continue
-
-                    parts = line.split(
-                        "|",
-                        1
-                    )
-
-                    font_file = (
-                        parts[0].strip()
-                    )
-
-                    family = (
-
-                        parts[1].strip()
-
-                        if len(parts) > 1
-
-                        else ""
-
-                    )
-
-                    if not font_file:
-
-                        continue
-
-                    font_path = Path(
-                        font_file
-                    )
-
-                    if not font_path.is_file():
-
-                        continue
-
-                    if "," in family:
-
-                        family = family.split(
-                            ",",
-                            1
-                        )[0].strip()
-
-                    log(
-                        "fc-list日本語フォント検出:"
-                    )
-
-                    log(
-                        f"path: {font_path}"
-                    )
-
-                    log(
-                        f"family: {family}"
-                    )
-
-                    return {
-
-                        "path":
-                            font_path,
-
-                        "family":
-                            family,
-
-                        "requested":
-                            requested_font
-
-                    }
-
-        except Exception as error:
-
-            log(
-                f"fc-list検索エラー: {error}"
-            )
-
-    # =================================
-    # 5. 手動検索
-    # =================================
-
-    preferred_fonts = [
-
-        "NotoSansCJK-Regular.ttc",
-
-        "NotoSansCJKJP-Regular.otf",
-
-        "NotoSansJP-Regular.ttf",
-
-        "NotoSerifCJK-Regular.ttc",
-
-        "NotoSerifCJKJP-Regular.otf",
-
-        "NotoSerifJP-Regular.ttf",
-
-        "ipaexg.ttf",
-
-        "ipaexm.ttf",
-
-        "IPAGothic.ttf",
-
-        "IPAPGothic.ttf",
-
-        "IPAMincho.ttf",
-
-        "IPAPMincho.ttf",
-
-        "TakaoGothic.ttf",
-
-        "TakaoPGothic.ttf",
-
-        "TakaoMincho.ttf",
-
-        "VL-Gothic-Regular.ttf",
-
-    ]
-
-    font_directories = [
-
-        Path(
-            "/usr/share/fonts"
-        ),
-
-        Path(
-            "/usr/local/share/fonts"
-        ),
-
-        Path(
-            "/opt/render/project/src/fonts"
-        ),
-
-        Path(
-            "/app/fonts"
-        ),
-
-        Path(
-            "fonts"
-        ),
-
-    ]
-
-    for directory in font_directories:
-
-        if not directory.exists():
-
-            continue
-
-        for font_name in preferred_fonts:
-
-            try:
-
-                for match in directory.rglob(
-                    font_name
-                ):
-
-                    if not match.is_file():
-
-                        continue
-
-                    family = (
-                        get_font_family_from_path(
-                            match
-                        )
-                    )
-
-                    if not family:
-
-                        family = font_name
-
-                    log(
-                        "日本語フォント検出:"
-                    )
-
-                    log(
-                        f"path: {match}"
-                    )
-
-                    log(
-                        f"family: {family}"
-                    )
-
-                    return {
-
-                        "path":
-                            match,
-
-                        "family":
-                            family,
-
-                        "requested":
-                            requested_font
-
-                    }
-
-            except Exception:
-
-                continue
-
-    # =================================
-    # 見つからない
-    # =================================
-
-    log(
-        "日本語フォントが見つかりませんでした。"
-    )
-
-    return None
-
-
-# =====================================
-# FFmpeg用パスエスケープ
-# =====================================
-
-def escape_ffmpeg_filter_path(
-    file_path
-):
-
-    path = str(
-        Path(file_path).resolve()
-    )
-
-    path = path.replace(
-        "\\",
-        "/"
-    )
-
-    path = path.replace(
-        "'",
-        "\\'"
-    )
-
-    path = path.replace(
-        ":",
-        "\\:"
-    )
-
-    return path
-
-
-# =====================================
-# FFmpeg字幕値エスケープ
-# =====================================
-
-def escape_ffmpeg_value(
-    value
-):
-
-    value = str(
-        value
-    )
-
-    value = value.replace(
-        "\\",
-        "\\\\"
-    )
-
-    value = value.replace(
-        "'",
-        "\\'"
-    )
-
-    value = value.replace(
-        ":",
-        "\\:"
-    )
-
-    value = value.replace(
-        ",",
-        "\\,"
-    )
-
-    return value
-
-
-# =====================================
-# 字幕フィルター作成
-#
-# subtitle_font.pyの設定:
-#
-#   font
-#   text_color
-#   outline_color
-#   outline_width
-#
-# をFFmpeg ASS styleへ変換
-# =====================================
-
-def make_subtitle_filter(
-    srt_path,
-    font_info=None,
-    subtitle_settings=None
-):
-
-    subtitle_path = (
-        escape_ffmpeg_filter_path(
-            srt_path
-        )
-    )
-
-    video_filter = (
-        "subtitles='"
-        +
-        subtitle_path
-        +
-        "'"
-    )
-
-    # =================================
-    # 字幕設定
-    # =================================
-
-    if subtitle_settings is None:
-
-        subtitle_settings = (
-            get_default_subtitle_font_settings()
-        )
-
-    if not isinstance(
-        subtitle_settings,
-        dict
-    ):
-
-        subtitle_settings = (
-            get_default_subtitle_font_settings()
-        )
-
-    # =================================
-    # 選択フォント
-    # =================================
-
-    selected_font = (
-        subtitle_settings.get(
-            "font"
-        )
-    )
-
-    # =================================
-    # 文字色
-    # =================================
-
-    text_color_name = (
-        subtitle_settings.get(
-            "text_color",
-            "白"
-        )
-    )
-
-    text_color_info = (
-        SUBTITLE_COLORS.get(
-            text_color_name,
-            {}
-        )
-    )
-
-    text_color = (
-        text_color_info.get(
-            "ass",
-            "&H00FFFFFF"
-        )
-    )
-
-    # =================================
-    # 縁色
-    # =================================
-
-    outline_color_name = (
-        subtitle_settings.get(
-            "outline_color",
-            "黒"
-        )
-    )
-
-    outline_color_info = (
-        SUBTITLE_COLORS.get(
-            outline_color_name,
-            {}
-        )
-    )
-
-    outline_color = (
-        outline_color_info.get(
-            "ass",
-            "&H00000000"
-        )
-    )
-
-    # =================================
-    # 縁太さ
-    # =================================
-
-    try:
-
-        outline_width = int(
-            subtitle_settings.get(
-                "outline_width",
-                2
-            )
-        )
+        value = int(value)
 
     except (
         ValueError,
         TypeError
     ):
 
-        outline_width = 2
+        value = default
 
-    outline_width = max(
+    # 安全範囲
+    value = max(
         0,
         min(
-            outline_width,
+            value,
             10
         )
     )
 
-    # =================================
-    # FontName決定
-    #
-    # 最優先:
-    # 実際に検出されたフォントfamily
-    #
-    # 次:
-    # subtitle_font.pyの選択値
-    #
-    # 最後:
-    # Noto Sans CJK JP
-    # =================================
+    return value
 
-    font_name = None
 
-    if font_info:
+# =====================================
+# フォント名の正規化
+# =====================================
 
-        font_name = font_info.get(
-            "family"
+def normalize_font_name(
+    font
+):
+
+    if font is None:
+
+        return None
+
+    font = str(
+        font
+    ).strip()
+
+    if not font:
+
+        return None
+
+    return font
+
+
+# =====================================
+# 色の正規化
+# =====================================
+
+def normalize_color_name(
+    color,
+    default
+):
+
+    if color in SUBTITLE_COLORS:
+
+        return color
+
+    return default
+
+
+# =====================================
+# 字幕設定を作成
+# =====================================
+
+def create_subtitle_font_settings(
+    font=None,
+    text_color="白",
+    outline_color="黒",
+    outline_width=2,
+    preset=None
+):
+
+    # ---------------------------------
+    # フォント
+    # ---------------------------------
+
+    font = normalize_font_name(
+        font
+    )
+
+    if not font:
+
+        font = (
+            SUBTITLE_FONT_PRESETS[
+                DEFAULT_SUBTITLE_PRESET
+            ]["font"]
         )
 
-    if not font_name:
+    # ---------------------------------
+    # 文字色
+    # ---------------------------------
 
-        font_name = selected_font
+    text_color = normalize_color_name(
 
-    if not font_name:
-
-        font_name = "Noto Sans CJK JP"
-
-    # =================================
-    # フォントディレクトリ
-    # =================================
-
-    if font_info:
-
-        font_path = font_info.get(
-            "path"
-        )
-
-        if font_path:
-
-            font_directory = (
-                Path(font_path).parent
-            )
-
-            font_directory_escaped = (
-                escape_ffmpeg_filter_path(
-                    font_directory
-                )
-            )
-
-            video_filter += (
-                ":fontsdir='"
-                +
-                font_directory_escaped
-                +
-                "'"
-            )
-
-            log(
-                "字幕フォントディレクトリ:"
-            )
-
-            log(
-                str(
-                    font_directory
-                )
-            )
-
-    # =================================
-    # ASS force_style
-    # =================================
-
-    style_parts = [
-
-        "FontName="
-        +
-        escape_ffmpeg_value(
-            font_name
-        ),
-
-        "PrimaryColour="
-        +
         text_color,
 
-        "OutlineColour="
-        +
+        "白"
+
+    )
+
+    # ---------------------------------
+    # 縁色
+    # ---------------------------------
+
+    outline_color = normalize_color_name(
+
         outline_color,
 
-        "Outline="
-        +
-        str(outline_width),
+        "黒"
+
+    )
+
+    # ---------------------------------
+    # 縁太さ
+    # ---------------------------------
+
+    outline_width = normalize_outline_width(
+
+        outline_width
+
+    )
+
+    # ---------------------------------
+    # プリセット
+    # ---------------------------------
+
+    if preset is None:
+
+        preset = DEFAULT_SUBTITLE_PRESET
+
+    preset = str(
+        preset
+    ).strip()
+
+    if not preset:
+
+        preset = DEFAULT_SUBTITLE_PRESET
+
+    # ---------------------------------
+    # subtitle.py と共通の辞書
+    # ---------------------------------
+
+    return {
+
+        "preset":
+            preset,
+
+        "font":
+            font,
+
+        "text_color":
+            text_color,
+
+        "outline_color":
+            outline_color,
+
+        "outline_width":
+            outline_width,
+
+    }
+
+
+# =====================================
+# デフォルト字幕設定
+#
+# subtitle.pyから使用
+#
+# =====================================
+
+def get_default_subtitle_font_settings():
+
+    preset = (
+        SUBTITLE_FONT_PRESETS[
+            DEFAULT_SUBTITLE_PRESET
+        ]
+    )
+
+    return create_subtitle_font_settings(
+
+        font=preset.get(
+            "font"
+        ),
+
+        text_color=preset.get(
+            "text_color",
+            "白"
+        ),
+
+        outline_color=preset.get(
+            "outline_color",
+            "黒"
+        ),
+
+        outline_width=preset.get(
+            "outline_width",
+            2
+        ),
+
+        preset=DEFAULT_SUBTITLE_PRESET
+
+    )
+
+
+# =====================================
+# プリセット取得
+# =====================================
+
+def get_subtitle_font_preset(
+    preset_name
+):
+
+    if preset_name not in SUBTITLE_FONT_PRESETS:
+
+        return get_default_subtitle_font_settings()
+
+    preset = (
+        SUBTITLE_FONT_PRESETS[
+            preset_name
+        ]
+    )
+
+    return create_subtitle_font_settings(
+
+        font=preset.get(
+            "font"
+        ),
+
+        text_color=preset.get(
+            "text_color",
+            "白"
+        ),
+
+        outline_color=preset.get(
+            "outline_color",
+            "黒"
+        ),
+
+        outline_width=preset.get(
+            "outline_width",
+            2
+        ),
+
+        preset=preset_name
+
+    )
+
+
+# =====================================
+# 利用可能なプリセット一覧
+# =====================================
+
+def get_subtitle_font_presets():
+
+    return list(
+        SUBTITLE_FONT_PRESETS.keys()
+    )
+
+
+# =====================================
+# 利用可能なフォント一覧
+#
+# UI側で選択肢として使用可能
+# =====================================
+
+def get_available_subtitle_fonts():
+
+    return [
+
+        "Noto Sans CJK JP",
+
+        "Noto Sans JP",
+
+        "Noto Serif CJK JP",
+
+        "Noto Serif JP",
+
+        "IPAexGothic",
+
+        "IPAGothic",
+
+        "IPAexMincho",
+
+        "IPAMincho",
+
+        "VL Gothic",
+
+        "TakaoGothic",
 
     ]
 
-    force_style = ",".join(
-        style_parts
+
+# =====================================
+# 利用可能な文字色
+# =====================================
+
+def get_available_text_colors():
+
+    return list(
+        SUBTITLE_COLORS.keys()
     )
-
-    video_filter += (
-        ":force_style='"
-        +
-        force_style
-        +
-        "'"
-    )
-
-    # =================================
-    # 設定ログ
-    # =================================
-
-    log(
-        "====================================="
-    )
-
-    log(
-        "字幕スタイル:"
-    )
-
-    log(
-        f"subtitle_font.py選択値: "
-        f"{selected_font}"
-    )
-
-    log(
-        f"実際に使用するFontName: "
-        f"{font_name}"
-    )
-
-    if font_info:
-
-        log(
-            f"フォントファイル: "
-            f"{font_info.get('path')}"
-        )
-
-    log(
-        f"文字色: {text_color_name}"
-    )
-
-    log(
-        f"文字色ASS: {text_color}"
-    )
-
-    log(
-        f"縁色: {outline_color_name}"
-    )
-
-    log(
-        f"縁色ASS: {outline_color}"
-    )
-
-    log(
-        f"縁太さ: {outline_width}"
-    )
-
-    log(
-        "====================================="
-    )
-
-    return video_filter
 
 
 # =====================================
-# FFmpegコマンド表示
+# 利用可能な縁色
 # =====================================
 
-def command_to_string(
-    command
+def get_available_outline_colors():
+
+    return list(
+        SUBTITLE_COLORS.keys()
+    )
+
+
+# =====================================
+# 字幕設定を更新
+#
+# 既存設定を維持しながら
+# 指定された項目だけ変更する。
+#
+# =====================================
+
+def update_subtitle_font_settings(
+    settings=None,
+    font=None,
+    text_color=None,
+    outline_color=None,
+    outline_width=None,
+    preset=None
 ):
 
-    return " ".join(
-
-        str(item)
-
-        for item in command
-
-    )
-
-
-# =====================================
-# 字幕焼き込み
-# =====================================
-
-def embed_subtitle(
-    mp4_path,
-    srt_path,
-    output_path=None,
-    subtitle_settings=None
-):
-
-    start_time = time.monotonic()
-
-    # =================================
-    # 入力確認
-    # =================================
-
-    mp4_path = validate_input_file(
-        mp4_path,
-        ".mp4"
-    )
-
-    srt_path = validate_input_file(
-        srt_path,
-        ".srt"
-    )
-
-    # =================================
-    # SRT確認
-    # =================================
-
-    validate_srt_encoding(
-        srt_path
-    )
-
-    # =================================
-    # 字幕設定
-    # =================================
-
-    if subtitle_settings is None:
-
-        subtitle_settings = (
-            get_default_subtitle_font_settings()
-        )
+    # ---------------------------------
+    # 元設定
+    # ---------------------------------
 
     if not isinstance(
-        subtitle_settings,
+        settings,
         dict
     ):
 
-        subtitle_settings = (
+        settings = (
             get_default_subtitle_font_settings()
         )
 
-    log(
-        "字幕設定:"
-    )
+    else:
 
-    log(
-        str(
-            subtitle_settings
+        settings = dict(
+            settings
+        )
+
+    # ---------------------------------
+    # フォント
+    # ---------------------------------
+
+    if font is not None:
+
+        normalized_font = normalize_font_name(
+            font
+        )
+
+        if normalized_font:
+
+            settings["font"] = normalized_font
+
+    # ---------------------------------
+    # 文字色
+    # ---------------------------------
+
+    if text_color is not None:
+
+        settings["text_color"] = (
+            normalize_color_name(
+
+                text_color,
+
+                settings.get(
+                    "text_color",
+                    "白"
+                )
+
+            )
+        )
+
+    # ---------------------------------
+    # 縁色
+    # ---------------------------------
+
+    if outline_color is not None:
+
+        settings["outline_color"] = (
+            normalize_color_name(
+
+                outline_color,
+
+                settings.get(
+                    "outline_color",
+                    "黒"
+                )
+
+            )
+        )
+
+    # ---------------------------------
+    # 縁太さ
+    # ---------------------------------
+
+    if outline_width is not None:
+
+        settings["outline_width"] = (
+            normalize_outline_width(
+
+                outline_width,
+
+                settings.get(
+                    "outline_width",
+                    2
+                )
+
+            )
+        )
+
+    # ---------------------------------
+    # プリセット
+    # ---------------------------------
+
+    if preset is not None:
+
+        preset = str(
+            preset
+        ).strip()
+
+        if preset:
+
+            settings["preset"] = preset
+
+    # ---------------------------------
+    # 必須キーを保証
+    # ---------------------------------
+
+    if not settings.get(
+        "font"
+    ):
+
+        settings["font"] = (
+            get_default_subtitle_font_settings()[
+                "font"
+            ]
+        )
+
+    settings["text_color"] = (
+        normalize_color_name(
+
+            settings.get(
+                "text_color"
+            ),
+
+            "白"
+
         )
     )
 
-    # =================================
-    # 出力先
-    # =================================
+    settings["outline_color"] = (
+        normalize_color_name(
 
-    if output_path:
+            settings.get(
+                "outline_color"
+            ),
 
-        output_path = Path(
-            output_path
+            "黒"
+
+        )
+    )
+
+    settings["outline_width"] = (
+        normalize_outline_width(
+
+            settings.get(
+                "outline_width"
+            ),
+
+            2
+
+        )
+    )
+
+    if not settings.get(
+        "preset"
+    ):
+
+        settings["preset"] = (
+            DEFAULT_SUBTITLE_PRESET
+        )
+
+    return settings
+
+
+# =====================================
+# フォント選択
+#
+# UI / route側から使用
+#
+# 例:
+#
+# settings = select_subtitle_font(
+#     font="Noto Sans JP",
+#     text_color="黄色",
+#     outline_color="黒",
+#     outline_width=3
+# )
+#
+# =====================================
+
+def select_subtitle_font(
+    font=None,
+    text_color="白",
+    outline_color="黒",
+    outline_width=2,
+    preset=None,
+    settings=None
+):
+
+    # ---------------------------------
+    # プリセットが指定された場合
+    # ---------------------------------
+
+    if preset:
+
+        preset_settings = (
+            get_subtitle_font_preset(
+                preset
+            )
         )
 
     else:
 
-        output_path = make_output_path(
-            mp4_path
+        preset_settings = (
+            get_default_subtitle_font_settings()
         )
 
-    # =================================
-    # 絶対パス化
-    # =================================
+    # ---------------------------------
+    # 既存設定
+    # ---------------------------------
 
-    output_path = Path(
-        output_path
-    ).resolve()
+    if isinstance(
+        settings,
+        dict
+    ):
 
-    # =================================
-    # 入力と出力が同じにならないようにする
-    # =================================
+        current_settings = dict(
+            settings
+        )
 
-    try:
+    else:
 
-        if (
-            output_path.resolve()
-            ==
-            mp4_path.resolve()
-        ):
+        current_settings = (
+            preset_settings
+        )
 
-            output_path = make_output_path(
-                mp4_path
+    # ---------------------------------
+    # 引数で指定された値を反映
+    # ---------------------------------
+
+    if font is not None:
+
+        current_settings["font"] = (
+            normalize_font_name(
+                font
             )
-
-    except Exception:
-
-        pass
-
-    # =================================
-    # 出力フォルダ
-    # =================================
-
-    output_path.parent.mkdir(
-        parents=True,
-        exist_ok=True
-    )
-
-    # =================================
-    # 既存出力削除
-    # =================================
-
-    if output_path.exists():
-
-        log(
-            f"既存出力ファイルを削除: "
-            f"{output_path}"
         )
 
-        try:
+    if text_color is not None:
 
-            output_path.unlink()
+        current_settings["text_color"] = (
+            normalize_color_name(
 
-        except OSError as error:
+                text_color,
 
-            raise RuntimeError(
+                "白"
 
-                "既存の出力ファイルを"
-                "削除できませんでした: "
-                +
-                str(error)
+            )
+        )
 
-            ) from error
+    if outline_color is not None:
 
-    # =================================
-    # FFmpeg確認
-    # =================================
+        current_settings["outline_color"] = (
+            normalize_color_name(
 
-    ffmpeg_path = check_ffmpeg()
+                outline_color,
 
-    # =================================
-    # subtitle_font.pyの選択フォント
-    # =================================
+                "黒"
 
-    requested_font = (
-        subtitle_settings.get(
+            )
+        )
+
+    if outline_width is not None:
+
+        current_settings["outline_width"] = (
+            normalize_outline_width(
+
+                outline_width
+
+            )
+        )
+
+    if preset is not None:
+
+        current_settings["preset"] = (
+            str(preset)
+        )
+
+    # ---------------------------------
+    # 最終正規化
+    # ---------------------------------
+
+    return update_subtitle_font_settings(
+
+        settings=current_settings,
+
+        font=current_settings.get(
             "font"
+        ),
+
+        text_color=current_settings.get(
+            "text_color",
+            "白"
+        ),
+
+        outline_color=current_settings.get(
+            "outline_color",
+            "黒"
+        ),
+
+        outline_width=current_settings.get(
+            "outline_width",
+            2
+        ),
+
+        preset=current_settings.get(
+            "preset"
         )
-    )
-
-    log(
-        "選択フォント:"
-    )
-
-    log(
-        str(
-            requested_font
-        )
-    )
-
-    # =================================
-    # フォント検索
-    # =================================
-
-    font_info = find_japanese_font(
-        requested_font
-    )
-
-    if font_info:
-
-        log(
-            "字幕フォント確定:"
-        )
-
-        log(
-            f"選択値: {requested_font}"
-        )
-
-        log(
-            f"ファイル: "
-            f"{font_info.get('path')}"
-        )
-
-        log(
-            f"FontName: "
-            f"{font_info.get('family')}"
-        )
-
-    else:
-
-        log(
-            "WARNING: 日本語フォントが"
-            "検出できませんでした。"
-        )
-
-        log(
-            "WARNING: Render環境に"
-            "日本語フォントをインストールしてください。"
-        )
-
-    # =================================
-    # フィルター
-    # =================================
-
-    video_filter = make_subtitle_filter(
-
-        srt_path,
-
-        font_info,
-
-        subtitle_settings
 
     )
 
-    # =================================
-    # 入力サイズ
-    # =================================
 
-    try:
+# =====================================
+# 設定表示
+# =====================================
 
-        input_mp4_size = (
-            mp4_path.stat().st_size
+def describe_subtitle_font_settings(
+    settings
+):
+
+    if not isinstance(
+        settings,
+        dict
+    ):
+
+        settings = (
+            get_default_subtitle_font_settings()
         )
 
-    except OSError:
-
-        input_mp4_size = 0
-
-    log(
+    print(
         "====================================="
     )
 
-    log(
-        "字幕焼き込み開始"
+    print(
+        "字幕設定"
     )
 
-    log(
-        f"MP4: {mp4_path}"
-    )
-
-    log(
-        f"SRT: {srt_path}"
-    )
-
-    log(
-        f"出力: {output_path}"
-    )
-
-    log(
-        f"入力MP4サイズ: "
-        f"{input_mp4_size} bytes"
-    )
-
-    log(
-        f"FFmpeg threads: "
-        f"{FFMPEG_THREADS}"
-    )
-
-    log(
-        f"FFmpeg preset: "
-        f"{FFMPEG_PRESET}"
-    )
-
-    log(
-        f"FFmpeg CRF: "
-        f"{FFMPEG_CRF}"
-    )
-
-    # =================================
-    # FFmpegコマンド
-    # =================================
-
-    command = [
-
-        ffmpeg_path,
-
-        "-y",
-
-        "-nostdin",
-
-        # ---------------------------------
-        # 入力
-        # ---------------------------------
-
-        "-i",
-        str(mp4_path),
-
-        # ---------------------------------
-        # 字幕
-        # ---------------------------------
-
-        "-vf",
-        video_filter,
-
-        # ---------------------------------
-        # Video
-        # ---------------------------------
-
-        "-c:v",
-        "libx264",
-
-        # ---------------------------------
-        # 512MB対策
-        # ---------------------------------
-
-        "-threads",
-        FFMPEG_THREADS,
-
-        # ---------------------------------
-        # 高速・低メモリ
-        # ---------------------------------
-
-        "-preset",
-        FFMPEG_PRESET,
-
-        # ---------------------------------
-        # 画質
-        # ---------------------------------
-
-        "-crf",
-        FFMPEG_CRF,
-
-        # ---------------------------------
-        # Audioは再エンコードしない
-        # ---------------------------------
-
-        "-c:a",
-        "copy",
-
-        # ---------------------------------
-        # MP4
-        # ---------------------------------
-
-        "-movflags",
-        "+faststart",
-
-        # ---------------------------------
-        # 出力
-        # ---------------------------------
-
-        str(output_path)
-
-    ]
-
-    # =================================
-    # コマンドログ
-    # =================================
-
-    log(
-        "FFmpeg video filter:"
-    )
-
-    log(
-        video_filter
-    )
-
-    log(
-        "FFmpeg command:"
-    )
-
-    log(
-        command_to_string(
-            command
-        )
-    )
-
-    # =================================
-    # FFmpeg実行
-    # =================================
-
-    try:
-
-        process = subprocess.Popen(
-
-            command,
-
-            stdout=subprocess.DEVNULL,
-
-            stderr=subprocess.PIPE,
-
-            text=True,
-
-            encoding="utf-8",
-
-            errors="replace",
-
-            bufsize=1
-
-        )
-
-    except OSError as error:
-
-        raise RuntimeError(
-
-            "FFmpeg実行中にエラーが発生しました: "
-            +
-            str(error)
-
-        ) from error
-
-    # =================================
-    # 最後の100行だけ保存
-    # =================================
-
-    ffmpeg_output_lines = deque(
-        maxlen=MAX_FFMPEG_LOG_LINES
-    )
-
-    # =================================
-    # FFmpegログ取得
-    # =================================
-
-    try:
-
-        if process.stderr:
-
-            for line in process.stderr:
-
-                line = line.rstrip()
-
-                if not line:
-
-                    continue
-
-                ffmpeg_output_lines.append(
-                    line
-                )
-
-                print(
-                    "[FFMPEG]",
-                    line,
-                    flush=True
-                )
-
-    except Exception as error:
-
-        try:
-
-            process.kill()
-
-        except Exception:
-
-            pass
-
-        try:
-
-            process.wait()
-
-        except Exception:
-
-            pass
-
-        raise RuntimeError(
-
-            "FFmpegログ取得中にエラーが発生しました: "
-            +
-            str(error)
-
-        ) from error
-
-    finally:
-
-        if process.stderr:
-
-            try:
-
-                process.stderr.close()
-
-            except Exception:
-
-                pass
-
-    # =================================
-    # 終了
-    # =================================
-
-    return_code = process.wait()
-
-    # =================================
-    # 処理時間
-    # =================================
-
-    elapsed_time = (
-
-        time.monotonic()
-        -
-        start_time
-
-    )
-
-    # =================================
-    # FFmpegエラー
-    # =================================
-
-    if return_code != 0:
-
-        log(
-            f"FFmpegエラー: "
-            f"return code={return_code}"
-        )
-
-        if ffmpeg_output_lines:
-
-            error_detail = "\n".join(
-                ffmpeg_output_lines
-            )
-
-        else:
-
-            error_detail = (
-                "FFmpegからエラー内容が"
-                "返されませんでした。"
-            )
-
-        if output_path.exists():
-
-            try:
-
-                output_path.unlink()
-
-            except Exception:
-
-                pass
-
-        raise RuntimeError(
-
-            "字幕焼き込みに失敗しました。"
-            "\n\n"
-            +
-            error_detail
-            +
-            "\n\n"
-            +
-            "処理時間: "
-            +
-            format_elapsed_time(
-                elapsed_time
-            )
-
-        )
-
-    # =================================
-    # 出力確認
-    # =================================
-
-    if not output_path.exists():
-
-        raise RuntimeError(
-
-            "FFmpegは正常終了しましたが、"
-            "出力ファイルが作成されていません。"
-
-        )
-
-    # =================================
-    # サイズ確認
-    # =================================
-
-    try:
-
-        output_size = (
-            output_path.stat().st_size
-        )
-
-    except OSError as error:
-
-        raise RuntimeError(
-
-            f"出力ファイルを確認できませんでした: "
-            f"{error}"
-
-        ) from error
-
-    if output_size <= 0:
-
-        raise RuntimeError(
-            "出力ファイルのサイズが0です。"
-        )
-
-    # =================================
-    # 完了
-    # =================================
-
-    log(
-        "字幕焼き込み完了"
-    )
-
-    log(
-        f"出力ファイル: "
-        f"{output_path}"
-    )
-
-    log(
-        f"サイズ: "
-        f"{output_size} bytes"
-    )
-
-    log(
-        "処理時間: "
-        +
-        format_elapsed_time(
-            elapsed_time
-        )
-    )
-
-    log(
+    print(
         "====================================="
     )
 
-    return output_path
+    print(
+        f"プリセット: "
+        f"{settings.get('preset')}"
+    )
+
+    print(
+        f"フォント: "
+        f"{settings.get('font')}"
+    )
+
+    print(
+        f"文字色: "
+        f"{settings.get('text_color')}"
+    )
+
+    print(
+        f"縁色: "
+        f"{settings.get('outline_color')}"
+    )
+
+    print(
+        f"縁太さ: "
+        f"{settings.get('outline_width')}"
+    )
+
+    print(
+        "=====================================")
 
 
 # =====================================
-# 外部向け正式関数
-# =====================================
-
-def create_subtitle_mp4(
-    mp4_path,
-    srt_path,
-    output_path=None,
-    subtitle_settings=None
-):
-
-    return embed_subtitle(
-
-        mp4_path,
-
-        srt_path,
-
-        output_path,
-
-        subtitle_settings
-
-    )
-
-
-# =====================================
-# 互換用別名
-# =====================================
-
-def create_burned_subtitle(
-    mp4_path,
-    srt_path,
-    output_path=None,
-    subtitle_settings=None
-):
-
-    return embed_subtitle(
-
-        mp4_path,
-
-        srt_path,
-
-        output_path,
-
-        subtitle_settings
-
-    )
-
-
-def burn_subtitles(
-    mp4_path,
-    srt_path,
-    output_path=None,
-    subtitle_settings=None
-):
-
-    return embed_subtitle(
-
-        mp4_path,
-
-        srt_path,
-
-        output_path,
-
-        subtitle_settings
-
-    )
-
-
-# =====================================
-# 処理時間表示
-# =====================================
-
-def format_elapsed_time(
-    seconds
-):
-
-    seconds = int(
-        round(seconds)
-    )
-
-    hours = (
-        seconds // 3600
-    )
-
-    minutes = (
-        seconds % 3600
-    ) // 60
-
-    secs = (
-        seconds % 60
-    )
-
-    return (
-
-        f"{hours:02d}:"
-        f"{minutes:02d}:"
-        f"{secs:02d}"
-
-    )
-
-
-# =====================================
-# downloads内から実行
-# =====================================
-
-def embed_from_downloads(
-    mp4_filename,
-    srt_filename,
-    subtitle_settings=None
-):
-
-    mp4_filename = Path(
-        mp4_filename
-    ).name
-
-    srt_filename = Path(
-        srt_filename
-    ).name
-
-    DOWNLOADS_DIR.mkdir(
-        parents=True,
-        exist_ok=True
-    )
-
-    mp4_path = (
-        DOWNLOADS_DIR /
-        mp4_filename
-    )
-
-    srt_path = (
-        DOWNLOADS_DIR /
-        srt_filename
-    )
-
-    log(
-        f"DOWNLOAD_DIR: "
-        f"{DOWNLOADS_DIR}"
-    )
-
-    log(
-        f"downloads MP4: "
-        f"{mp4_path}"
-    )
-
-    log(
-        f"downloads SRT: "
-        f"{srt_path}"
-    )
-
-    return embed_subtitle(
-
-        mp4_path,
-
-        srt_path,
-
-        subtitle_settings=subtitle_settings
-
-    )
-
-
-# =====================================
-# コマンドライン
+# テスト
+#
+# python subtitle_font.py
 # =====================================
 
 def main():
 
-    if len(sys.argv) < 3:
-
-        print()
-
-        print(
-            "使用方法:"
-        )
-
-        print(
-            "python subtitle.py "
-            "動画.mp4 字幕.srt"
-        )
-
-        print()
-
-        return 1
-
-    mp4_filename = (
-        sys.argv[1]
+    settings = (
+        get_default_subtitle_font_settings()
     )
 
-    srt_filename = (
-        sys.argv[2]
+    describe_subtitle_font_settings(
+        settings
     )
 
-    start_time = time.monotonic()
+    print()
 
-    try:
+    print(
+        "利用可能なプリセット:"
+    )
 
-        subtitle_settings = (
-            get_default_subtitle_font_settings()
-        )
-
-        output_path = (
-            embed_from_downloads(
-
-                mp4_filename,
-
-                srt_filename,
-
-                subtitle_settings
-
-            )
-        )
-
-        elapsed_time = (
-
-            time.monotonic()
-            -
-            start_time
-
-        )
-
-        print()
+    for preset in get_subtitle_font_presets():
 
         print(
-            "====================================="
+            f" - {preset}"
         )
+
+    print()
+
+    print(
+        "利用可能なフォント:"
+    )
+
+    for font in get_available_subtitle_fonts():
 
         print(
-            "字幕焼き込み成功"
+            f" - {font}"
         )
+
+    print()
+
+    print(
+        "利用可能な色:"
+    )
+
+    for color in get_available_text_colors():
 
         print(
-            "====================================="
+            f" - {color}"
         )
 
-        print(
-            f"入力MP4: "
-            f"{mp4_filename}"
-        )
+    print()
 
-        print(
-            f"入力SRT: "
-            f"{srt_filename}"
-        )
+    # ---------------------------------
+    # 選択テスト
+    # ---------------------------------
 
-        print(
-            f"プリセット: "
-            f"{subtitle_settings.get('preset')}"
-        )
+    test_settings = select_subtitle_font(
 
-        print(
-            f"フォント: "
-            f"{subtitle_settings.get('font')}"
-        )
+        font="Noto Sans CJK JP",
 
-        print(
-            f"文字色: "
-            f"{subtitle_settings.get('text_color')}"
-        )
+        text_color="黄",
 
-        print(
-            f"縁色: "
-            f"{subtitle_settings.get('outline_color')}"
-        )
+        outline_color="黒",
 
-        print(
-            f"縁太さ: "
-            f"{subtitle_settings.get('outline_width')}"
-        )
+        outline_width=3,
 
-        print(
-            f"出力: "
-            f"{output_path.name}"
-        )
+        preset="カスタム"
 
-        print(
-            f"出力パス: "
-            f"{output_path}"
-        )
+    )
 
-        print(
-            f"処理時間: "
-            f"{format_elapsed_time(elapsed_time)}"
-        )
+    print(
+        "選択テスト:"
+    )
 
-        print(
-            "====================================="
-        )
+    print(
+        test_settings
+    )
 
-        print()
+    print()
 
-        return 0
-
-    except Exception as error:
-
-        elapsed_time = (
-
-            time.monotonic()
-            -
-            start_time
-
-        )
-
-        print()
-
-        print(
-            "====================================="
-        )
-
-        print(
-            "字幕焼き込み失敗"
-        )
-
-        print(
-            "====================================="
-        )
-
-        print(
-            str(error),
-            file=sys.stderr
-        )
-
-        print(
-
-            "処理時間: "
-            +
-            format_elapsed_time(
-                elapsed_time
-            ),
-
-            file=sys.stderr
-
-        )
-
-        print(
-            "====================================="
-        )
-
-        print()
-
-        return 1
+    return 0
 
 
 # =====================================
@@ -2300,6 +953,6 @@ def main():
 
 if __name__ == "__main__":
 
-    sys.exit(
+    raise SystemExit(
         main()
     )
