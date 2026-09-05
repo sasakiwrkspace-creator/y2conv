@@ -1444,18 +1444,17 @@
 
 
         // =====================================
-        // MP3用折り畳み
+        // MP3ダウンロード
         //
-        // 表示:
+        // 閉じた状態:
         //
-        // ▼ [MP3] ▲
-        //     [MP3]
-        //     Geminiへ(字幕srt)
+        //     [MP3]ボタン ▲
         //
-        // MP3はdetailsの中に
-        // ・MP3ダウンロードボタン
-        // ・Geminiへ(字幕srt)
-        // を表示する。
+        // 展開:
+        //
+        //     [MP3] ▼
+        //     [Geminiへ(字幕srt)]ボタン
+        //
         // =====================================
         
         function addMp3Download(
@@ -1522,6 +1521,8 @@
         
             // =====================================
             // summary
+            //
+            // [MP3]ボタン ▲
             // =====================================
         
             const summary =
@@ -1534,24 +1535,45 @@
                 "download-summary";
         
         
-            const mp3Label =
-                document.createElement(
-                    "span"
+            // =====================================
+            // MP3ダウンロードボタン
+            // =====================================
+        
+            const mp3Button =
+                createDownloadLink(
+                    safeFilename,
+                    "[MP3]",
+                    "download-button"
                 );
         
         
-            mp3Label.className =
-                "download-type-label";
+            mp3Button.dataset.mp3Filename =
+                safeFilename;
         
         
-            mp3Label.textContent =
-                "[MP3]";
+            // -------------------------------------
+            // MP3ボタンを押したときは
+            // detailsの開閉を発生させない
+            // -------------------------------------
+        
+            mp3Button.addEventListener(
+                "click",
+                function (event) {
+        
+                    event.stopPropagation();
+        
+                }
+            );
         
         
             summary.appendChild(
-                mp3Label
+                mp3Button
             );
         
+        
+            // =====================================
+            // ▲ / ▼
+            // =====================================
         
             const arrow =
                 document.createElement(
@@ -1563,7 +1585,6 @@
                 "download-arrow";
         
         
-            // 初期状態は閉じているので ▲
             arrow.textContent =
                 "▲";
         
@@ -1579,7 +1600,9 @@
         
         
             // =====================================
-            // details本体
+            // 展開部分
+            //
+            // Geminiだけ表示
             // =====================================
         
             const body =
@@ -1591,31 +1614,6 @@
             body.className =
                 "download-details-body";
         
-        
-            // =====================================
-            // ★MP3ダウンロードボタン
-            // =====================================
-        
-            const mp3DownloadButton =
-                createDownloadLink(
-                    safeFilename,
-                    "[MP3]",
-                    "download-button"
-                );
-        
-        
-            mp3DownloadButton.dataset.mp3Filename =
-                safeFilename;
-        
-        
-            body.appendChild(
-                mp3DownloadButton
-            );
-        
-        
-            // =====================================
-            // Geminiボタン
-            // =====================================
         
             const geminiButton =
                 document.createElement(
@@ -1650,7 +1648,7 @@
         
         
             // =====================================
-            // 開閉状態による矢印変更
+            // 開閉
             // =====================================
         
             details.addEventListener(
@@ -1659,14 +1657,12 @@
         
                     if (details.open) {
         
-                        // 展開中
                         arrow.textContent =
                             "▼";
         
                     }
                     else {
         
-                        // 閉じている
                         arrow.textContent =
                             "▲";
         
@@ -1677,7 +1673,7 @@
         
         
             // =====================================
-            // Geminiクリック
+            // Gemini
             // =====================================
         
             geminiButton.addEventListener(
@@ -1695,7 +1691,7 @@
         
         
             // =====================================
-            // 行へ追加
+            // 追加
             // =====================================
         
             row.appendChild(
@@ -1712,6 +1708,7 @@
             );
         
         }
+
 
 
         // =====================================
