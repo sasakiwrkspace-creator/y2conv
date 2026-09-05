@@ -403,7 +403,8 @@ def save_uploaded_file(
 
         print(
             "[SUBTITLE] 同名ファイルを上書き:",
-            save_path
+            save_path,
+            flush=True
         )
 
     uploaded_file.save(
@@ -441,36 +442,43 @@ def save_uploaded_file(
         )
 
     print(
-        "=========================================="
+        "==========================================",
+        flush=True
     )
 
     print(
-        "[SUBTITLE] ファイル保存完了"
+        "[SUBTITLE] ファイル保存完了",
+        flush=True
     )
 
     print(
         "[SUBTITLE] filename:",
-        safe_filename
+        safe_filename,
+        flush=True
     )
 
     print(
         "[SUBTITLE] path:",
-        save_path
+        save_path,
+        flush=True
     )
 
     print(
         "[SUBTITLE] size:",
         file_size,
-        "bytes"
+        "bytes",
+        flush=True
     )
 
     print(
         "[SUBTITLE] overwritten:",
-        existed
+        existed,
+        flush=True
     )
 
     print(
-        "=========================================="
+        "==========================================",
+        flush=True
     )
 
     return {
@@ -613,20 +621,31 @@ def create_srt_from_mp3(
         )
 
     print(
-        "=========================================="
+        "==========================================",
+        flush=True
     )
 
     print(
-        "[SUBTITLE] MP3 → SRT 開始"
+        "[SUBTITLE] MP3 → SRT 開始",
+        flush=True
     )
 
     print(
         "[SUBTITLE] MP3:",
-        mp3_path
+        mp3_path,
+        flush=True
     )
 
     print(
-        "=========================================="
+        "[SUBTITLE] MP3 size:",
+        os.path.getsize(mp3_path),
+        "bytes",
+        flush=True
+    )
+
+    print(
+        "==========================================",
+        flush=True
     )
 
     # =====================================
@@ -634,7 +653,8 @@ def create_srt_from_mp3(
     # =====================================
 
     print(
-        "[SUBTITLE] Gemini transcribe START"
+        "[SUBTITLE] Gemini transcribe START",
+        flush=True
     )
 
     srt_text = transcribe_mp3(
@@ -648,7 +668,8 @@ def create_srt_from_mp3(
         )
 
     print(
-        "[SUBTITLE] Gemini transcribe COMPLETE"
+        "[SUBTITLE] Gemini transcribe COMPLETE",
+        flush=True
     )
 
     # =====================================
@@ -656,7 +677,8 @@ def create_srt_from_mp3(
     # =====================================
 
     print(
-        "[SUBTITLE] SRT save START"
+        "[SUBTITLE] SRT save START",
+        flush=True
     )
 
     srt_path = save_srt(
@@ -706,20 +728,36 @@ def create_srt_from_mp3(
         )
 
     print(
-        "=========================================="
+        "[SUBTITLE] SRT save COMPLETE",
+        flush=True
     )
 
     print(
-        "[SUBTITLE] MP3 → SRT 完了"
+        "==========================================",
+        flush=True
+    )
+
+    print(
+        "[SUBTITLE] MP3 → SRT 完了",
+        flush=True
     )
 
     print(
         "[SUBTITLE] SRT:",
-        srt_path
+        srt_path,
+        flush=True
     )
 
     print(
-        "=========================================="
+        "[SUBTITLE] SRT size:",
+        os.path.getsize(srt_path),
+        "bytes",
+        flush=True
+    )
+
+    print(
+        "==========================================",
+        flush=True
     )
 
     return {
@@ -840,25 +878,44 @@ def create_subtitle_mp4(
         )
 
     print(
-        "=========================================="
+        "==========================================",
+        flush=True
     )
 
     print(
-        "[SUBTITLE] MP4 + SRT 合成開始"
+        "[SUBTITLE] MP4 + SRT 合成開始",
+        flush=True
     )
 
     print(
         "[SUBTITLE] MP4:",
-        mp4_path
+        mp4_path,
+        flush=True
+    )
+
+    print(
+        "[SUBTITLE] MP4 size:",
+        os.path.getsize(mp4_path),
+        "bytes",
+        flush=True
     )
 
     print(
         "[SUBTITLE] SRT:",
-        srt_path
+        srt_path,
+        flush=True
     )
 
     print(
-        "=========================================="
+        "[SUBTITLE] SRT size:",
+        os.path.getsize(srt_path),
+        "bytes",
+        flush=True
+    )
+
+    print(
+        "==========================================",
+        flush=True
     )
 
     # =====================================
@@ -910,9 +967,24 @@ def create_subtitle_mp4(
 
         )
 
+    print(
+        "[SUBTITLE] subtitle.py function:",
+        getattr(
+            subtitle_function,
+            "__name__",
+            str(subtitle_function)
+        ),
+        flush=True
+    )
+
     # =====================================
     # 字幕MP4作成
     # =====================================
+
+    print(
+        "[SUBTITLE] subtitle.py START",
+        flush=True
+    )
 
     result = subtitle_function(
 
@@ -920,6 +992,11 @@ def create_subtitle_mp4(
 
         srt_path
 
+    )
+
+    print(
+        "[SUBTITLE] subtitle.py COMPLETE",
+        flush=True
     )
 
     if not result:
@@ -952,9 +1029,11 @@ def create_subtitle_mp4(
             "字幕MP4の出力先がファイルではありません"
         )
 
-    if os.path.getsize(
+    result_size = os.path.getsize(
         result_path
-    ) <= 0:
+    )
+
+    if result_size <= 0:
 
         raise ValueError(
             "字幕MP4が0 bytesです"
@@ -965,20 +1044,31 @@ def create_subtitle_mp4(
     )
 
     print(
-        "=========================================="
+        "==========================================",
+        flush=True
     )
 
     print(
-        "[SUBTITLE] MP4 + SRT 合成完了"
+        "[SUBTITLE] MP4 + SRT 合成完了",
+        flush=True
     )
 
     print(
         "[SUBTITLE] output:",
-        result_path
+        result_path,
+        flush=True
     )
 
     print(
-        "=========================================="
+        "[SUBTITLE] output size:",
+        result_size,
+        "bytes",
+        flush=True
+    )
+
+    print(
+        "==========================================",
+        flush=True
     )
 
     return {
@@ -1026,15 +1116,18 @@ def register_subtitle_routes(
         try:
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             print(
-                "[SUBTITLE] MP3アップロード開始"
+                "[SUBTITLE] MP3アップロード開始",
+                flush=True
             )
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             uploaded_file = request.files.get(
@@ -1047,6 +1140,16 @@ def register_subtitle_routes(
 
                 ALLOWED_MP3_EXTENSIONS
 
+            )
+
+            print(
+                "[SUBTITLE] MP3 upload COMPLETE",
+                flush=True
+            )
+
+            print(
+                "[SUBTITLE] Starting Gemini processing...",
+                flush=True
             )
 
             result = create_srt_from_mp3(
@@ -1087,25 +1190,40 @@ def register_subtitle_routes(
         except Exception as e:
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             print(
-                "[SUBTITLE] MP3処理エラー"
+                "[SUBTITLE] MP3処理エラー",
+                flush=True
             )
 
             print(
                 "TYPE:",
-                type(e).__name__
+                type(e).__name__,
+                flush=True
             )
 
             print(
                 "ERROR:",
-                str(e)
+                str(e),
+                flush=True
+            )
+
+            traceback_text = (
+                __import__("traceback")
+                .format_exc()
             )
 
             print(
-                "=========================================="
+                traceback_text,
+                flush=True
+            )
+
+            print(
+                "==========================================",
+                flush=True
             )
 
             return jsonify({
@@ -1131,6 +1249,16 @@ def register_subtitle_routes(
 
         try:
 
+            print(
+                "==========================================",
+                flush=True
+            )
+
+            print(
+                "[SUBTITLE] MP4アップロード開始",
+                flush=True
+            )
+
             uploaded_file = request.files.get(
                 "file"
             )
@@ -1141,6 +1269,11 @@ def register_subtitle_routes(
 
                 ALLOWED_MP4_EXTENSIONS
 
+            )
+
+            print(
+                "[SUBTITLE] MP4アップロード完了",
+                flush=True
             )
 
             return jsonify({
@@ -1166,7 +1299,8 @@ def register_subtitle_routes(
 
             print(
                 "[SUBTITLE] MP4アップロードエラー:",
-                repr(e)
+                repr(e),
+                flush=True
             )
 
             return jsonify({
@@ -1192,6 +1326,16 @@ def register_subtitle_routes(
 
         try:
 
+            print(
+                "==========================================",
+                flush=True
+            )
+
+            print(
+                "[SUBTITLE] SRTアップロード開始",
+                flush=True
+            )
+
             uploaded_file = request.files.get(
                 "file"
             )
@@ -1202,6 +1346,11 @@ def register_subtitle_routes(
 
                 ALLOWED_SRT_EXTENSIONS
 
+            )
+
+            print(
+                "[SUBTITLE] SRTアップロード完了",
+                flush=True
             )
 
             return jsonify({
@@ -1227,7 +1376,8 @@ def register_subtitle_routes(
 
             print(
                 "[SUBTITLE] SRTアップロードエラー:",
-                repr(e)
+                repr(e),
+                flush=True
             )
 
             return jsonify({
@@ -1253,7 +1403,8 @@ def register_subtitle_routes(
     def subtitle_create_srt():
 
         print(
-            "[SUBTITLE] POST /subtitle-create-srt"
+            "[SUBTITLE] POST /subtitle-create-srt",
+            flush=True
         )
 
         try:
@@ -1304,7 +1455,8 @@ def register_subtitle_routes(
 
             print(
                 "[SUBTITLE] MP3 for SRT:",
-                mp3_path
+                mp3_path,
+                flush=True
             )
 
             # --------------------------------------------
@@ -1347,7 +1499,8 @@ def register_subtitle_routes(
 
             print(
                 "[SUBTITLE] MP3がありません:",
-                str(e)
+                str(e),
+                flush=True
             )
 
             return jsonify({
@@ -1363,25 +1516,35 @@ def register_subtitle_routes(
         except Exception as e:
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             print(
-                "[SUBTITLE] MP3 → SRTエラー"
+                "[SUBTITLE] MP3 → SRTエラー",
+                flush=True
             )
 
             print(
                 "TYPE:",
-                type(e).__name__
+                type(e).__name__,
+                flush=True
             )
 
             print(
                 "ERROR:",
-                str(e)
+                str(e),
+                flush=True
             )
 
             print(
-                "=========================================="
+                __import__("traceback").format_exc(),
+                flush=True
+            )
+
+            print(
+                "==========================================",
+                flush=True
             )
 
             return jsonify({
@@ -1403,6 +1566,11 @@ def register_subtitle_routes(
         methods=["POST"]
     )
     def subtitle_create_mp4():
+
+        print(
+            "[SUBTITLE] POST /subtitle-create-mp4",
+            flush=True
+        )
 
         try:
 
@@ -1474,6 +1642,18 @@ def register_subtitle_routes(
 
             )
 
+            print(
+                "[SUBTITLE] MP4:",
+                mp4_path,
+                flush=True
+            )
+
+            print(
+                "[SUBTITLE] SRT:",
+                srt_path,
+                flush=True
+            )
+
             # --------------------------------------------
             # 字幕MP4作成
             # --------------------------------------------
@@ -1525,7 +1705,8 @@ def register_subtitle_routes(
 
             print(
                 "[SUBTITLE] ファイルがありません:",
-                str(e)
+                str(e),
+                flush=True
             )
 
             return jsonify({
@@ -1541,25 +1722,35 @@ def register_subtitle_routes(
         except Exception as e:
 
             print(
-                "=========================================="
+                "==========================================",
+                flush=True
             )
 
             print(
-                "[SUBTITLE] 字幕MP4作成エラー"
+                "[SUBTITLE] 字幕MP4作成エラー",
+                flush=True
             )
 
             print(
                 "TYPE:",
-                type(e).__name__
+                type(e).__name__,
+                flush=True
             )
 
             print(
                 "ERROR:",
-                str(e)
+                str(e),
+                flush=True
             )
 
             print(
-                "=========================================="
+                __import__("traceback").format_exc(),
+                flush=True
+            )
+
+            print(
+                "==========================================",
+                flush=True
             )
 
             return jsonify({
@@ -1587,7 +1778,8 @@ def register_subtitle_routes(
     def subtitle_download_mp3():
 
         print(
-            "[SUBTITLE] GET /subtitle-download-mp3"
+            "[SUBTITLE] GET /subtitle-download-mp3",
+            flush=True
         )
 
         try:
@@ -1627,7 +1819,8 @@ def register_subtitle_routes(
 
             print(
                 "[SUBTITLE] MP3 download:",
-                mp3_path
+                mp3_path,
+                flush=True
             )
 
             # --------------------------------------------
@@ -1650,7 +1843,8 @@ def register_subtitle_routes(
 
             print(
                 "[SUBTITLE] MP3 download 404:",
-                str(e)
+                str(e),
+                flush=True
             )
 
             return jsonify({
@@ -1667,7 +1861,8 @@ def register_subtitle_routes(
 
             print(
                 "[SUBTITLE] MP3 download error:",
-                repr(e)
+                repr(e),
+                flush=True
             )
 
             return jsonify({
@@ -1720,41 +1915,51 @@ def register_subtitle_routes(
     # ======================================================
 
     print(
-        "=========================================="
+        "==========================================",
+        flush=True
     )
 
     print(
-        "[SUBTITLE] subtitle routes registered"
+        "[SUBTITLE] subtitle routes registered",
+        flush=True
     )
 
     print(
-        "[SUBTITLE] POST /subtitle-upload-mp3"
+        "[SUBTITLE] POST /subtitle-upload-mp3",
+        flush=True
     )
 
     print(
-        "[SUBTITLE] POST /subtitle-upload-mp4"
+        "[SUBTITLE] POST /subtitle-upload-mp4",
+        flush=True
     )
 
     print(
-        "[SUBTITLE] POST /subtitle-upload-srt"
+        "[SUBTITLE] POST /subtitle-upload-srt",
+        flush=True
     )
 
     print(
-        "[SUBTITLE] POST /subtitle-create-srt"
+        "[SUBTITLE] POST /subtitle-create-srt",
+        flush=True
     )
 
     print(
-        "[SUBTITLE] POST /subtitle-create-mp4"
+        "[SUBTITLE] POST /subtitle-create-mp4",
+        flush=True
     )
 
     print(
-        "[SUBTITLE] GET  /subtitle-download-mp3"
+        "[SUBTITLE] GET  /subtitle-download-mp3",
+        flush=True
     )
 
     print(
-        "[SUBTITLE] converter.js /convert には干渉しません"
+        "[SUBTITLE] converter.js /convert には干渉しません",
+        flush=True
     )
 
     print(
-        "=========================================="
+        "==========================================",
+        flush=True
     )
