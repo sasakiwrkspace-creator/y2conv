@@ -69,6 +69,8 @@ import re
 
 from pathlib import Path
 
+from flask import request, jsonify
+
 
 # ==========================================================
 # 出力ディレクトリ
