@@ -13,31 +13,46 @@
 #       ↓
 #   ④ 字幕MP4作成
 #
+# ==========================================================
+#
 # 重要:
+#
+#   ・MP4は create_mp4_full() / create_mp4_range() を使用。
+#
+#   ・MP3はMP4から作成する。
+#     MP4がすでに指定区間の場合、
+#     MP3側では時間指定を再適用しない。
 #
 #   ・SRTは create_srt_from_mp3() が生成したファイルを
 #     そのまま使用する。
+#
 #   ・SRTのリネームは行わない。
-#   ・時間指定が 00:00:00 / 00:00:00 の場合は
-#     ファイル名に時間サフィックスを付けない。
+#
+#   ・時間指定が
+#
+#       00:00:00 / 00:00:00
+#
+#     の場合はファイル名に時間サフィックスを付けない。
+#
 #   ・時間指定がある場合だけ
 #
 #       _000600_000630
 #
 #     のようなサフィックスを付ける。
 #
-# 字幕MP4:
+#   ・字幕MP4作成は
 #
-#   MP4 + SRT
-#       ↓
-#   create_subtitle_mp4_from_route()
-#       ↓
-#   字幕MP4
+#       routes.subtitle_routes.create_subtitle_mp4()
+#
+#     に完全に任せる。
+#
+# ==========================================================
 #
 # Gemini SRT生成:
 #
 #   ・503 UNAVAILABLE等の一時的なGeminiエラーのみ
 #     自動リトライする。
+#
 #   ・リトライ待機時間:
 #
 #       1回目失敗 → 10秒
@@ -82,7 +97,6 @@ from media_extract import (
 # 字幕関連
 #
 # routes/subtitle_routes.py の共通関数を使用する。
-#
 # ==========================================================
 
 from routes.subtitle_routes import (
@@ -95,13 +109,11 @@ from routes.subtitle_routes import (
 # Gemini SRT リトライ設定
 # ==========================================================
 
-# 最大リトライ回数
-#
 # 初回実行
 #   +
 # 4回リトライ
 #
-# 合計最大5回 Geminiへアクセスする。
+# 合計最大5回Geminiへアクセスする。
 #
 SRT_MAX_RETRIES = 4
 
@@ -140,7 +152,6 @@ def log(message):
 # Gemini一時エラー判定
 #
 # 503 UNAVAILABLE等だけをリトライ対象にする。
-#
 # ==========================================================
 
 def is_gemini_temporary_error(error):
@@ -310,7 +321,6 @@ def create_srt_with_retry(
 
             else:
 
-                # 念のため設定より試行回数が増えた場合
                 delay = (
                     SRT_RETRY_DELAYS[-1]
                 )
@@ -320,8 +330,7 @@ def create_srt_with_retry(
             )
 
             log(
-                f"リトライします: "
-                f"{delay}秒後"
+                f"リトライします: {delay}秒後"
             )
 
             log(
@@ -396,6 +405,7 @@ def time_to_seconds(value):
 #       ↓
 # 全体
 #
+# None / None も全体として扱う。
 # ==========================================================
 
 def is_full_download(
@@ -791,17 +801,17 @@ def rename_output_file(
 #
 # SRTはリネームしない。
 #
-# create_srt_from_mp3() の戻り値に
+# create_srt_from_mp3() の戻り値:
 #
 #   srt_path
 #
-# があればそれを使用。
+# を最優先で使用する。
 #
-# なければ
+# srt_pathがない場合だけ
 #
 #   srt_file
 #
-# から output_dir を基準に取得する。
+# をoutput_dir基準で取得する。
 #
 # ==========================================================
 
@@ -820,13 +830,13 @@ def validate_srt_result(
         f"SRT result: {result}"
     )
 
+    # ------------------------------------------------------
+    # srt_pathを最優先
+    # ------------------------------------------------------
+
     srt_path_text = result.get(
         "srt_path"
     )
-
-    # ------------------------------------------------------
-    # srt_path を優先
-    # ------------------------------------------------------
 
     if srt_path_text:
 
@@ -837,10 +847,10 @@ def validate_srt_result(
     else:
 
         # --------------------------------------------------
-        # srt_file を使用
+        # srt_fileを使用
         #
-        # create_srt_from_mp3() が現在のコードで
-        # 返しているファイル名をそのまま使用する。
+        # create_srt_from_mp3() が返したファイル名を
+        # そのまま使用する。
         # --------------------------------------------------
 
         srt_filename = result.get(
@@ -854,11 +864,19 @@ def validate_srt_result(
                 "srt_path / srt_fileがありません。"
             )
 
+        srt_filename = os.path.basename(
+            str(srt_filename)
+        )
+
         srt_path = (
             Path(output_dir)
             /
-            str(srt_filename)
+            srt_filename
         )
+
+    # ------------------------------------------------------
+    # SRTはここではリネームしない。
+    # ------------------------------------------------------
 
     return validate_file(
         srt_path,
@@ -870,13 +888,13 @@ def validate_srt_result(
 # ==========================================================
 # 字幕MP4結果確認
 #
-# create_subtitle_mp4_from_route() の戻り値について、
+# create_subtitle_mp4_from_route() の戻り値:
 #
 #   subtitle_mp4_path
 #
-# を優先する。
+# を優先。
 #
-# 念のため path も確認する。
+# 念のためpathも確認する。
 #
 # ==========================================================
 
@@ -1400,8 +1418,12 @@ def create_subtitle_mp4_pipeline(
             output_dir=output_dir
         )
 
+        # --------------------------------------------------
+        # ★SRTはリネームしない
+        # --------------------------------------------------
+
         log(
-            f"SRTは作成されたファイル名をそのまま使用: "
+            "SRTは作成されたファイル名をそのまま使用: "
             f"{srt_path}"
         )
 
@@ -1450,18 +1472,18 @@ def create_subtitle_mp4_pipeline(
     try:
 
         # --------------------------------------------------
-        # ★ここが重要
+        # ★字幕MP4作成は
         #
-        # 字幕MP4作成は routes.subtitle_routes.py の
-        # create_subtitle_mp4() に完全に任せる。
+        # routes.subtitle_routes.py
+        #
+        # の create_subtitle_mp4() に完全に任せる。
         #
         # 入力:
         #
-        #   ① 切り出し済みMP4
+        #   ① MP4
         #   ② SRT
         #
         # 時間指定はここでは渡さない。
-        #
         # --------------------------------------------------
 
         log(
@@ -1477,7 +1499,8 @@ def create_subtitle_mp4_pipeline(
         )
 
         log(
-            "routes.subtitle_routes.create_subtitle_mp4() を呼び出します"
+            "routes.subtitle_routes.create_subtitle_mp4() "
+            "を呼び出します"
         )
 
         subtitle_result = (
