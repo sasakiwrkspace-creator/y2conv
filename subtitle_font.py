@@ -50,7 +50,7 @@
 //     "font": "Noto Sans CJK JP",
 //     "text_color": "白",
 //     "outline_color": "青",
-//     "outline_width": 2
+//     "outline_width": 5
 // }
 //
 //
@@ -81,7 +81,7 @@
 //         "#0000FF",
 //
 //     outlineWidth:
-//         2
+//         5
 // }
 //
 //
@@ -513,7 +513,7 @@
                     "#0000FF",
 
                 outlineWidth:
-                    2
+                    5
 
             },
 
@@ -536,7 +536,7 @@
                     "#0000FF",
 
                 outlineWidth:
-                    2
+                    5
 
             },
 
@@ -559,7 +559,7 @@
                     "#0000FF",
 
                 outlineWidth:
-                    2
+                    5
 
             },
 
