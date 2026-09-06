@@ -11,6 +11,10 @@ WORKDIR /app
 
 # ==========================================================
 # OS packages
+#
+# FFmpeg
+# fontconfig
+# Japanese fonts
 # ==========================================================
 
 RUN apt-get update && \
@@ -32,14 +36,23 @@ RUN apt-get update && \
 RUN echo "==========================================" && \
     echo "JAPANESE FONT CHECK" && \
     echo "==========================================" && \
+    echo "Fontconfig:" && \
+    fc-cache -V && \
+    echo "------------------------------------------" && \
     echo "Japanese fonts:" && \
-    fc-list :lang=ja | head -n 20 && \
+    fc-list :lang=ja family | sort -u | head -n 50 && \
     echo "------------------------------------------" && \
     echo "Noto Sans CJK JP:" && \
     fc-match "Noto Sans CJK JP" && \
     echo "------------------------------------------" && \
     echo "Noto Sans JP:" && \
     fc-match "Noto Sans JP" && \
+    echo "------------------------------------------" && \
+    echo "Noto Serif CJK JP:" && \
+    fc-match "Noto Serif CJK JP" && \
+    echo "------------------------------------------" && \
+    echo "Noto Serif JP:" && \
+    fc-match "Noto Serif JP" && \
     echo "=========================================="
 
 # ==========================================================
@@ -121,6 +134,12 @@ RUN echo "==========================================" && \
     echo "FFprobe:" && \
     which ffprobe && \
     ffprobe -version | head -n 1 && \
+    echo "------------------------------------------" && \
+    echo "Japanese Font Files:" && \
+    find /usr/share/fonts -type f \( \
+        -iname "*NotoSansCJK*" -o \
+        -iname "*NotoSerifCJK*" \
+    \) | sort && \
     echo "=========================================="
 
 # ==========================================================
