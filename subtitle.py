@@ -11,6 +11,12 @@
 # 出力:
 #   xxx_sub_embed.mp4
 #
+# 標準字幕設定:
+#   フォント     : Noto Sans CJK JP
+#   文字色       : 白
+#   縁色         : 青
+#   縁太さ       : 5
+#
 # 特徴:
 #   - 元動画の解像度を維持
 #   - 日本語字幕対応
@@ -28,6 +34,14 @@
 #   - SRT全体をPythonメモリへ読み込まない
 #   - 一時ファイルへ出力して成功後に確定
 #   - Render / 512MB環境を考慮
+#
+# 重要:
+#   fc-scanがTTCについて複数familyを返す場合、
+#   その文字列をFontNameへそのまま渡さない。
+#
+#   Noto Sans CJK JPを要求した場合は、
+#   FontName=Noto Sans CJK JP
+#   としてlibassへ渡す。
 # ==========================================================
 
 import os
@@ -65,6 +79,18 @@ FFMPEG_PRESET = "ultrafast"
 
 # 画質
 FFMPEG_CRF = "23"
+
+# 標準フォント
+DEFAULT_FONT_NAME = "Noto Sans CJK JP"
+
+# 標準文字色
+DEFAULT_TEXT_COLOR = "白"
+
+# 標準縁色
+DEFAULT_OUTLINE_COLOR = "青"
+
+# 標準縁太さ
+DEFAULT_OUTLINE_WIDTH = 5
 
 
 # ==========================================================
@@ -215,8 +241,6 @@ def make_output_path(
             f"{stem}{base_suffix}.mp4"
         )
 
-    # 同名ファイルが存在する場合
-    # _2, _3 ... と増やす。
     counter = 2
 
     while candidate.exists():
@@ -244,9 +268,7 @@ def make_temp_output_path(
         output_path
     ).resolve()
 
-    timestamp = (
-        time.time_ns()
-    )
+    timestamp = time.time_ns()
 
     return (
         output_path.parent
@@ -424,6 +446,18 @@ def validate_srt_encoding(
 
 # ==========================================================
 # フォントfamily取得
+#
+# 注意:
+#   TTCではfc-scanが
+#
+#   Noto Sans CJK JP
+#   Noto Sans CJK KR
+#   Noto Sans CJK SC
+#   ...
+#
+#   のような複数familyを連結して返す場合がある。
+#
+#   この値をそのままFontNameに使用しない。
 # ==========================================================
 
 def get_font_family_from_path(
@@ -445,7 +479,7 @@ def get_font_family_from_path(
             [
                 fc_scan,
 
-                "--format=%{family}",
+                "--format=%{family}\n",
 
                 str(font_path)
 
@@ -473,25 +507,154 @@ def get_font_family_from_path(
 
         return None
 
-    family = (
-        result.stdout.strip()
-    )
+    families = []
 
-    if not family:
+    for line in result.stdout.splitlines():
+
+        line = line.strip()
+
+        if not line:
+
+            continue
+
+        if line not in families:
+
+            families.append(
+                line
+            )
+
+    if not families:
 
         return None
 
-    # TTCなどで複数familyが返る場合
-    if "," in family:
+    # ------------------------------------------------------
+    # 最初のfamilyだけを使用
+    #
+    # ただしTTCでfamilyが連結されている場合があるため、
+    # 既知のNoto familyを抽出する。
+    # ------------------------------------------------------
 
-        family = (
-            family.split(
-                ",",
-                1
-            )[0].strip()
-        )
+    for family in families:
+
+        if "Noto Sans CJK JP" in family:
+
+            return "Noto Sans CJK JP"
+
+        if "Noto Serif CJK JP" in family:
+
+            return "Noto Serif CJK JP"
+
+        if "Noto Sans JP" in family:
+
+            return "Noto Sans JP"
+
+        if "Noto Serif JP" in family:
+
+            return "Noto Serif JP"
+
+    family = families[0]
+
+    # 念のため連結文字列を既知familyへ補正
+    if "Noto Sans CJK JP" in family:
+
+        return "Noto Sans CJK JP"
+
+    if "Noto Serif CJK JP" in family:
+
+        return "Noto Serif CJK JP"
+
+    if "Noto Sans JP" in family:
+
+        return "Noto Sans JP"
+
+    if "Noto Serif JP" in family:
+
+        return "Noto Serif JP"
 
     return family
+
+
+# ==========================================================
+# FontName正規化
+#
+# libassへ渡すFontNameは、
+# fc-scanが返した巨大な連結familyではなく、
+# 実際に指定されたfamilyを優先する。
+# ==========================================================
+
+def normalize_font_name(
+    requested_font,
+    detected_family=None
+):
+
+    requested = ""
+
+    if requested_font is not None:
+
+        requested = str(
+            requested_font
+        ).strip()
+
+    detected = ""
+
+    if detected_family is not None:
+
+        detected = str(
+            detected_family
+        ).strip()
+
+    # ------------------------------------------------------
+    # 要求がNoto Sans CJK JPなら固定
+    # ------------------------------------------------------
+
+    if requested:
+
+        requested_lower = (
+            requested.lower()
+        )
+
+        if requested_lower in (
+            "noto sans cjk jp",
+            "noto sans cjk jpn",
+        ):
+
+            return DEFAULT_FONT_NAME
+
+    # ------------------------------------------------------
+    # 検出family
+    # ------------------------------------------------------
+
+    if detected:
+
+        if "Noto Sans CJK JP" in detected:
+
+            return "Noto Sans CJK JP"
+
+        if "Noto Serif CJK JP" in detected:
+
+            return "Noto Serif CJK JP"
+
+        if "Noto Sans JP" in detected:
+
+            return "Noto Sans JP"
+
+        if "Noto Serif JP" in detected:
+
+            return "Noto Serif JP"
+
+    # ------------------------------------------------------
+    # 指定値
+    # ------------------------------------------------------
+
+    if requested:
+
+        return requested
+
+    # ------------------------------------------------------
+    # 最終fallback
+    # ------------------------------------------------------
+
+    return DEFAULT_FONT_NAME
 
 
 # ==========================================================
@@ -578,15 +741,26 @@ def fc_match_font(
             )
         )
 
+        normalized_family = (
+            normalize_font_name(
+                requested_font,
+                family
+            )
+        )
+
         return {
 
             "path":
                 font_path.resolve(),
 
+            # ------------------------------------------------
+            # ★重要
+            #
+            # fc-scanの連結familyをそのまま返さない。
+            # ------------------------------------------------
+
             "family":
-                family or str(
-                    requested_font
-                )
+                normalized_family
 
         }
 
@@ -601,8 +775,6 @@ def fc_match_font(
 # 1. SUBTITLE_FONT
 # 2. subtitle_settings["font"]
 # 3. 日本語フォント候補
-#
-# fc-matchを優先する。
 # ==========================================================
 
 def find_japanese_font(
@@ -635,6 +807,11 @@ def find_japanese_font(
                 get_font_family_from_path(
                     environment_font_path
                 )
+            )
+
+            family = normalize_font_name(
+                requested_font,
+                family
             )
 
             log(
@@ -680,10 +857,6 @@ def find_japanese_font(
             requested_font
         ).strip()
 
-        # -----------------------------------------------
-        # requested_font自体がファイルパスの場合
-        # -----------------------------------------------
-
         requested_path = (
             Path(
                 requested_font
@@ -700,6 +873,11 @@ def find_japanese_font(
                 get_font_family_from_path(
                     requested_path
                 )
+            )
+
+            family = normalize_font_name(
+                requested_font,
+                family
             )
 
             log(
@@ -720,13 +898,13 @@ def find_japanese_font(
                     requested_path,
 
                 "family":
-                    family or requested_font
+                    family
 
             }
 
-        # -----------------------------------------------
+        # --------------------------------------------------
         # fc-match
-        # -----------------------------------------------
+        # --------------------------------------------------
 
         matched = fc_match_font(
             requested_font
@@ -896,14 +1074,12 @@ def find_japanese_font(
 
                     continue
 
-                if "," in family:
-
-                    family = (
-                        family.split(
-                            ",",
-                            1
-                        )[0].strip()
+                normalized_family = (
+                    normalize_font_name(
+                        requested_font,
+                        family
                     )
+                )
 
                 log(
                     "fc-list日本語フォント検出:"
@@ -914,7 +1090,7 @@ def find_japanese_font(
                 )
 
                 log(
-                    f"family: {family}"
+                    f"family: {normalized_family}"
                 )
 
                 return {
@@ -923,7 +1099,7 @@ def find_japanese_font(
                         font_path.resolve(),
 
                     "family":
-                        family
+                        normalized_family
 
                 }
 
@@ -1013,6 +1189,11 @@ def find_japanese_font(
                         get_font_family_from_path(
                             match
                         )
+                    )
+
+                    family = normalize_font_name(
+                        requested_font,
+                        family
                     )
 
                     log(
@@ -1135,7 +1316,7 @@ def escape_ffmpeg_value(
 
 
 # ==========================================================
-# ASSカラー確認
+# ASSカラー取得
 # ==========================================================
 
 def get_ass_color(
@@ -1166,6 +1347,157 @@ def get_ass_color(
 
 
 # ==========================================================
+# 字幕設定を安全に正規化
+#
+# subtitle_font.pyが正規化済み設定を返す。
+#
+# ここではさらにsubtitle.py側で
+# 標準値を壊さないようにする。
+# ==========================================================
+
+def normalize_subtitle_settings(
+    subtitle_settings=None
+):
+
+    # ------------------------------------------------------
+    # subtitle_font.pyの標準設定を取得
+    # ------------------------------------------------------
+
+    defaults = (
+        get_default_subtitle_font_settings()
+    )
+
+    if not isinstance(
+        defaults,
+        dict
+    ):
+
+        defaults = {
+
+            "preset_name":
+                "標準",
+
+            "font":
+                DEFAULT_FONT_NAME,
+
+            "text_color":
+                DEFAULT_TEXT_COLOR,
+
+            "outline_color":
+                DEFAULT_OUTLINE_COLOR,
+
+            "outline_width":
+                DEFAULT_OUTLINE_WIDTH,
+
+        }
+
+    # ------------------------------------------------------
+    # 設定なし
+    # ------------------------------------------------------
+
+    if not isinstance(
+        subtitle_settings,
+        dict
+    ):
+
+        result = dict(
+            defaults
+        )
+
+    else:
+
+        result = dict(
+            defaults
+        )
+
+        result.update(
+            subtitle_settings
+        )
+
+    # ------------------------------------------------------
+    # font
+    # ------------------------------------------------------
+
+    font = result.get(
+        "font"
+    )
+
+    if font is None or not str(font).strip():
+
+        result["font"] = DEFAULT_FONT_NAME
+
+    else:
+
+        result["font"] = str(
+            font
+        ).strip()
+
+    # ------------------------------------------------------
+    # text_color
+    # ------------------------------------------------------
+
+    text_color = result.get(
+        "text_color"
+    )
+
+    if text_color not in SUBTITLE_COLORS:
+
+        result["text_color"] = DEFAULT_TEXT_COLOR
+
+    # ------------------------------------------------------
+    # outline_color
+    # ------------------------------------------------------
+
+    outline_color = result.get(
+        "outline_color"
+    )
+
+    if outline_color not in SUBTITLE_COLORS:
+
+        result["outline_color"] = DEFAULT_OUTLINE_COLOR
+
+    # ------------------------------------------------------
+    # outline_width
+    # ------------------------------------------------------
+
+    try:
+
+        outline_width = int(
+            result.get(
+                "outline_width",
+                DEFAULT_OUTLINE_WIDTH
+            )
+        )
+
+    except (
+        ValueError,
+        TypeError
+    ):
+
+        outline_width = DEFAULT_OUTLINE_WIDTH
+
+    result["outline_width"] = max(
+        0,
+        min(
+            outline_width,
+            10
+        )
+    )
+
+    # ------------------------------------------------------
+    # preset_name
+    # ------------------------------------------------------
+
+    if not result.get(
+        "preset_name"
+    ):
+
+        result["preset_name"] = "標準"
+
+    return result
+
+
+# ==========================================================
 # 字幕フィルター作成
 # ==========================================================
 
@@ -1193,14 +1525,11 @@ def make_subtitle_filter(
     # 字幕設定
     # ======================================================
 
-    if not isinstance(
-        subtitle_settings,
-        dict
-    ):
-
-        subtitle_settings = (
-            get_default_subtitle_font_settings()
+    subtitle_settings = (
+        normalize_subtitle_settings(
+            subtitle_settings
         )
+    )
 
     # ======================================================
     # フォント
@@ -1225,7 +1554,7 @@ def make_subtitle_filter(
     text_color_name = (
         subtitle_settings.get(
             "text_color",
-            "白"
+            DEFAULT_TEXT_COLOR
         )
     )
 
@@ -1244,7 +1573,7 @@ def make_subtitle_filter(
     outline_color_name = (
         subtitle_settings.get(
             "outline_color",
-            "黒"
+            DEFAULT_OUTLINE_COLOR
         )
     )
 
@@ -1252,7 +1581,7 @@ def make_subtitle_filter(
 
         outline_color_name,
 
-        "&H00000000"
+        "&H00FF0000"
 
     )
 
@@ -1265,7 +1594,7 @@ def make_subtitle_filter(
         outline_width = int(
             subtitle_settings.get(
                 "outline_width",
-                2
+                DEFAULT_OUTLINE_WIDTH
             )
         )
 
@@ -1274,7 +1603,7 @@ def make_subtitle_filter(
         TypeError
     ):
 
-        outline_width = 2
+        outline_width = DEFAULT_OUTLINE_WIDTH
 
     outline_width = max(
         0,
@@ -1289,10 +1618,14 @@ def make_subtitle_filter(
     #
     # ★重要
     #
-    # 実際にfc-matchで検出したfamilyを優先する。
+    # fc-scanが返した
+    #
+    # Noto Sans CJK JPNoto Sans CJK KR...
+    #
+    # のような連結familyは絶対に使用しない。
     # ======================================================
 
-    font_name = None
+    detected_family = None
 
     if font_info:
 
@@ -1302,27 +1635,19 @@ def make_subtitle_filter(
             )
         )
 
-        if detected_family:
+    font_name = normalize_font_name(
 
-            font_name = str(
-                detected_family
-            ).strip()
+        selected_font,
 
-    if not font_name and selected_font:
+        detected_family
 
-        font_name = selected_font
-
-    if not font_name:
-
-        font_name = "Noto Sans CJK JP"
+    )
 
     # ======================================================
     # fontsdir
     #
     # 実際に見つかったフォントのディレクトリだけを
     # 渡す。
-    #
-    # ※巨大なfontsディレクトリ全体は渡さない。
     # ======================================================
 
     if font_info:
@@ -1367,6 +1692,13 @@ def make_subtitle_filter(
 
     # ======================================================
     # ASS force_style
+    #
+    # 標準:
+    #
+    # FontName=Noto Sans CJK JP
+    # PrimaryColour=&H00FFFFFF
+    # OutlineColour=&H00FF0000
+    # Outline=5
     # ======================================================
 
     style_parts = [
@@ -1415,7 +1747,7 @@ def make_subtitle_filter(
 
     log(
         f"Preset: "
-        f"{subtitle_settings.get('preset')}"
+        f"{subtitle_settings.get('preset_name')}"
     )
 
     log(
@@ -1572,14 +1904,11 @@ def embed_subtitle(
     # 字幕設定
     # ======================================================
 
-    if not isinstance(
-        subtitle_settings,
-        dict
-    ):
-
-        subtitle_settings = (
-            get_default_subtitle_font_settings()
+    subtitle_settings = (
+        normalize_subtitle_settings(
+            subtitle_settings
         )
+    )
 
     log(
         "字幕設定:"
@@ -1758,7 +2087,7 @@ def embed_subtitle(
         input_mp4_size = 0
 
     # ======================================================
-    # 出力パス
+    # 一時出力
     # ======================================================
 
     temp_output_path = (
@@ -2377,8 +2706,11 @@ def burn_subtitles(
     return embed_subtitle(
 
         mp4_path,
+
         srt_path,
+
         output_path,
+
         subtitle_settings
 
     )
@@ -2487,6 +2819,48 @@ def main():
             get_default_subtitle_font_settings()
         )
 
+        # --------------------------------------------------
+        # ★標準設定確認ログ
+        # --------------------------------------------------
+
+        print()
+
+        print(
+            "====================================="
+        )
+
+        print(
+            "字幕標準設定"
+        )
+
+        print(
+            "====================================="
+        )
+
+        print(
+            f"フォント: "
+            f"{subtitle_settings.get('font')}"
+        )
+
+        print(
+            f"文字色: "
+            f"{subtitle_settings.get('text_color')}"
+        )
+
+        print(
+            f"縁色: "
+            f"{subtitle_settings.get('outline_color')}"
+        )
+
+        print(
+            f"縁太さ: "
+            f"{subtitle_settings.get('outline_width')}"
+        )
+
+        print(
+            "====================================="
+        )
+
         output_path = (
             embed_from_downloads(
 
@@ -2533,7 +2907,7 @@ def main():
 
         print(
             f"プリセット: "
-            f"{subtitle_settings.get('preset')}"
+            f"{subtitle_settings.get('preset_name')}"
         )
 
         print(
