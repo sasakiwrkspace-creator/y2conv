@@ -584,6 +584,7 @@ def normalize_subtitle_font_settings(
 # =====================================
 
 def select_subtitle_font(
+    preset: Any = None,
     preset_name: Any = None,
     font: Any = None,
     text_color: Any = None,
@@ -598,9 +599,9 @@ def select_subtitle_font(
         flush=True,
     )
 
-    # ---------------------------------
+    # =================================
     # settingsが直接渡された場合
-    # ---------------------------------
+    # =================================
 
     if isinstance(
         settings,
@@ -615,15 +616,28 @@ def select_subtitle_font(
 
         source = {}
 
-    # ---------------------------------
-    # 明示的な引数を優先
-    # ---------------------------------
+    # =================================
+    # preset
+    #
+    # subtitle_routes.py は
+    # preset= で呼び出すため対応する。
+    # =================================
 
     if preset_name is not None:
 
         source["preset_name"] = (
             preset_name
         )
+
+    elif preset is not None:
+
+        source["preset_name"] = (
+            preset
+        )
+
+    # =================================
+    # その他の明示的引数
+    # =================================
 
     if font is not None:
 
@@ -647,9 +661,9 @@ def select_subtitle_font(
             outline_width
         )
 
-    # ---------------------------------
+    # =================================
     # 設定なし
-    # ---------------------------------
+    # =================================
 
     if not source:
 
@@ -657,9 +671,9 @@ def select_subtitle_font(
             get_default_subtitle_font_settings()
         )
 
-    # ---------------------------------
+    # =================================
     # 正規化
-    # ---------------------------------
+    # =================================
 
     normalized = (
         normalize_subtitle_font_settings(
@@ -680,6 +694,7 @@ def select_subtitle_font(
     )
 
     return normalized
+
 
 
 # =====================================
