@@ -18,7 +18,11 @@ RUN apt-get update && \
     ffmpeg \
     curl \
     unzip \
-    ca-certificates && \
+    ca-certificates \
+    fontconfig \
+    fonts-noto-cjk \
+    fonts-noto-cjk-extra && \
+    fc-cache -fv && \
     rm -rf /var/lib/apt/lists/*
 
 # ==========================================================
