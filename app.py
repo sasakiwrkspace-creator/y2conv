@@ -44,7 +44,9 @@ from routes.convert import register_convert
 from routes.check import register_video_info, register_check
 from routes.gemini import register_gemini
 from routes.completed_files import register_completed_files
-from routes.subtitle_routes import register_subtitle_routes
+
+# subtitle_routes.py は Blueprint方式
+from routes.subtitle_routes import subtitle_bp
 
 
 # =====================================
@@ -112,6 +114,8 @@ register_gemini(app)
 # -------------------------------------
 # subtitle
 #
+# subtitle_routes.py は Blueprint方式。
+#
 # タブ2:
 #
 # MP3アップロード
@@ -127,11 +131,11 @@ register_gemini(app)
 #     ↓
 # 字幕付きMP4
 #
-# MP3ダウンロード
-#
 # -------------------------------------
 
-register_subtitle_routes(app)
+app.register_blueprint(
+    subtitle_bp
+)
 
 
 # -------------------------------------
