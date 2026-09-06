@@ -16,8 +16,21 @@
 // フォント設定:
 // ・フォントUIは subtitle_font.js が担当
 // ・subtitle.js はフォントUIを操作しない
-// ・subtitle_font.js から現在のプリセットを取得
-// ・字幕MP4作成時にpreset_nameをAPIへ送信
+// ・subtitle_font.js から現在の設定を取得
+// ・字幕MP4作成時に設定値をAPIへ送信
+//
+// 送信する設定:
+//
+// {
+//     preset_name: "標準",
+//     font: "Noto Sans CJK JP",
+//     text_color: "白",
+//     text_color_hex: "#FFFFFF",
+//     outline_color: "黒",
+//     outline_color_hex: "#000000",
+//     outline_width: 2
+// }
+//
 // =====================================
 
 (function () {
@@ -204,15 +217,99 @@
 
 
         // =====================================
-        // フォントプリセット取得
+        // 字幕フォント設定取得
         //
         // subtitle_font.js が管理する。
         //
-        // まだ読み込まれていない場合は
-        // 「標準」を使用する。
+        // subtitle.js 側では
+        // UIを操作しない。
+        //
+        // getSettings() が存在する場合は
+        // 現在の設定をそのまま取得する。
+        //
+        // 古い subtitle_font.js との互換用として
+        // getPreset() も残す。
         // =====================================
 
-        function getFontPreset() {
+        function getSubtitleFontSettings() {
+
+            // ---------------------------------
+            // subtitle_font.js が
+            // getSettings() を提供している場合
+            // ---------------------------------
+
+            if (
+                window.subtitleFont &&
+                typeof window.subtitleFont.getSettings ===
+                    "function"
+            ) {
+
+                try {
+
+                    const settings =
+                        window.subtitleFont.getSettings();
+
+
+                    if (
+                        settings &&
+                        typeof settings === "object"
+                    ) {
+
+                        return {
+
+                            preset_name:
+                                settings.preset_name ||
+                                "標準",
+
+                            font:
+                                settings.font ||
+                                "Noto Sans CJK JP",
+
+                            text_color:
+                                settings.text_color ||
+                                "白",
+
+                            text_color_hex:
+                                settings.text_color_hex ||
+                                "#FFFFFF",
+
+                            outline_color:
+                                settings.outline_color ||
+                                "黒",
+
+                            outline_color_hex:
+                                settings.outline_color_hex ||
+                                "#000000",
+
+                            outline_width:
+                                normalizeOutlineWidth(
+                                    settings.outline_width
+                                )
+
+                        };
+
+                    }
+
+                }
+                catch (error) {
+
+                    console.warn(
+                        "[SUBTITLE] 字幕フォント設定取得エラー:",
+                        error
+                    );
+
+                }
+
+            }
+
+
+            // ---------------------------------
+            // 古いAPIとの互換
+            // ---------------------------------
+
+            let presetName =
+                "標準";
+
 
             if (
                 window.subtitleFont &&
@@ -220,23 +317,120 @@
                     "function"
             ) {
 
-                const preset =
-                    window.subtitleFont.getPreset();
+                try {
+
+                    const preset =
+                        window.subtitleFont.getPreset();
 
 
-                if (
-                    typeof preset === "string" &&
-                    preset.trim()
-                ) {
+                    if (
+                        typeof preset === "string" &&
+                        preset.trim()
+                    ) {
 
-                    return preset.trim();
+                        presetName =
+                            preset.trim();
+
+                    }
+
+                }
+                catch (error) {
+
+                    console.warn(
+                        "[SUBTITLE] プリセット取得エラー:",
+                        error
+                    );
 
                 }
 
             }
 
 
-            return "標準";
+            return {
+
+                preset_name:
+                    presetName,
+
+                font:
+                    "Noto Sans CJK JP",
+
+                text_color:
+                    "白",
+
+                text_color_hex:
+                    "#FFFFFF",
+
+                outline_color:
+                    "黒",
+
+                outline_color_hex:
+                    "#000000",
+
+                outline_width:
+                    2
+
+            };
+
+        }
+
+
+        // =====================================
+        // 後方互換用
+        //
+        // 現在のプリセット名だけ取得。
+        // =====================================
+
+        function getFontPreset() {
+
+            const settings =
+                getSubtitleFontSettings();
+
+
+            return (
+                settings.preset_name ||
+                "標準"
+            );
+
+        }
+
+
+        // =====================================
+        // 縁太さ正規化
+        // =====================================
+
+        function normalizeOutlineWidth(
+            value
+        ) {
+
+            let width =
+                Number(value);
+
+
+            if (
+                !Number.isFinite(width)
+            ) {
+
+                width =
+                    2;
+
+            }
+
+
+            width =
+                Math.round(width);
+
+
+            width =
+                Math.max(
+                    0,
+                    Math.min(
+                        width,
+                        20
+                    )
+                );
+
+
+            return width;
 
         }
 
@@ -702,18 +896,6 @@
 
         // =====================================
         // MP3 → SRT
-        //
-        // /subtitle-upload-mp3
-        //
-        // サーバー側で
-        //
-        // MP3保存
-        // ↓
-        // Gemini
-        // ↓
-        // SRT保存
-        //
-        // まで行う。
         // =====================================
 
         async function createSrtWithGemini(
@@ -794,9 +976,8 @@
         // /subtitle-create-mp4
         //
         // subtitle_font.jsから
-        // 現在のフォントプリセットを取得。
-        //
-        // preset_nameをサーバーへ送信する。
+        // 「決定」済みの現在設定を取得し、
+        // その値をサーバーへ送信する。
         // =====================================
 
         async function embedSubtitle(
@@ -822,15 +1003,65 @@
             }
 
 
-            const presetName =
-                getFontPreset();
+            // =================================
+            // 現在の字幕フォント設定
+            // =================================
+
+            const fontSettings =
+                getSubtitleFontSettings();
 
 
             console.log(
-                "[SUBTITLE] subtitle preset:",
-                presetName
+                "[SUBTITLE] subtitle font settings:",
+                fontSettings
             );
 
+
+            // =================================
+            // API送信データ
+            // =================================
+
+            const requestData = {
+
+                mp4_file:
+                    mp4Filename,
+
+                srt_file:
+                    srtFilename,
+
+                preset_name:
+                    fontSettings.preset_name,
+
+                font:
+                    fontSettings.font,
+
+                text_color:
+                    fontSettings.text_color,
+
+                text_color_hex:
+                    fontSettings.text_color_hex,
+
+                outline_color:
+                    fontSettings.outline_color,
+
+                outline_color_hex:
+                    fontSettings.outline_color_hex,
+
+                outline_width:
+                    fontSettings.outline_width
+
+            };
+
+
+            console.log(
+                "[SUBTITLE] /subtitle-create-mp4 request:",
+                requestData
+            );
+
+
+            // =================================
+            // API
+            // =================================
 
             const response =
                 await fetch(
@@ -850,18 +1081,9 @@
                         },
 
                         body:
-                            JSON.stringify({
-
-                                mp4_file:
-                                    mp4Filename,
-
-                                srt_file:
-                                    srtFilename,
-
-                                preset_name:
-                                    presetName
-
-                            })
+                            JSON.stringify(
+                                requestData
+                            )
 
                     }
 
@@ -920,7 +1142,10 @@
                 ...data,
 
                 filename:
-                    filename
+                    filename,
+
+                font_settings:
+                    fontSettings
 
             };
 
@@ -1645,6 +1870,20 @@
 
 
                     // =================================
+                    // 字幕設定を取得
+                    // =================================
+
+                    const fontSettings =
+                        getSubtitleFontSettings();
+
+
+                    console.log(
+                        "[SUBTITLE] 字幕設定:",
+                        fontSettings
+                    );
+
+
+                    // =================================
                     // 字幕焼き込み
                     // =================================
 
@@ -1673,15 +1912,38 @@
                     stopElapsedTimer();
 
 
+                    // =================================
+                    // 完了表示
+                    // =================================
+
                     setStatus(
 
                         "字幕mp4の作成が完了しました。\n\n" +
+
+                        "プリセット: " +
+                        fontSettings.preset_name +
+                        "\n" +
+
                         "フォント: " +
-                        getFontPreset() +
+                        fontSettings.font +
+                        "\n" +
+
+                        "文字色: " +
+                        fontSettings.text_color +
+                        "\n" +
+
+                        "縁色: " +
+                        fontSettings.outline_color +
+                        "\n" +
+
+                        "縁の太さ: " +
+                        fontSettings.outline_width +
                         "\n\n" +
+
                         "ファイル: " +
                         embedResult.filename +
                         "\n\n" +
+
                         getElapsedText(),
 
                         "success"
@@ -1803,6 +2065,22 @@
 
             };
 
+
+        // -------------------------------------
+        // 現在の字幕フォント設定
+        // -------------------------------------
+
+        mainObject.getFontSettings =
+            function () {
+
+                return getSubtitleFontSettings();
+
+            };
+
+
+        // -------------------------------------
+        // 現在のプリセット名
+        // -------------------------------------
 
         mainObject.getFontPreset =
             function () {
