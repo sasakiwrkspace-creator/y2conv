@@ -4,36 +4,22 @@
 //
 // タブ2専用
 //
-// 役割:
-// ・字幕フォント設定UI
-// ・#subtitle-font-button の操作
-// ・選択中設定の保持
-// ・プリセット管理
-// ・フォント選択
-// ・文字色選択
-// ・縁取り色選択
-// ・縁取り太さ選択
-// ・subtitle.js への設定提供
+// 日本語字幕用フォント設定
+//
+// 現在の標準フォント:
+//     Noto Sans CJK JP
+//
+// Docker:
+//     fonts-noto-cjk
+//
+// FFmpeg / libass:
+//     fontconfig経由でフォントを検索する。
 //
 // ============================================================
 // PYTHON ↔ JAVASCRIPT DATA CONTRACT
 // ============================================================
 //
-// このセクションは、PythonとJavaScript間の
-// データ受け渡し仕様です。
-//
-// JS内部のUI・DOM・関数構成は変更できますが、
-// Python / subtitle.jsとの連携部分は以下を維持してください。
-//
-//
-// ------------------------------------------------------------
-// JavaScript → Python / subtitle.js
-// ------------------------------------------------------------
-//
 // window.subtitleFont.getSettings()
-// の戻り値が外部インターフェースです。
-//
-// 必ず以下のキーを使用します。
 //
 // {
 //     "preset_name": "標準",
@@ -45,9 +31,7 @@
 //     "outline_width": 5
 // }
 //
-//
-//
-// 【変更禁止】
+// 以下のキー名は変更しない。
 //
 //     preset_name
 //     font
@@ -57,187 +41,24 @@
 //     outline_color_hex
 //     outline_width
 //
-// キー名を変更すると、Python / subtitle.py側との
-// データ連携が壊れる可能性があります。
-//
-//
-// ------------------------------------------------------------
-// 各項目
-// ------------------------------------------------------------
-//
-// preset_name
-//     現在のプリセット名。
-//     例:
-//         "標準"
-//         "ゴシック"
-//         "明朝"
-//         "太字ゴシック"
-//         "太字明朝"
-//         "カスタム"
-//
-//
-//
-// font
-//     字幕フォント名。
-//     Python側でASS / FFmpegのFontNameとして使用。
-//
-//
-// text_color
-//     字幕文字の色名。
-//
-//     現在対応:
-//         "白"
-//         "黒"
-//         "赤"
-//         "青"
-//         "黄"
-//
-//
-// text_color_hex
-//     字幕文字色のHEX値。
-//
-//     例:
-//         "白" → "#FFFFFF"
-//         "黒" → "#000000"
-//         "赤" → "#FF0000"
-//         "青" → "#0000FF"
-//         "黄" → "#FFFF00"
-//
-//
-// outline_color
-//     字幕の縁取り色の色名。
-//
-//
-// outline_color_hex
-//     字幕の縁取り色のHEX値。
-//
-//
-// outline_width
-//     字幕の縁取り太さ。
-//     整数値で扱う。
-//
-//     Python側仕様:
-//         最小 0
-//         最大 10
-//
-//     基本値:
-//         5
-//
-//
-// ------------------------------------------------------------
-// 現在のカラー
-// ------------------------------------------------------------
-//
-// 現在は5色のみ対応する。
-//
-//     白
-//     黒
-//     赤
-//     青
-//     黄
-//
-// 色を追加する場合は、COLOR_MAPと
-// TEXT_COLORS / OUTLINE_COLORSを更新する。
-//
-//
-// ------------------------------------------------------------
-// 現在の標準プリセット
-// ------------------------------------------------------------
-//
-//     preset_name:
-//         "標準"
-//
-//     font:
-//         "Noto Sans CJK JP"
-//
-//     text_color:
-//         "白"
-//
-//     outline_color:
-//         "青"
-//
-//     outline_width:
-//         5
-//
-//
-// ------------------------------------------------------------
-// JS内部
-// ------------------------------------------------------------
-//
-// JS内部ではcamelCaseなど自由な変数名を使用できます。
-//
-// 例:
-//
-//     textColor
-//     textColorHex
-//     outlineColor
-//     outlineColorHex
-//     outlineWidth
-//
-// ただし、getSettings()から返すキーは
-// 上記のsnake_caseを維持してください。
-//
 // ============================================================
-// subtitle.js から使用する公開API
+// 公開API
 // ============================================================
 //
 // window.subtitleFont.getPreset()
 //
-//     現在のプリセット名を取得。
-//
-//
-// window.subtitleFont.setPreset("ゴシック")
-//
-//     プリセットを変更。
-//
+// window.subtitleFont.setPreset("標準")
 //
 // window.subtitleFont.getPresets()
 //
-//     利用可能なプリセット一覧を取得。
-//
-//
 // window.subtitleFont.getSettings()
-//
-//     Python / subtitle.js連携用の現在設定を取得。
-//
 //
 // window.subtitleFont.setDisabled(true)
 //
-//     UIを無効化。
-//
-//
 // window.subtitleFont.isDisabled()
-//
-//     UIが無効状態か取得。
-//
 //
 // window.subtitleFont.update()
 //
-//     ボタン表示を更新。
-//
-//
-// ============================================================
-// FFmpeg / ASS連携
-// ============================================================
-//
-// JSはFFmpegのforce_styleを直接生成しない。
-//
-// JS:
-//     フォント名
-//     色名
-//     HEX
-//     縁太さ
-//
-// ↓
-//
-// subtitle.py
-//
-// ↓
-//
-// Python側でASS / FFmpeg用の値へ変換する。
-//
-// ============================================================
-// ここから実装
 // ============================================================
 
 
@@ -299,6 +120,30 @@
             return;
 
         }
+
+
+        // =====================================
+        // フォント一覧
+        //
+        // まずはDockerで確実に存在する
+        // Noto Sans CJK JPを標準にする。
+        // =====================================
+
+        const FONT_LIST = [
+
+            "Noto Sans CJK JP",
+
+            "Noto Sans JP",
+
+            "Noto Serif CJK JP",
+
+            "Noto Serif JP",
+
+            "IPAGothic",
+
+            "IPAMincho"
+
+        ];
 
 
         // =====================================
@@ -1169,6 +1014,48 @@
 
 
             // =================================
+            // フォント
+            // =================================
+
+            const fontLabel =
+                document.createElement(
+                    "label"
+                );
+
+
+            fontLabel.className =
+                "subtitle-font-dialog-label";
+
+
+            fontLabel.textContent =
+                "フォント";
+
+
+            const fontSelect =
+                createSelect(
+
+                    FONT_LIST,
+
+                    currentValues.font
+
+                );
+
+
+            fontSelect.className =
+                "subtitle-font-select";
+
+
+            fontLabel.appendChild(
+                fontSelect
+            );
+
+
+            dialog.appendChild(
+                fontLabel
+            );
+
+
+            // =================================
             // プリセット
             // =================================
 
@@ -1286,62 +1173,6 @@
 
             dialog.appendChild(
                 presetContainer
-            );
-
-
-            // =================================
-            // フォント
-            // =================================
-
-            const fontLabel =
-                document.createElement(
-                    "label"
-                );
-
-
-            fontLabel.className =
-                "subtitle-font-dialog-label";
-
-
-            fontLabel.textContent =
-                "フォント";
-
-
-            const fontSelect =
-                createSelect(
-
-                    [
-
-                        "Noto Sans CJK JP",
-
-                        "Noto Sans JP",
-
-                        "Noto Serif CJK JP",
-
-                        "Noto Serif JP",
-
-                        "IPAGothic",
-
-                        "IPAMincho"
-
-                    ],
-
-                    currentValues.font
-
-                );
-
-
-            fontSelect.className =
-                "subtitle-font-select";
-
-
-            fontLabel.appendChild(
-                fontSelect
-            );
-
-
-            dialog.appendChild(
-                fontLabel
             );
 
 
@@ -1758,7 +1589,7 @@
 
 
             // =================================
-            // 手動変更
+            // 手動フォント変更
             // =================================
 
             fontSelect.addEventListener(
@@ -1778,6 +1609,10 @@
                 }
             );
 
+
+            // =================================
+            // 手動縁取り変更
+            // =================================
 
             outlineWidthInput.addEventListener(
                 "input",
@@ -1922,7 +1757,7 @@
 
 
             // =================================
-            // キー
+            // キー操作
             // =================================
 
             function keydownHandler(
@@ -2164,8 +1999,6 @@
             //
             // Python / subtitle.jsとの
             // 外部データインターフェース
-            //
-            // ★ キー名を変更しない
             // ---------------------------------
 
             getSettings:
@@ -2308,6 +2141,16 @@
 
         console.log(
             "[SUBTITLE_FONT] initialize complete"
+        );
+
+
+        // =====================================
+        // 初期設定確認ログ
+        // =====================================
+
+        console.log(
+            "[SUBTITLE_FONT] initial settings:",
+            window.subtitleFont.getSettings()
         );
 
     }
