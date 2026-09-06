@@ -36,11 +36,11 @@
 //
 //     "text_color_hex": "#FFFFFF",
 //
-//     "outline_color": "黒",
+//     "outline_color": "青",
 //
-//     "outline_color_hex": "#000000",
+//     "outline_color_hex": "#0000FF",
 //
-//     "outline_width": 2
+//     "outline_width": 5
 // }
 //
 //
