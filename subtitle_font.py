@@ -2,10 +2,18 @@
 # YouTube Converter - Subtitle Font
 # subtitle_font.py
 #
-# 字幕フォント設定
+# 日本語字幕フォント設定
 #
-# JavaScript の subtitle_font.js と
-# データ形式を共有する。
+# 目的:
+#   FFmpeg / libass で確実に日本語を表示する。
+#
+# 使用フォント:
+#   Noto Sans CJK JP
+#   Noto Serif CJK JP
+#
+# Docker:
+#   fonts-noto-cjk
+#   fonts-noto-cjk-extra
 #
 # 重要:
 #   subtitle_routes.py が使用する
@@ -85,13 +93,33 @@ SUBTITLE_COLORS = {
 DEFAULT_SUBTITLE_PRESET = "標準"
 
 
+# =====================================
+# 日本語表示に使用する標準フォント
+#
+# Dockerでインストールしている
+#
+#   fonts-noto-cjk
+#   fonts-noto-cjk-extra
+#
+# に含まれるフォント。
+#
+# FFmpeg/libassから
+#
+#   Noto Sans CJK JP
+#
+# としてfontconfig経由で利用する。
+# =====================================
+
+DEFAULT_SUBTITLE_FONT = "Noto Sans CJK JP"
+
+
 DEFAULT_SUBTITLE_SETTINGS = {
 
     "preset_name":
-        "標準",
+        DEFAULT_SUBTITLE_PRESET,
 
     "font":
-        "Noto Sans CJK JP",
+        DEFAULT_SUBTITLE_FONT,
 
     "text_color":
         "白",
@@ -113,6 +141,12 @@ DEFAULT_SUBTITLE_SETTINGS = {
 
 # =====================================
 # フォントプリセット
+#
+# まずは日本語表示を安定させることを
+# 最優先にする。
+#
+# すべてDocker内で確認済みの
+# CJKフォントを使用する。
 # =====================================
 
 SUBTITLE_FONT_PRESETS = {
@@ -202,21 +236,32 @@ SUBTITLE_FONT_PRESETS = {
 
 # =====================================
 # Python側で使用可能なフォント
+#
+# 現在のDocker環境で使用するフォントだけ
+# に限定する。
+#
+# Noto Sans JP
+# Noto Serif JP
+# IPAGothic
+# IPAMincho
+#
+# は現時点では使用しない。
+#
+# 理由:
+#   「Pythonに名前を登録する」だけでは
+#   フォントファイルはインストールされない。
+#
+#   現在のDockerでは
+#   Noto Sans CJK JP / Noto Serif CJK JP
+#   が実際に存在しているため、
+#   まずこの2つだけを使用する。
 # =====================================
 
 SUBTITLE_FONTS = [
 
     "Noto Sans CJK JP",
 
-    "Noto Sans JP",
-
     "Noto Serif CJK JP",
-
-    "Noto Serif JP",
-
-    "IPAGothic",
-
-    "IPAMincho",
 
 ]
 
@@ -316,6 +361,10 @@ def normalize_outline_width(
 
 # =====================================
 # フォント名を正規化
+#
+# 日本語表示を優先するため、
+# 使用可能フォント以外は
+# Noto Sans CJK JP に戻す。
 # =====================================
 
 def normalize_font(
@@ -327,17 +376,22 @@ def normalize_font(
         str,
     ):
 
-        return DEFAULT_SUBTITLE_SETTINGS[
-            "font"
-        ]
+        return DEFAULT_SUBTITLE_FONT
 
     font = font.strip()
 
     if font not in SUBTITLE_FONTS:
 
-        return DEFAULT_SUBTITLE_SETTINGS[
-            "font"
-        ]
+        print(
+            "[SUBTITLE_FONT] "
+            "Unsupported font:",
+            repr(font),
+            "-> fallback:",
+            DEFAULT_SUBTITLE_FONT,
+            flush=True,
+        )
+
+        return DEFAULT_SUBTITLE_FONT
 
     return font
 
@@ -487,11 +541,13 @@ def normalize_subtitle_font_settings(
 
         font = normalize_font(
             settings.get(
-                "font"
+                "font",
+                DEFAULT_SUBTITLE_FONT,
             )
         )
 
         # JSからcamelCaseで来る場合にも対応
+
         text_color = normalize_color(
             settings.get(
                 "text_color",
@@ -694,7 +750,6 @@ def select_subtitle_font(
     )
 
     return normalized
-
 
 
 # =====================================
