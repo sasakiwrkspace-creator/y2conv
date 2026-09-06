@@ -3,13 +3,21 @@
 #
 # 字幕フォント・字幕スタイル設定
 #
+# 正式な内部キー:
+#   preset_name
+#   font
+#   text_color
+#   outline_color
+#   outline_width
+#
+# subtitle_routes.py / subtitle.py から使用
+#
 # 標準設定:
 #   フォント     : Noto Sans CJK JP
 #   文字色       : 白
 #   縁色         : 青
 #   縁太さ       : 5
 #
-# subtitle_routes.py / subtitle.py から使用
 # ==========================================================
 
 
@@ -55,11 +63,14 @@ SUBTITLE_COLORS = {
 # ==========================================================
 # 標準設定
 #
-# ★ここが標準プリセット
+# ★字幕標準値の唯一の情報源
 #
-# 白文字
-# 青縁
-# 縁5
+# 正式な内部キー:
+#   preset_name
+#   font
+#   text_color
+#   outline_color
+#   outline_width
 # ==========================================================
 
 DEFAULT_SUBTITLE_FONT_SETTINGS = {
@@ -73,14 +84,8 @@ DEFAULT_SUBTITLE_FONT_SETTINGS = {
     "text_color":
         "白",
 
-    "text_color_hex":
-        "#FFFFFF",
-
     "outline_color":
         "青",
-
-    "outline_color_hex":
-        "#0000FF",
 
     "outline_width":
         5,
@@ -90,6 +95,8 @@ DEFAULT_SUBTITLE_FONT_SETTINGS = {
 
 # ==========================================================
 # プリセット
+#
+# preset_nameをキーとして使用する。
 # ==========================================================
 
 SUBTITLE_PRESETS = {
@@ -163,7 +170,9 @@ def _normalize_outline_width(
         TypeError
     ):
 
-        value = 5
+        value = DEFAULT_SUBTITLE_FONT_SETTINGS[
+            "outline_width"
+        ]
 
     return max(
         0,
@@ -208,7 +217,9 @@ def _normalize_font(
 
     if value is None:
 
-        return "Noto Sans CJK JP"
+        return DEFAULT_SUBTITLE_FONT_SETTINGS[
+            "font"
+        ]
 
     value = str(
         value
@@ -216,13 +227,24 @@ def _normalize_font(
 
     if not value:
 
-        return "Noto Sans CJK JP"
+        return DEFAULT_SUBTITLE_FONT_SETTINGS[
+            "font"
+        ]
 
     return value
 
 
 # ==========================================================
 # デフォルト設定取得
+#
+# 戻り値の正式キー:
+#   preset_name
+#   font
+#   text_color
+#   outline_color
+#   outline_width
+#
+# ※HEXはここでは返さない。
 # ==========================================================
 
 def get_default_subtitle_font_settings():
@@ -245,19 +267,20 @@ def get_default_subtitle_font_settings():
 # ==========================================================
 # 字幕設定選択
 #
-# 重要:
+# 正式な引数:
+#   preset_name
+#   font
+#   text_color
+#   outline_color
+#   outline_width
 #
-# 引数が明示されている場合は、
-# その値を優先する。
+# settingsを渡した場合も、
+# 内部では正式キー5つを使用する。
 #
-# Noneの場合だけ標準設定を使用。
+# 旧キー:
+#   preset
 #
-# これにより、
-#
-# Route:
-#   白 / 青 / 5
-#
-# が勝手に別設定へ変更されない。
+# は入力互換のためのみ許可する。
 # ==========================================================
 
 def select_subtitle_font(
@@ -265,7 +288,7 @@ def select_subtitle_font(
     text_color=None,
     outline_color=None,
     outline_width=None,
-    preset=None,
+    preset_name=None,
     settings=None
 ):
 
@@ -274,7 +297,7 @@ def select_subtitle_font(
     )
 
     # ======================================================
-    # settingsが渡された場合
+    # settings
     # ======================================================
 
     if isinstance(
@@ -292,26 +315,56 @@ def select_subtitle_font(
 
 
     # ======================================================
-    # preset
+    # preset_name
+    #
+    # 正式キー:
+    #   preset_name
+    #
+    # 旧キー:
+    #   preset
+    #
+    # 旧キーは外部入力互換のみ。
+    # 内部変数はpreset_nameへ統一する。
     # ======================================================
 
-    preset_name = (
+    source_preset_name = (
         source.get(
             "preset_name"
         )
-        or
-        source.get(
-            "preset"
+    )
+
+    if source_preset_name is None:
+
+        source_preset_name = (
+            source.get(
+                "preset"
+            )
         )
+
+    preset_name = (
+
+        source_preset_name
+
         or
-        preset
+
+        preset_name
+
         or
-        "標準"
+
+        DEFAULT_SUBTITLE_FONT_SETTINGS[
+            "preset_name"
+        ]
+
     )
 
     preset_name = str(
         preset_name
     ).strip()
+
+
+    # ======================================================
+    # プリセット取得
+    # ======================================================
 
     preset_settings = (
         SUBTITLE_PRESETS.get(
@@ -319,17 +372,24 @@ def select_subtitle_font(
         )
     )
 
+
     # ======================================================
-    # 存在しないpresetの場合
+    # 存在しないpreset_nameの場合
+    #
+    # 標準プリセットへ戻す。
     # ======================================================
 
     if preset_settings is None:
 
-        preset_name = "標準"
+        preset_name = (
+            DEFAULT_SUBTITLE_FONT_SETTINGS[
+                "preset_name"
+            ]
+        )
 
         preset_settings = (
             SUBTITLE_PRESETS[
-                "標準"
+                preset_name
             ]
         )
 
@@ -376,30 +436,49 @@ def select_subtitle_font(
 
 
     # ======================================================
-    # settingsから値を上書き
+    # settingsから正式キーを上書き
     #
-    # ★明示された値を優先
+    # Noneの場合は上書きしない。
     # ======================================================
 
-    if "font" in source:
+    if (
+        "font" in source
+        and
+        source.get("font") is not None
+    ):
 
         result_font = source.get(
             "font"
         )
 
-    if "text_color" in source:
+
+    if (
+        "text_color" in source
+        and
+        source.get("text_color") is not None
+    ):
 
         result_text_color = source.get(
             "text_color"
         )
 
-    if "outline_color" in source:
+
+    if (
+        "outline_color" in source
+        and
+        source.get("outline_color") is not None
+    ):
 
         result_outline_color = source.get(
             "outline_color"
         )
 
-    if "outline_width" in source:
+
+    if (
+        "outline_width" in source
+        and
+        source.get("outline_width") is not None
+    ):
 
         result_outline_width = source.get(
             "outline_width"
@@ -407,22 +486,25 @@ def select_subtitle_font(
 
 
     # ======================================================
-    # 関数引数から値を上書き
+    # 関数引数から正式キーを上書き
     #
-    # Noneの場合は上書きしない
+    # Noneの場合は上書きしない。
     # ======================================================
 
     if font is not None:
 
         result_font = font
 
+
     if text_color is not None:
 
         result_text_color = text_color
 
+
     if outline_color is not None:
 
         result_outline_color = outline_color
+
 
     if outline_width is not None:
 
@@ -438,13 +520,23 @@ def select_subtitle_font(
     )
 
     result_text_color = _normalize_color(
+
         result_text_color,
-        "白"
+
+        DEFAULT_SUBTITLE_FONT_SETTINGS[
+            "text_color"
+        ]
+
     )
 
     result_outline_color = _normalize_color(
+
         result_outline_color,
-        "青"
+
+        DEFAULT_SUBTITLE_FONT_SETTINGS[
+            "outline_color"
+        ]
+
     )
 
     result_outline_width = _normalize_outline_width(
@@ -453,30 +545,15 @@ def select_subtitle_font(
 
 
     # ======================================================
-    # HEX
-    # ======================================================
-
-    text_color_info = (
-        SUBTITLE_COLORS.get(
-            result_text_color,
-            SUBTITLE_COLORS[
-                "白"
-            ]
-        )
-    )
-
-    outline_color_info = (
-        SUBTITLE_COLORS.get(
-            result_outline_color,
-            SUBTITLE_COLORS[
-                "青"
-            ]
-        )
-    )
-
-
-    # ======================================================
     # 最終設定
+    #
+    # ★内部の正式な設定キーはこの5つ
+    #
+    #   preset_name
+    #   font
+    #   text_color
+    #   outline_color
+    #   outline_width
     # ======================================================
 
     normalized = {
@@ -490,18 +567,8 @@ def select_subtitle_font(
         "text_color":
             result_text_color,
 
-        "text_color_hex":
-            text_color_info[
-                "hex"
-            ],
-
         "outline_color":
             result_outline_color,
-
-        "outline_color_hex":
-            outline_color_info[
-                "hex"
-            ],
 
         "outline_width":
             result_outline_width,
@@ -522,6 +589,44 @@ def select_subtitle_font(
     )
 
     return normalized
+
+
+# ==========================================================
+# カラー情報取得
+#
+# subtitle.py側でASSカラーが必要な場合に使用可能。
+# ==========================================================
+
+def get_subtitle_color(
+    color_name
+):
+
+    color_name = _normalize_color(
+
+        color_name,
+
+        DEFAULT_SUBTITLE_FONT_SETTINGS[
+            "text_color"
+        ]
+
+    )
+
+    color_info = (
+        SUBTITLE_COLORS.get(
+            color_name
+        )
+    )
+
+    if not color_info:
+
+        raise RuntimeError(
+            f"字幕カラーが定義されていません: "
+            f"{color_name}"
+        )
+
+    return dict(
+        color_info
+    )
 
 
 # ==========================================================
@@ -554,13 +659,31 @@ def is_default_subtitle_setting(
 
         return False
 
+    try:
+
+        outline_width = int(
+            settings.get(
+                "outline_width",
+                -1
+            )
+        )
+
+    except (
+        ValueError,
+        TypeError
+    ):
+
+        return False
+
     return (
 
         settings.get(
             "font"
         )
         ==
-        "Noto Sans CJK JP"
+        DEFAULT_SUBTITLE_FONT_SETTINGS[
+            "font"
+        ]
 
         and
 
@@ -568,7 +691,9 @@ def is_default_subtitle_setting(
             "text_color"
         )
         ==
-        "白"
+        DEFAULT_SUBTITLE_FONT_SETTINGS[
+            "text_color"
+        ]
 
         and
 
@@ -576,18 +701,17 @@ def is_default_subtitle_setting(
             "outline_color"
         )
         ==
-        "青"
+        DEFAULT_SUBTITLE_FONT_SETTINGS[
+            "outline_color"
+        ]
 
         and
 
-        int(
-            settings.get(
-                "outline_width",
-                -1
-            )
-        )
+        outline_width
         ==
-        5
+        DEFAULT_SUBTITLE_FONT_SETTINGS[
+            "outline_width"
+        ]
 
     )
 
@@ -599,15 +723,23 @@ def is_default_subtitle_setting(
 if __name__ == "__main__":
 
     print()
+
     print(
         "=========================================="
     )
+
     print(
         "subtitle_font.py test"
     )
+
     print(
         "=========================================="
     )
+
+
+    # ======================================================
+    # 標準設定
+    # ======================================================
 
     settings = (
         get_default_subtitle_font_settings()
@@ -617,19 +749,89 @@ if __name__ == "__main__":
         settings
     )
 
+
+    # ======================================================
+    # 明示指定
+    # ======================================================
+
     print(
         "=========================================="
     )
 
     settings = select_subtitle_font(
+
+        preset_name="標準",
+
         font="Noto Sans CJK JP",
+
         text_color="白",
+
         outline_color="青",
+
         outline_width=5
+
     )
 
     print(
         settings
+    )
+
+
+    # ======================================================
+    # 旧キー互換確認
+    #
+    # presetは外部入力互換としてのみ許可。
+    # 戻り値はpreset_nameに統一される。
+    # ======================================================
+
+    print(
+        "=========================================="
+    )
+
+    settings = select_subtitle_font(
+
+        settings={
+
+            "preset":
+                "標準",
+
+            "font":
+                "Noto Sans CJK JP",
+
+            "text_color":
+                "白",
+
+            "outline_color":
+                "青",
+
+            "outline_width":
+                5,
+
+        }
+
+    )
+
+    print(
+        settings
+    )
+
+
+    # ======================================================
+    # 標準設定判定
+    # ======================================================
+
+    print(
+        "=========================================="
+    )
+
+    print(
+        "is_default:"
+    )
+
+    print(
+        is_default_subtitle_setting(
+            settings
+        )
     )
 
     print(
