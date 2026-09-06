@@ -16,8 +16,8 @@
 // フォント設定:
 // ・フォントUIは subtitle_font.js が担当
 // ・subtitle.js はフォントUIを操作しない
-// ・subtitle_font.js から現在の設定を取得
-// ・字幕MP4作成時に全フォント設定をAPIへ送信
+// ・subtitle_font.js から現在のプリセットを取得
+// ・字幕MP4作成時にpreset_nameをAPIへ送信
 // =====================================
 
 (function () {
@@ -204,133 +204,60 @@
 
 
         // =====================================
-        // フォント設定取得
+        // フォントプリセット取得
         //
-        // subtitle_font.js が管理する。
-        //
-        // getSettings() が存在する場合:
-        // 現在の全設定を取得。
-        //
-        // 未読み込みの場合:
-        // 安全な標準設定を返す。
+        // UIはsubtitle_font.jsが担当。
+        // subtitle.jsは名前だけ取得する。
         // =====================================
 
-        function getFontSettings() {
+        function getFontPreset() {
 
             if (
                 window.subtitleFont &&
-                typeof window.subtitleFont.getSettings ===
+                typeof window.subtitleFont.getPreset ===
                     "function"
             ) {
 
-                try {
-
-                    const settings =
-                        window.subtitleFont.getSettings();
+                const preset =
+                    window.subtitleFont.getPreset();
 
 
-                    if (
-                        settings &&
-                        typeof settings === "object"
-                    ) {
+                if (
+                    typeof preset === "string" &&
+                    preset.trim()
+                ) {
 
-                        return {
-
-                            preset_name:
-                                settings.preset_name ||
-                                "標準",
-
-                            font:
-                                settings.font ||
-                                "Noto Sans CJK JP",
-
-                            text_color:
-                                settings.text_color ||
-                                "白",
-
-                            text_color_hex:
-                                settings.text_color_hex ||
-                                "#FFFFFF",
-
-                            outline_color:
-                                settings.outline_color ||
-                                "黒",
-
-                            outline_color_hex:
-                                settings.outline_color_hex ||
-                                "#000000",
-
-                            outline_width:
-                                Number.isFinite(
-                                    Number(
-                                        settings.outline_width
-                                    )
-                                )
-                                    ? Number(
-                                        settings.outline_width
-                                    )
-                                    : 2
-
-                        };
-
-                    }
-
-                }
-                catch (error) {
-
-                    console.error(
-                        "[SUBTITLE] フォント設定取得エラー:",
-                        error
-                    );
+                    return preset.trim();
 
                 }
 
             }
 
 
-            return {
-
-                preset_name:
-                    "標準",
-
-                font:
-                    "Noto Sans CJK JP",
-
-                text_color:
-                    "白",
-
-                text_color_hex:
-                    "#FFFFFF",
-
-                outline_color:
-                    "黒",
-
-                outline_color_hex:
-                    "#000000",
-
-                outline_width:
-                    2
-
-            };
+            return "標準";
 
         }
 
 
         // =====================================
-        // 後方互換:
-        // プリセット名だけ取得
+        // フォントUI無効化
         // =====================================
 
-        function getFontPreset() {
+        function setFontDisabled(
+            disabled
+        ) {
 
-            const settings =
-                getFontSettings();
+            if (
+                window.subtitleFont &&
+                typeof window.subtitleFont.setDisabled ===
+                    "function"
+            ) {
 
+                window.subtitleFont.setDisabled(
+                    disabled
+                );
 
-            return (
-                settings.preset_name ||
-                "標準"
-            );
+            }
 
         }
 
@@ -876,7 +803,9 @@
         // /subtitle-create-mp4
         //
         // subtitle_font.jsから
-        // 現在の全設定を取得して送信。
+        // 現在のプリセット名を取得。
+        //
+        // preset_nameをサーバーへ送信。
         // =====================================
 
         async function embedSubtitle(
@@ -902,51 +831,13 @@
             }
 
 
-            const fontSettings =
-                getFontSettings();
+            const presetName =
+                getFontPreset();
 
 
             console.log(
-                "[SUBTITLE] font settings:",
-                fontSettings
-            );
-
-
-            const requestBody = {
-
-                mp4_file:
-                    mp4Filename,
-
-                srt_file:
-                    srtFilename,
-
-                preset_name:
-                    fontSettings.preset_name,
-
-                font:
-                    fontSettings.font,
-
-                text_color:
-                    fontSettings.text_color,
-
-                text_color_hex:
-                    fontSettings.text_color_hex,
-
-                outline_color:
-                    fontSettings.outline_color,
-
-                outline_color_hex:
-                    fontSettings.outline_color_hex,
-
-                outline_width:
-                    fontSettings.outline_width
-
-            };
-
-
-            console.log(
-                "[SUBTITLE] /subtitle-create-mp4 request:",
-                requestBody
+                "[SUBTITLE] subtitle preset:",
+                presetName
             );
 
 
@@ -968,9 +859,18 @@
                         },
 
                         body:
-                            JSON.stringify(
-                                requestBody
-                            )
+                            JSON.stringify({
+
+                                mp4_file:
+                                    mp4Filename,
+
+                                srt_file:
+                                    srtFilename,
+
+                                preset_name:
+                                    presetName
+
+                            })
 
                     }
 
@@ -1222,6 +1122,16 @@
 
                 event.preventDefault();
 
+
+                if (
+                    subtitleState.isProcessing
+                ) {
+
+                    return;
+
+                }
+
+
                 mp3Input.click();
 
             }
@@ -1278,6 +1188,16 @@
 
                 event.preventDefault();
 
+
+                if (
+                    subtitleState.isProcessing
+                ) {
+
+                    return;
+
+                }
+
+
                 mp4Input.click();
 
             }
@@ -1331,6 +1251,16 @@
             function (event) {
 
                 event.preventDefault();
+
+
+                if (
+                    subtitleState.isProcessing
+                ) {
+
+                    return;
+
+                }
+
 
                 srtInput.click();
 
@@ -1439,6 +1369,11 @@
                     true;
 
 
+                setFontDisabled(
+                    true
+                );
+
+
                 startProcessing();
 
 
@@ -1540,6 +1475,11 @@
 
                     processingStartTime =
                         null;
+
+
+                    setFontDisabled(
+                        false
+                    );
 
 
                     geminiButton.disabled =
@@ -1652,6 +1592,11 @@
                     true;
 
 
+                setFontDisabled(
+                    true
+                );
+
+
                 startProcessing();
 
 
@@ -1714,14 +1659,8 @@
                     );
 
 
-                    const fontSettings =
-                        getFontSettings();
-
-
-                    console.log(
-                        "[SUBTITLE] 使用する字幕設定:",
-                        fontSettings
-                    );
+                    const presetName =
+                        getFontPreset();
 
 
                     const embedResult =
@@ -1745,23 +1684,7 @@
 
                         "字幕mp4の作成が完了しました。\n\n" +
                         "プリセット: " +
-                        fontSettings.preset_name +
-                        "\n" +
-                        "フォント: " +
-                        fontSettings.font +
-                        "\n" +
-                        "文字色: " +
-                        fontSettings.text_color +
-                        " " +
-                        fontSettings.text_color_hex +
-                        "\n" +
-                        "縁色: " +
-                        fontSettings.outline_color +
-                        " " +
-                        fontSettings.outline_color_hex +
-                        "\n" +
-                        "縁の太さ: " +
-                        fontSettings.outline_width +
+                        presetName +
                         "\n\n" +
                         "ファイル: " +
                         embedResult.filename +
@@ -1832,6 +1755,11 @@
                         null;
 
 
+                    setFontDisabled(
+                        false
+                    );
+
+
                     updateSubtitleMp4Button();
 
                 }
@@ -1876,14 +1804,6 @@
             function () {
 
                 return getFontPreset();
-
-            };
-
-
-        mainObject.getFontSettings =
-            function () {
-
-                return getFontSettings();
 
             };
 
