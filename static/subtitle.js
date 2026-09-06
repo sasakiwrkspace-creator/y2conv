@@ -16,8 +16,9 @@
 // フォント設定:
 // ・フォントUIは subtitle_font.js が担当
 // ・subtitle.js はフォントUIを操作しない
-// ・subtitle_font.js から現在のプリセットを取得
-// ・字幕MP4作成時にpreset_nameをAPIへ送信
+// ・subtitle_font.js から現在の設定を取得
+// ・subtitle.js はFFmpegへ渡す設定だけを保持
+// ・画面下にフォント設定を表示しない
 // =====================================
 
 (function () {
@@ -60,7 +61,7 @@
 
 
         // =================================
-        // タブ2 DOMのみ取得
+        // DOM
         // =================================
 
         const mp3Input =
@@ -204,37 +205,119 @@
 
 
         // =====================================
-        // フォントプリセット取得
+        // フォント設定取得
         //
         // UIはsubtitle_font.jsが担当。
-        // subtitle.jsは名前だけ取得する。
+        //
+        // subtitle.jsでは
+        // FFmpegへ渡す設定だけ取得する。
         // =====================================
 
-        function getFontPreset() {
+        function getFontSettings() {
 
             if (
                 window.subtitleFont &&
-                typeof window.subtitleFont.getPreset ===
+                typeof window.subtitleFont.getSettings ===
                     "function"
             ) {
 
-                const preset =
-                    window.subtitleFont.getPreset();
+                const settings =
+                    window.subtitleFont.getSettings();
 
 
                 if (
-                    typeof preset === "string" &&
-                    preset.trim()
+                    settings &&
+                    typeof settings === "object"
                 ) {
 
-                    return preset.trim();
+                    return {
+
+                        preset_name:
+                            settings.preset_name ||
+                            "標準",
+
+                        font:
+                            settings.font ||
+                            "IPAGothic",
+
+                        text_color:
+                            settings.text_color ||
+                            "白",
+
+                        text_color_hex:
+                            settings.text_color_hex ||
+                            "#FFFFFF",
+
+                        outline_color:
+                            settings.outline_color ||
+                            "黒",
+
+                        outline_color_hex:
+                            settings.outline_color_hex ||
+                            "#000000",
+
+                        outline_width:
+                            Number.isFinite(
+                                Number(
+                                    settings.outline_width
+                                )
+                            )
+                                ? Number(
+                                    settings.outline_width
+                                )
+                                : 2
+
+                    };
 
                 }
 
             }
 
 
-            return "標準";
+            // ---------------------------------
+            // フォント設定がまだ取得できない場合
+            // ---------------------------------
+
+            return {
+
+                preset_name:
+                    "標準",
+
+                font:
+                    "IPAGothic",
+
+                text_color:
+                    "白",
+
+                text_color_hex:
+                    "#FFFFFF",
+
+                outline_color:
+                    "黒",
+
+                outline_color_hex:
+                    "#000000",
+
+                outline_width:
+                    2
+
+            };
+
+        }
+
+
+        // =====================================
+        // 後方互換:
+        // プリセット名だけ取得
+        // =====================================
+
+        function getFontPreset() {
+
+            const settings =
+                getFontSettings();
+
+
+            return settings.preset_name;
 
         }
 
@@ -800,12 +883,10 @@
         // =====================================
         // 字幕MP4作成
         //
-        // /subtitle-create-mp4
-        //
         // subtitle_font.jsから
-        // 現在のプリセット名を取得。
+        // 最新の設定を取得。
         //
-        // preset_nameをサーバーへ送信。
+        // FFmpeg用情報としてAPIへ送信。
         // =====================================
 
         async function embedSubtitle(
@@ -831,15 +912,23 @@
             }
 
 
-            const presetName =
-                getFontPreset();
+            // =================================
+            // 最新のフォント設定を取得
+            // =================================
+
+            const fontSettings =
+                getFontSettings();
 
 
             console.log(
-                "[SUBTITLE] subtitle preset:",
-                presetName
+                "[SUBTITLE] font settings:",
+                fontSettings
             );
 
+
+            // =================================
+            // APIへ送信
+            // =================================
 
             const response =
                 await fetch(
@@ -867,8 +956,30 @@
                                 srt_file:
                                     srtFilename,
 
+                                // -----------------------------
+                                // フォント設定
+                                // -----------------------------
+
                                 preset_name:
-                                    presetName
+                                    fontSettings.preset_name,
+
+                                font:
+                                    fontSettings.font,
+
+                                text_color:
+                                    fontSettings.text_color,
+
+                                text_color_hex:
+                                    fontSettings.text_color_hex,
+
+                                outline_color:
+                                    fontSettings.outline_color,
+
+                                outline_color_hex:
+                                    fontSettings.outline_color_hex,
+
+                                outline_width:
+                                    fontSettings.outline_width
 
                             })
 
@@ -1659,8 +1770,18 @@
                     );
 
 
-                    const presetName =
-                        getFontPreset();
+                    // ---------------------------------
+                    // この時点で最新設定を取得
+                    // ---------------------------------
+
+                    const fontSettings =
+                        getFontSettings();
+
+
+                    console.log(
+                        "[SUBTITLE] FFmpeg settings:",
+                        fontSettings
+                    );
 
 
                     const embedResult =
@@ -1680,12 +1801,15 @@
                     stopElapsedTimer();
 
 
+                    // =================================
+                    // 完了表示
+                    //
+                    // フォント設定は表示しない。
+                    // =================================
+
                     setStatus(
 
                         "字幕mp4の作成が完了しました。\n\n" +
-                        "プリセット: " +
-                        presetName +
-                        "\n\n" +
                         "ファイル: " +
                         embedResult.filename +
                         "\n\n" +
@@ -1804,6 +1928,14 @@
             function () {
 
                 return getFontPreset();
+
+            };
+
+
+        mainObject.getFontSettings =
+            function () {
+
+                return getFontSettings();
 
             };
 
