@@ -18,16 +18,49 @@
 #   outline_color
 #   outline_width
 #
-# この5つを subtitle_font.py / subtitle_routes.py /
-# subtitle.py で統一する。
+# この5つを
+#
+#   subtitle_font.py
+#   subtitle_routes.py
+#   subtitle.py
+#
+# の3ファイルで共通語彙として使用する。
+#
+# ==========================================================
+#
+# 【重要】
 #
 # 字幕の標準値は subtitle_font.py のみを正とする。
 #
-# 標準:
-#   font          = Noto Sans CJK JP
-#   text_color    = 白
-#   outline_color = 青
-#   outline_width = 5
+# subtitle_routes.py では
+#
+#   白
+#   青
+#   5
+#
+# などの標準値を定義しない。
+#
+# 指定されていない値は None のまま
+# subtitle_font.py に渡す。
+#
+# ==========================================================
+#
+# 【外部入力の旧キー】
+#
+# HTTP APIの互換性維持のため、入口では以下を受け付ける。
+#
+#   preset
+#   font_name
+#   textColor
+#   color
+#   outlineColor
+#   stroke_color
+#   strokeColor
+#   outlineWidth
+#   stroke_width
+#   strokeWidth
+#
+# ただし、これらはRoute内部では正式キーへ変換する。
 #
 # ==========================================================
 
@@ -108,16 +141,11 @@ def get_request_json():
 # ==========================================================
 # 値取得
 #
-# ==========================================================
+# 注意:
 #
-# 【重要】
+# この関数はHTTP入口での旧キー互換処理にのみ使用する。
 #
-# 内部では正式キーを使用する。
-#
-# ここではフロントエンドから来る可能性のある
-# 旧キー・別名だけを受け取る。
-#
-# Route内部で使用する正式名称は:
+# Route内部で使用する正式キーは必ず
 #
 #   preset_name
 #   font
@@ -125,6 +153,7 @@ def get_request_json():
 #   outline_color
 #   outline_width
 #
+# とする。
 # ==========================================================
 
 def get_value(
@@ -153,12 +182,20 @@ def get_value(
 # 字幕設定正規化
 # ==========================================================
 #
-# Routeでは字幕の標準値を持たない。
+# 【正式内部キー】
+#
+#   preset_name
+#   font
+#   text_color
+#   outline_color
+#   outline_width
+#
+# Routeでは標準値を決めない。
 #
 # 指定されていない値は None のまま
 # subtitle_font.py に渡す。
 #
-# subtitle_font.py が標準値を決定する。
+# 標準値の決定は subtitle_font.py の責任。
 #
 # ==========================================================
 
@@ -179,7 +216,7 @@ def normalize_subtitle_settings(
     # 正式キー:
     #   preset_name
     #
-    # 旧:
+    # 旧キー:
     #   preset
     # ======================================================
 
@@ -198,7 +235,7 @@ def normalize_subtitle_settings(
     # 正式キー:
     #   font
     #
-    # 旧:
+    # 旧キー:
     #   font_name
     # ======================================================
 
@@ -217,7 +254,7 @@ def normalize_subtitle_settings(
     # 正式キー:
     #   text_color
     #
-    # 旧:
+    # 旧キー:
     #   textColor
     #   color
     # ======================================================
@@ -238,7 +275,7 @@ def normalize_subtitle_settings(
     # 正式キー:
     #   outline_color
     #
-    # 旧:
+    # 旧キー:
     #   outlineColor
     #   stroke_color
     #   strokeColor
@@ -261,7 +298,7 @@ def normalize_subtitle_settings(
     # 正式キー:
     #   outline_width
     #
-    # 旧:
+    # 旧キー:
     #   outlineWidth
     #   stroke_width
     #   strokeWidth
@@ -281,12 +318,16 @@ def normalize_subtitle_settings(
     # ======================================================
     # subtitle_font.pyへ渡す
     #
-    # Noneは「指定なし」。
+    # 【重要】
+    #
+    # ここから先は正式内部キーのみ。
     #
     # 標準値は subtitle_font.py が決定する。
     # ======================================================
 
     settings = select_subtitle_font(
+
+        preset_name=preset_name,
 
         font=font,
 
@@ -294,9 +335,7 @@ def normalize_subtitle_settings(
 
         outline_color=outline_color,
 
-        outline_width=outline_width,
-
-        preset=preset_name
+        outline_width=outline_width
 
     )
 
@@ -349,6 +388,8 @@ def get_download_dir():
             f"DOWNLOAD_DIR取得エラー: {error}"
         )
 
+        # config.pyが通常存在するため、
+        # ここはフォールバックとしてのみ使用。
         return Path(
             "/app/downloads"
         ).resolve()
@@ -415,7 +456,9 @@ def is_inside_download_dir(
 # ==========================================================
 # GET /subtitle-settings
 #
-# 現在の標準字幕設定を返す
+# 現在の標準字幕設定を返す。
+#
+# 標準値は subtitle_font.py から取得する。
 # ==========================================================
 
 @subtitle_bp.route(
@@ -503,6 +546,9 @@ def subtitle_create_mp4():
 
         # ==================================================
         # MP4
+        #
+        # ファイル名については字幕設定5キーとは
+        # 別の入力項目なので従来の互換キーを維持。
         # ==================================================
 
         mp4_filename = get_value(
@@ -676,8 +722,10 @@ def subtitle_create_mp4():
         # ==================================================
         # リクエスト字幕設定
         #
-        # ログ上の名称も正式名称へ統一
-        # ==================================================
+        # ログ上も正式名称へ統一する。
+        #
+        # 旧キーの存在はHTTP入口の互換処理としてのみ扱う。
+        # ======================================================
 
         log(
             "request subtitle settings:"
@@ -731,6 +779,39 @@ def subtitle_create_mp4():
         )
 
         # ==================================================
+        # 正規化後のキー確認
+        #
+        # subtitle_font.pyから返る設定も
+        # 5つの正式キーを基本とする。
+        # ==================================================
+
+        required_setting_keys = [
+
+            "preset_name",
+
+            "font",
+
+            "text_color",
+
+            "outline_color",
+
+            "outline_width",
+
+        ]
+
+        for key in required_setting_keys:
+
+            if key not in subtitle_settings:
+
+                raise RuntimeError(
+
+                    "字幕設定に正式キーがありません: "
+                    +
+                    key
+
+                )
+
+        # ==================================================
         # MP4 + SRT
         # ==================================================
 
@@ -756,6 +837,8 @@ def subtitle_create_mp4():
 
         # ==================================================
         # subtitle.py
+        #
+        # subtitle_settingsは正式5キーの辞書をそのまま渡す。
         # ==================================================
 
         log(
@@ -904,7 +987,17 @@ def subtitle_create_mp4():
 #
 # 字幕設定だけを正規化して確認するAPI
 #
-# デバッグ用
+# デバッグ用。
+#
+# 入力:
+#
+#   preset_name
+#   font
+#   text_color
+#   outline_color
+#   outline_width
+#
+# 旧キーもHTTP入口では互換対応。
 # ==========================================================
 
 @subtitle_bp.route(
@@ -938,6 +1031,36 @@ def subtitle_font_settings():
         log(
             f"normalized: {settings}"
         )
+
+        # ==================================================
+        # 正規化後のキー確認
+        # ==================================================
+
+        required_setting_keys = [
+
+            "preset_name",
+
+            "font",
+
+            "text_color",
+
+            "outline_color",
+
+            "outline_width",
+
+        ]
+
+        for key in required_setting_keys:
+
+            if key not in settings:
+
+                raise RuntimeError(
+
+                    "字幕設定に正式キーがありません: "
+                    +
+                    key
+
+                )
 
         return jsonify({
 
