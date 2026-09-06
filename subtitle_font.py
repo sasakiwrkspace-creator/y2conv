@@ -19,60 +19,85 @@
 # subtitle.py側では、この設定を受け取り
 # FFmpeg subtitles filter の force_style
 # に変換する。
+#
+# UI側では、
+#
+# get_subtitle_font_ui_config()
+#
+# を使用することで、
+#
+# ・プリセット
+# ・フォント
+# ・文字色
+# ・縁取り色
+# ・縁取り太さ
+# ・カラーコード
+#
+# を取得できる。
 # =====================================
 
 
 # =====================================
-# 字幕カラー
+# 字幕カラー設定
 #
-# ASS形式:
+# UI表示用:
 #
-# &HAABBGGRR
+# hex
+#   HTML/CSSで使用するカラーコード
 #
-# AA = Alpha
-# BB = Blue
-# GG = Green
-# RR = Red
+# ass
+#   ASS字幕で使用するカラーコード
 #
-# 完全不透明:
-# 00
 # =====================================
 
 SUBTITLE_COLORS = {
 
     "白": {
+        "hex": "#FFFFFF",
         "ass": "&H00FFFFFF",
     },
 
     "黒": {
+        "hex": "#000000",
         "ass": "&H00000000",
     },
 
     "赤": {
+        "hex": "#FF0000",
         "ass": "&H000000FF",
     },
 
     "青": {
+        "hex": "#0000FF",
         "ass": "&H00FF0000",
     },
 
-    "緑": {
-        "ass": "&H0000FF00",
-    },
-
     "黄": {
+        "hex": "#FFFF00",
         "ass": "&H0000FFFF",
     },
 
+    # ---------------------------------
+    # 追加色
+    # ---------------------------------
+
+    "緑": {
+        "hex": "#00FF00",
+        "ass": "&H0000FF00",
+    },
+
     "オレンジ": {
+        "hex": "#FFA500",
         "ass": "&H0000A5FF",
     },
 
     "水色": {
+        "hex": "#00FFFF",
         "ass": "&H00FFFF00",
     },
 
     "紫": {
+        "hex": "#800080",
         "ass": "&H00800080",
     },
 
@@ -80,13 +105,45 @@ SUBTITLE_COLORS = {
 
 
 # =====================================
+# UI基本カラー
+#
+# 現在は5色を基本表示する。
+#
+# 必要になったらここへ色名を追加する。
+# =====================================
+
+SUBTITLE_BASIC_COLORS = [
+
+    "白",
+
+    "黒",
+
+    "赤",
+
+    "青",
+
+    "黄",
+
+]
+
+
+# =====================================
 # フォントプリセット
 #
-# font:
-#   FFmpeg / ASS の FontName として使用
+# ここを変更することで、
+# プリセットの内容を自由に変更できる。
 #
-# name:
-#   UI表示用
+# font:
+#   FFmpeg / ASS の FontName
+#
+# text_color:
+#   文字色
+#
+# outline_color:
+#   縁取り色
+#
+# outline_width:
+#   縁取りの太さ
 #
 # =====================================
 
@@ -94,49 +151,65 @@ SUBTITLE_FONT_PRESETS = {
 
     "標準": {
 
-        "font": "Noto Sans CJK JP",
+        "font":
+            "Noto Sans CJK JP",
 
-        "text_color": "白",
+        "text_color":
+            "白",
 
-        "outline_color": "黒",
+        "outline_color":
+            "黒",
 
-        "outline_width": 2,
+        "outline_width":
+            2,
 
     },
 
     "ゴシック": {
 
-        "font": "Noto Sans CJK JP",
+        "font":
+            "Noto Sans CJK JP",
 
-        "text_color": "白",
+        "text_color":
+            "白",
 
-        "outline_color": "黒",
+        "outline_color":
+            "黒",
 
-        "outline_width": 2,
+        "outline_width":
+            2,
 
     },
 
     "明朝": {
 
-        "font": "Noto Serif CJK JP",
+        "font":
+            "Noto Serif CJK JP",
 
-        "text_color": "白",
+        "text_color":
+            "白",
 
-        "outline_color": "黒",
+        "outline_color":
+            "黒",
 
-        "outline_width": 2,
+        "outline_width":
+            2,
 
     },
 
     "太字ゴシック": {
 
-        "font": "Noto Sans CJK JP",
+        "font":
+            "Noto Sans CJK JP",
 
-        "text_color": "白",
+        "text_color":
+            "白",
 
-        "outline_color": "黒",
+        "outline_color":
+            "黒",
 
-        "outline_width": 3,
+        "outline_width":
+            3,
 
     },
 
@@ -151,6 +224,17 @@ DEFAULT_SUBTITLE_PRESET = "標準"
 
 
 # =====================================
+# 縁取り太さ
+#
+# UI側で使用する最小・最大値
+# =====================================
+
+MIN_OUTLINE_WIDTH = 0
+
+MAX_OUTLINE_WIDTH = 10
+
+
+# =====================================
 # 設定値の正規化
 # =====================================
 
@@ -161,7 +245,9 @@ def normalize_outline_width(
 
     try:
 
-        value = int(value)
+        value = int(
+            value
+        )
 
     except (
         ValueError,
@@ -170,12 +256,11 @@ def normalize_outline_width(
 
         value = default
 
-    # 安全範囲
     value = max(
-        0,
+        MIN_OUTLINE_WIDTH,
         min(
             value,
-            10
+            MAX_OUTLINE_WIDTH
         )
     )
 
@@ -219,6 +304,92 @@ def normalize_color_name(
         return color
 
     return default
+
+
+# =====================================
+# カラーコード取得
+# =====================================
+
+def get_subtitle_color_hex(
+    color,
+    default="白"
+):
+
+    color = normalize_color_name(
+        color,
+        default
+    )
+
+    return (
+        SUBTITLE_COLORS[
+            color
+        ]["hex"]
+    )
+
+
+# =====================================
+# ASSカラー取得
+# =====================================
+
+def get_subtitle_color_ass(
+    color,
+    default="白"
+):
+
+    color = normalize_color_name(
+        color,
+        default
+    )
+
+    return (
+        SUBTITLE_COLORS[
+            color
+        ]["ass"]
+    )
+
+
+# =====================================
+# 字幕カラー情報取得
+#
+# UI側で使用。
+#
+# 例:
+#
+# {
+#     "name": "白",
+#     "hex": "#FFFFFF",
+#     "ass": "&H00FFFFFF"
+# }
+#
+# =====================================
+
+def get_subtitle_color_info(
+    color
+):
+
+    color = normalize_color_name(
+        color,
+        "白"
+    )
+
+    data = (
+        SUBTITLE_COLORS[
+            color
+        ]
+    )
+
+    return {
+
+        "name":
+            color,
+
+        "hex":
+            data["hex"],
+
+        "ass":
+            data["ass"],
+
+    }
 
 
 # =====================================
@@ -300,7 +471,7 @@ def create_subtitle_font_settings(
         preset = DEFAULT_SUBTITLE_PRESET
 
     # ---------------------------------
-    # subtitle.py と共通の辞書
+    # 共通設定
     # ---------------------------------
 
     return {
@@ -327,7 +498,6 @@ def create_subtitle_font_settings(
 # デフォルト字幕設定
 #
 # subtitle.pyから使用
-#
 # =====================================
 
 def get_default_subtitle_font_settings():
@@ -454,24 +624,74 @@ def get_available_subtitle_fonts():
 
 # =====================================
 # 利用可能な文字色
+#
+# UIでは基本5色を使用
 # =====================================
 
 def get_available_text_colors():
 
     return list(
-        SUBTITLE_COLORS.keys()
+        SUBTITLE_BASIC_COLORS
     )
 
 
 # =====================================
 # 利用可能な縁色
+#
+# UIでは基本5色を使用
 # =====================================
 
 def get_available_outline_colors():
 
     return list(
+        SUBTITLE_BASIC_COLORS
+    )
+
+
+# =====================================
+# 全カラー一覧
+#
+# 必要になった場合に使用
+# =====================================
+
+def get_all_subtitle_colors():
+
+    return list(
         SUBTITLE_COLORS.keys()
     )
+
+
+# =====================================
+# UI用カラー一覧
+#
+# 例:
+#
+# [
+#     {
+#         "name": "白",
+#         "hex": "#FFFFFF",
+#         "ass": "&H00FFFFFF"
+#     },
+#     ...
+# ]
+#
+# =====================================
+
+def get_subtitle_ui_colors():
+
+    result = []
+
+    for color in SUBTITLE_BASIC_COLORS:
+
+        info = get_subtitle_color_info(
+            color
+        )
+
+        result.append(
+            info
+        )
+
+    return result
 
 
 # =====================================
@@ -479,7 +699,6 @@ def get_available_outline_colors():
 #
 # 既存設定を維持しながら
 # 指定された項目だけ変更する。
-#
 # =====================================
 
 def update_subtitle_font_settings(
@@ -660,16 +879,6 @@ def update_subtitle_font_settings(
 # フォント選択
 #
 # UI / route側から使用
-#
-# 例:
-#
-# settings = select_subtitle_font(
-#     font="Noto Sans JP",
-#     text_color="黄",
-#     outline_color="黒",
-#     outline_width=3
-# )
-#
 # =====================================
 
 def select_subtitle_font(
@@ -719,16 +928,24 @@ def select_subtitle_font(
         )
 
     # ---------------------------------
-    # 引数で指定された値を反映
+    # フォント
     # ---------------------------------
 
     if font is not None:
 
-        current_settings["font"] = (
-            normalize_font_name(
-                font
-            )
+        normalized_font = normalize_font_name(
+            font
         )
+
+        if normalized_font:
+
+            current_settings["font"] = (
+                normalized_font
+            )
+
+    # ---------------------------------
+    # 文字色
+    # ---------------------------------
 
     if text_color is not None:
 
@@ -742,6 +959,10 @@ def select_subtitle_font(
             )
         )
 
+    # ---------------------------------
+    # 縁色
+    # ---------------------------------
+
     if outline_color is not None:
 
         current_settings["outline_color"] = (
@@ -754,6 +975,10 @@ def select_subtitle_font(
             )
         )
 
+    # ---------------------------------
+    # 縁太さ
+    # ---------------------------------
+
     if outline_width is not None:
 
         current_settings["outline_width"] = (
@@ -763,6 +988,10 @@ def select_subtitle_font(
 
             )
         )
+
+    # ---------------------------------
+    # プリセット
+    # ---------------------------------
 
     if preset is not None:
 
@@ -802,6 +1031,154 @@ def select_subtitle_font(
         )
 
     )
+
+
+# =====================================
+# 現在設定の表示用データ
+#
+# UI側で、
+#
+# 現在の設定
+# プリセット 標準
+# フォント Noto Sans CJK JP
+# 文字色 白
+# 縁色 黒
+# 縁の太さ 2
+#
+# のように表示するために使用。
+# =====================================
+
+def get_subtitle_font_display_settings(
+    settings=None
+):
+
+    if not isinstance(
+        settings,
+        dict
+    ):
+
+        settings = (
+            get_default_subtitle_font_settings()
+        )
+
+    settings = update_subtitle_font_settings(
+        settings=settings
+    )
+
+    return {
+
+        "preset":
+            settings["preset"],
+
+        "font":
+            settings["font"],
+
+        "text_color":
+            settings["text_color"],
+
+        "text_color_hex":
+            get_subtitle_color_hex(
+                settings["text_color"]
+            ),
+
+        "outline_color":
+            settings["outline_color"],
+
+        "outline_color_hex":
+            get_subtitle_color_hex(
+                settings["outline_color"]
+            ),
+
+        "outline_width":
+            settings["outline_width"],
+
+    }
+
+
+# =====================================
+# UI用設定一式
+#
+# subtitle.js / route側から使用可能。
+#
+# ダイアログに必要な情報をまとめて返す。
+# =====================================
+
+def get_subtitle_font_ui_config():
+
+    default_settings = (
+        get_default_subtitle_font_settings()
+    )
+
+    return {
+
+        # ---------------------------------
+        # 現在のデフォルト設定
+        # ---------------------------------
+
+        "default":
+            get_subtitle_font_display_settings(
+                default_settings
+            ),
+
+        # ---------------------------------
+        # プリセット
+        # ---------------------------------
+
+        "presets": {
+
+            preset_name:
+                get_subtitle_font_display_settings(
+                    get_subtitle_font_preset(
+                        preset_name
+                    )
+                )
+
+            for preset_name
+            in get_subtitle_font_presets()
+
+        },
+
+        # ---------------------------------
+        # フォント
+        # ---------------------------------
+
+        "fonts":
+            get_available_subtitle_fonts(),
+
+        # ---------------------------------
+        # 文字色
+        # ---------------------------------
+
+        "text_colors":
+            get_subtitle_ui_colors(),
+
+        # ---------------------------------
+        # 縁色
+        # ---------------------------------
+
+        "outline_colors":
+            get_subtitle_ui_colors(),
+
+        # ---------------------------------
+        # 太さ
+        # ---------------------------------
+
+        "outline_width": {
+
+            "min":
+                MIN_OUTLINE_WIDTH,
+
+            "max":
+                MAX_OUTLINE_WIDTH,
+
+            "default":
+                default_settings[
+                    "outline_width"
+                ],
+
+        },
+
+    }
 
 
 # =====================================
@@ -863,12 +1240,100 @@ def describe_subtitle_font_settings(
 
 
 # =====================================
+# UI設定表示
+# =====================================
+
+def describe_subtitle_font_ui_config():
+
+    config = (
+        get_subtitle_font_ui_config()
+    )
+
+    print(
+        "====================================="
+    )
+
+    print(
+        "字幕フォント UI設定"
+    )
+
+    print(
+        "====================================="
+    )
+
+    print(
+        "デフォルト:"
+    )
+
+    print(
+        config["default"]
+    )
+
+    print()
+
+    print(
+        "プリセット:"
+    )
+
+    for name, settings in (
+        config["presets"].items()
+    ):
+
+        print(
+            f" - {name}: "
+            f"{settings}"
+        )
+
+    print()
+
+    print(
+        "フォント:"
+    )
+
+    for font in config["fonts"]:
+
+        print(
+            f" - {font}"
+        )
+
+    print()
+
+    print(
+        "カラー:"
+    )
+
+    for color in config["text_colors"]:
+
+        print(
+            f" - {color['name']}: "
+            f"{color['hex']}"
+        )
+
+    print()
+
+    print(
+        "縁取り太さ:"
+    )
+
+    print(
+        config["outline_width"]
+    )
+
+    print(
+        "=====================================")
+
+
+# =====================================
 # テスト
 #
 # python subtitle_font.py
 # =====================================
 
 def main():
+
+    # ---------------------------------
+    # デフォルト設定
+    # ---------------------------------
 
     settings = (
         get_default_subtitle_font_settings()
@@ -879,6 +1344,10 @@ def main():
     )
 
     print()
+
+    # ---------------------------------
+    # プリセット
+    # ---------------------------------
 
     print(
         "利用可能なプリセット:"
@@ -892,6 +1361,10 @@ def main():
 
     print()
 
+    # ---------------------------------
+    # フォント
+    # ---------------------------------
+
     print(
         "利用可能なフォント:"
     )
@@ -904,14 +1377,24 @@ def main():
 
     print()
 
+    # ---------------------------------
+    # 基本カラー
+    # ---------------------------------
+
     print(
-        "利用可能な色:"
+        "利用可能な基本色:"
     )
 
     for color in get_available_text_colors():
 
+        info = get_subtitle_color_info(
+            color
+        )
+
         print(
-            f" - {color}"
+            f" - {info['name']}: "
+            f"{info['hex']} "
+            f"{info['ass']}"
         )
 
     print()
@@ -941,6 +1424,18 @@ def main():
     print(
         test_settings
     )
+
+    print()
+
+    # ---------------------------------
+    # UI設定
+    # ---------------------------------
+
+    print(
+        "UI設定テスト:"
+    )
+
+    describe_subtitle_font_ui_config()
 
     print()
 
