@@ -1421,45 +1421,131 @@ input {
     margin-top: 7px;
 }
 
+/* =========================================
+   色ラジオ
+========================================= */
+
+.subtitle-font-radio-group {
+    display: flex;
+
+    flex-wrap: wrap;
+
+    align-items: center;
+
+    gap: 8px;
+
+    margin-top: 7px;
+}
+
+
+/* -----------------------------------------
+   ラジオ項目
+----------------------------------------- */
+
 .subtitle-font-radio-label {
     display: inline-flex;
 
     align-items: center;
 
-    gap: 5px;
+    gap: 6px;
+
+    min-height: 34px;
+
+    padding: 4px 10px;
+
+    border: 2px solid transparent;
+
+    border-radius: 5px;
+
+    background: #fff;
+
+    color: #222;
 
     cursor: pointer;
 
     font-size: 13px;
 
     font-weight: normal;
+
+    transition:
+        border-color 0.15s ease,
+        background-color 0.15s ease;
 }
+
+
+/* -----------------------------------------
+   ラジオボタン本体は非表示
+----------------------------------------- */
 
 .subtitle-font-radio-label input {
-    margin: 0;
+    position: absolute;
 
-    cursor: pointer;
+    opacity: 0;
+
+    pointer-events: none;
 }
+
+
+/* -----------------------------------------
+   色を表示する丸
+----------------------------------------- */
 
 .subtitle-font-radio-dot {
     display: inline-block;
 
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
+
+    flex: 0 0 16px;
 
     border: 1px solid #777;
 
     border-radius: 50%;
+
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.25);
 }
 
-.subtitle-font-radio-hex {
-    color: #666;
 
-    font-family:
-        Consolas,
-        monospace;
+/* -----------------------------------------
+   色名
+----------------------------------------- */
 
-    font-size: 12px;
+.subtitle-font-radio-text {
+    white-space: nowrap;
+}
+
+
+/* -----------------------------------------
+   選択中
+   太い青い枠
+----------------------------------------- */
+
+.subtitle-font-radio-label.selected {
+    border-color: #007bff;
+
+    background: #f4f9ff;
+
+    box-shadow:
+        0 0 0 1px #007bff;
+}
+
+
+/* -----------------------------------------
+   hover
+----------------------------------------- */
+
+.subtitle-font-radio-label:hover {
+    background: #f5f5f5;
+}
+
+
+/* -----------------------------------------
+   選択中hover
+----------------------------------------- */
+
+.subtitle-font-radio-label.selected:hover {
+    background: #eef6ff;
 }
 
 
