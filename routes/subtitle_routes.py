@@ -313,17 +313,11 @@ def normalize_subtitle_settings(
     # ======================================================
 
     settings = select_subtitle_font(
-
         preset_name=preset_name,
-
         font=font,
-
         text_color=text_color,
-
         outline_color=outline_color,
-
         outline_width=outline_width
-
     )
 
     return settings
