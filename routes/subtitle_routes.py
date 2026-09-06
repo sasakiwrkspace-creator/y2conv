@@ -8,26 +8,32 @@
 #   - 字幕設定を subtitle_font.py で正規化
 #   - subtitle.py に処理を渡す
 #
-# 重要:
-#   字幕の標準設定は subtitle_font.py のみを正とする。
+# ==========================================================
 #
-#   subtitle_routes.py では
-#       白
-#       青
-#       5
+# 【字幕設定の正式な内部キー】
 #
-#   などの字幕デフォルト値を定義しない。
+#   preset_name
+#   font
+#   text_color
+#   outline_color
+#   outline_width
 #
-# 標準設定:
-#   subtitle_font.py
-#       フォント     : Noto Sans CJK JP
-#       文字色       : 白
-#       縁色         : 青
-#       縁太さ       : 5
+# この5つを subtitle_font.py / subtitle_routes.py /
+# subtitle.py で統一する。
+#
+# 字幕の標準値は subtitle_font.py のみを正とする。
+#
+# 標準:
+#   font          = Noto Sans CJK JP
+#   text_color    = 白
+#   outline_color = 青
+#   outline_width = 5
+#
 # ==========================================================
 
-import os
+
 import traceback
+
 from pathlib import Path
 
 from flask import (
@@ -102,7 +108,23 @@ def get_request_json():
 # ==========================================================
 # 値取得
 #
-# 複数のフロントエンド表記に対応
+# ==========================================================
+#
+# 【重要】
+#
+# 内部では正式キーを使用する。
+#
+# ここではフロントエンドから来る可能性のある
+# 旧キー・別名だけを受け取る。
+#
+# Route内部で使用する正式名称は:
+#
+#   preset_name
+#   font
+#   text_color
+#   outline_color
+#   outline_width
+#
 # ==========================================================
 
 def get_value(
@@ -129,12 +151,15 @@ def get_value(
 
 # ==========================================================
 # 字幕設定正規化
+# ==========================================================
 #
-# ★重要
+# Routeでは字幕の標準値を持たない。
 #
-# このRouteでは字幕のデフォルト値を決めない。
+# 指定されていない値は None のまま
+# subtitle_font.py に渡す。
 #
-# Noneの場合は subtitle_font.py が標準設定を決める。
+# subtitle_font.py が標準値を決定する。
+#
 # ==========================================================
 
 def normalize_subtitle_settings(
@@ -149,20 +174,32 @@ def normalize_subtitle_settings(
         data = {}
 
     # ======================================================
-    # preset
+    # preset_name
+    #
+    # 正式キー:
+    #   preset_name
+    #
+    # 旧:
+    #   preset
     # ======================================================
 
-    preset = get_value(
+    preset_name = get_value(
 
         data,
 
-        "preset",
-        "preset_name"
+        "preset_name",
+        "preset"
 
     )
 
     # ======================================================
     # font
+    #
+    # 正式キー:
+    #   font
+    #
+    # 旧:
+    #   font_name
     # ======================================================
 
     font = get_value(
@@ -175,7 +212,14 @@ def normalize_subtitle_settings(
     )
 
     # ======================================================
-    # text color
+    # text_color
+    #
+    # 正式キー:
+    #   text_color
+    #
+    # 旧:
+    #   textColor
+    #   color
     # ======================================================
 
     text_color = get_value(
@@ -189,7 +233,15 @@ def normalize_subtitle_settings(
     )
 
     # ======================================================
-    # outline color
+    # outline_color
+    #
+    # 正式キー:
+    #   outline_color
+    #
+    # 旧:
+    #   outlineColor
+    #   stroke_color
+    #   strokeColor
     # ======================================================
 
     outline_color = get_value(
@@ -204,7 +256,15 @@ def normalize_subtitle_settings(
     )
 
     # ======================================================
-    # outline width
+    # outline_width
+    #
+    # 正式キー:
+    #   outline_width
+    #
+    # 旧:
+    #   outlineWidth
+    #   stroke_width
+    #   strokeWidth
     # ======================================================
 
     outline_width = get_value(
@@ -222,7 +282,8 @@ def normalize_subtitle_settings(
     # subtitle_font.pyへ渡す
     #
     # Noneは「指定なし」。
-    # subtitle_font.py側の標準設定を使用する。
+    #
+    # 標準値は subtitle_font.py が決定する。
     # ======================================================
 
     settings = select_subtitle_font(
@@ -235,7 +296,7 @@ def normalize_subtitle_settings(
 
         outline_width=outline_width,
 
-        preset=preset
+        preset=preset_name
 
     )
 
@@ -288,8 +349,6 @@ def get_download_dir():
             f"DOWNLOAD_DIR取得エラー: {error}"
         )
 
-        # config.pyが通常存在するため、
-        # ここはフォールバックとしてのみ使用。
         return Path(
             "/app/downloads"
         ).resolve()
@@ -323,7 +382,7 @@ def make_download_path(
 
 
 # ==========================================================
-# パスがDOWNLOAD_DIR内か確認
+# DOWNLOAD_DIR内確認
 # ==========================================================
 
 def is_inside_download_dir(
@@ -354,8 +413,6 @@ def is_inside_download_dir(
 
 
 # ==========================================================
-# 字幕設定API
-#
 # GET /subtitle-settings
 #
 # 現在の標準字幕設定を返す
@@ -413,26 +470,9 @@ def subtitle_settings():
 
 
 # ==========================================================
-# 字幕MP4作成
-#
 # POST /subtitle-create-mp4
 #
-# 入力例:
-#
-# {
-#   "mp4": "000005_000010.mp4",
-#   "srt": "000005_000010.srt",
-#   "font": "Noto Sans CJK JP",
-#   "text_color": "白",
-#   "outline_color": "青",
-#   "outline_width": 5
-# }
-#
-# 重要:
-#
-# font / text_color / outline_color / outline_width
-# が送られてこなければ、
-# subtitle_font.py の標準設定を使用。
+# MP4 + SRT 合成
 # ==========================================================
 
 @subtitle_bp.route(
@@ -446,7 +486,7 @@ def subtitle_create_mp4():
     )
 
     log(
-        "[SUBTITLE] POST /subtitle-create-mp4"
+        "POST /subtitle-create-mp4"
     )
 
     try:
@@ -463,8 +503,6 @@ def subtitle_create_mp4():
 
         # ==================================================
         # MP4
-        #
-        # 複数のキー名に対応
         # ==================================================
 
         mp4_filename = get_value(
@@ -532,7 +570,7 @@ def subtitle_create_mp4():
             }), 400
 
         # ==================================================
-        # 拡張子確認
+        # 拡張子
         # ==================================================
 
         if not mp4_filename.lower().endswith(
@@ -608,7 +646,7 @@ def subtitle_create_mp4():
             }), 400
 
         # ==================================================
-        # 入力ファイル確認
+        # ファイル存在確認
         # ==================================================
 
         if not mp4_path.exists():
@@ -637,6 +675,8 @@ def subtitle_create_mp4():
 
         # ==================================================
         # リクエスト字幕設定
+        #
+        # ログ上の名称も正式名称へ統一
         # ==================================================
 
         log(
@@ -644,8 +684,8 @@ def subtitle_create_mp4():
         )
 
         log(
-            f"  preset: "
-            f"{get_value(data, 'preset', 'preset_name')}"
+            f"  preset_name: "
+            f"{get_value(data, 'preset_name', 'preset')}"
         )
 
         log(
@@ -671,7 +711,7 @@ def subtitle_create_mp4():
         # ==================================================
         # 字幕設定正規化
         #
-        # ★ここで subtitle_font.py に一本化
+        # subtitle_font.pyだけが標準値を決定する。
         # ==================================================
 
         subtitle_settings = (
@@ -691,7 +731,7 @@ def subtitle_create_mp4():
         )
 
         # ==================================================
-        # MP4 + SRT 合成開始
+        # MP4 + SRT
         # ==================================================
 
         log(
@@ -864,7 +904,7 @@ def subtitle_create_mp4():
 #
 # 字幕設定だけを正規化して確認するAPI
 #
-# デバッグ用。
+# デバッグ用
 # ==========================================================
 
 @subtitle_bp.route(
@@ -931,13 +971,11 @@ def subtitle_font_settings():
 # ==========================================================
 # Blueprint登録用
 #
-# app.py / main.py 側で
+# app.py / main.py:
 #
 # from routes.subtitle_routes import subtitle_bp
 #
 # app.register_blueprint(subtitle_bp)
-#
-# として使用。
 # ==========================================================
 
 __all__ = [
