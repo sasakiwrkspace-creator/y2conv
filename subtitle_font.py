@@ -284,11 +284,11 @@ def get_default_subtitle_font_settings():
 # ==========================================================
 
 def select_subtitle_font(
+    preset_name=None,
     font=None,
     text_color=None,
     outline_color=None,
     outline_width=None,
-    preset_name=None,
     settings=None
 ):
 
