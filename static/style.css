@@ -906,6 +906,9 @@ body {
 /* =========================================
    字幕MP4エリア
 ========================================= */
+.subtitle-title-row > span {
+    margin-right: 1em;
+}
 
 .subtitle-mp4-area {
     display: none;
