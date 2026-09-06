@@ -373,15 +373,39 @@
 
         // =====================================
         // 設定プレビュー
+        //
+        // ダイアログ内には
+        // 現在の設定だけを表示する。
+        //
+        // 古い表示を残さず、
+        // 毎回innerHTMLをクリアしてから
+        // 最新設定を生成する。
         // =====================================
 
         function createSettingsPreview(
-            container
+            container,
+            settings,
+            presetName
         ) {
+
+            if (!container) {
+
+                return;
+
+            }
+
+
+            // ---------------------------------
+            // 既存表示を完全にクリア
+            // ---------------------------------
 
             container.innerHTML =
                 "";
 
+
+            // ---------------------------------
+            // タイトル
+            // ---------------------------------
 
             const title =
                 document.createElement(
@@ -402,31 +426,35 @@
             );
 
 
+            // ---------------------------------
+            // 最新設定
+            // ---------------------------------
+
             const values = [
 
                 [
                     "プリセット",
-                    selectedPreset
+                    presetName
                 ],
 
                 [
                     "フォント",
-                    selectedSettings.font
+                    settings.font
                 ],
 
                 [
                     "文字色",
-                    selectedSettings.textColor
+                    settings.textColor
                 ],
 
                 [
                     "縁取り色",
-                    selectedSettings.outlineColor
+                    settings.outlineColor
                 ],
 
                 [
                     "縁の太さ",
-                    selectedSettings.outlineWidth
+                    settings.outlineWidth
                 ]
 
             ];
@@ -552,11 +580,6 @@
 
         // =====================================
         // ラジオボタン生成
-        //
-        // 表示:
-        //
-        // ●黒  ●白  ●赤
-        //
         // =====================================
 
         function createColorRadioGroup(
@@ -842,6 +865,10 @@
             }
 
 
+            // ---------------------------------
+            // オーバーレイ
+            // ---------------------------------
+
             const overlay =
                 document.createElement(
                     "div"
@@ -851,6 +878,10 @@
             overlay.className =
                 "subtitle-font-dialog-overlay";
 
+
+            // ---------------------------------
+            // ダイアログ
+            // ---------------------------------
 
             const dialog =
                 document.createElement(
@@ -907,6 +938,25 @@
                     selectedSettings.outlineWidth
 
             };
+
+
+            // =================================
+            // プレビュー領域
+            //
+            // 上部に作成しておく。
+            // 値が変更されるたびに
+            // この領域だけをクリアして
+            // 最新状態を表示する。
+            // =================================
+
+            const preview =
+                document.createElement(
+                    "div"
+                );
+
+
+            preview.className =
+                "subtitle-font-preview";
 
 
             // =================================
@@ -1159,6 +1209,10 @@
                             colorName;
 
 
+                        currentValues.preset =
+                            "カスタム";
+
+
                         updatePreview();
 
                     }
@@ -1257,6 +1311,10 @@
                             colorName;
 
 
+                        currentValues.preset =
+                            "カスタム";
+
+
                         updatePreview();
 
                     }
@@ -1336,22 +1394,39 @@
             // 現在の設定
             // =================================
 
-            const preview =
-                document.createElement(
-                    "div"
-                );
-
-
-            preview.className =
-                "subtitle-font-preview";
-
-
             dialog.appendChild(
                 preview
             );
 
 
+            // =================================
+            // プレビュー更新
+            //
+            // ここではselectedSettingsを
+            // 書き換えない。
+            //
+            // ダイアログ内の
+            // currentValuesだけを使って
+            // 最新設定を表示する。
+            // =================================
+
             function updatePreview() {
+
+                let width =
+                    Number(
+                        currentValues.outlineWidth
+                    );
+
+
+                if (
+                    !Number.isFinite(width)
+                ) {
+
+                    width =
+                        0;
+
+                }
+
 
                 const previewSettings = {
 
@@ -1365,48 +1440,27 @@
                         currentValues.outlineColor,
 
                     outlineWidth:
-                        Number(
-                            outlineWidthInput.value
-                        ) || 0
+                        width
 
                 };
-
-
-                const oldSettings =
-                    selectedSettings;
-
-
-                const oldPreset =
-                    selectedPreset;
-
-
-                selectedSettings = {
-
-                    ...oldSettings,
-
-                    ...previewSettings
-
-                };
-
-
-                selectedPreset =
-                    currentValues.preset;
 
 
                 createSettingsPreview(
-                    preview
+
+                    preview,
+
+                    previewSettings,
+
+                    currentValues.preset
+
                 );
-
-
-                selectedSettings =
-                    oldSettings;
-
-
-                selectedPreset =
-                    oldPreset;
 
             }
 
+
+            // ---------------------------------
+            // 初期表示
+            // ---------------------------------
 
             updatePreview();
 
