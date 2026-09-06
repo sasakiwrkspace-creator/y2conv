@@ -7,6 +7,7 @@
 #   - HTTPリクエストを受け取る
 #   - 字幕設定を subtitle_font.py で正規化
 #   - subtitle.py に処理を渡す
+#   - MP3からSRTを作成する
 #
 # ==========================================================
 #
@@ -75,6 +76,11 @@ from flask import (
     Blueprint,
     request,
     jsonify,
+)
+
+from routes.gemini import (
+    transcribe_mp3,
+    save_srt,
 )
 
 from subtitle_font import (
@@ -433,6 +439,249 @@ def is_inside_download_dir(
 
 
 # ==========================================================
+# MP3 → SRT 共通処理
+#
+# タブ1:
+#
+#   YouTube
+#      ↓
+#   MP4作成
+#      ↓
+#   MP3作成
+#      ↓
+#   create_srt_from_mp3()
+#      ↓
+#   Gemini
+#      ↓
+#   SRT
+#
+# タブ2:
+#
+#   ローカルMP3アップロード
+#      ↓
+#   downloads保存
+#      ↓
+#   create_srt_from_mp3()
+#      ↓
+#   Gemini
+#      ↓
+#   SRT
+#
+# GeminiへMP3を渡してSRTを作る処理は
+# この関数に一本化する。
+# ==========================================================
+
+def create_srt_from_mp3(
+    mp3_path
+):
+
+    mp3_path = Path(
+        mp3_path
+    ).resolve()
+
+    # ======================================================
+    # MP3確認
+    # ======================================================
+
+    if not mp3_path.exists():
+
+        raise FileNotFoundError(
+            f"MP3がありません: {mp3_path}"
+        )
+
+    if not mp3_path.is_file():
+
+        raise ValueError(
+            "MP3のパスがファイルではありません"
+        )
+
+    if not mp3_path.name.lower().endswith(
+        ".mp3"
+    ):
+
+        raise ValueError(
+            "MP3ファイルを指定してください"
+        )
+
+    try:
+
+        mp3_size = (
+            mp3_path.stat().st_size
+        )
+
+    except OSError as error:
+
+        raise RuntimeError(
+            f"MP3ファイルサイズを取得できません: {error}"
+        )
+
+    if mp3_size <= 0:
+
+        raise ValueError(
+            "MP3ファイルが0 bytesです"
+        )
+
+    # ======================================================
+    # DOWNLOAD_DIR内確認
+    #
+    # タブ1・タブ2ともdownloadsにあるMP3を
+    # Geminiへ渡す。
+    # ======================================================
+
+    if not is_inside_download_dir(
+        mp3_path
+    ):
+
+        raise ValueError(
+            "MP3がDOWNLOAD_DIR外にあります"
+        )
+
+    # ======================================================
+    # 開始ログ
+    # ======================================================
+
+    log(
+        "=========================================="
+    )
+
+    log(
+        "MP3 → SRT 開始"
+    )
+
+    log(
+        f"MP3: {mp3_path}"
+    )
+
+    log(
+        f"MP3 size: {mp3_size} bytes"
+    )
+
+    # ======================================================
+    # Gemini文字起こし
+    # ======================================================
+
+    log(
+        "Gemini transcribe START"
+    )
+
+    srt_text = transcribe_mp3(
+        str(mp3_path)
+    )
+
+    if not srt_text:
+
+        raise RuntimeError(
+            "GeminiからSRT結果を取得できませんでした"
+        )
+
+    log(
+        "Gemini transcribe COMPLETE"
+    )
+
+    # ======================================================
+    # SRT保存
+    # ======================================================
+
+    log(
+        "SRT save START"
+    )
+
+    srt_path = save_srt(
+        str(mp3_path),
+        srt_text
+    )
+
+    if not srt_path:
+
+        raise RuntimeError(
+            "SRT保存先が返されませんでした"
+        )
+
+    srt_path = Path(
+        srt_path
+    ).resolve()
+
+    # ======================================================
+    # SRT確認
+    # ======================================================
+
+    if not srt_path.exists():
+
+        raise RuntimeError(
+            f"SRTファイルの保存に失敗しました: {srt_path}"
+        )
+
+    if not srt_path.is_file():
+
+        raise RuntimeError(
+            "SRT保存先がファイルではありません"
+        )
+
+    if not srt_path.name.lower().endswith(
+        ".srt"
+    ):
+
+        raise ValueError(
+            "SRTファイルの拡張子が.srtではありません"
+        )
+
+    try:
+
+        srt_size = (
+            srt_path.stat().st_size
+        )
+
+    except OSError as error:
+
+        raise RuntimeError(
+            f"SRTファイルサイズを取得できません: {error}"
+        )
+
+    if srt_size <= 0:
+
+        raise RuntimeError(
+            "SRTファイルが0 bytesです"
+        )
+
+    log(
+        "SRT save COMPLETE"
+    )
+
+    log(
+        f"SRT: {srt_path}"
+    )
+
+    log(
+        f"SRT size: {srt_size} bytes"
+    )
+
+    log(
+        "MP3 → SRT 完了"
+    )
+
+    log(
+        "=========================================="
+    )
+
+    # ======================================================
+    # 戻り値
+    # ======================================================
+
+    return {
+
+        "mp3_file":
+            mp3_path.name,
+
+        "srt_file":
+            srt_path.name,
+
+        "srt_path":
+            str(srt_path),
+
+    }
+
+
+# ==========================================================
 # 字幕設定ログ
 #
 # ログ上も正式5キーへ統一する。
@@ -568,6 +817,484 @@ def subtitle_settings():
 
         log(
             f"字幕設定取得エラー: {error}"
+        )
+
+        traceback.print_exc()
+
+        return jsonify({
+
+            "success":
+                False,
+
+            "error":
+                str(error)
+
+        }), 500
+
+
+# ==========================================================
+# POST /subtitle-upload-mp3
+#
+# タブ2:
+#
+# ローカルMP3をdownloadsへ保存する。
+#
+# その後、フロント側から
+#
+#   /subtitle-create-srt
+#
+# を呼び出してSRTを作成する。
+#
+# ==========================================================
+
+@subtitle_bp.route(
+    "/subtitle-upload-mp3",
+    methods=["POST"]
+)
+def subtitle_upload_mp3():
+
+    log(
+        "=========================================="
+    )
+
+    log(
+        "POST /subtitle-upload-mp3"
+    )
+
+    try:
+
+        uploaded_file = request.files.get(
+            "file"
+        )
+
+        if uploaded_file is None:
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "error":
+                    "MP3ファイルが選択されていません。"
+
+            }), 400
+
+        original_filename = (
+            uploaded_file.filename
+            or ""
+        ).strip()
+
+        if not original_filename:
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "error":
+                    "MP3ファイル名がありません。"
+
+            }), 400
+
+        safe_name = safe_filename(
+            original_filename
+        )
+
+        if not safe_name:
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "error":
+                    "安全なファイル名を取得できません。"
+
+            }), 400
+
+        if not safe_name.lower().endswith(
+            ".mp3"
+        ):
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "error":
+                    "MP3ファイルを指定してください。"
+
+            }), 400
+
+        mp3_path = make_download_path(
+            safe_name
+        )
+
+        if mp3_path is None:
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "error":
+                    "MP3保存先を作成できません。"
+
+            }), 400
+
+        if not is_inside_download_dir(
+            mp3_path
+        ):
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "error":
+                    "不正なMP3保存先です。"
+
+            }), 400
+
+        # ==================================================
+        # downloads保存
+        # ==================================================
+
+        mp3_path.parent.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        existed = mp3_path.exists()
+
+        if existed:
+
+            log(
+                f"同名MP3を上書き: {mp3_path}"
+            )
+
+        uploaded_file.save(
+            str(mp3_path)
+        )
+
+        # ==================================================
+        # 保存確認
+        # ==================================================
+
+        if not mp3_path.exists():
+
+            raise RuntimeError(
+                "MP3ファイルの保存に失敗しました。"
+            )
+
+        if not mp3_path.is_file():
+
+            raise RuntimeError(
+                "MP3保存先がファイルではありません。"
+            )
+
+        mp3_size = (
+            mp3_path.stat().st_size
+        )
+
+        if mp3_size <= 0:
+
+            raise RuntimeError(
+                "保存されたMP3が0 bytesです。"
+            )
+
+        log(
+            f"MP3保存完了: {mp3_path}"
+        )
+
+        log(
+            f"size: {mp3_size} bytes"
+        )
+
+        log(
+            f"overwritten: {existed}"
+        )
+
+        return jsonify({
+
+            "success":
+                True,
+
+            "message":
+                "MP3を保存しました。",
+
+            "mp3_file":
+                mp3_path.name,
+
+            "filename":
+                mp3_path.name,
+
+            "path":
+                str(mp3_path),
+
+            "size":
+                mp3_size,
+
+            "overwritten":
+                existed
+
+        })
+
+    except Exception as error:
+
+        log(
+            "MP3アップロード失敗"
+        )
+
+        log(
+            f"error: {error}"
+        )
+
+        traceback.print_exc()
+
+        return jsonify({
+
+            "success":
+                False,
+
+            "error":
+                str(error)
+
+        }), 500
+
+
+# ==========================================================
+# POST /subtitle-create-srt
+#
+# MP3 → SRT
+#
+# downloadsに存在するMP3を指定し、
+# 共通関数 create_srt_from_mp3() を呼ぶ。
+#
+# ==========================================================
+
+@subtitle_bp.route(
+    "/subtitle-create-srt",
+    methods=["POST"]
+)
+def subtitle_create_srt():
+
+    log(
+        "=========================================="
+    )
+
+    log(
+        "POST /subtitle-create-srt"
+    )
+
+    try:
+
+        data = get_request_json()
+
+        log(
+            f"request data: {data}"
+        )
+
+        # ==================================================
+        # MP3ファイル名
+        #
+        # 互換キーも許可する。
+        # ==================================================
+
+        mp3_filename = get_value(
+
+            data,
+
+            "mp3_file",
+            "mp3",
+            "filename",
+            "input_mp3"
+
+        )
+
+        mp3_filename = safe_filename(
+            mp3_filename
+        )
+
+        # ==================================================
+        # 入力確認
+        # ==================================================
+
+        if not mp3_filename:
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "error":
+                    "MP3ファイル名が指定されていません。"
+
+            }), 400
+
+        # ==================================================
+        # 拡張子
+        # ==================================================
+
+        if not mp3_filename.lower().endswith(
+            ".mp3"
+        ):
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "error":
+                    "MP3ファイルを指定してください。"
+
+            }), 400
+
+        # ==================================================
+        # パス
+        # ==================================================
+
+        mp3_path = make_download_path(
+            mp3_filename
+        )
+
+        if mp3_path is None:
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "error":
+                    "MP3ファイルのパスを作成できません。"
+
+            }), 400
+
+        # ==================================================
+        # セキュリティ確認
+        # ==================================================
+
+        if not is_inside_download_dir(
+            mp3_path
+        ):
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "error":
+                    "不正なMP3パスです。"
+
+            }), 400
+
+        # ==================================================
+        # ファイル存在確認
+        # ==================================================
+
+        if not mp3_path.exists():
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "error":
+                    f"MP3ファイルがありません: {mp3_filename}"
+
+            }), 404
+
+        if not mp3_path.is_file():
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "error":
+                    "指定されたMP3パスがファイルではありません。"
+
+            }), 400
+
+        if mp3_path.stat().st_size <= 0:
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "error":
+                    "MP3ファイルが0 bytesです。"
+
+            }), 400
+
+        # ==================================================
+        # 共通MP3 → SRT処理
+        #
+        # タブ1・タブ2ともここへ集約する。
+        # ==================================================
+
+        result = create_srt_from_mp3(
+            mp3_path
+        )
+
+        # ==================================================
+        # 成功
+        # ==================================================
+
+        return jsonify({
+
+            "success":
+                True,
+
+            "message":
+                "MP3からSRTを作成しました。",
+
+            "mp3_file":
+                result["mp3_file"],
+
+            "srt_file":
+                result["srt_file"],
+
+            "srt_path":
+                result["srt_path"],
+
+            "files": {
+
+                "mp3":
+                    result["mp3_file"],
+
+                "srt":
+                    result["srt_file"]
+
+            }
+
+        })
+
+    except FileNotFoundError as error:
+
+        log(
+            f"MP3/SRTファイルがありません: {error}"
+        )
+
+        return jsonify({
+
+            "success":
+                False,
+
+            "error":
+                str(error)
+
+        }), 404
+
+    except Exception as error:
+
+        log(
+            "MP3 → SRT 作成失敗"
+        )
+
+        log(
+            f"error: {error}"
         )
 
         traceback.print_exc()
