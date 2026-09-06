@@ -93,10 +93,10 @@ SUBTITLE_FONT_PRESETS = {
             "白",
 
         "outline_color":
-            "黒",
+            "青",
 
         "outline_width":
-            2,
+            5,
 
     },
 
