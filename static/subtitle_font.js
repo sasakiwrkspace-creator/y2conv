@@ -7,8 +7,9 @@
 // 役割:
 // ・字幕フォント選択UI
 // ・#subtitle-font-button の操作
-// ・選択中設定の保持
-// ・色名 / HEXコードの管理
+// ・選択中プリセットの保持
+// ・文字色 / 縁取り色の選択
+// ・プリセットの折り畳み / 展開
 //
 // subtitle.jsから使用するAPI:
 //
@@ -19,6 +20,10 @@
 //   window.subtitleFont.getPresets()
 //
 //   window.subtitleFont.getSettings()
+//
+//   window.subtitleFont.setDisabled(true)
+//
+//   window.subtitleFont.update()
 //
 // =====================================
 
@@ -83,45 +88,10 @@
 
 
         // =====================================
-        // カラー定義
+        // プリセット
         //
-        // Python側の色名と一致させる。
-        // =====================================
-
-        const SUBTITLE_COLORS = {
-
-            "白":
-                "#FFFFFF",
-
-            "黒":
-                "#000000",
-
-            "赤":
-                "#FF0000",
-
-            "青":
-                "#0000FF",
-
-            "緑":
-                "#00FF00",
-
-            "黄":
-                "#FFFF00",
-
-            "オレンジ":
-                "#FFA500",
-
-            "水色":
-                "#00FFFF",
-
-            "紫":
-                "#800080"
-
-        };
-
-
-        // =====================================
-        // フォントプリセット
+        // Python側のプリセットと
+        // 同じ名前を使用する。
         // =====================================
 
         const FONT_PRESETS = {
@@ -191,24 +161,48 @@
                 outlineWidth:
                     3
 
-            },
-
-
-            "太字明朝": {
-
-                font:
-                    "Noto Serif CJK JP",
-
-                textColor:
-                    "白",
-
-                outlineColor:
-                    "黒",
-
-                outlineWidth:
-                    3
-
             }
+
+        };
+
+
+        // =====================================
+        // カラー
+        //
+        // 表示名とHEXをここで管理。
+        //
+        // subtitle.js / Python側には
+        // 名前とHEXの両方を渡せる。
+        // =====================================
+
+        const SUBTITLE_COLORS = {
+
+            "黒":
+                "#000000",
+
+            "白":
+                "#FFFFFF",
+
+            "赤":
+                "#FF0000",
+
+            "青":
+                "#0000FF",
+
+            "緑":
+                "#008000",
+
+            "黄":
+                "#FFFF00",
+
+            "オレンジ":
+                "#FFA500",
+
+            "水色":
+                "#00FFFF",
+
+            "紫":
+                "#800080"
 
         };
 
@@ -221,56 +215,39 @@
             "標準";
 
 
-        let selectedSettings =
-            createSettingsFromPreset(
-                selectedPreset
-            );
+        let selectedSettings = {
+
+            font:
+                FONT_PRESETS["標準"].font,
+
+            textColor:
+                FONT_PRESETS["標準"].textColor,
+
+            textColorHex:
+                SUBTITLE_COLORS[
+                    FONT_PRESETS["標準"].textColor
+                ],
+
+            outlineColor:
+                FONT_PRESETS["標準"].outlineColor,
+
+            outlineColorHex:
+                SUBTITLE_COLORS[
+                    FONT_PRESETS["標準"].outlineColor
+                ],
+
+            outlineWidth:
+                FONT_PRESETS["標準"].outlineWidth
+
+        };
+
+
+        let isDisabled =
+            false;
 
 
         // =====================================
-        // プリセットから設定作成
-        // =====================================
-
-        function createSettingsFromPreset(
-            presetName
-        ) {
-
-            const preset =
-                FONT_PRESETS[presetName] ||
-                FONT_PRESETS["標準"];
-
-
-            return {
-
-                font:
-                    preset.font,
-
-                textColor:
-                    preset.textColor,
-
-                textColorHex:
-                    getColorHex(
-                        preset.textColor
-                    ),
-
-                outlineColor:
-                    preset.outlineColor,
-
-                outlineColorHex:
-                    getColorHex(
-                        preset.outlineColor
-                    ),
-
-                outlineWidth:
-                    preset.outlineWidth
-
-            };
-
-        }
-
-
-        // =====================================
-        // 色 → HEX
+        // 色HEX取得
         // =====================================
 
         function getColorHex(
@@ -278,9 +255,140 @@
         ) {
 
             return (
-                SUBTITLE_COLORS[colorName] ||
+                SUBTITLE_COLORS[
+                    colorName
+                ] ||
                 "#FFFFFF"
             );
+
+        }
+
+
+        // =====================================
+        // 色名正規化
+        // =====================================
+
+        function normalizeColorName(
+            colorName,
+            defaultColor
+        ) {
+
+            if (
+                Object.prototype.hasOwnProperty.call(
+                    SUBTITLE_COLORS,
+                    colorName
+                )
+            ) {
+
+                return colorName;
+
+            }
+
+
+            return defaultColor;
+
+        }
+
+
+        // =====================================
+        // フォント名正規化
+        // =====================================
+
+        function normalizeFontName(
+            fontName
+        ) {
+
+            if (
+                fontName === null ||
+                fontName === undefined
+            ) {
+
+                return null;
+
+            }
+
+
+            const value =
+                String(
+                    fontName
+                ).trim();
+
+
+            if (!value) {
+
+                return null;
+
+            }
+
+
+            return value;
+
+        }
+
+
+        // =====================================
+        // 縁太さ正規化
+        // =====================================
+
+        function normalizeOutlineWidth(
+            value
+        ) {
+
+            let width =
+                Number(
+                    value
+                );
+
+
+            if (
+                !Number.isFinite(
+                    width
+                )
+            ) {
+
+                width =
+                    2;
+
+            }
+
+
+            width =
+                Math.round(
+                    width
+                );
+
+
+            width =
+                Math.max(
+                    0,
+                    Math.min(
+                        width,
+                        10
+                    )
+                );
+
+
+            return width;
+
+        }
+
+
+        // =====================================
+        // 現在設定から色HEXを再構築
+        // =====================================
+
+        function refreshColorHex() {
+
+            selectedSettings.textColorHex =
+                getColorHex(
+                    selectedSettings.textColor
+                );
+
+
+            selectedSettings.outlineColorHex =
+                getColorHex(
+                    selectedSettings.outlineColor
+                );
 
         }
 
@@ -290,7 +398,8 @@
         // =====================================
 
         function createColorDot(
-            color
+            colorName,
+            selected
         ) {
 
             const dot =
@@ -303,22 +412,28 @@
                 "subtitle-font-color-dot";
 
 
-            dot.textContent =
-                "●";
+            dot.style.backgroundColor =
+                getColorHex(
+                    colorName
+                );
 
 
-            dot.style.color =
-                color;
+            // 白色でも見えるようにする
+            dot.style.border =
+                colorName === "白"
+                    ? "1px solid #999"
+                    : "1px solid rgba(0,0,0,0.25)";
 
 
-            dot.style.marginRight =
-                "6px";
+            if (
+                selected
+            ) {
 
+                dot.classList.add(
+                    "selected"
+                );
 
-            dot.setAttribute(
-                "aria-hidden",
-                "true"
-            );
+            }
 
 
             return dot;
@@ -327,117 +442,180 @@
 
 
         // =====================================
-        // 色名表示用
-        //
-        // 例:
-        // ● 赤
+        // 色ラジオボタン作成
         // =====================================
 
-        function createColorOption(
-            select,
-            colorName
+        function createColorRadio(
+            groupName,
+            colorName,
+            currentValue
         ) {
 
-            const option =
+            const label =
                 document.createElement(
-                    "option"
+                    "label"
                 );
 
 
-            option.value =
+            label.className =
+                "subtitle-font-color-radio";
+
+
+            const input =
+                document.createElement(
+                    "input"
+                );
+
+
+            input.type =
+                "radio";
+
+
+            input.name =
+                groupName;
+
+
+            input.value =
                 colorName;
 
 
-            option.textContent =
-                "● " +
+            input.checked =
+                colorName === currentValue;
+
+
+            const dot =
+                createColorDot(
+
+                    colorName,
+
+                    colorName === currentValue
+
+                );
+
+
+            const text =
+                document.createElement(
+                    "span"
+                );
+
+
+            text.className =
+                "subtitle-font-color-name";
+
+
+            text.textContent =
                 colorName;
 
+
+            label.appendChild(
+                input
+            );
+
+
+            label.appendChild(
+                dot
+            );
+
+
+            label.appendChild(
+                text
+            );
+
+
+            return {
+
+                label:
+                    label,
+
+                input:
+                    input,
+
+                dot:
+                    dot
+
+            };
+
+        }
+
+
+        // =====================================
+        // ボタン表示
+        //
+        // 現在の文字色を
+        // ボタン文字色へ反映。
+        // =====================================
+
+        function updateButton() {
+
+            fontButton.textContent =
+                "字幕フォント";
+
+
+            fontButton.title =
+                "字幕フォント: " +
+                selectedPreset +
+                " / " +
+                selectedSettings.font +
+                " / " +
+                selectedSettings.textColor +
+                " / " +
+                selectedSettings.outlineColor +
+                " / 縁 " +
+                selectedSettings.outlineWidth;
+
+
+            // ---------------------------------
+            // 文字色
+            // ---------------------------------
+
+            fontButton.style.color =
+                selectedSettings.textColorHex;
+
+
+            fontButton.style.setProperty(
+                "--subtitle-text-color",
+                selectedSettings.textColorHex
+            );
+
+
+            // ---------------------------------
+            // 縁色
+            // ---------------------------------
+
+            fontButton.style.setProperty(
+                "--subtitle-outline-color",
+                selectedSettings.outlineColorHex
+            );
+
+
+            // ---------------------------------
+            // 白文字の場合でも
+            // 見やすくする。
+            // ---------------------------------
 
             if (
-                colorName ===
-                select.dataset.selectedColor
+                selectedSettings.textColor ===
+                "白"
             ) {
 
-                option.selected =
-                    true;
+                fontButton.style.textShadow =
+                    "0 1px 2px rgba(0,0,0,0.6)";
+
+            }
+            else {
+
+                fontButton.style.textShadow =
+                    "none";
 
             }
 
-
-            select.appendChild(
-                option
-            );
-
         }
 
 
         // =====================================
-        // 色Select作成
-        // =====================================
-
-        function createColorSelect(
-            colors,
-            value
-        ) {
-
-            const select =
-                document.createElement(
-                    "select"
-                );
-
-
-            select.className =
-                "subtitle-font-select";
-
-
-            select.dataset.selectedColor =
-                value;
-
-
-            colors.forEach(
-                function (colorName) {
-
-                    const option =
-                        document.createElement(
-                            "option"
-                        );
-
-
-                    option.value =
-                        colorName;
-
-
-                    option.textContent =
-                        "● " +
-                        colorName;
-
-
-                    if (
-                        colorName ===
-                        value
-                    ) {
-
-                        option.selected =
-                            true;
-
-                    }
-
-
-                    select.appendChild(
-                        option
-                    );
-
-                }
-            );
-
-
-            return select;
-
-        }
-
-
-        // =====================================
-        // 通常Select作成
+        // select生成
+        //
+        // フォント選択用
         // =====================================
 
         function createSelect(
@@ -493,40 +671,38 @@
 
 
         // =====================================
-        // ボタン表示
+        // ラベル作成
         // =====================================
 
-        function updateButton() {
+        function createFieldLabel(
+            text
+        ) {
 
-            fontButton.textContent =
-                "字幕フォント";
+            const label =
+                document.createElement(
+                    "div"
+                );
 
 
-            fontButton.title =
-                "字幕フォント: " +
-                selectedPreset +
-                " / " +
-                selectedSettings.font +
-                " / " +
-                selectedSettings.textColor +
-                " / " +
-                selectedSettings.outlineColor +
-                " / 縁 " +
-                selectedSettings.outlineWidth;
+            label.className =
+                "subtitle-font-dialog-label";
+
+
+            label.textContent =
+                text;
+
+
+            return label;
 
         }
 
 
         // =====================================
-        // 設定値表示
-        //
-        // 項目：値
+        // 現在の設定表示
         // =====================================
 
         function createSettingsPreview(
-            container,
-            settings,
-            presetName
+            container
         ) {
 
             container.innerHTML =
@@ -556,37 +732,27 @@
 
                 [
                     "プリセット",
-                    presetName
+                    selectedPreset
                 ],
 
                 [
                     "フォント",
-                    settings.font
+                    selectedSettings.font
                 ],
 
                 [
                     "文字色",
-                    settings.textColor
+                    selectedSettings.textColor
                 ],
 
                 [
-                    "文字色コード",
-                    settings.textColorHex
-                ],
-
-                [
-                    "縁色",
-                    settings.outlineColor
-                ],
-
-                [
-                    "縁色コード",
-                    settings.outlineColorHex
+                    "縁取り色",
+                    selectedSettings.outlineColor
                 ],
 
                 [
                     "縁の太さ",
-                    settings.outlineWidth
+                    selectedSettings.outlineWidth
                 ]
 
             ];
@@ -655,10 +821,250 @@
 
 
         // =====================================
-        // フォントダイアログ
+        // プリセットボタン
+        // =====================================
+
+        function createPresetButtons(
+            container,
+            presetSelect,
+            fontSelect,
+            textColorInputs,
+            outlineColorInputs,
+            outlineWidthInput,
+            updatePreview,
+            updateDialogTitle
+        ) {
+
+            container.innerHTML =
+                "";
+
+
+            Object.keys(
+                FONT_PRESETS
+            ).forEach(
+                function (presetName) {
+
+                    const button =
+                        document.createElement(
+                            "button"
+                        );
+
+
+                    button.type =
+                        "button";
+
+
+                    button.className =
+                        "subtitle-font-preset-button";
+
+
+                    button.textContent =
+                        presetName;
+
+
+                    if (
+                        presetName ===
+                        selectedPreset
+                    ) {
+
+                        button.classList.add(
+                            "selected"
+                        );
+
+                    }
+
+
+                    button.addEventListener(
+                        "click",
+                        function (event) {
+
+                            event.preventDefault();
+
+
+                            const preset =
+                                FONT_PRESETS[
+                                    presetName
+                                ];
+
+
+                            if (!preset) {
+
+                                return;
+
+                            }
+
+
+                            // ---------------------------------
+                            // プリセット名
+                            // ---------------------------------
+
+                            selectedPreset =
+                                presetName;
+
+
+                            presetSelect.value =
+                                presetName;
+
+
+                            // ---------------------------------
+                            // フォント
+                            // ---------------------------------
+
+                            fontSelect.value =
+                                preset.font;
+
+
+                            // ---------------------------------
+                            // 文字色
+                            // ---------------------------------
+
+                            textColorInputs.forEach(
+                                function (item) {
+
+                                    item.input.checked =
+                                        item.input.value ===
+                                        preset.textColor;
+
+                                    item.dot.classList.toggle(
+                                        "selected",
+                                        item.input.checked
+                                    );
+
+                                }
+                            );
+
+
+                            // ---------------------------------
+                            // 縁取り色
+                            // ---------------------------------
+
+                            outlineColorInputs.forEach(
+                                function (item) {
+
+                                    item.input.checked =
+                                        item.input.value ===
+                                        preset.outlineColor;
+
+                                    item.dot.classList.toggle(
+                                        "selected",
+                                        item.input.checked
+                                    );
+
+                                }
+                            );
+
+
+                            // ---------------------------------
+                            // 縁太さ
+                            // ---------------------------------
+
+                            outlineWidthInput.value =
+                                preset.outlineWidth;
+
+
+                            // ---------------------------------
+                            // ダイアログ内設定
+                            // ---------------------------------
+
+                            selectedSettings = {
+
+                                font:
+                                    preset.font,
+
+                                textColor:
+                                    preset.textColor,
+
+                                textColorHex:
+                                    getColorHex(
+                                        preset.textColor
+                                    ),
+
+                                outlineColor:
+                                    preset.outlineColor,
+
+                                outlineColorHex:
+                                    getColorHex(
+                                        preset.outlineColor
+                                    ),
+
+                                outlineWidth:
+                                    normalizeOutlineWidth(
+                                        preset.outlineWidth
+                                    )
+
+                            };
+
+
+                            // ---------------------------------
+                            // ボタンの選択表示
+                            // ---------------------------------
+
+                            Array.from(
+                                container.children
+                            ).forEach(
+                                function (child) {
+
+                                    child.classList.toggle(
+                                        "selected",
+                                        child === button
+                                    );
+
+                                }
+                            );
+
+
+                            // ---------------------------------
+                            // タイトル色
+                            // ---------------------------------
+
+                            updateDialogTitle();
+
+
+                            // ---------------------------------
+                            // プレビュー
+                            // ---------------------------------
+
+                            updatePreview();
+
+
+                            console.log(
+                                "[SUBTITLE_FONT] preset selected:",
+                                presetName,
+                                selectedSettings
+                            );
+
+                        }
+                    );
+
+
+                    container.appendChild(
+                        button
+                    );
+
+                }
+            );
+
+        }
+
+
+        // =====================================
+        // 字幕フォントダイアログ
         // =====================================
 
         function selectFontPreset() {
+
+            if (
+                isDisabled
+            ) {
+
+                return;
+
+            }
+
+
+            // =================================
+            // Overlay
+            // =================================
 
             const overlay =
                 document.createElement(
@@ -670,6 +1076,28 @@
                 "subtitle-font-dialog-overlay";
 
 
+            // ---------------------------------
+            // 重要:
+            //
+            // fixed表示をCSS側で確実にする。
+            // ---------------------------------
+
+            overlay.style.position =
+                "fixed";
+
+
+            overlay.style.inset =
+                "0";
+
+
+            overlay.style.zIndex =
+                "99999";
+
+
+            // =================================
+            // Dialog
+            // =================================
+
             const dialog =
                 document.createElement(
                     "div"
@@ -678,6 +1106,18 @@
 
             dialog.className =
                 "subtitle-font-dialog";
+
+
+            dialog.setAttribute(
+                "role",
+                "dialog"
+            );
+
+
+            dialog.setAttribute(
+                "aria-modal",
+                "true"
+            );
 
 
             // =================================
@@ -704,22 +1144,123 @@
 
 
             // =================================
-            // プリセット
+            // プリセット折り畳み
             // =================================
 
-            const presetLabel =
+            const presetSection =
                 document.createElement(
-                    "label"
+                    "div"
                 );
 
 
-            presetLabel.className =
-                "subtitle-font-dialog-label";
+            presetSection.className =
+                "subtitle-font-preset-section";
 
 
-            presetLabel.textContent =
-                "プリセット";
+            const presetHeader =
+                document.createElement(
+                    "button"
+                );
 
+
+            presetHeader.type =
+                "button";
+
+
+            presetHeader.className =
+                "subtitle-font-preset-header";
+
+
+            presetHeader.setAttribute(
+                "aria-expanded",
+                "false"
+            );
+
+
+            presetHeader.innerHTML =
+                "<span>プリセット</span>" +
+                "<span class=\"subtitle-font-preset-arrow\">▼</span>";
+
+
+            const presetContainer =
+                document.createElement(
+                    "div"
+                );
+
+
+            presetContainer.className =
+                "subtitle-font-preset-container";
+
+
+            presetContainer.hidden =
+                true;
+
+
+            presetHeader.addEventListener(
+                "click",
+                function (event) {
+
+                    event.preventDefault();
+
+
+                    const expanded =
+                        presetHeader.getAttribute(
+                            "aria-expanded"
+                        ) === "true";
+
+
+                    presetHeader.setAttribute(
+                        "aria-expanded",
+                        String(
+                            !expanded
+                        )
+                    );
+
+
+                    presetContainer.hidden =
+                        expanded;
+
+
+                    const arrow =
+                        presetHeader.querySelector(
+                            ".subtitle-font-preset-arrow"
+                        );
+
+
+                    if (arrow) {
+
+                        arrow.textContent =
+                            expanded
+                                ? "▼"
+                                : "▲";
+
+                    }
+
+                }
+            );
+
+
+            presetSection.appendChild(
+                presetHeader
+            );
+
+
+            presetSection.appendChild(
+                presetContainer
+            );
+
+
+            dialog.appendChild(
+                presetSection
+            );
+
+
+            // =================================
+            // プリセットSelect
+            //
+            // 内部状態確認用
+            // UI上では非表示。
+            // =================================
 
             const presetSelect =
                 createSelect(
@@ -733,17 +1274,12 @@
                 );
 
 
-            presetSelect.className =
-                "subtitle-font-select";
-
-
-            presetLabel.appendChild(
-                presetSelect
-            );
+            presetSelect.style.display =
+                "none";
 
 
             dialog.appendChild(
-                presetLabel
+                presetSelect
             );
 
 
@@ -751,18 +1287,20 @@
             // フォント
             // =================================
 
-            const fontLabel =
+            const fontField =
                 document.createElement(
-                    "label"
+                    "div"
                 );
 
 
-            fontLabel.className =
-                "subtitle-font-dialog-label";
+            fontField.className =
+                "subtitle-font-field";
 
 
-            fontLabel.textContent =
-                "フォント";
+            const fontLabel =
+                createFieldLabel(
+                    "フォント"
+                );
 
 
             const fontSelect =
@@ -801,13 +1339,18 @@
                 "subtitle-font-select";
 
 
-            fontLabel.appendChild(
+            fontField.appendChild(
+                fontLabel
+            );
+
+
+            fontField.appendChild(
                 fontSelect
             );
 
 
             dialog.appendChild(
-                fontLabel
+                fontField
             );
 
 
@@ -815,193 +1358,232 @@
             // 文字色
             // =================================
 
-            const textColorLabel =
+            const textColorField =
                 document.createElement(
-                    "label"
+                    "div"
                 );
 
 
-            textColorLabel.className =
-                "subtitle-font-dialog-label";
+            textColorField.className =
+                "subtitle-font-color-field";
 
 
-            textColorLabel.textContent =
-                "文字色";
-
-
-            const textColorDot =
-                createColorDot(
-                    getColorHex(
-                        selectedSettings.textColor
-                    )
+            const textColorTitle =
+                createFieldLabel(
+                    "文字色"
                 );
 
 
-            const textColorSelect =
-                createColorSelect(
-
-                    Object.keys(
-                        SUBTITLE_COLORS
-                    ),
-
-                    selectedSettings.textColor
-
+            const textColorOptions =
+                document.createElement(
+                    "div"
                 );
 
 
-            textColorLabel.appendChild(
-                textColorDot
+            textColorOptions.className =
+                "subtitle-font-color-options";
+
+
+            const textColorInputs =
+                [];
+
+
+            Object.keys(
+                SUBTITLE_COLORS
+            ).forEach(
+                function (colorName) {
+
+                    const item =
+                        createColorRadio(
+
+                            "subtitle-text-color",
+
+                            colorName,
+
+                            selectedSettings.textColor
+
+                        );
+
+
+                    textColorInputs.push(
+                        item
+                    );
+
+
+                    textColorOptions.appendChild(
+                        item.label
+                    );
+
+
+                    item.input.addEventListener(
+                        "change",
+                        function () {
+
+                            if (
+                                !item.input.checked
+                            ) {
+
+                                return;
+
+                            }
+
+
+                            selectedSettings.textColor =
+                                item.input.value;
+
+
+                            selectedSettings.textColorHex =
+                                getColorHex(
+                                    item.input.value
+                                );
+
+
+                            // ---------------------------------
+                            // タイトル色を変更
+                            // ---------------------------------
+
+                            updateDialogTitle();
+
+
+                            updateColorDotSelection(
+                                textColorInputs
+                            );
+
+
+                            updatePreview();
+
+                        }
+                    );
+
+                }
             );
 
 
-            textColorLabel.appendChild(
-                textColorSelect
+            textColorField.appendChild(
+                textColorTitle
+            );
+
+
+            textColorField.appendChild(
+                textColorOptions
             );
 
 
             dialog.appendChild(
-                textColorLabel
+                textColorField
             );
 
 
             // =================================
-            // 文字色コード
+            // 縁取り色
             // =================================
 
-            const textColorCodeLabel =
+            const outlineColorField =
                 document.createElement(
-                    "label"
+                    "div"
                 );
 
 
-            textColorCodeLabel.className =
-                "subtitle-font-dialog-label";
+            outlineColorField.className =
+                "subtitle-font-color-field";
 
 
-            textColorCodeLabel.textContent =
-                "文字色コード";
+            const outlineColorTitle =
+                createFieldLabel(
+                    "縁取り色"
+                );
 
 
-            const textColorCode =
+            const outlineColorOptions =
                 document.createElement(
-                    "span"
+                    "div"
                 );
 
 
-            textColorCode.className =
-                "subtitle-font-color-code";
+            outlineColorOptions.className =
+                "subtitle-font-color-options";
 
 
-            textColorCode.textContent =
-                getColorHex(
-                    selectedSettings.textColor
-                );
+            const outlineColorInputs =
+                [];
 
 
-            textColorCodeLabel.appendChild(
-                textColorCode
+            Object.keys(
+                SUBTITLE_COLORS
+            ).forEach(
+                function (colorName) {
+
+                    const item =
+                        createColorRadio(
+
+                            "subtitle-outline-color",
+
+                            colorName,
+
+                            selectedSettings.outlineColor
+
+                        );
+
+
+                    outlineColorInputs.push(
+                        item
+                    );
+
+
+                    outlineColorOptions.appendChild(
+                        item.label
+                    );
+
+
+                    item.input.addEventListener(
+                        "change",
+                        function () {
+
+                            if (
+                                !item.input.checked
+                            ) {
+
+                                return;
+
+                            }
+
+
+                            selectedSettings.outlineColor =
+                                item.input.value;
+
+
+                            selectedSettings.outlineColorHex =
+                                getColorHex(
+                                    item.input.value
+                                );
+
+
+                            updateColorDotSelection(
+                                outlineColorInputs
+                            );
+
+
+                            updatePreview();
+
+                        }
+                    );
+
+                }
+            );
+
+
+            outlineColorField.appendChild(
+                outlineColorTitle
+            );
+
+
+            outlineColorField.appendChild(
+                outlineColorOptions
             );
 
 
             dialog.appendChild(
-                textColorCodeLabel
-            );
-
-
-            // =================================
-            // 縁色
-            // =================================
-
-            const outlineColorLabel =
-                document.createElement(
-                    "label"
-                );
-
-
-            outlineColorLabel.className =
-                "subtitle-font-dialog-label";
-
-
-            outlineColorLabel.textContent =
-                "縁色";
-
-
-            const outlineColorDot =
-                createColorDot(
-                    getColorHex(
-                        selectedSettings.outlineColor
-                    )
-                );
-
-
-            const outlineColorSelect =
-                createColorSelect(
-
-                    Object.keys(
-                        SUBTITLE_COLORS
-                    ),
-
-                    selectedSettings.outlineColor
-
-                );
-
-
-            outlineColorLabel.appendChild(
-                outlineColorDot
-            );
-
-
-            outlineColorLabel.appendChild(
-                outlineColorSelect
-            );
-
-
-            dialog.appendChild(
-                outlineColorLabel
-            );
-
-
-            // =================================
-            // 縁色コード
-            // =================================
-
-            const outlineColorCodeLabel =
-                document.createElement(
-                    "label"
-                );
-
-
-            outlineColorCodeLabel.className =
-                "subtitle-font-dialog-label";
-
-
-            outlineColorCodeLabel.textContent =
-                "縁色コード";
-
-
-            const outlineColorCode =
-                document.createElement(
-                    "span"
-                );
-
-
-            outlineColorCode.className =
-                "subtitle-font-color-code";
-
-
-            outlineColorCode.textContent =
-                getColorHex(
-                    selectedSettings.outlineColor
-                );
-
-
-            outlineColorCodeLabel.appendChild(
-                outlineColorCode
-            );
-
-
-            dialog.appendChild(
-                outlineColorCodeLabel
+                outlineColorField
             );
 
 
@@ -1009,18 +1591,20 @@
             // 縁の太さ
             // =================================
 
-            const outlineWidthLabel =
+            const outlineWidthField =
                 document.createElement(
-                    "label"
+                    "div"
                 );
 
 
-            outlineWidthLabel.className =
-                "subtitle-font-dialog-label";
+            outlineWidthField.className =
+                "subtitle-font-field";
 
 
-            outlineWidthLabel.textContent =
-                "縁の太さ";
+            const outlineWidthLabel =
+                createFieldLabel(
+                    "縁の太さ"
+                );
 
 
             const outlineWidthInput =
@@ -1053,13 +1637,18 @@
                 "subtitle-font-width-input";
 
 
-            outlineWidthLabel.appendChild(
+            outlineWidthField.appendChild(
+                outlineWidthLabel
+            );
+
+
+            outlineWidthField.appendChild(
                 outlineWidthInput
             );
 
 
             dialog.appendChild(
-                outlineWidthLabel
+                outlineWidthField
             );
 
 
@@ -1082,118 +1671,190 @@
             );
 
 
-            function updatePreview() {
+            // =================================
+            // タイトル更新
+            //
+            // 文字色に連動。
+            // =================================
 
-                const textColor =
-                    textColorSelect.value;
+            function updateDialogTitle() {
 
-
-                const outlineColor =
-                    outlineColorSelect.value;
-
-
-                textColorDot.style.color =
-                    getColorHex(
-                        textColor
-                    );
+                title.style.color =
+                    selectedSettings.textColorHex;
 
 
-                outlineColorDot.style.color =
-                    getColorHex(
-                        outlineColor
-                    );
+                if (
+                    selectedSettings.textColor ===
+                    "白"
+                ) {
+
+                    title.style.textShadow =
+                        "0 1px 2px rgba(0,0,0,0.7)";
+
+                }
+                else {
+
+                    title.style.textShadow =
+                        "none";
+
+                }
+
+            }
 
 
-                textColorCode.textContent =
-                    getColorHex(
-                        textColor
-                    );
+            // =================================
+            // ラジオ色ドット更新
+            // =================================
 
+            function updateColorDotSelection(
+                items
+            ) {
 
-                outlineColorCode.textContent =
-                    getColorHex(
-                        outlineColor
-                    );
+                items.forEach(
+                    function (item) {
 
+                        item.dot.classList.toggle(
+                            "selected",
+                            item.input.checked
+                        );
 
-                createSettingsPreview(
-
-                    preview,
-
-                    {
-
-                        font:
-                            fontSelect.value,
-
-                        textColor:
-                            textColor,
-
-                        textColorHex:
-                            getColorHex(
-                                textColor
-                            ),
-
-                        outlineColor:
-                            outlineColor,
-
-                        outlineColorHex:
-                            getColorHex(
-                                outlineColor
-                            ),
-
-                        outlineWidth:
-                            Number(
-                                outlineWidthInput.value
-                            ) || 0
-
-                    },
-
-                    presetSelect.value
-
+                    }
                 );
 
             }
 
 
-            updatePreview();
+            // =================================
+            // 設定値をUIから読み取る
+            // =================================
+
+            function syncSettingsFromDialog() {
+
+                const selectedTextInput =
+                    textColorInputs.find(
+                        function (item) {
+
+                            return item.input.checked;
+
+                        }
+                    );
+
+
+                const selectedOutlineInput =
+                    outlineColorInputs.find(
+                        function (item) {
+
+                            return item.input.checked;
+
+                        }
+                    );
+
+
+                selectedSettings.font =
+                    normalizeFontName(
+                        fontSelect.value
+                    ) ||
+                    "Noto Sans CJK JP";
+
+
+                if (
+                    selectedTextInput
+                ) {
+
+                    selectedSettings.textColor =
+                        selectedTextInput.input.value;
+
+                }
+
+
+                if (
+                    selectedOutlineInput
+                ) {
+
+                    selectedSettings.outlineColor =
+                        selectedOutlineInput.input.value;
+
+                }
+
+
+                selectedSettings.outlineWidth =
+                    normalizeOutlineWidth(
+                        outlineWidthInput.value
+                    );
+
+
+                refreshColorHex();
+
+            }
 
 
             // =================================
-            // プリセット変更
+            // プレビュー更新
             // =================================
 
-            presetSelect.addEventListener(
+            function updatePreview() {
+
+                syncSettingsFromDialog();
+
+
+                createSettingsPreview(
+                    preview
+                );
+
+
+                updateDialogTitle();
+
+            }
+
+
+            // =================================
+            // プリセットボタン生成
+            // =================================
+
+            createPresetButtons(
+
+                presetContainer,
+
+                presetSelect,
+
+                fontSelect,
+
+                textColorInputs,
+
+                outlineColorInputs,
+
+                outlineWidthInput,
+
+                updatePreview,
+
+                updateDialogTitle
+
+            );
+
+
+            // =================================
+            // フォント変更
+            // =================================
+
+            fontSelect.addEventListener(
                 "change",
                 function () {
 
-                    const preset =
-                        FONT_PRESETS[
-                            presetSelect.value
-                        ];
+                    // 手動変更なので
+                    // プリセット名は維持する。
+                    updatePreview();
+
+                }
+            );
 
 
-                    if (!preset) {
+            // =================================
+            // 縁太さ変更
+            // =================================
 
-                        return;
-
-                    }
-
-
-                    fontSelect.value =
-                        preset.font;
-
-
-                    textColorSelect.value =
-                        preset.textColor;
-
-
-                    outlineColorSelect.value =
-                        preset.outlineColor;
-
-
-                    outlineWidthInput.value =
-                        preset.outlineWidth;
-
+            outlineWidthInput.addEventListener(
+                "input",
+                function () {
 
                     updatePreview();
 
@@ -1202,35 +1863,7 @@
 
 
             // =================================
-            // 手動変更
-            // =================================
-
-            fontSelect.addEventListener(
-                "change",
-                updatePreview
-            );
-
-
-            textColorSelect.addEventListener(
-                "change",
-                updatePreview
-            );
-
-
-            outlineColorSelect.addEventListener(
-                "change",
-                updatePreview
-            );
-
-
-            outlineWidthInput.addEventListener(
-                "input",
-                updatePreview
-            );
-
-
-            // =================================
-            // ボタン
+            // ボタンエリア
             // =================================
 
             const buttonArea =
@@ -1242,6 +1875,10 @@
             buttonArea.className =
                 "subtitle-font-dialog-buttons";
 
+
+            // =================================
+            // キャンセル
+            // =================================
 
             const cancelButton =
                 document.createElement(
@@ -1260,6 +1897,10 @@
             cancelButton.textContent =
                 "キャンセル";
 
+
+            // =================================
+            // 決定
+            // =================================
 
             const okButton =
                 document.createElement(
@@ -1293,6 +1934,10 @@
                 buttonArea
             );
 
+
+            // =================================
+            // Overlay → Dialog
+            // =================================
 
             overlay.appendChild(
                 dialog
@@ -1330,7 +1975,7 @@
 
 
             // =================================
-            // キー
+            // キーボード
             // =================================
 
             function keydownHandler(
@@ -1342,7 +1987,11 @@
                     "Escape"
                 ) {
 
+                    event.preventDefault();
+
                     closeDialog();
+
+                    return;
 
                 }
 
@@ -1352,14 +2001,20 @@
                     "Enter"
                 ) {
 
+                    // 数値入力中のEnter以外
+                    // 決定として扱う。
+
                     if (
-                        document.activeElement ===
+                        event.target ===
                         outlineWidthInput
                     ) {
 
                         return;
 
                     }
+
+
+                    event.preventDefault();
 
 
                     okButton.click();
@@ -1402,81 +2057,59 @@
                     event.preventDefault();
 
 
+                    syncSettingsFromDialog();
+
+
+                    // ---------------------------------
+                    // プリセット名
+                    // ---------------------------------
+
                     const presetName =
-                        presetSelect.value;
-
-
-                    if (
-                        !FONT_PRESETS[
-                            presetName
-                        ]
-                    ) {
-
-                        return;
-
-                    }
-
-
-                    let outlineWidth =
-                        Number(
-                            outlineWidthInput.value
-                        );
-
-
-                    if (
-                        !Number.isFinite(
-                            outlineWidth
-                        )
-                    ) {
-
-                        outlineWidth =
-                            2;
-
-                    }
-
-
-                    outlineWidth =
-                        Math.max(
-                            0,
-                            Math.min(
-                                10,
-                                Math.round(
-                                    outlineWidth
-                                )
-                            )
-                        );
+                        presetSelect.value ||
+                        selectedPreset;
 
 
                     selectedPreset =
                         presetName;
 
 
-                    selectedSettings = {
+                    // ---------------------------------
+                    // 最終設定
+                    // ---------------------------------
 
-                        font:
-                            fontSelect.value,
+                    selectedSettings =
+                        {
 
-                        textColor:
-                            textColorSelect.value,
+                            font:
+                                selectedSettings.font,
 
-                        textColorHex:
-                            getColorHex(
-                                textColorSelect.value
-                            ),
+                            textColor:
+                                selectedSettings.textColor,
 
-                        outlineColor:
-                            outlineColorSelect.value,
+                            textColorHex:
+                                getColorHex(
+                                    selectedSettings.textColor
+                                ),
 
-                        outlineColorHex:
-                            getColorHex(
-                                outlineColorSelect.value
-                            ),
+                            outlineColor:
+                                selectedSettings.outlineColor,
 
-                        outlineWidth:
-                            outlineWidth
+                            outlineColorHex:
+                                getColorHex(
+                                    selectedSettings.outlineColor
+                                ),
 
-                    };
+                            outlineWidth:
+                                normalizeOutlineWidth(
+                                    selectedSettings.outlineWidth
+                                )
 
+                        };
+
+
+                    // ---------------------------------
+                    // ボタン更新
+                    // ---------------------------------
 
                     updateButton();
 
@@ -1516,13 +2149,33 @@
 
 
             // =================================
+            // 初期表示
+            // =================================
+
+            updateColorDotSelection(
+                textColorInputs
+            );
+
+
+            updateColorDotSelection(
+                outlineColorInputs
+            );
+
+
+            updateDialogTitle();
+
+
+            updatePreview();
+
+
+            // =================================
             // フォーカス
             // =================================
 
             setTimeout(
                 function () {
 
-                    presetSelect.focus();
+                    presetHeader.focus();
 
                 },
                 0
@@ -1543,7 +2196,8 @@
 
 
                 if (
-                    fontButton.disabled
+                    fontButton.disabled ||
+                    isDisabled
                 ) {
 
                     return;
@@ -1580,11 +2234,16 @@
 
 
             // ---------------------------------
-            // 現在の全設定
+            // 現在設定
+            //
+            // subtitle.js → API送信用
             // ---------------------------------
 
             getSettings:
                 function () {
+
+                    refreshColorHex();
+
 
                     return {
 
@@ -1641,10 +2300,39 @@
                         presetName;
 
 
-                    selectedSettings =
-                        createSettingsFromPreset(
+                    const preset =
+                        FONT_PRESETS[
                             presetName
-                        );
+                        ];
+
+
+                    selectedSettings = {
+
+                        font:
+                            preset.font,
+
+                        textColor:
+                            preset.textColor,
+
+                        textColorHex:
+                            getColorHex(
+                                preset.textColor
+                            ),
+
+                        outlineColor:
+                            preset.outlineColor,
+
+                        outlineColorHex:
+                            getColorHex(
+                                preset.outlineColor
+                            ),
+
+                        outlineWidth:
+                            normalizeOutlineWidth(
+                                preset.outlineWidth
+                            )
+
+                    };
 
 
                     updateButton();
@@ -1674,7 +2362,39 @@
 
 
             // ---------------------------------
-            // ボタン表示更新
+            // 無効化
+            //
+            // subtitle.jsから
+            // 処理中に呼び出せる。
+            // ---------------------------------
+
+            setDisabled:
+                function (
+                    disabled
+                ) {
+
+                    isDisabled =
+                        Boolean(
+                            disabled
+                        );
+
+
+                    fontButton.disabled =
+                        isDisabled;
+
+
+                    fontButton.setAttribute(
+                        "aria-disabled",
+                        String(
+                            isDisabled
+                        )
+                    );
+
+                },
+
+
+            // ---------------------------------
+            // 表示更新
             // ---------------------------------
 
             update:
