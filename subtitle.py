@@ -4,20 +4,53 @@
 #
 # MP4動画へSRT字幕を焼き込む
 #
+# ==========================================================
+#
 # 字幕設定の唯一の情報源:
 #   subtitle_font.py
 #
-# 標準:
-#   フォント     : Noto Sans CJK JP
-#   文字色       : 白
-#   縁色         : 青
-#   縁太さ       : 5
+# 3ファイル共通の正式設定名:
 #
-# subtitle.py自身では
+#   preset_name
+#   font
 #   text_color
 #   outline_color
 #   outline_width
-# を標準値としてハードコードしない。
+#
+# ==========================================================
+#
+# 役割:
+#
+#   subtitle_font.py
+#       ↓
+#   字幕設定の定義・標準値・正規化
+#
+#   subtitle_routes.py
+#       ↓
+#   HTTP入力の受付・入力名の吸収
+#
+#   subtitle.py
+#       ↓
+#   FFmpegによる字幕焼き込み
+#
+# ==========================================================
+#
+# 重要:
+#
+# subtitle.pyでは
+#
+#   color
+#   textColor
+#   outlineColor
+#   stroke_color
+#   strokeColor
+#   outlineWidth
+#   strokeWidth
+#
+# などの別名を使用しない。
+#
+# それらの表記ゆれを吸収する責任は
+# subtitle_routes.py側に限定する。
 #
 # ==========================================================
 
@@ -35,7 +68,6 @@ from config import DOWNLOAD_DIR
 from subtitle_font import (
     SUBTITLE_COLORS,
     get_default_subtitle_font_settings,
-    select_subtitle_font,
 )
 
 
@@ -57,6 +89,22 @@ FFMPEG_PRESET = "ultrafast"
 
 # 画質
 FFMPEG_CRF = "23"
+
+
+# ==========================================================
+# 共通設定キー
+#
+# subtitle_font.py / subtitle_routes.py / subtitle.py
+# で使用する正式名称。
+# ==========================================================
+
+SUBTITLE_SETTING_KEYS = (
+    "preset_name",
+    "font",
+    "text_color",
+    "outline_color",
+    "outline_width",
+)
 
 
 # ==========================================================
@@ -402,16 +450,6 @@ def validate_srt_encoding(
 
 # ==========================================================
 # フォントfamily取得
-#
-# fc-scanのfamily出力は、TTCなどの場合
-# 複数familyが連結されることがある。
-#
-# 例:
-# Noto Sans CJK JPNoto Sans CJK KRNoto ...
-#
-# そのため、subtitle.pyでは
-# FontNameとしてfc-scanの連結文字列を
-# そのまま使用しない。
 # ==========================================================
 
 def get_font_family_from_path(
@@ -470,8 +508,6 @@ def get_font_family_from_path(
 
             continue
 
-        # fc-scanのfamily情報を
-        # 重複しない形で保持
         if line not in families:
 
             families.append(
@@ -482,11 +518,6 @@ def get_font_family_from_path(
 
         return None
 
-    # 最初のfamilyを使用。
-    #
-    # NotoSansCJK-Regular.ttcでは
-    # 環境によって複数familyが返るため、
-    # 連結文字列を作らない。
     family = families[0]
 
     if "," in family:
@@ -668,6 +699,9 @@ def find_japanese_font(
 
     # ======================================================
     # 2. subtitle_font.pyの指定フォント
+    #
+    # 正式名称:
+    #   font
     # ======================================================
 
     if requested_font:
@@ -729,11 +763,11 @@ def find_japanese_font(
             )
 
             log(
-                f"requested: {requested_font}"
+                f"font: {requested_font}"
             )
 
             log(
-                f"family: {matched.get('family')}"
+                f"actual family: {matched.get('family')}"
             )
 
             log(
@@ -1030,10 +1064,6 @@ def find_japanese_font(
 
                 continue
 
-    # ======================================================
-    # 見つからない
-    # ======================================================
-
     log(
         "日本語フォントが見つかりませんでした。"
     )
@@ -1127,12 +1157,23 @@ def escape_ffmpeg_value(
 # ASSカラー取得
 #
 # 色の定義はsubtitle_font.pyだけを見る。
+#
+# subtitle.pyでは
+#   白
+#   青
+#   黒
+# などのカラー設定値を定義しない。
 # ==========================================================
 
 def get_ass_color(
-    color_name,
-    fallback_name
+    color_name
 ):
+
+    if color_name is None:
+
+        raise RuntimeError(
+            "字幕カラーが指定されていません。"
+        )
 
     color_info = (
         SUBTITLE_COLORS.get(
@@ -1140,65 +1181,132 @@ def get_ass_color(
         )
     )
 
-    if color_info:
+    if not color_info:
 
-        ass_color = color_info.get(
-            "ass"
+        raise RuntimeError(
+            f"字幕カラーが定義されていません: "
+            f"{color_name}"
         )
 
-        if ass_color:
-
-            return str(
-                ass_color
-            )
-
-    fallback_info = (
-        SUBTITLE_COLORS.get(
-            fallback_name
-        )
+    ass_color = color_info.get(
+        "ass"
     )
 
-    if fallback_info:
+    if not ass_color:
 
-        ass_color = fallback_info.get(
-            "ass"
+        raise RuntimeError(
+            f"字幕カラーのASS値が定義されていません: "
+            f"{color_name}"
         )
 
-        if ass_color:
-
-            return str(
-                ass_color
-            )
-
-    raise RuntimeError(
-        f"字幕カラーが定義されていません: "
-        f"{color_name}"
+    return str(
+        ass_color
     )
 
 
 # ==========================================================
 # 字幕設定正規化
 #
-# subtitle_font.pyを唯一の設定元にする。
+# ==========================================================
 #
-# ここでは色・縁太さのデフォルト値を
-# 定義しない。
+# subtitle.pyに入ってくる設定は、
+# subtitle_routes.pyを経由する場合も、
+# CLIから直接来る場合も、
+# subtitle_font.pyを唯一の正規化元とする。
+#
+# 正式名称:
+#
+#   preset_name
+#   font
+#   text_color
+#   outline_color
+#   outline_width
+#
 # ==========================================================
 
 def normalize_subtitle_settings(
     subtitle_settings=None
 ):
 
-    if isinstance(
+    if subtitle_settings is None:
+
+        return (
+            get_default_subtitle_font_settings()
+        )
+
+    if not isinstance(
         subtitle_settings,
         dict
     ):
 
-        return select_subtitle_font(
-            settings=subtitle_settings
+        raise TypeError(
+            "subtitle_settingsはdictで指定してください。"
         )
 
-    return select_subtitle_font()
+    # ======================================================
+    # 正式名称だけを使用
+    #
+    # 別名はsubtitle_routes.pyで吸収済み。
+    # ======================================================
+
+    normalized = {}
+
+    for key in SUBTITLE_SETTING_KEYS:
+
+        if key in subtitle_settings:
+
+            normalized[key] = (
+                subtitle_settings.get(
+                    key
+                )
+            )
+
+    # ======================================================
+    # subtitle_font.py側で正規化
+    # ======================================================
+
+    from subtitle_font import select_subtitle_font
+
+    normalized = (
+        select_subtitle_font(
+            settings=normalized
+        )
+    )
+
+    # ======================================================
+    # 最終的に正式名称5つだけを保証
+    # ======================================================
+
+    result = {
+
+        "preset_name":
+            normalized.get(
+                "preset_name"
+            ),
+
+        "font":
+            normalized.get(
+                "font"
+            ),
+
+        "text_color":
+            normalized.get(
+                "text_color"
+            ),
+
+        "outline_color":
+            normalized.get(
+                "outline_color"
+            ),
+
+        "outline_width":
+            normalized.get(
+                "outline_width"
+            ),
+
+    }
+
+    return result
 
 
 # ==========================================================
@@ -1232,10 +1340,16 @@ def make_subtitle_filter(
     )
 
     # ======================================================
-    # subtitle_font.pyから取得
+    # 正式名称5つから取得
     # ======================================================
 
-    selected_font = (
+    preset_name = (
+        subtitle_settings.get(
+            "preset_name"
+        )
+    )
+
+    font = (
         subtitle_settings.get(
             "font"
         )
@@ -1263,7 +1377,7 @@ def make_subtitle_filter(
     # 値確認
     # ======================================================
 
-    if selected_font is None:
+    if font is None:
 
         raise RuntimeError(
             "字幕フォントが設定されていません。"
@@ -1310,22 +1424,16 @@ def make_subtitle_filter(
 
     # ======================================================
     # ASSカラー
+    #
+    # デフォルト値はここでは設定しない。
     # ======================================================
 
     text_color = get_ass_color(
-
-        text_color_name,
-
-        "白"
-
+        text_color_name
     )
 
     outline_color = get_ass_color(
-
-        outline_color_name,
-
-        "黒"
-
+        outline_color_name
     )
 
     # ======================================================
@@ -1333,9 +1441,6 @@ def make_subtitle_filter(
     #
     # 実際に存在するフォントを検出した場合は、
     # そのfamilyを使用。
-    #
-    # ただしfc-scanが不正な連結familyを返した場合は
-    # requested fontへ戻す。
     # ======================================================
 
     font_name = None
@@ -1373,7 +1478,7 @@ def make_subtitle_filter(
     if not font_name:
 
         font_name = str(
-            selected_font
+            font
         ).strip()
 
     if not font_name:
@@ -1477,37 +1582,37 @@ def make_subtitle_filter(
     )
 
     log(
-        f"Preset: "
-        f"{subtitle_settings.get('preset_name')}"
+        f"preset_name: "
+        f"{preset_name}"
     )
 
     log(
-        f"FontName: "
+        f"font: "
         f"{font_name}"
     )
 
     log(
-        f"文字色: "
+        f"text_color: "
         f"{text_color_name}"
     )
 
     log(
-        f"文字色ASS: "
+        f"text_color ASS: "
         f"{text_color}"
     )
 
     log(
-        f"縁色: "
+        f"outline_color: "
         f"{outline_color_name}"
     )
 
     log(
-        f"縁色ASS: "
+        f"outline_color ASS: "
         f"{outline_color}"
     )
 
     log(
-        f"縁太さ: "
+        f"outline_width: "
         f"{outline_width}"
     )
 
@@ -1628,7 +1733,7 @@ def embed_subtitle(
     # ======================================================
     # 字幕設定
     #
-    # subtitle_font.pyに一本化
+    # subtitle_font.pyを唯一の設定元とする。
     # ======================================================
 
     subtitle_settings = (
@@ -1710,10 +1815,11 @@ def embed_subtitle(
     ffmpeg_path = check_ffmpeg()
 
     # ======================================================
-    # 選択フォント
+    # 正式名称:
+    #   font
     # ======================================================
 
-    requested_font = (
+    font = (
         subtitle_settings.get(
             "font"
         )
@@ -1725,7 +1831,7 @@ def embed_subtitle(
 
     log(
         str(
-            requested_font
+            font
         )
     )
 
@@ -1734,7 +1840,7 @@ def embed_subtitle(
     # ======================================================
 
     font_info = find_japanese_font(
-        requested_font
+        font
     )
 
     if font_info:
@@ -2545,27 +2651,27 @@ def main():
         )
 
         print(
-            f"プリセット: "
+            f"preset_name: "
             f"{subtitle_settings.get('preset_name')}"
         )
 
         print(
-            f"フォント: "
+            f"font: "
             f"{subtitle_settings.get('font')}"
         )
 
         print(
-            f"文字色: "
+            f"text_color: "
             f"{subtitle_settings.get('text_color')}"
         )
 
         print(
-            f"縁色: "
+            f"outline_color: "
             f"{subtitle_settings.get('outline_color')}"
         )
 
         print(
-            f"縁太さ: "
+            f"outline_width: "
             f"{subtitle_settings.get('outline_width')}"
         )
 
