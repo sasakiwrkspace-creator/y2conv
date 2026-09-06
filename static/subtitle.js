@@ -17,8 +17,7 @@
 // ・フォントUIは subtitle_font.js が担当
 // ・subtitle.js はフォントUIを操作しない
 // ・subtitle_font.js から現在の設定を取得
-// ・字幕MP4作成時にフォント設定をAPIへ送信
-//
+// ・字幕MP4作成時に全フォント設定をAPIへ送信
 // =====================================
 
 (function () {
@@ -205,14 +204,15 @@
 
 
         // =====================================
-        // 字幕フォント設定取得
+        // フォント設定取得
         //
         // subtitle_font.js が管理する。
         //
-        // getSettings() があれば、
-        // プリセット名だけでなく
-        // フォント・色・縁太さも取得する。
+        // getSettings() が存在する場合:
+        // 現在の全設定を取得。
         //
+        // 未読み込みの場合:
+        // 安全な標準設定を返す。
         // =====================================
 
         function getFontSettings() {
@@ -261,9 +261,15 @@
                                 "#000000",
 
                             outline_width:
-                                Number(
-                                    settings.outline_width
-                                ) || 0
+                                Number.isFinite(
+                                    Number(
+                                        settings.outline_width
+                                    )
+                                )
+                                    ? Number(
+                                        settings.outline_width
+                                    )
+                                    : 2
 
                         };
 
@@ -272,7 +278,7 @@
                 }
                 catch (error) {
 
-                    console.warn(
+                    console.error(
                         "[SUBTITLE] フォント設定取得エラー:",
                         error
                     );
@@ -281,10 +287,6 @@
 
             }
 
-
-            // ---------------------------------
-            // subtitle_font.js が未読込の場合
-            // ---------------------------------
 
             return {
 
@@ -315,9 +317,8 @@
 
 
         // =====================================
+        // 後方互換:
         // プリセット名だけ取得
-        //
-        // 既存コードとの互換用
         // =====================================
 
         function getFontPreset() {
@@ -875,8 +876,7 @@
         // /subtitle-create-mp4
         //
         // subtitle_font.jsから
-        // 現在の設定を取得して送信する。
-        //
+        // 現在の全設定を取得して送信。
         // =====================================
 
         async function embedSubtitle(
@@ -902,10 +902,6 @@
             }
 
 
-            // =================================
-            // 現在の字幕フォント設定
-            // =================================
-
             const fontSettings =
                 getFontSettings();
 
@@ -915,10 +911,6 @@
                 fontSettings
             );
 
-
-            // =================================
-            // API送信データ
-            // =================================
 
             const requestBody = {
 
@@ -957,10 +949,6 @@
                 requestBody
             );
 
-
-            // =================================
-            // API
-            // =================================
 
             const response =
                 await fetch(
@@ -1234,7 +1222,6 @@
 
                 event.preventDefault();
 
-
                 mp3Input.click();
 
             }
@@ -1291,7 +1278,6 @@
 
                 event.preventDefault();
 
-
                 mp4Input.click();
 
             }
@@ -1345,7 +1331,6 @@
             function (event) {
 
                 event.preventDefault();
-
 
                 srtInput.click();
 
@@ -1718,22 +1703,6 @@
 
 
                     // =================================
-                    // 字幕設定取得
-                    //
-                    // API送信直前の値を取得する。
-                    // =================================
-
-                    const fontSettings =
-                        getFontSettings();
-
-
-                    console.log(
-                        "[SUBTITLE] 使用フォント設定:",
-                        fontSettings
-                    );
-
-
-                    // =================================
                     // 字幕焼き込み
                     // =================================
 
@@ -1742,6 +1711,16 @@
                         "字幕を動画に付けています...\n" +
                         "しばらくお待ちください。"
 
+                    );
+
+
+                    const fontSettings =
+                        getFontSettings();
+
+
+                    console.log(
+                        "[SUBTITLE] 使用する字幕設定:",
+                        fontSettings
                     );
 
 
@@ -1773,9 +1752,13 @@
                         "\n" +
                         "文字色: " +
                         fontSettings.text_color +
+                        " " +
+                        fontSettings.text_color_hex +
                         "\n" +
                         "縁色: " +
                         fontSettings.outline_color +
+                        " " +
+                        fontSettings.outline_color_hex +
                         "\n" +
                         "縁の太さ: " +
                         fontSettings.outline_width +
