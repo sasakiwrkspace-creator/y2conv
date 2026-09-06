@@ -581,151 +581,185 @@
         // =====================================
         // ラジオボタン生成
         // =====================================
-
+        
         function createColorRadioGroup(
             name,
             colors,
             selectedColor,
             onChange
         ) {
-
+        
             const group =
                 document.createElement(
                     "div"
                 );
-
-
+        
+        
             group.className =
                 "subtitle-font-radio-group";
-
-
+        
+        
             colors.forEach(
                 function (colorName) {
-
+        
                     const label =
                         document.createElement(
                             "label"
                         );
-
-
+        
+        
                     label.className =
                         "subtitle-font-radio-label";
-
-
+        
+        
                     const input =
                         document.createElement(
                             "input"
                         );
-
-
+        
+        
                     input.type =
                         "radio";
-
-
+        
+        
                     input.name =
                         name;
-
-
+        
+        
                     input.value =
                         colorName;
-
-
+        
+        
                     input.checked =
                         colorName ===
                         selectedColor;
-
-
+        
+        
+                    // ---------------------------------
+                    // 色を表示する丸
+                    // ---------------------------------
+        
                     const dot =
                         document.createElement(
                             "span"
                         );
-
-
+        
+        
                     dot.className =
                         "subtitle-font-radio-dot";
-
-
+        
+        
                     dot.style.backgroundColor =
                         getColorHex(
                             colorName
                         );
-
-
+        
+        
+                    // ---------------------------------
+                    // 色名
+                    // ---------------------------------
+        
                     const text =
                         document.createElement(
                             "span"
                         );
-
-
+        
+        
+                    text.className =
+                        "subtitle-font-radio-text";
+        
+        
                     text.textContent =
                         colorName;
-
-
-                    const hex =
-                        document.createElement(
-                            "span"
-                        );
-
-
-                    hex.className =
-                        "subtitle-font-radio-hex";
-
-
-                    hex.textContent =
-                        getColorHex(
-                            colorName
-                        );
-
-
+        
+        
+                    // ---------------------------------
+                    // ラベル内に配置
+                    // ---------------------------------
+        
                     label.appendChild(
                         input
                     );
-
-
+        
+        
                     label.appendChild(
                         dot
                     );
-
-
+        
+        
                     label.appendChild(
                         text
                     );
-
-
-                    label.appendChild(
-                        hex
-                    );
-
-
+        
+        
+                    // ---------------------------------
+                    // 選択状態をラベルに反映
+                    // ---------------------------------
+        
+                    if (
+                        input.checked
+                    ) {
+        
+                        label.classList.add(
+                            "selected"
+                        );
+        
+                    }
+        
+        
                     input.addEventListener(
                         "change",
                         function () {
-
+        
                             if (!input.checked) {
-
+        
                                 return;
-
+        
                             }
-
-
+        
+        
+                            // 同じグループの
+                            // 選択状態を更新
+                            const allLabels =
+                                group.querySelectorAll(
+                                    ".subtitle-font-radio-label"
+                                );
+        
+        
+                            allLabels.forEach(
+                                function (item) {
+        
+                                    item.classList.remove(
+                                        "selected"
+                                    );
+        
+                                }
+                            );
+        
+        
+                            label.classList.add(
+                                "selected"
+                            );
+        
+        
                             onChange(
                                 colorName
                             );
-
+        
                         }
                     );
-
-
+        
+        
                     group.appendChild(
                         label
                     );
-
+        
                 }
             );
-
-
+        
+        
             return group;
-
+        
         }
 
 
