@@ -75,7 +75,7 @@ def ensure_download_dir():
 
 
 # ==========================================================
-# ファイル拡張子
+# 拡張子
 # ==========================================================
 
 def get_file_extension(
@@ -380,10 +380,19 @@ def save_uploaded_file(
     )
 
     return {
-        "filename": safe_filename,
-        "path": save_path,
-        "size": file_size,
-        "overwritten": existed
+
+        "filename":
+            safe_filename,
+
+        "path":
+            save_path,
+
+        "size":
+            file_size,
+
+        "overwritten":
+            existed
+
     }
 
 
@@ -626,8 +635,6 @@ def create_srt_from_mp3(
 
 # ==========================================================
 # MP4 + SRT → 字幕MP4
-#
-# subtitle_settingsを追加
 # ==========================================================
 
 def create_subtitle_mp4(
@@ -648,9 +655,9 @@ def create_subtitle_mp4(
         )
     )
 
-    # ---------------------------------
+    # ------------------------------------------------------
     # MP4確認
-    # ---------------------------------
+    # ------------------------------------------------------
 
     if not os.path.exists(
         mp4_path
@@ -686,9 +693,9 @@ def create_subtitle_mp4(
             "MP4ファイルが0 bytesです"
         )
 
-    # ---------------------------------
+    # ------------------------------------------------------
     # SRT確認
-    # ---------------------------------
+    # ------------------------------------------------------
 
     if not os.path.exists(
         srt_path
@@ -724,9 +731,12 @@ def create_subtitle_mp4(
             "SRTファイルが0 bytesです"
         )
 
-    # ---------------------------------
+    # ------------------------------------------------------
     # 字幕設定
-    # ---------------------------------
+    #
+    # 既にselect_subtitle_font()済みなら
+    # そのまま使用する。
+    # ------------------------------------------------------
 
     if not isinstance(
         subtitle_settings,
@@ -739,11 +749,44 @@ def create_subtitle_mp4(
 
     else:
 
-        subtitle_settings = (
-            select_subtitle_font(
-                settings=subtitle_settings
+        # settings辞書をそのまま維持しながら
+        # select_subtitle_font()で正規化する。
+        try:
+
+            subtitle_settings = (
+                select_subtitle_font(
+                    settings=subtitle_settings
+                )
             )
-        )
+
+        except TypeError:
+
+            # 古いsubtitle_font.pyとの互換用
+            subtitle_settings = (
+                select_subtitle_font(
+
+                    font=subtitle_settings.get(
+                        "font"
+                    ),
+
+                    text_color=subtitle_settings.get(
+                        "text_color"
+                    ),
+
+                    outline_color=subtitle_settings.get(
+                        "outline_color"
+                    ),
+
+                    outline_width=subtitle_settings.get(
+                        "outline_width"
+                    ),
+
+                    preset=subtitle_settings.get(
+                        "preset"
+                    )
+
+                )
+            )
 
     print(
         "==========================================",
@@ -778,40 +821,35 @@ def create_subtitle_mp4(
         flush=True
     )
 
-    # ---------------------------------
+    # ------------------------------------------------------
     # subtitle.py
-    # ---------------------------------
+    # ------------------------------------------------------
 
     import subtitle
 
-    if hasattr(
+    subtitle_function = getattr(
         subtitle,
-        "create_subtitle_mp4"
-    ):
+        "create_subtitle_mp4",
+        None
+    )
 
-        subtitle_function = (
-            subtitle.create_subtitle_mp4
+    if subtitle_function is None:
+
+        subtitle_function = getattr(
+            subtitle,
+            "create_burned_subtitle",
+            None
         )
 
-    elif hasattr(
-        subtitle,
-        "create_burned_subtitle"
-    ):
+    if subtitle_function is None:
 
-        subtitle_function = (
-            subtitle.create_burned_subtitle
+        subtitle_function = getattr(
+            subtitle,
+            "burn_subtitles",
+            None
         )
 
-    elif hasattr(
-        subtitle,
-        "burn_subtitles"
-    ):
-
-        subtitle_function = (
-            subtitle.burn_subtitles
-        )
-
-    else:
+    if subtitle_function is None:
 
         raise AttributeError(
             "subtitle.pyに字幕MP4作成関数がありません。"
@@ -834,9 +872,9 @@ def create_subtitle_mp4(
         flush=True
     )
 
-    # =====================================
-    # ★ 字幕設定をsubtitle.pyへ渡す
-    # =====================================
+    # ------------------------------------------------------
+    # 字幕設定を渡す
+    # ------------------------------------------------------
 
     result = subtitle_function(
 
@@ -859,9 +897,9 @@ def create_subtitle_mp4(
             "字幕MP4作成処理から結果が返されませんでした"
         )
 
-    # ---------------------------------
+    # ------------------------------------------------------
     # 戻り値吸収
-    # ---------------------------------
+    # ------------------------------------------------------
 
     if isinstance(
         result,
@@ -869,21 +907,29 @@ def create_subtitle_mp4(
     ):
 
         result_path = (
+
             result.get(
                 "subtitle_mp4_path"
             )
+
             or
+
             result.get(
                 "path"
             )
+
             or
+
             result.get(
                 "output"
             )
+
             or
+
             result.get(
                 "output_path"
             )
+
         )
 
     else:
@@ -1024,8 +1070,11 @@ def register_subtitle_routes(
             )
 
             saved = save_uploaded_file(
+
                 uploaded_file,
+
                 ALLOWED_MP3_EXTENSIONS
+
             )
 
             result = create_srt_from_mp3(
@@ -1099,8 +1148,11 @@ def register_subtitle_routes(
             )
 
             saved = save_uploaded_file(
+
                 uploaded_file,
+
                 ALLOWED_MP4_EXTENSIONS
+
             )
 
             return jsonify({
@@ -1157,8 +1209,11 @@ def register_subtitle_routes(
             )
 
             saved = save_uploaded_file(
+
                 uploaded_file,
+
                 ALLOWED_SRT_EXTENSIONS
+
             )
 
             return jsonify({
@@ -1243,8 +1298,11 @@ def register_subtitle_routes(
                 }), 400
 
             mp3_path = get_download_file(
+
                 mp3_filename,
+
                 ALLOWED_MP3_EXTENSIONS
+
             )
 
             result = create_srt_from_mp3(
@@ -1311,8 +1369,6 @@ def register_subtitle_routes(
 
     # ======================================================
     # MP4 + SRT → 字幕MP4
-    #
-    # ★ 字幕設定対応
     # ======================================================
 
     @app.route(
@@ -1376,9 +1432,9 @@ def register_subtitle_routes(
 
                 }), 400
 
-            # ---------------------------------
-            # 字幕設定を取得
-            # ---------------------------------
+            # ------------------------------------------------
+            # 字幕設定
+            # ------------------------------------------------
 
             preset = data.get(
                 "preset"
@@ -1435,23 +1491,74 @@ def register_subtitle_routes(
                 flush=True
             )
 
-            # ---------------------------------
-            # 字幕設定作成
-            # ---------------------------------
+            # ------------------------------------------------
+            # 字幕設定を正規化
+            # ------------------------------------------------
 
-            subtitle_settings = select_subtitle_font(
+            try:
 
-                font=font,
+                subtitle_settings = (
+                    select_subtitle_font(
 
-                text_color=text_color,
+                        font=font,
 
-                outline_color=outline_color,
+                        text_color=text_color,
 
-                outline_width=outline_width,
+                        outline_color=outline_color,
 
-                preset=preset
+                        outline_width=outline_width,
 
-            )
+                        preset=preset
+
+                    )
+                )
+
+            except TypeError:
+
+                # select_subtitle_font()の仕様が
+                # 古い場合の互換処理
+
+                subtitle_settings = (
+                    get_default_subtitle_font_settings()
+                )
+
+                if font is not None:
+                    subtitle_settings["font"] = font
+
+                if text_color is not None:
+                    subtitle_settings["text_color"] = text_color
+
+                if outline_color is not None:
+                    subtitle_settings["outline_color"] = outline_color
+
+                if outline_width is not None:
+
+                    try:
+
+                        subtitle_settings[
+                            "outline_width"
+                        ] = int(
+                            outline_width
+                        )
+
+                    except (
+                        ValueError,
+                        TypeError
+                    ):
+
+                        pass
+
+                if preset is not None:
+                    subtitle_settings["preset"] = preset
+
+            if not isinstance(
+                subtitle_settings,
+                dict
+            ):
+
+                subtitle_settings = (
+                    get_default_subtitle_font_settings()
+                )
 
             print(
                 "[SUBTITLE] normalized subtitle settings:",
@@ -1459,23 +1566,29 @@ def register_subtitle_routes(
                 flush=True
             )
 
-            # ---------------------------------
+            # ------------------------------------------------
             # ファイル取得
-            # ---------------------------------
+            # ------------------------------------------------
 
             mp4_path = get_download_file(
+
                 mp4_filename,
+
                 ALLOWED_MP4_EXTENSIONS
+
             )
 
             srt_path = get_download_file(
+
                 srt_filename,
+
                 ALLOWED_SRT_EXTENSIONS
+
             )
 
-            # ---------------------------------
+            # ------------------------------------------------
             # 字幕MP4作成
-            # ---------------------------------
+            # ------------------------------------------------
 
             result = create_subtitle_mp4(
 
@@ -1620,8 +1733,11 @@ def register_subtitle_routes(
                 }), 400
 
             mp3_path = get_download_file(
+
                 filename,
+
                 ALLOWED_MP3_EXTENSIONS
+
             )
 
             safe_filename = os.path.basename(
