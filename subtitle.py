@@ -1,10 +1,8 @@
 # ==========================================================
-# Subtitle - Low Memory Edition
+# Subtitle - Low Memory Edition / Diagnostic Version
 # subtitle.py
 #
 # MP4動画へSRT字幕を焼き込む
-#
-# 調査ログ強化版
 #
 # ==========================================================
 #
@@ -56,6 +54,13 @@ FFMPEG_PRESET = "ultrafast"
 
 FFMPEG_CRF = "23"
 
+# FFmpeg自体の最大実行時間。
+# Noneの場合は無制限。
+#
+# 調査中はRender側のタイムアウトとの区別をつけるため、
+# あえてNoneにしています。
+FFMPEG_TIMEOUT_SECONDS = None
+
 
 # ==========================================================
 # 共通設定キー
@@ -76,16 +81,11 @@ SUBTITLE_SETTING_KEYS = (
 
 def log(message):
 
-    try:
-
-        print(
-            "[SUBTITLE]",
-            message,
-            flush=True
-        )
-
-    except Exception:
-        pass
+    print(
+        "[SUBTITLE]",
+        message,
+        flush=True
+    )
 
 
 def log_separator():
@@ -102,28 +102,35 @@ def log_start(message):
     log_separator()
 
 
-# ==========================================================
-# 例外ログ
-#
-# 重要:
-# 元コードにはlog_exception()の呼び出しが多数あるが、
-# 関数定義がなかったため、調査用にここで定義する。
-# ==========================================================
-
 def log_exception(
     message,
-    error
+    error=None
 ):
 
-    try:
+    """
+    調査用の例外ログ。
 
-        log(
-            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-        )
+    重要:
+    以前のコードでは、この関数が呼ばれているにもかかわらず
+    定義されていなかったため、元の例外を隠す可能性があった。
 
-        log(
-            message
-        )
+    ここでは、
+      1. エラーメッセージ
+      2. exception type
+      3. exception str
+      4. traceback全文
+    を出力する。
+    """
+
+    log(
+        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    )
+
+    log(
+        message
+    )
+
+    if error is not None:
 
         try:
 
@@ -138,266 +145,49 @@ def log_exception(
         try:
 
             log(
-                f"exception message: "
+                f"exception str: "
                 f"{error}"
             )
 
         except Exception:
             pass
 
-        try:
+    try:
+
+        traceback_text = traceback.format_exc()
+
+        if traceback_text:
 
             log(
-                f"exception repr: "
-                f"{error!r}"
+                "TRACEBACK START"
             )
 
-        except Exception:
-            pass
-
-        try:
+            print(
+                traceback_text,
+                file=sys.stdout,
+                flush=True
+            )
 
             log(
-                "traceback:"
+                "TRACEBACK END"
             )
 
-            traceback_text = (
-                traceback.format_exc()
-            )
-
-            if traceback_text:
-
-                log(
-                    traceback_text
-                )
-
-        except Exception:
-            pass
+    except Exception as traceback_error:
 
         log(
-            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-        )
-
-    except Exception:
-        pass
-
-
-# ==========================================================
-# 調査用: システム情報
-# ==========================================================
-
-def log_system_info():
-
-    log_start(
-        "DEBUG: システム情報"
-    )
-
-    try:
-
-        log(
-            f"Python executable: {sys.executable}"
-        )
-
-        log(
-            f"Python version: {sys.version}"
-        )
-
-        log(
-            f"Platform: {platform.platform()}"
-        )
-
-        log(
-            f"OS: {os.name}"
-        )
-
-        log(
-            f"PID: {os.getpid()}"
-        )
-
-        log(
-            f"Current working directory: "
-            f"{os.getcwd()}"
-        )
-
-        log(
-            f"DOWNLOAD_DIR: {DOWNLOAD_DIR}"
-        )
-
-        log(
-            f"DOWNLOADS_DIR: {DOWNLOADS_DIR}"
-        )
-
-        log(
-            f"__file__: "
-            f"{Path(__file__).resolve()}"
-        )
-
-    except Exception as error:
-
-        log_exception(
-            "システム情報取得中にエラー",
-            error
-        )
-
-    # ------------------------------------------------------
-    # 環境変数
-    # ------------------------------------------------------
-
-    try:
-
-        log(
-            f"SUBTITLE_FONT env: "
-            f"{os.environ.get('SUBTITLE_FONT')!r}"
-        )
-
-        log(
-            f"PATH env exists: "
-            f"{bool(os.environ.get('PATH'))}"
-        )
-
-    except Exception as error:
-
-        log_exception(
-            "環境変数取得中にエラー",
-            error
-        )
-
-    # ------------------------------------------------------
-    # /tmp
-    # ------------------------------------------------------
-
-    try:
-
-        tmp_path = Path("/tmp")
-
-        log(
-            f"/tmp exists: {tmp_path.exists()}"
-        )
-
-        log(
-            f"/tmp is_dir: {tmp_path.is_dir()}"
-        )
-
-        if tmp_path.exists():
-
-            try:
-
-                stat = tmp_path.stat()
-
-                log(
-                    f"/tmp mode: {oct(stat.st_mode)}"
-                )
-
-            except Exception as error:
-
-                log(
-                    f"/tmp stat failed: {error}"
-                )
-
-    except Exception as error:
-
-        log_exception(
-            "/tmp確認中にエラー",
-            error
+            f"traceback取得失敗: {traceback_error}"
         )
 
     log(
-        "DEBUG: システム情報確認完了"
+        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
     )
-
-
-# ==========================================================
-# 調査用: ファイル状態
-# ==========================================================
-
-def log_file_state(
-    label,
-    file_path
-):
-
-    try:
-
-        if file_path is None:
-
-            log(
-                f"{label}: None"
-            )
-
-            return
-
-        path = Path(
-            file_path
-        )
-
-        log(
-            f"{label}: {path}"
-        )
-
-        try:
-
-            log(
-                f"{label} resolved: "
-                f"{path.resolve()}"
-            )
-
-        except Exception as error:
-
-            log(
-                f"{label} resolve failed: {error}"
-            )
-
-        log(
-            f"{label} exists: "
-            f"{path.exists()}"
-        )
-
-        log(
-            f"{label} is_file: "
-            f"{path.is_file()}"
-        )
-
-        log(
-            f"{label} is_dir: "
-            f"{path.is_dir()}"
-        )
-
-        if path.exists():
-
-            try:
-
-                stat = path.stat()
-
-                log(
-                    f"{label} size: "
-                    f"{stat.st_size} bytes"
-                )
-
-                log(
-                    f"{label} mode: "
-                    f"{oct(stat.st_mode)}"
-                )
-
-                log(
-                    f"{label} mtime: "
-                    f"{stat.st_mtime}"
-                )
-
-            except Exception as error:
-
-                log(
-                    f"{label} stat failed: {error}"
-                )
-
-    except Exception as error:
-
-        log_exception(
-            f"{label} ファイル状態確認失敗",
-            error
-        )
 
 
 # ==========================================================
 # モジュール読み込み確認
+#
+# subtitle_routes.pyから本当にこのファイルが
+# 読み込まれているか確認するためのログ。
 # ==========================================================
 
 log(
@@ -422,11 +212,280 @@ log(
 )
 
 log(
+    f"Python executable: {sys.executable}"
+)
+
+log(
+    f"Python version: {sys.version}"
+)
+
+log(
+    f"Platform: {platform.platform()}"
+)
+
+log(
     "create_subtitle_mp4関数を定義します。"
 )
 
-# モジュール読み込み時点の情報
-log_system_info()
+
+# ==========================================================
+# 調査用: システム情報
+# ==========================================================
+
+def log_system_diagnostics():
+
+    log_start(
+        "SYSTEM DIAGNOSTICS"
+    )
+
+    # ------------------------------------------------------
+    # Python
+    # ------------------------------------------------------
+
+    try:
+
+        log(
+            f"Python executable: {sys.executable}"
+        )
+
+        log(
+            f"Python version: {sys.version}"
+        )
+
+    except Exception as error:
+
+        log(
+            f"Python情報取得失敗: {error}"
+        )
+
+    # ------------------------------------------------------
+    # OS
+    # ------------------------------------------------------
+
+    try:
+
+        log(
+            f"platform.system: "
+            f"{platform.system()}"
+        )
+
+        log(
+            f"platform.release: "
+            f"{platform.release()}"
+        )
+
+        log(
+            f"platform.machine: "
+            f"{platform.machine()}"
+        )
+
+    except Exception as error:
+
+        log(
+            f"OS情報取得失敗: {error}"
+        )
+
+    # ------------------------------------------------------
+    # CPU
+    # ------------------------------------------------------
+
+    try:
+
+        cpu_count = os.cpu_count()
+
+        log(
+            f"os.cpu_count: {cpu_count}"
+        )
+
+    except Exception as error:
+
+        log(
+            f"CPU情報取得失敗: {error}"
+        )
+
+    # ------------------------------------------------------
+    # Current working directory
+    # ------------------------------------------------------
+
+    try:
+
+        log(
+            f"cwd: {Path.cwd()}"
+        )
+
+    except Exception as error:
+
+        log(
+            f"cwd取得失敗: {error}"
+        )
+
+    # ------------------------------------------------------
+    # Environment
+    # ------------------------------------------------------
+
+    interesting_environment_keys = [
+
+        "RENDER",
+        "RENDER_SERVICE_NAME",
+        "RENDER_INSTANCE_ID",
+        "RENDER_REGION",
+        "RENDER_CPU_COUNT",
+        "RENDER_RAM",
+        "PORT",
+        "SUBTITLE_FONT",
+        "PATH",
+        "LANG",
+        "LC_ALL",
+        "HOME",
+
+    ]
+
+    for key in interesting_environment_keys:
+
+        try:
+
+            value = os.environ.get(
+                key
+            )
+
+            if key == "PATH" and value:
+
+                # PATHが長いのでそのまま表示
+                # ただし調査用として必要。
+                log(
+                    f"ENV {key}: {value}"
+                )
+
+            else:
+
+                log(
+                    f"ENV {key}: {value!r}"
+                )
+
+        except Exception as error:
+
+            log(
+                f"ENV {key}取得失敗: {error}"
+            )
+
+    # ------------------------------------------------------
+    # メモリ
+    # ------------------------------------------------------
+
+    memory_files = [
+
+        "/proc/meminfo",
+        "/proc/self/status",
+
+    ]
+
+    for memory_file in memory_files:
+
+        path = Path(
+            memory_file
+        )
+
+        if not path.exists():
+
+            continue
+
+        log(
+            f"memory diagnostic: {path}"
+        )
+
+        try:
+
+            with open(
+                path,
+                "r",
+                encoding="utf-8",
+                errors="replace"
+            ) as file:
+
+                lines = file.readlines()
+
+            if path.name == "meminfo":
+
+                for line in lines:
+
+                    if any(
+                        key in line
+                        for key in (
+                            "MemTotal:",
+                            "MemFree:",
+                            "MemAvailable:",
+                            "SwapTotal:",
+                            "SwapFree:",
+                        )
+                    ):
+
+                        log(
+                            f"MEM {line.strip()}"
+                        )
+
+            else:
+
+                for line in lines:
+
+                    if any(
+                        key in line
+                        for key in (
+                            "VmPeak:",
+                            "VmSize:",
+                            "VmRSS:",
+                            "VmHWM:",
+                        )
+                    ):
+
+                        log(
+                            f"PROCESS {line.strip()}"
+                        )
+
+        except Exception as error:
+
+            log(
+                f"{memory_file} 読み込み失敗: {error}"
+            )
+
+    # ------------------------------------------------------
+    # ディスク
+    # ------------------------------------------------------
+
+    try:
+
+        disk_path = (
+            DOWNLOADS_DIR
+        )
+
+        usage = shutil.disk_usage(
+            disk_path
+        )
+
+        log(
+            f"disk path: {disk_path}"
+        )
+
+        log(
+            f"disk total: {usage.total} bytes"
+        )
+
+        log(
+            f"disk used: {usage.used} bytes"
+        )
+
+        log(
+            f"disk free: {usage.free} bytes"
+        )
+
+    except Exception as error:
+
+        log(
+            f"ディスク容量取得失敗: {error}"
+        )
+
+    log(
+        "SYSTEM DIAGNOSTICS END"
+    )
 
 
 # ==========================================================
@@ -476,7 +535,7 @@ def validate_input_file(
     extension
 ):
 
-    log_start(
+    log(
         "入力ファイル確認開始"
     )
 
@@ -494,11 +553,6 @@ def validate_input_file(
 
     log(
         f"resolved path: {path}"
-    )
-
-    log_file_state(
-        "入力ファイル",
-        path
     )
 
     if not path.exists():
@@ -565,6 +619,36 @@ def validate_input_file(
 
         raise ValueError(
             f"ファイルが0 bytesです: {path}"
+        )
+
+    # ------------------------------------------------------
+    # ファイル権限
+    # ------------------------------------------------------
+
+    try:
+
+        readable = os.access(
+            path,
+            os.R_OK
+        )
+
+        writable = os.access(
+            path.parent,
+            os.W_OK
+        )
+
+        log(
+            f"input readable: {readable}"
+        )
+
+        log(
+            f"parent writable: {writable}"
+        )
+
+    except Exception as error:
+
+        log(
+            f"ファイル権限確認失敗: {error}"
         )
 
     log(
@@ -697,10 +781,9 @@ def check_ffmpeg():
         f"FFmpeg path: {ffmpeg_path}"
     )
 
-    log_file_state(
-        "FFmpeg executable",
-        ffmpeg_path
-    )
+    # ------------------------------------------------------
+    # FFmpeg version
+    # ------------------------------------------------------
 
     try:
 
@@ -722,61 +805,27 @@ def check_ffmpeg():
             timeout=30
         )
 
-    except FileNotFoundError as error:
-
-        log_exception(
-            "FFmpeg version実行時FileNotFoundError",
-            error
-        )
+    except FileNotFoundError:
 
         raise RuntimeError(
             "FFmpegが見つかりません。"
-        ) from error
-
-    except subprocess.TimeoutExpired as error:
-
-        log_exception(
-            "FFmpeg version確認タイムアウト",
-            error
         )
+
+    except subprocess.TimeoutExpired:
 
         raise RuntimeError(
             "FFmpegの確認がタイムアウトしました。"
-        ) from error
+        )
 
     except OSError as error:
-
-        log_exception(
-            "FFmpeg version起動OSError",
-            error
-        )
 
         raise RuntimeError(
             f"FFmpegを起動できません: {error}"
         ) from error
 
-    except Exception as error:
-
-        log_exception(
-            "FFmpeg version確認中の予期しないエラー",
-            error
-        )
-
-        raise
-
     log(
         f"FFmpeg version returncode: "
         f"{result.returncode}"
-    )
-
-    log(
-        f"FFmpeg version stdout length: "
-        f"{len(result.stdout or '')}"
-    )
-
-    log(
-        f"FFmpeg version stderr length: "
-        f"{len(result.stderr or '')}"
     )
 
     if result.returncode != 0:
@@ -808,17 +857,16 @@ def check_ffmpeg():
     )
 
     # ------------------------------------------------------
-    # ffmpeg -filters
-    # subtitles filter確認
+    # libass / subtitles filter確認
     # ------------------------------------------------------
+
+    log(
+        "FFmpeg subtitles filter確認開始"
+    )
 
     try:
 
-        log(
-            "FFmpeg subtitles filter確認開始"
-        )
-
-        filter_result = subprocess.run(
+        filters_result = subprocess.run(
 
             [
                 ffmpeg_path,
@@ -839,38 +887,61 @@ def check_ffmpeg():
 
         log(
             f"ffmpeg -filters returncode: "
-            f"{filter_result.returncode}"
+            f"{filters_result.returncode}"
         )
 
-        filters_text = (
-            filter_result.stdout or ""
+        combined_filters = (
+            filters_result.stdout
+            +
+            "\n"
+            +
+            filters_result.stderr
         )
 
-        subtitles_available = (
-            " subtitles " in filters_text
-            or
-            "\n ... subtitles " in filters_text
-            or
-            "subtitles" in filters_text
+        subtitle_filter_found = (
+            "subtitles"
+            in combined_filters
+        )
+
+        ass_filter_found = (
+            "ass"
+            in combined_filters
         )
 
         log(
-            f"subtitles filter文字列検出: "
-            f"{subtitles_available}"
+            f"subtitles filter found: "
+            f"{subtitle_filter_found}"
         )
 
-        if not subtitles_available:
+        log(
+            f"ass filter found: "
+            f"{ass_filter_found}"
+        )
+
+        if not subtitle_filter_found:
 
             log(
-                "WARNING: subtitles filterが"
-                "ffmpeg -filters出力から確認できません。"
+                "WARNING: FFmpegにsubtitlesフィルターがありません。"
             )
+
+        # libassという文字も調査
+        libass_found = (
+            "libass"
+            in (
+                filters_result.stdout
+                +
+                filters_result.stderr
+            )
+        )
+
+        log(
+            f"libass mention found: {libass_found}"
+        )
 
     except Exception as error:
 
-        log_exception(
-            "FFmpeg filters確認中のエラー",
-            error
+        log(
+            f"FFmpeg filter確認中のエラー: {error}"
         )
 
     log(
@@ -918,9 +989,8 @@ def validate_srt_encoding(
 
     except UnicodeDecodeError as error:
 
-        log_exception(
-            "SRT UTF-8 decode error",
-            error
+        log(
+            f"SRT UTF-8 decode error: {error}"
         )
 
         raise RuntimeError(
@@ -933,9 +1003,8 @@ def validate_srt_encoding(
 
     except OSError as error:
 
-        log_exception(
-            "SRT read error",
-            error
+        log(
+            f"SRT read error: {error}"
         )
 
         raise RuntimeError(
@@ -968,19 +1037,21 @@ def validate_srt_encoding(
         f"SRTサイズ: {srt_size} bytes"
     )
 
-    # 調査用: SRT先頭
+    # ------------------------------------------------------
+    # 調査用: SRT先頭部分
+    # ------------------------------------------------------
+
     try:
 
-        preview = (
-            first_content[:1000]
-        )
+        preview = first_content[:1000]
 
         log(
             "SRT先頭1000文字:"
         )
 
-        log(
-            repr(preview)
+        print(
+            preview,
+            flush=True
         )
 
     except Exception as error:
@@ -1056,9 +1127,8 @@ def get_font_family_from_path(
 
     except Exception as error:
 
-        log_exception(
-            "fc-scanエラー",
-            error
+        log(
+            f"fc-scanエラー: {error}"
         )
 
         return None
@@ -1066,16 +1136,6 @@ def get_font_family_from_path(
     log(
         f"fc-scan returncode: "
         f"{result.returncode}"
-    )
-
-    log(
-        f"fc-scan stdout: "
-        f"{result.stdout!r}"
-    )
-
-    log(
-        f"fc-scan stderr: "
-        f"{result.stderr!r}"
     )
 
     if result.returncode != 0:
@@ -1164,7 +1224,7 @@ def fc_match_font(
     if not fc_match:
 
         log(
-            "fc-matchが見つかりません。"
+            "fc-matchが存在しません。"
         )
 
         return None
@@ -1200,9 +1260,8 @@ def fc_match_font(
 
     except Exception as error:
 
-        log_exception(
-            "fc-matchエラー",
-            error
+        log(
+            f"fc-matchエラー: {error}"
         )
 
         return None
@@ -1210,16 +1269,6 @@ def fc_match_font(
     log(
         f"fc-match returncode: "
         f"{result.returncode}"
-    )
-
-    log(
-        f"fc-match stdout: "
-        f"{result.stdout!r}"
-    )
-
-    log(
-        f"fc-match stderr: "
-        f"{result.stderr!r}"
     )
 
     if result.returncode != 0:
@@ -1230,6 +1279,11 @@ def fc_match_font(
         )
 
         return None
+
+    log(
+        f"fc-match raw stdout: "
+        f"{result.stdout!r}"
+    )
 
     for line in result.stdout.splitlines():
 
@@ -1325,11 +1379,6 @@ def find_japanese_font(
             f"{environment_font_path}"
         )
 
-        log_file_state(
-            "SUBTITLE_FONT",
-            environment_font_path
-        )
-
         if environment_font_path.is_file():
 
             family = (
@@ -1383,10 +1432,6 @@ def find_japanese_font(
             Path(
                 requested_font
             ).expanduser()
-        )
-
-        log(
-            f"requested_path: {requested_path}"
         )
 
         if requested_path.is_file():
@@ -1551,9 +1596,8 @@ def find_japanese_font(
 
         except Exception as error:
 
-            log_exception(
-                "fc-list検索エラー",
-                error
+            log(
+                f"fc-list検索エラー: {error}"
             )
 
             result = None
@@ -1561,8 +1605,8 @@ def find_japanese_font(
         if result and result.returncode == 0:
 
             log(
-                f"fc-list output length: "
-                f"{len(result.stdout or '')}"
+                f"fc-list returncode: "
+                f"{result.returncode}"
             )
 
             for line in result.stdout.splitlines():
@@ -1634,6 +1678,18 @@ def find_japanese_font(
                         family
 
                 }
+
+        elif result:
+
+            log(
+                f"fc-list returncode: "
+                f"{result.returncode}"
+            )
+
+            log(
+                f"fc-list stderr: "
+                f"{result.stderr[-2000:]}"
+            )
 
     # ======================================================
     # 5. 手動検索
@@ -1760,9 +1816,8 @@ def find_japanese_font(
 
             except Exception as error:
 
-                log_exception(
-                    f"フォント検索エラー: {directory}",
-                    error
+                log(
+                    f"フォント検索エラー: {error}"
                 )
 
                 continue
@@ -1790,10 +1845,6 @@ def escape_ffmpeg_filter_path(
         Path(
             file_path
         ).resolve()
-    )
-
-    log(
-        f"original path: {path}"
     )
 
     path = path.replace(
@@ -1840,8 +1891,6 @@ def escape_ffmpeg_value(
         value
     )
 
-    original_value = value
-
     value = value.replace(
         "\\",
         "\\\\"
@@ -1865,11 +1914,6 @@ def escape_ffmpeg_value(
     value = value.replace(
         ";",
         "\\;"
-    )
-
-    log(
-        f"FFmpeg value escape: "
-        f"{original_value!r} -> {value!r}"
     )
 
     return value
@@ -2347,11 +2391,6 @@ def make_subtitle_filter(
     )
 
     log(
-        f"video_filter length: "
-        f"{len(video_filter)}"
-    )
-
-    log(
         "字幕フィルター作成完了"
     )
 
@@ -2373,34 +2412,6 @@ def command_to_string(
         for item in command
 
     )
-
-
-# ==========================================================
-# FFmpegコマンド詳細ログ
-# ==========================================================
-
-def log_command_details(
-    command
-):
-
-    log(
-        "FFmpeg command detailed dump:"
-    )
-
-    for index, item in enumerate(command):
-
-        try:
-
-            item_text = str(item)
-
-        except Exception:
-
-            item_text = repr(item)
-
-        log(
-            f"command[{index}]: "
-            f"{item_text!r}"
-        )
 
 
 # ==========================================================
@@ -2455,18 +2466,120 @@ def remove_file_safely(
                 f"一時ファイル削除: {path}"
             )
 
-        else:
+    except Exception as error:
 
-            log(
-                f"削除対象は存在しません: {path}"
-            )
+        log(
+            f"一時ファイル削除失敗: {error}"
+        )
+
+
+# ==========================================================
+# ファイル状態診断
+# ==========================================================
+
+def log_file_state(
+    label,
+    file_path
+):
+
+    log(
+        f"FILE STATE [{label}]"
+    )
+
+    if not file_path:
+
+        log(
+            "path: None"
+        )
+
+        return
+
+    try:
+
+        path = Path(
+            file_path
+        ).resolve()
+
+        log(
+            f"path: {path}"
+        )
+
+        log(
+            f"exists: {path.exists()}"
+        )
+
+        log(
+            f"is_file: {path.is_file()}"
+        )
+
+        log(
+            f"is_dir: {path.is_dir()}"
+        )
+
+        if path.exists():
+
+            try:
+
+                stat = path.stat()
+
+                log(
+                    f"size: {stat.st_size} bytes"
+                )
+
+                log(
+                    f"mtime: {stat.st_mtime}"
+                )
+
+            except Exception as error:
+
+                log(
+                    f"stat failed: {error}"
+                )
 
     except Exception as error:
 
-        log_exception(
-            f"一時ファイル削除失敗: {path}",
-            error
+        log(
+            f"file state error: {error}"
         )
+
+
+# ==========================================================
+# FFmpeg stderr全文をログ保存
+# ==========================================================
+
+def dump_ffmpeg_logs(
+    ffmpeg_output_lines
+):
+
+    log(
+        "FFmpegログダンプ開始"
+    )
+
+    log(
+        f"保持ログ行数: "
+        f"{len(ffmpeg_output_lines)}"
+    )
+
+    if not ffmpeg_output_lines:
+
+        log(
+            "FFmpegログは空です。"
+        )
+
+        return
+
+    for index, line in enumerate(
+        ffmpeg_output_lines,
+        start=1
+    ):
+
+        log(
+            f"FFMPEG_LAST[{index}]: {line}"
+        )
+
+    log(
+        "FFmpegログダンプ終了"
+    )
 
 
 # ==========================================================
@@ -2487,27 +2600,27 @@ def embed_subtitle(
     )
 
     log(
-        f"mp4_path argument: {mp4_path!r}"
+        f"mp4_path argument: {mp4_path}"
     )
 
     log(
-        f"srt_path argument: {srt_path!r}"
+        f"srt_path argument: {srt_path}"
     )
 
     log(
-        f"output_path argument: {output_path!r}"
+        f"output_path argument: {output_path}"
     )
 
     log(
         f"subtitle_settings argument: "
-        f"{subtitle_settings!r}"
+        f"{subtitle_settings}"
     )
 
     # ======================================================
-    # DEBUG SYSTEM
+    # SYSTEM DIAGNOSTICS
     # ======================================================
 
-    log_system_info()
+    log_system_diagnostics()
 
     # ======================================================
     # 入力MP4
@@ -2517,13 +2630,29 @@ def embed_subtitle(
         "STEP 1: MP4入力確認"
     )
 
-    mp4_path = validate_input_file(
-        mp4_path,
-        ".mp4"
-    )
+    try:
+
+        mp4_path = validate_input_file(
+            mp4_path,
+            ".mp4"
+        )
+
+    except Exception as error:
+
+        log_exception(
+            "STEP 1 MP4入力確認で例外",
+            error
+        )
+
+        raise
 
     log(
         f"MP4確認完了: {mp4_path}"
+    )
+
+    log_file_state(
+        "INPUT MP4",
+        mp4_path
     )
 
     # ======================================================
@@ -2534,13 +2663,29 @@ def embed_subtitle(
         "STEP 2: SRT入力確認"
     )
 
-    srt_path = validate_input_file(
-        srt_path,
-        ".srt"
-    )
+    try:
+
+        srt_path = validate_input_file(
+            srt_path,
+            ".srt"
+        )
+
+    except Exception as error:
+
+        log_exception(
+            "STEP 2 SRT入力確認で例外",
+            error
+        )
+
+        raise
 
     log(
         f"SRT確認完了: {srt_path}"
+    )
+
+    log_file_state(
+        "INPUT SRT",
+        srt_path
     )
 
     # ======================================================
@@ -2551,9 +2696,20 @@ def embed_subtitle(
         "STEP 3: SRT UTF-8確認"
     )
 
-    validate_srt_encoding(
-        srt_path
-    )
+    try:
+
+        validate_srt_encoding(
+            srt_path
+        )
+
+    except Exception as error:
+
+        log_exception(
+            "STEP 3 SRT UTF-8確認で例外",
+            error
+        )
+
+        raise
 
     # ======================================================
     # 字幕設定
@@ -2563,11 +2719,22 @@ def embed_subtitle(
         "STEP 4: 字幕設定正規化"
     )
 
-    subtitle_settings = (
-        normalize_subtitle_settings(
-            subtitle_settings
+    try:
+
+        subtitle_settings = (
+            normalize_subtitle_settings(
+                subtitle_settings
+            )
         )
-    )
+
+    except Exception as error:
+
+        log_exception(
+            "STEP 4 字幕設定正規化で例外",
+            error
+        )
+
+        raise
 
     log(
         f"normalized subtitle settings: "
@@ -2672,10 +2839,42 @@ def embed_subtitle(
         "出力フォルダ確認完了"
     )
 
-    log_file_state(
-        "output directory",
-        output_path.parent
+    log(
+        f"output directory exists: "
+        f"{output_path.parent.exists()}"
     )
+
+    log(
+        f"output directory is_dir: "
+        f"{output_path.parent.is_dir()}"
+    )
+
+    try:
+
+        disk_usage = shutil.disk_usage(
+            output_path.parent
+        )
+
+        log(
+            f"output disk total: "
+            f"{disk_usage.total} bytes"
+        )
+
+        log(
+            f"output disk used: "
+            f"{disk_usage.used} bytes"
+        )
+
+        log(
+            f"output disk free: "
+            f"{disk_usage.free} bytes"
+        )
+
+    except Exception as error:
+
+        log(
+            f"出力ディスク情報取得失敗: {error}"
+        )
 
     # ======================================================
     # FFmpeg確認
@@ -2685,7 +2884,18 @@ def embed_subtitle(
         "STEP 7: FFmpeg確認"
     )
 
-    ffmpeg_path = check_ffmpeg()
+    try:
+
+        ffmpeg_path = check_ffmpeg()
+
+    except Exception as error:
+
+        log_exception(
+            "STEP 7 FFmpeg確認で例外",
+            error
+        )
+
+        raise
 
     log(
         f"使用FFmpeg: {ffmpeg_path}"
@@ -2709,9 +2919,20 @@ def embed_subtitle(
         f"選択フォント: {font}"
     )
 
-    font_info = find_japanese_font(
-        font
-    )
+    try:
+
+        font_info = find_japanese_font(
+            font
+        )
+
+    except Exception as error:
+
+        log_exception(
+            "STEP 8 フォント検索で例外",
+            error
+        )
+
+        raise
 
     if font_info:
 
@@ -2720,1763 +2941,4 @@ def embed_subtitle(
         )
 
         log(
-            f"path: {font_info.get('path')}"
-        )
-
-        log(
-            f"family: {font_info.get('family')}"
-        )
-
-        log_file_state(
-            "selected font",
-            font_info.get("path")
-        )
-
-    else:
-
-        log(
-            "WARNING: 日本語フォントが"
-            "検出できませんでした。"
-        )
-
-        log(
-            "WARNING: Render環境に"
-            "日本語フォントをインストールしてください。"
-        )
-
-    # ======================================================
-    # 字幕フィルター
-    # ======================================================
-
-    log_start(
-        "STEP 11: 字幕フィルター生成開始"
-    )
-
-    video_filter = make_subtitle_filter(
-
-        srt_path,
-
-        font_info,
-
-        subtitle_settings
-
-    )
-
-    log(
-        "STEP 11完了: 字幕フィルター生成OK"
-    )
-
-    log(
-        f"video_filter: {video_filter}"
-    )
-
-    # ======================================================
-    # 入力サイズ
-    # ======================================================
-
-    log(
-        "STEP 12: 入力MP4サイズ確認"
-    )
-
-    try:
-
-        input_mp4_size = (
-            mp4_path.stat().st_size
-        )
-
-    except OSError as error:
-
-        log_exception(
-            "入力MP4サイズ取得失敗",
-            error
-        )
-
-        input_mp4_size = 0
-
-    log(
-        f"入力MP4サイズ: {input_mp4_size} bytes"
-    )
-
-    # ======================================================
-    # 一時出力
-    # ======================================================
-
-    log(
-        "STEP 13: 一時出力パス生成"
-    )
-
-    temp_output_path = (
-        make_temp_output_path(
-            output_path
-        )
-    )
-
-    log(
-        f"一時出力: {temp_output_path}"
-    )
-
-    if temp_output_path.exists():
-
-        log(
-            "WARNING: 生成した一時出力パスが既に存在します"
-        )
-
-    else:
-
-        log(
-            "一時出力パスは未使用です"
-        )
-
-    # ======================================================
-    # 実行前ファイル状態
-    # ======================================================
-
-    log_start(
-        "DEBUG: FFmpeg実行直前ファイル状態"
-    )
-
-    log_file_state(
-        "INPUT MP4",
-        mp4_path
-    )
-
-    log_file_state(
-        "INPUT SRT",
-        srt_path
-    )
-
-    log_file_state(
-        "OUTPUT",
-        output_path
-    )
-
-    log_file_state(
-        "TEMP OUTPUT",
-        temp_output_path
-    )
-
-    # ======================================================
-    # ログ
-    # ======================================================
-
-    log(
-        "====================================="
-    )
-
-    log(
-        "字幕焼き込み開始"
-    )
-
-    log(
-        f"MP4: {mp4_path}"
-    )
-
-    log(
-        f"SRT: {srt_path}"
-    )
-
-    log(
-        f"出力: {output_path}"
-    )
-
-    log(
-        f"一時出力: {temp_output_path}"
-    )
-
-    log(
-        f"入力MP4サイズ: "
-        f"{input_mp4_size} bytes"
-    )
-
-    log(
-        f"FFmpeg threads: "
-        f"{FFMPEG_THREADS}"
-    )
-
-    log(
-        f"FFmpeg preset: "
-        f"{FFMPEG_PRESET}"
-    )
-
-    log(
-        f"FFmpeg CRF: "
-        f"{FFMPEG_CRF}"
-    )
-
-    # ======================================================
-    # FFmpegコマンド
-    # ======================================================
-
-    log(
-        "STEP 14: FFmpegコマンド生成開始"
-    )
-
-    command = [
-
-        ffmpeg_path,
-
-        "-y",
-
-        "-nostdin",
-
-        "-hide_banner",
-
-        "-loglevel",
-        "info",
-
-        "-i",
-        str(mp4_path),
-
-        "-vf",
-        video_filter,
-
-        "-c:v",
-        "libx264",
-
-        "-threads",
-        FFMPEG_THREADS,
-
-        "-preset",
-        FFMPEG_PRESET,
-
-        "-crf",
-        FFMPEG_CRF,
-
-        "-c:a",
-        "copy",
-
-        "-movflags",
-        "+faststart",
-
-        str(
-            temp_output_path
-        )
-
-    ]
-
-    log(
-        f"FFmpeg command item count: {len(command)}"
-    )
-
-    # ======================================================
-    # コマンドログ
-    # ======================================================
-
-    log(
-        "FFmpeg video filter:"
-    )
-
-    log(
-        video_filter
-    )
-
-    log(
-        "FFmpeg command:"
-    )
-
-    log(
-        command_to_string(
-            command
-        )
-    )
-
-    log_command_details(
-        command
-    )
-
-    # ======================================================
-    # FFmpeg実行
-    # ======================================================
-
-    log_start(
-        "STEP 15: FFmpeg subprocess.Popen開始"
-    )
-
-    log(
-        "FFmpegを起動します..."
-    )
-
-    ffmpeg_process_start = time.monotonic()
-
-    process = None
-
-    try:
-
-        log(
-            "Popen()直前"
-        )
-
-        process = subprocess.Popen(
-
-            command,
-
-            stdout=subprocess.DEVNULL,
-
-            stderr=subprocess.PIPE,
-
-            text=True,
-
-            encoding="utf-8",
-
-            errors="replace",
-
-            bufsize=1
-
-        )
-
-        log(
-            "Popen()成功"
-        )
-
-    except OSError as error:
-
-        log_exception(
-            "FFmpeg subprocess.Popenに失敗しました。",
-            error
-        )
-
-        remove_file_safely(
-            temp_output_path
-        )
-
-        raise RuntimeError(
-
-            "FFmpeg実行中にエラーが発生しました: "
-            +
-            str(error)
-
-        ) from error
-
-    except Exception as error:
-
-        log_exception(
-            "FFmpeg subprocess.Popen予期せぬエラー",
-            error
-        )
-
-        remove_file_safely(
-            temp_output_path
-        )
-
-        raise RuntimeError(
-
-            "FFmpeg起動中に予期せぬエラーが発生しました: "
-            +
-            str(error)
-
-        ) from error
-
-    log(
-        f"FFmpeg process started: PID={process.pid}"
-    )
-
-    log(
-        f"FFmpeg Popen elapsed: "
-        f"{format_elapsed_time(time.monotonic() - ffmpeg_process_start)}"
-    )
-
-    # ======================================================
-    # 最後の100行だけ保持
-    # ======================================================
-
-    ffmpeg_output_lines = deque(
-
-        maxlen=MAX_FFMPEG_LOG_LINES
-
-    )
-
-    log(
-        f"FFmpegログ保持数: "
-        f"max={MAX_FFMPEG_LOG_LINES}"
-    )
-
-    # ======================================================
-    # FFmpegログ取得
-    # ======================================================
-
-    log_start(
-        "STEP 16: FFmpeg stderrログ取得開始"
-    )
-
-    stderr_read_start = time.monotonic()
-
-    try:
-
-        if process.stderr:
-
-            log(
-                "process.stderr exists: True"
-            )
-
-            for line in process.stderr:
-
-                line = line.rstrip()
-
-                if not line:
-
-                    continue
-
-                ffmpeg_output_lines.append(
-                    line
-                )
-
-                print(
-                    "[FFMPEG]",
-                    line,
-                    flush=True
-                )
-
-        else:
-
-            log(
-                "WARNING: process.stderr is None"
-            )
-
-    except Exception as error:
-
-        log_exception(
-            "FFmpegログ取得中のエラー",
-            error
-        )
-
-        try:
-
-            log(
-                "FFmpeg process.poll(): "
-                f"{process.poll()}"
-            )
-
-        except Exception as poll_error:
-
-            log(
-                f"process.poll()失敗: {poll_error}"
-            )
-
-        try:
-
-            log(
-                "FFmpeg process.kill()を実行します"
-            )
-
-            process.kill()
-
-        except Exception as kill_error:
-
-            log(
-                f"process.kill()失敗: {kill_error}"
-            )
-
-        try:
-
-            log(
-                "FFmpeg process.wait()を実行します"
-            )
-
-            process.wait()
-
-        except Exception as wait_error:
-
-            log(
-                f"process.wait()失敗: {wait_error}"
-            )
-
-        remove_file_safely(
-            temp_output_path
-        )
-
-        raise RuntimeError(
-
-            "FFmpegログ取得中のエラー: "
-            +
-            str(error)
-
-        ) from error
-
-    finally:
-
-        log(
-            "FFmpeg stderrクローズ処理"
-        )
-
-        if process.stderr:
-
-            try:
-
-                process.stderr.close()
-
-                log(
-                    "stderr.close()成功"
-                )
-
-            except Exception as error:
-
-                log_exception(
-                    "stderr.close()失敗",
-                    error
-                )
-
-    log(
-        f"stderr読み込み時間: "
-        f"{format_elapsed_time(time.monotonic() - stderr_read_start)}"
-    )
-
-    log(
-        "STEP 16完了: FFmpeg stderrログ取得終了"
-    )
-
-    log(
-        f"保持しているFFmpegログ行数: "
-        f"{len(ffmpeg_output_lines)}"
-    )
-
-    # ======================================================
-    # FFmpeg終了
-    # ======================================================
-
-    log_start(
-        "STEP 17: FFmpeg終了状態確認開始"
-    )
-
-    try:
-
-        log(
-            f"process.poll() before wait: "
-            f"{process.poll()}"
-        )
-
-        return_code = process.wait()
-
-    except Exception as error:
-
-        log_exception(
-            "FFmpegの終了状態確認に失敗しました。",
-            error
-        )
-
-        remove_file_safely(
-            temp_output_path
-        )
-
-        raise RuntimeError(
-
-            "FFmpegの終了状態を"
-            "確認できませんでした: "
-            +
-            str(error)
-
-        ) from error
-
-    ffmpeg_elapsed_time = (
-        time.monotonic()
-        -
-        ffmpeg_process_start
-    )
-
-    log(
-        f"FFmpeg return code: {return_code}"
-    )
-
-    log(
-        f"FFmpeg total elapsed: "
-        f"{format_elapsed_time(ffmpeg_elapsed_time)}"
-    )
-
-    log(
-        f"FFmpeg total elapsed seconds: "
-        f"{ffmpeg_elapsed_time:.3f}"
-    )
-
-    # ======================================================
-    # 処理時間
-    # ======================================================
-
-    elapsed_time = (
-
-        time.monotonic()
-        -
-        start_time
-
-    )
-
-    log(
-        f"現在までの処理時間: "
-        f"{format_elapsed_time(elapsed_time)}"
-    )
-
-    # ======================================================
-    # FFmpeg終了直後ファイル状態
-    # ======================================================
-
-    log_start(
-        "DEBUG: FFmpeg終了直後ファイル状態"
-    )
-
-    log_file_state(
-        "TEMP OUTPUT after FFmpeg",
-        temp_output_path
-    )
-
-    log_file_state(
-        "FINAL OUTPUT after FFmpeg",
-        output_path
-    )
-
-    # ======================================================
-    # FFmpegエラー
-    # ======================================================
-
-    if return_code != 0:
-
-        log_start(
-            "STEP 18: FFmpeg異常終了を検出"
-        )
-
-        log(
-            f"FFmpegエラー: "
-            f"return code={return_code}"
-        )
-
-        log(
-            "FFmpeg最後のログを取得します"
-        )
-
-        error_detail = (
-            make_ffmpeg_error_detail(
-                ffmpeg_output_lines
-            )
-        )
-
-        log(
-            "========== FFmpeg LAST LOG =========="
-        )
-
-        log(
-            error_detail
-        )
-
-        log(
-            "========== END FFmpeg LAST LOG =========="
-        )
-
-        log(
-            "FFmpeg異常終了のため一時ファイルを削除します"
-        )
-
-        remove_file_safely(
-            temp_output_path
-        )
-
-        raise RuntimeError(
-
-            "字幕焼き込みに失敗しました。"
-            "\n\n"
-            +
-            error_detail
-            +
-            "\n\n"
-            +
-            "FFmpeg return code: "
-            +
-            str(return_code)
-            +
-            "\n"
-            +
-            "処理時間: "
-            +
-            format_elapsed_time(
-                elapsed_time
-            )
-
-        )
-
-    log(
-        "STEP 18完了: FFmpeg正常終了"
-    )
-
-    # ======================================================
-    # 一時出力確認
-    # ======================================================
-
-    log_start(
-        "STEP 19: 一時出力ファイル確認開始"
-    )
-
-    log(
-        f"temp_output_path: {temp_output_path}"
-    )
-
-    temp_exists = temp_output_path.exists()
-
-    log(
-        f"temp exists: {temp_exists}"
-    )
-
-    if not temp_exists:
-
-        log(
-            "ERROR: FFmpeg正常終了後も一時出力が存在しません"
-        )
-
-        raise RuntimeError(
-
-            "FFmpegは正常終了しましたが、"
-            "一時出力ファイルが作成されていません。"
-
-        )
-
-    temp_is_file = temp_output_path.is_file()
-
-    log(
-        f"temp is_file: {temp_is_file}"
-    )
-
-    if not temp_is_file:
-
-        log(
-            "ERROR: 一時出力パスが通常ファイルではありません"
-        )
-
-        remove_file_safely(
-            temp_output_path
-        )
-
-        raise RuntimeError(
-
-            "FFmpegの一時出力先が"
-            "ファイルではありません。"
-
-        )
-
-    try:
-
-        output_size = (
-            temp_output_path.stat().st_size
-        )
-
-    except OSError as error:
-
-        log_exception(
-            "一時出力ファイルのサイズ取得に失敗しました。",
-            error
-        )
-
-        remove_file_safely(
-            temp_output_path
-        )
-
-        raise RuntimeError(
-
-            "一時出力ファイルを"
-            "確認できませんでした: "
-            +
-            str(error)
-
-        ) from error
-
-    log(
-        f"一時出力ファイルサイズ: "
-        f"{output_size} bytes"
-    )
-
-    if output_size <= 0:
-
-        log(
-            "ERROR: 一時出力ファイルサイズが0以下です"
-        )
-
-        remove_file_safely(
-            temp_output_path
-        )
-
-        raise RuntimeError(
-            "FFmpeg出力ファイルのサイズが0です。"
-        )
-
-    log(
-        "一時出力ファイル確認OK"
-    )
-
-    # ======================================================
-    # 正式出力が存在する場合
-    # ======================================================
-
-    log_start(
-        "STEP 20: 正式出力ファイル確認"
-    )
-
-    existing_output = output_path.exists()
-
-    log(
-        f"正式出力exists: {existing_output}"
-    )
-
-    if output_path.exists():
-
-        log(
-            "既存の正式出力を削除:"
-        )
-
-        log(
-            str(
-                output_path
-            )
-        )
-
-        try:
-
-            old_size = output_path.stat().st_size
-
-            log(
-                f"既存正式出力サイズ: {old_size} bytes"
-            )
-
-        except OSError as error:
-
-            log(
-                f"既存正式出力のサイズ取得に失敗しました: "
-                f"{error}"
-            )
-
-        try:
-
-            output_path.unlink()
-
-        except OSError as error:
-
-            log_exception(
-                "既存の正式出力削除に失敗しました。",
-                error
-            )
-
-            remove_file_safely(
-                temp_output_path
-            )
-
-            raise RuntimeError(
-
-                "既存の出力ファイルを"
-                "削除できませんでした: "
-                +
-                str(error)
-
-            ) from error
-
-        log(
-            "既存の正式出力削除完了"
-        )
-
-    else:
-
-        log(
-            "既存の正式出力はありません"
-        )
-
-    # ======================================================
-    # 一時ファイルを正式ファイルへ移動
-    # ======================================================
-
-    log_start(
-        "STEP 21: 一時ファイルを正式出力へ移動開始"
-    )
-
-    log(
-        f"source temp: {temp_output_path}"
-    )
-
-    log(
-        f"destination: {output_path}"
-    )
-
-    log_file_state(
-        "TEMP before replace",
-        temp_output_path
-    )
-
-    log_file_state(
-        "OUTPUT before replace",
-        output_path
-    )
-
-    try:
-
-        log(
-            "os.replace()実行開始"
-        )
-
-        os.replace(
-
-            str(
-                temp_output_path
-            ),
-
-            str(
-                output_path
-            )
-
-        )
-
-        log(
-            "os.replace()成功"
-        )
-
-    except OSError as error:
-
-        log_exception(
-            "os.replace()に失敗しました。",
-            error
-        )
-
-        log(
-            "os.replace失敗後、一時ファイルの存在を再確認します"
-        )
-
-        log_file_state(
-            "TEMP after replace failure",
-            temp_output_path
-        )
-
-        log_file_state(
-            "OUTPUT after replace failure",
-            output_path
-        )
-
-        remove_file_safely(
-            temp_output_path
-        )
-
-        raise RuntimeError(
-
-            "字幕MP4を正式出力へ"
-            "移動できませんでした: "
-            +
-            str(error)
-
-        ) from error
-
-    log(
-        f"正式出力作成完了候補: {output_path}"
-    )
-
-    # ======================================================
-    # 最終確認
-    # ======================================================
-
-    log_start(
-        "STEP 22: 最終出力ファイル確認開始"
-    )
-
-    final_exists = output_path.exists()
-
-    log(
-        f"final exists: {final_exists}"
-    )
-
-    if not final_exists:
-
-        log(
-            "ERROR: os.replace後も正式出力が存在しません"
-        )
-
-        raise RuntimeError(
-
-            "正式な字幕MP4が"
-            "作成されていません。"
-
-        )
-
-    final_is_file = output_path.is_file()
-
-    log(
-        f"final is_file: {final_is_file}"
-    )
-
-    if not final_is_file:
-
-        log(
-            "ERROR: 正式出力先が通常ファイルではありません"
-        )
-
-        raise RuntimeError(
-
-            "正式出力先がファイルではありません。"
-
-        )
-
-    try:
-
-        final_size = (
-            output_path.stat().st_size
-        )
-
-    except OSError as error:
-
-        log_exception(
-            "正式出力ファイルのサイズ取得に失敗しました。",
-            error
-        )
-
-        raise RuntimeError(
-
-            "正式出力ファイルを"
-            "確認できませんでした: "
-            +
-            str(error)
-
-        ) from error
-
-    log(
-        f"正式出力ファイルサイズ: {final_size} bytes"
-    )
-
-    if final_size <= 0:
-
-        log(
-            "ERROR: 正式出力ファイルサイズが0以下です"
-        )
-
-        remove_file_safely(
-            output_path
-        )
-
-        raise RuntimeError(
-            "正式出力ファイルのサイズが0です。"
-        )
-
-    log_file_state(
-        "FINAL OUTPUT",
-        output_path
-    )
-
-    log(
-        "STEP 22完了: 最終出力確認OK"
-    )
-
-    # ======================================================
-    # 一時ファイルが残っていないか確認
-    # ======================================================
-
-    log_start(
-        "STEP 23: 一時ファイル残存確認"
-    )
-
-    if temp_output_path.exists():
-
-        log(
-            "WARNING: 一時ファイルが残っています"
-        )
-
-        log(
-            f"temp_output_path: {temp_output_path}"
-        )
-
-        remove_file_safely(
-            temp_output_path
-        )
-
-    else:
-
-        log(
-            "一時ファイルは残っていません"
-        )
-
-    # ======================================================
-    # 完了
-    # ======================================================
-
-    elapsed_time = (
-
-        time.monotonic()
-        -
-        start_time
-
-    )
-
-    log_start(
-        "STEP 24: 字幕焼き込み最終完了"
-    )
-
-    log(
-        "字幕焼き込み完了"
-    )
-
-    log(
-        f"入力MP4: {mp4_path}"
-    )
-
-    log(
-        f"入力SRT: {srt_path}"
-    )
-
-    log(
-        f"出力ファイル: "
-        f"{output_path}"
-    )
-
-    log(
-        f"サイズ: "
-        f"{final_size} bytes"
-    )
-
-    log(
-        "処理時間: "
-        +
-        format_elapsed_time(
-            elapsed_time
-        )
-    )
-
-    log(
-        "====================================="
-    )
-
-    log(
-        "embed_subtitle正常終了"
-    )
-
-    log(
-        "##################################################"
-    )
-
-    return output_path
-
-
-# ==========================================================
-# 外部向け正式関数
-# ==========================================================
-
-def create_subtitle_mp4(
-    mp4_path,
-    srt_path,
-    output_path=None,
-    subtitle_settings=None
-):
-
-    log(
-        "create_subtitle_mp4開始"
-    )
-
-    log(
-        f"mp4_path: {mp4_path!r}"
-    )
-
-    log(
-        f"srt_path: {srt_path!r}"
-    )
-
-    log(
-        f"output_path: {output_path!r}"
-    )
-
-    log(
-        f"subtitle_settings: {subtitle_settings!r}"
-    )
-
-    try:
-
-        result = embed_subtitle(
-
-            mp4_path,
-
-            srt_path,
-
-            output_path,
-
-            subtitle_settings
-
-        )
-
-    except Exception as error:
-
-        log_exception(
-            "create_subtitle_mp4で例外",
-            error
-        )
-
-        raise
-
-    log(
-        f"create_subtitle_mp4完了: {result}"
-    )
-
-    return result
-
-
-# ==========================================================
-# 互換用別名
-# ==========================================================
-
-def create_burned_subtitle(
-    mp4_path,
-    srt_path,
-    output_path=None,
-    subtitle_settings=None
-):
-
-    log(
-        "create_burned_subtitle開始"
-    )
-
-    try:
-
-        result = embed_subtitle(
-
-            mp4_path,
-
-            srt_path,
-
-            output_path,
-
-            subtitle_settings
-
-        )
-
-    except Exception as error:
-
-        log_exception(
-            "create_burned_subtitleで例外",
-            error
-        )
-
-        raise
-
-    log(
-        f"create_burned_subtitle完了: {result}"
-    )
-
-    return result
-
-
-def burn_subtitles(
-    mp4_path,
-    srt_path,
-    output_path=None,
-    subtitle_settings=None
-):
-
-    log(
-        "burn_subtitles開始"
-    )
-
-    try:
-
-        result = embed_subtitle(
-
-            mp4_path,
-
-            srt_path,
-
-            output_path,
-
-            subtitle_settings
-
-        )
-
-    except Exception as error:
-
-        log_exception(
-            "burn_subtitlesで例外",
-            error
-        )
-
-        raise
-
-    log(
-        f"burn_subtitles完了: {result}"
-    )
-
-    return result
-
-
-# ==========================================================
-# downloads内から実行
-# ==========================================================
-
-def embed_from_downloads(
-    mp4_filename,
-    srt_filename,
-    subtitle_settings=None
-):
-
-    log_start(
-        "embed_from_downloads開始"
-    )
-
-    log(
-        f"mp4_filename input: {mp4_filename!r}"
-    )
-
-    log(
-        f"srt_filename input: {srt_filename!r}"
-    )
-
-    log(
-        f"subtitle_settings: {subtitle_settings!r}"
-    )
-
-    mp4_filename = Path(
-        mp4_filename
-    ).name
-
-    srt_filename = Path(
-        srt_filename
-    ).name
-
-    log(
-        f"安全化後mp4_filename: {mp4_filename}"
-    )
-
-    log(
-        f"安全化後srt_filename: {srt_filename}"
-    )
-
-    log(
-        f"DOWNLOADS_DIR: {DOWNLOADS_DIR}"
-    )
-
-    log(
-        "DOWNLOADS_DIR作成開始"
-    )
-
-    try:
-
-        DOWNLOADS_DIR.mkdir(
-
-            parents=True,
-
-            exist_ok=True
-
-        )
-
-    except OSError as error:
-
-        log_exception(
-            "DOWNLOADS_DIR作成に失敗しました。",
-            error
-        )
-
-        raise
-
-    log(
-        "DOWNLOADS_DIR作成・確認OK"
-    )
-
-    mp4_path = (
-        DOWNLOADS_DIR
-        /
-        mp4_filename
-    )
-
-    srt_path = (
-        DOWNLOADS_DIR
-        /
-        srt_filename
-    )
-
-    log(
-        f"DOWNLOAD_DIR: "
-        f"{DOWNLOADS_DIR}"
-    )
-
-    log(
-        f"downloads MP4: "
-        f"{mp4_path}"
-    )
-
-    log(
-        f"downloads SRT: "
-        f"{srt_path}"
-    )
-
-    log_file_state(
-        "downloads MP4",
-        mp4_path
-    )
-
-    log_file_state(
-        "downloads SRT",
-        srt_path
-    )
-
-    log(
-        "embed_subtitleへ処理を渡します"
-    )
-
-    try:
-
-        result = embed_subtitle(
-
-            mp4_path,
-
-            srt_path,
-
-            subtitle_settings=subtitle_settings
-
-        )
-
-    except Exception as error:
-
-        log_exception(
-            "embed_from_downloadsで例外",
-            error
-        )
-
-        raise
-
-    log(
-        f"embed_from_downloads完了: {result}"
-    )
-
-    log(
-        "====================================="
-    )
-
-    return result
-
-
-# ==========================================================
-# コマンドライン
-# ==========================================================
-
-def main():
-
-    main_start_time = time.monotonic()
-
-    log(
-        "##################################################"
-    )
-
-    log(
-        "subtitle.py main()開始"
-    )
-
-    log(
-        f"sys.argv: {sys.argv!r}"
-    )
-
-    log(
-        f"Python executable: {sys.executable}"
-    )
-
-    log(
-        f"Python version: {sys.version}"
-    )
-
-    log(
-        f"Current working directory: {os.getcwd()}"
-    )
-
-    log(
-        f"DOWNLOAD_DIR config: {DOWNLOAD_DIR!r}"
-    )
-
-    log(
-        f"DOWNLOADS_DIR: {DOWNLOADS_DIR}"
-    )
-
-    log(
-        f"Environment SUBTITLE_FONT: "
-        f"{os.environ.get('SUBTITLE_FONT')!r}"
-    )
-
-    log_system_info()
-
-    if len(sys.argv) < 3:
-
-        log(
-            "コマンドライン引数不足"
-        )
-
-        print()
-
-        print(
-            "使用方法:"
-        )
-
-        print(
-            "python subtitle.py "
-            "動画.mp4 字幕.srt"
-        )
-
-        print()
-
-        return 1
-
-    mp4_filename = (
-        sys.argv[1]
-    )
-
-    srt_filename = (
-        sys.argv[2]
-    )
-
-    log(
-        f"CLI MP4: {mp4_filename!r}"
-    )
-
-    log(
-        f"CLI SRT: {srt_filename!r}"
-    )
-
-    try:
-
-        # ==================================================
-        # subtitle_font.pyから標準設定を取得
-        # ==================================================
-
-        log_start(
-            "STEP MAIN-1: "
-            "subtitle_font.pyから標準設定取得開始"
-        )
-
-        subtitle_settings = (
-            get_default_subtitle_font_settings()
-        )
-
-        log(
-            "標準設定取得完了"
-        )
-
-        log(
-            f"subtitle_settings: "
-            f"{subtitle_settings!r}"
-        )
-
-        # ==================================================
-        # 字幕焼き込み
-        # ==================================================
-
-        log_start(
-            "STEP MAIN-2: embed_from_downloads開始"
-        )
-
-        output_path = (
-            embed_from_downloads(
-
-                mp4_filename,
-
-                srt_filename,
-
-                subtitle_settings
-
-            )
-        )
-
-        log(
-            "STEP MAIN-2完了"
-        )
-
-        log(
-            f"output_path returned: {output_path}"
-        )
-
-        elapsed_time = (
-
-            time.monotonic()
-            -
-            main_start_time
-
-        )
-
-        log(
-            f"main総処理時間: "
-            f"{format_elapsed_time(elapsed_time)}"
-        )
-
-        print()
-
-        print(
-            "====================================="
-        )
-
-        print(
-            "字幕焼き込み成功"
-        )
-
-        print(
-            "====================================="
-        )
-
-        print(
-            f"入力MP4: "
-            f"{mp4_filename}"
-        )
-
-        print(
-            f"入力SRT: "
-            f"{srt_filename}"
-        )
-
-        print(
-            f"preset_name: "
-            f"{subtitle_settings.get('preset_name')}"
-        )
-
-        print(
-            f"font: "
-            f"{subtitle_settings.get('font')}"
-        )
-
-        print(
-            f"text_color: "
-            f"{subtitle_settings.get('text_color')}"
-        )
-
-        print(
-            f"outline_color: "
-            f"{subtitle_settings.get('outline_color')}"
-        )
-
-        print(
-            f"outline_width: "
-            f"{subtitle_settings.get('outline_width')}"
-        )
-
-        print(
-            f"出力: "
-            f"{output_path.name}"
-        )
-
-        print(
-            f"出力パス: "
-            f"{output_path}"
-        )
-
-        print(
-            f"処理時間: "
-            f"{format_elapsed_time(elapsed_time)}"
-        )
-
-        print(
-            "====================================="
-        )
-
-        print()
-
-        log(
-            "subtitle.py main()正常終了"
-        )
-
-        log(
-            "##################################################"
-        )
-
-        return 0
-
-    except Exception as error:
-
-        elapsed_time = (
-
-            time.monotonic()
-            -
-            main_start_time
-
-        )
-
-        log_exception(
-            "main()で例外が発生しました。",
-            error
-        )
-
-        log(
-            f"例外発生時の処理時間: "
-            f"{format_elapsed_time(elapsed_time)}"
-        )
-
-        print()
-
-        print(
-            "====================================="
-        )
-
-        print(
-            "字幕焼き込み失敗"
-        )
-
-        print(
-            "====================================="
-        )
-
-        print(
-            str(error),
-            file=sys.stderr
-        )
-
-        print(
-
-            "処理時間: "
-            +
-            format_elapsed_time(
-                elapsed_time
-            ),
-
-            file=sys.stderr
-
-        )
-
-        print(
-            "====================================="
-        )
-
-        print()
-
-        log(
-            "subtitle.py main()異常終了"
-        )
-
-        log(
-            "##################################################"
-        )
-
-        return 1
-
-
-# ==========================================================
-# 実行
-# ==========================================================
-
-if __name__ == "__main__":
-
-    log(
-        "=================================================="
-    )
-
-    log(
-        "__main__実行開始"
-    )
-
-    log(
-        f"PID: {os.getpid()}"
-    )
-
-    log(
-        f"argv: {sys.argv!r}"
-    )
-
-    log(
-        "=================================================="
-    )
-
-    try:
-
-        exit_code = main()
-
-    except Exception as error:
-
-        log_exception(
-            "__main__でmain()外側の予期せぬ例外",
-            error
-        )
-
-        exit_code = 1
-
-    log(
-        f"main() returned exit_code={exit_code}"
-    )
-
-    log(
-        "__main__終了"
-    )
-
-    sys.exit(
-        exit_code
-    )
+            f
