@@ -485,6 +485,10 @@ def get_download_file(
 
 # ==========================================================
 # 字幕設定正規化
+#
+# ★字幕設定の正規化はここで1回だけ実行する。
+#
+# Route側では未正規化の設定を渡す。
 # ==========================================================
 
 def normalize_subtitle_settings(
@@ -748,6 +752,8 @@ def create_srt_from_mp3(
 
 # ==========================================================
 # MP4 + SRT → 字幕MP4
+#
+# ★字幕設定の正規化はこの関数内で1回だけ行う。
 # ==========================================================
 
 def create_subtitle_mp4(
@@ -835,6 +841,10 @@ def create_subtitle_mp4(
         raise ValueError(
             "SRTファイルが0 bytesです"
         )
+
+    # ======================================================
+    # 字幕設定をここで1回だけ正規化
+    # ======================================================
 
     subtitle_settings = (
         normalize_subtitle_settings(
@@ -1469,102 +1479,41 @@ def subtitle_create_mp4_route():
 
             }), 400
 
-        preset_name = data.get(
-            "preset_name"
-        )
 
-        font = data.get(
-            "font"
-        )
+        # ==================================================
+        # 字幕設定
+        #
+        # ★ここでは正規化しない。
+        # create_subtitle_mp4()で1回だけ正規化する。
+        # ==================================================
 
-        text_color = data.get(
-            "text_color"
-        )
+        requested_settings = {
 
-        outline_color = data.get(
-            "outline_color"
-        )
+            key:
+                data.get(
+                    key
+                )
 
-        outline_width = data.get(
-            "outline_width"
-        )
+            for key
+            in SUBTITLE_SETTING_KEYS
+
+            if data.get(
+                key
+            ) is not None
+
+        }
+
 
         print(
             "[SUBTITLE] request subtitle settings:",
+            requested_settings,
             flush=True
         )
 
-        print(
-            "  preset_name:",
-            preset_name,
-            flush=True
-        )
 
-        print(
-            "  font:",
-            font,
-            flush=True
-        )
-
-        print(
-            "  text_color:",
-            text_color,
-            flush=True
-        )
-
-        print(
-            "  outline_color:",
-            outline_color,
-            flush=True
-        )
-
-        print(
-            "  outline_width:",
-            outline_width,
-            flush=True
-        )
-
-        requested_settings = {
-
-            "preset_name":
-                preset_name,
-
-            "font":
-                font,
-
-            "text_color":
-                text_color,
-
-            "outline_color":
-                outline_color,
-
-            "outline_width":
-                outline_width,
-
-        }
-
-        requested_settings = {
-
-            key: value
-
-            for key, value
-            in requested_settings.items()
-
-            if value is not None
-
-        }
-
-        subtitle_settings = (
-            normalize_subtitle_settings(
-                requested_settings
-            )
-        )
-
-        print(
-            "[SUBTITLE] normalized subtitle settings:",
-            subtitle_settings,
-            flush=True
-        )
+        # ==================================================
+        # ファイル取得
+        # ==================================================
 
         mp4_path = get_download_file(
 
@@ -1582,15 +1531,24 @@ def subtitle_create_mp4_route():
 
         )
 
+
+        # ==================================================
+        # 字幕MP4作成
+        #
+        # create_subtitle_mp4()内部で
+        # 字幕設定を1回だけ正規化する。
+        # ==================================================
+
         result = create_subtitle_mp4(
 
             mp4_path,
 
             srt_path,
 
-            subtitle_settings=subtitle_settings
+            subtitle_settings=requested_settings
 
         )
+
 
         return jsonify({
 
