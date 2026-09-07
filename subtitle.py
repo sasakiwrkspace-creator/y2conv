@@ -3149,3 +3149,581 @@ def embed_subtitle(
 # ==========================================================
 # 外部向け正式関数
 # ==========================================================
+
+def create_subtitle_mp4(
+    mp4_path,
+    srt_path,
+    output_path=None,
+    subtitle_settings=None
+):
+
+    log(
+        "create_subtitle_mp4開始"
+    )
+
+    log(
+        f"mp4_path: {mp4_path!r}"
+    )
+
+    log(
+        f"srt_path: {srt_path!r}"
+    )
+
+    log(
+        f"output_path: {output_path!r}"
+    )
+
+    log(
+        f"subtitle_settings: {subtitle_settings!r}"
+    )
+
+    result = embed_subtitle(
+
+        mp4_path,
+
+        srt_path,
+
+        output_path,
+
+        subtitle_settings
+
+    )
+
+    log(
+        f"create_subtitle_mp4完了: {result}"
+    )
+
+    return result
+
+
+# ==========================================================
+# 互換用別名
+# ==========================================================
+
+def create_burned_subtitle(
+    mp4_path,
+    srt_path,
+    output_path=None,
+    subtitle_settings=None
+):
+
+    log(
+        "create_burned_subtitle開始"
+    )
+
+    result = embed_subtitle(
+
+        mp4_path,
+
+        srt_path,
+
+        output_path,
+
+        subtitle_settings
+
+    )
+
+    log(
+        f"create_burned_subtitle完了: {result}"
+    )
+
+    return result
+
+
+def burn_subtitles(
+    mp4_path,
+    srt_path,
+    output_path=None,
+    subtitle_settings=None
+):
+
+    log(
+        "burn_subtitles開始"
+    )
+
+    result = embed_subtitle(
+
+        mp4_path,
+
+        srt_path,
+
+        output_path,
+
+        subtitle_settings
+
+    )
+
+    log(
+        f"burn_subtitles完了: {result}"
+    )
+
+    return result
+
+
+# ==========================================================
+# downloads内から実行
+# ==========================================================
+
+def embed_from_downloads(
+    mp4_filename,
+    srt_filename,
+    subtitle_settings=None
+):
+
+    log(
+        "====================================="
+    )
+
+    log(
+        "embed_from_downloads開始"
+    )
+
+    log(
+        f"mp4_filename input: {mp4_filename!r}"
+    )
+
+    log(
+        f"srt_filename input: {srt_filename!r}"
+    )
+
+    log(
+        f"subtitle_settings: {subtitle_settings!r}"
+    )
+
+    mp4_filename = Path(
+        mp4_filename
+    ).name
+
+    srt_filename = Path(
+        srt_filename
+    ).name
+
+    log(
+        f"安全化後mp4_filename: {mp4_filename}"
+    )
+
+    log(
+        f"安全化後srt_filename: {srt_filename}"
+    )
+
+    log(
+        f"DOWNLOADS_DIR: {DOWNLOADS_DIR}"
+    )
+
+    log(
+        "DOWNLOADS_DIR作成開始"
+    )
+
+    try:
+
+        DOWNLOADS_DIR.mkdir(
+
+            parents=True,
+
+            exist_ok=True
+
+        )
+
+    except OSError as error:
+
+        log_exception(
+            "DOWNLOADS_DIR作成に失敗しました。",
+            error
+        )
+
+        raise
+
+    log(
+        "DOWNLOADS_DIR作成・確認OK"
+    )
+
+    mp4_path = (
+        DOWNLOADS_DIR
+        /
+        mp4_filename
+    )
+
+    srt_path = (
+        DOWNLOADS_DIR
+        /
+        srt_filename
+    )
+
+    log(
+        f"DOWNLOAD_DIR: "
+        f"{DOWNLOADS_DIR}"
+    )
+
+    log(
+        f"downloads MP4: "
+        f"{mp4_path}"
+    )
+
+    log(
+        f"downloads SRT: "
+        f"{srt_path}"
+    )
+
+    log(
+        "embed_subtitleへ処理を渡します"
+    )
+
+    result = embed_subtitle(
+
+        mp4_path,
+
+        srt_path,
+
+        subtitle_settings=subtitle_settings
+
+    )
+
+    log(
+        f"embed_from_downloads完了: {result}"
+    )
+
+    log(
+        "====================================="
+    )
+
+    return result
+
+
+# ==========================================================
+# コマンドライン
+# ==========================================================
+
+def main():
+
+    log(
+        "##################################################"
+    )
+
+    log(
+        "subtitle.py main()開始"
+    )
+
+    log(
+        f"sys.argv: {sys.argv!r}"
+    )
+
+    log(
+        f"Python executable: {sys.executable}"
+    )
+
+    log(
+        f"Python version: {sys.version}"
+    )
+
+    log(
+        f"Current working directory: {os.getcwd()}"
+    )
+
+    log(
+        f"DOWNLOAD_DIR config: {DOWNLOAD_DIR!r}"
+    )
+
+    log(
+        f"DOWNLOADS_DIR: {DOWNLOADS_DIR}"
+    )
+
+    log(
+        f"Environment SUBTITLE_FONT: "
+        f"{os.environ.get('SUBTITLE_FONT')!r}"
+    )
+
+    if len(sys.argv) < 3:
+
+        log(
+            "コマンドライン引数不足"
+        )
+
+        print()
+
+        print(
+            "使用方法:"
+        )
+
+        print(
+            "python subtitle.py "
+            "動画.mp4 字幕.srt"
+        )
+
+        print()
+
+        return 1
+
+    mp4_filename = (
+        sys.argv[1]
+    )
+
+    srt_filename = (
+        sys.argv[2]
+    )
+
+    log(
+        f"CLI MP4: {mp4_filename!r}"
+    )
+
+    log(
+        f"CLI SRT: {srt_filename!r}"
+    )
+
+    start_time = time.monotonic()
+
+    log(
+        "main処理タイマー開始"
+    )
+
+    try:
+
+        # ==================================================
+        # subtitle_font.pyから標準設定を取得
+        # ==================================================
+
+        log(
+            "STEP MAIN-1: "
+            "subtitle_font.pyから標準設定取得開始"
+        )
+
+        subtitle_settings = (
+            get_default_subtitle_font_settings()
+        )
+
+        log(
+            "標準設定取得完了"
+        )
+
+        log(
+            f"subtitle_settings: "
+            f"{subtitle_settings!r}"
+        )
+
+        # ==================================================
+        # 字幕焼き込み
+        # ==================================================
+
+        log(
+            "STEP MAIN-2: embed_from_downloads開始"
+        )
+
+        output_path = (
+            embed_from_downloads(
+
+                mp4_filename,
+
+                srt_filename,
+
+                subtitle_settings
+
+            )
+        )
+
+        log(
+            "STEP MAIN-2完了"
+        )
+
+        log(
+            f"output_path returned: {output_path}"
+        )
+
+        elapsed_time = (
+
+            time.monotonic()
+            -
+            start_time
+
+        )
+
+        log(
+            f"main総処理時間: "
+            f"{format_elapsed_time(elapsed_time)}"
+        )
+
+        print()
+
+        print(
+            "====================================="
+        )
+
+        print(
+            "字幕焼き込み成功"
+        )
+
+        print(
+            "====================================="
+        )
+
+        print(
+            f"入力MP4: "
+            f"{mp4_filename}"
+        )
+
+        print(
+            f"入力SRT: "
+            f"{srt_filename}"
+        )
+
+        print(
+            f"preset_name: "
+            f"{subtitle_settings.get('preset_name')}"
+        )
+
+        print(
+            f"font: "
+            f"{subtitle_settings.get('font')}"
+        )
+
+        print(
+            f"text_color: "
+            f"{subtitle_settings.get('text_color')}"
+        )
+
+        print(
+            f"outline_color: "
+            f"{subtitle_settings.get('outline_color')}"
+        )
+
+        print(
+            f"outline_width: "
+            f"{subtitle_settings.get('outline_width')}"
+        )
+
+        print(
+            f"出力: "
+            f"{output_path.name}"
+        )
+
+        print(
+            f"出力パス: "
+            f"{output_path}"
+        )
+
+        print(
+            f"処理時間: "
+            f"{format_elapsed_time(elapsed_time)}"
+        )
+
+        print(
+            "====================================="
+        )
+
+        print()
+
+        log(
+            "subtitle.py main()正常終了"
+        )
+
+        log(
+            "##################################################"
+        )
+
+        return 0
+
+    except Exception as error:
+
+        elapsed_time = (
+
+            time.monotonic()
+            -
+            start_time
+
+        )
+
+        log_exception(
+            "main()で例外が発生しました。",
+            error
+        )
+
+        log(
+            f"例外発生時の処理時間: "
+            f"{format_elapsed_time(elapsed_time)}"
+        )
+
+        print()
+
+        print(
+            "====================================="
+        )
+
+        print(
+            "字幕焼き込み失敗"
+        )
+
+        print(
+            "====================================="
+        )
+
+        print(
+            str(error),
+            file=sys.stderr
+        )
+
+        print(
+
+            "処理時間: "
+            +
+            format_elapsed_time(
+                elapsed_time
+            ),
+
+            file=sys.stderr
+
+        )
+
+        print(
+            "====================================="
+        )
+
+        print()
+
+        log(
+            "subtitle.py main()異常終了"
+        )
+
+        log(
+            "##################################################"
+        )
+
+        return 1
+
+
+# ==========================================================
+# 実行
+# ==========================================================
+
+if __name__ == "__main__":
+
+    log(
+        "=================================================="
+    )
+
+    log(
+        "__main__実行開始"
+    )
+
+    log(
+        f"PID: {os.getpid()}"
+    )
+
+    log(
+        f"argv: {sys.argv!r}"
+    )
+
+    log(
+        "=================================================="
+    )
+
+    exit_code = main()
+
+    log(
+        f"main() returned exit_code={exit_code}"
+    )
+
+    log(
+        "__main__終了"
+    )
+
+    sys.exit(
+        exit_code
+    )
