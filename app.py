@@ -29,6 +29,8 @@
 # 注意:
 # ・converter.js / subtitle.js の処理は
 #   このファイルでは行わない。
+# ・subtitle_test.py は Streamlit の
+#   別Web Serviceとして起動する。
 # =====================================
 
 
