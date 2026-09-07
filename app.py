@@ -27,7 +27,7 @@
 # ・/find-completed-files
 #
 # 単体テスト:
-# ・/subtitle-test
+# ・/test
 #
 # 注意:
 # ・converter.js / subtitle.js の処理は
@@ -162,31 +162,36 @@ register_completed_files(
 # Flaskのルートが正常に動作しているか
 # 確認するためのテスト用ルート。
 #
+# まずはHTMLを使わず、
+# 文字列だけを返して確認する。
+#
 # ブラウザ:
 #
-# https://y2conv-main.onrender.com/test-route
+# https://y2conv-main.onrender.com/test
 #
 # 正常:
 #
-# TEST ROUTE OK
+# TEST OK
 #
 # -------------------------------------
 
-@app.route("/test-route")
-def test_route():
+@app.route("/test")
+def test_page():
 
     print(
-        "★ /test-route が呼ばれました ★",
+        "★ /test が呼ばれました ★",
         flush=True
     )
 
-    return "TEST ROUTE OK"
+    return "TEST OK"
 
 
 # =====================================
 # subtitle test
 #
 # 単体テスト画面
+#
+# templates/test.html を表示する。
 #
 # ブラウザ:
 #
@@ -203,7 +208,7 @@ def subtitle_test_page():
     )
 
     return render_template(
-        "subtitle_test.html"
+        "test.html"
     )
 
 
