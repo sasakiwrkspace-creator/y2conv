@@ -157,18 +157,50 @@ register_completed_files(
 
 
 # =====================================
+# test route
+#
+# Flaskのルートが正常に動作しているか
+# 確認するためのテスト用ルート。
+#
+# ブラウザ:
+#
+# https://y2conv-main.onrender.com/test-route
+#
+# 正常:
+#
+# TEST ROUTE OK
+#
+# -------------------------------------
+
+@app.route("/test-route")
+def test_route():
+
+    print(
+        "★ /test-route が呼ばれました ★",
+        flush=True
+    )
+
+    return "TEST ROUTE OK"
+
+
+# =====================================
 # subtitle test
 #
 # 単体テスト画面
 #
 # ブラウザ:
 #
-# http://localhost:10000/subtitle-test
+# https://y2conv-main.onrender.com/subtitle-test
 #
 # -------------------------------------
 
 @app.route("/subtitle-test")
 def subtitle_test_page():
+
+    print(
+        "★ /subtitle-test が呼ばれました ★",
+        flush=True
+    )
 
     return render_template(
         "subtitle_test.html"
