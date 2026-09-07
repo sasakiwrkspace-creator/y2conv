@@ -26,15 +26,18 @@
 # 完成ファイル確認:
 # ・/find-completed-files
 #
+# 単体テスト:
+# ・/subtitle-test
+#
 # 注意:
 # ・converter.js / subtitle.js の処理は
 #   このファイルでは行わない。
-# ・subtitle_test.py は Streamlit の
-#   別Web Serviceとして起動する。
+# ・subtitle_test.py は Flask から呼び出す
+#   単体テスト用モジュールとして使用する。
 # =====================================
 
 
-from flask import Flask
+from flask import Flask, render_template
 
 
 import config
@@ -151,6 +154,25 @@ app.register_blueprint(
 register_completed_files(
     app
 )
+
+
+# =====================================
+# subtitle test
+#
+# 単体テスト画面
+#
+# ブラウザ:
+#
+# http://localhost:10000/subtitle-test
+#
+# -------------------------------------
+
+@app.route("/subtitle-test")
+def subtitle_test_page():
+
+    return render_template(
+        "subtitle_test.html"
+    )
 
 
 # =====================================
