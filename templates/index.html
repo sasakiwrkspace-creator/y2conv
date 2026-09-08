@@ -1,78 +1,167 @@
 from flask import Flask, jsonify, render_template_string
 import subprocess
 import os
-import time
 
 app = Flask(__name__)
 
 
+# ==========================================
+# ブラウザ画面
+# ==========================================
+
 HTML = """
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
     <meta charset="UTF-8">
     <title>FFmpeg Test</title>
 </head>
+
 <body>
 
-<h1>FFmpeg最小テスト</h1>
+<h1>FFmpegテスト</h1>
 
-<button onclick="runFFmpeg()">
+<button id="ffmpegButton" onclick="runFFmpeg()">
     FFmpegを実行
 </button>
 
-<p id="status">待機中</p>
+<p id="status">
+    待機中
+</p>
 
 <script>
+
 async function runFFmpeg() {
 
-    const status = document.getElementById("status");
+    const button =
+        document.getElementById("ffmpegButton");
 
-    status.textContent = "Pythonに送信中...";
+    const status =
+        document.getElementById("status");
+
+    button.disabled = true;
+
+    status.textContent =
+        "FFmpeg実行中...";
+
+    console.log(
+        "[BROWSER] FFmpeg実行開始"
+    );
 
     try {
 
-        const response = await fetch("/run-ffmpeg", {
-            method: "POST"
-        });
+        const response = await fetch(
+            "/run-ffmpeg",
+            {
+                method: "POST"
+            }
+        );
 
-        const data = await response.json();
+        console.log(
+            "[BROWSER] Pythonからレスポンス受信"
+        );
+
+        const data =
+            await response.json();
+
+        console.log(
+            "[BROWSER] response:",
+            data
+        );
 
         if (data.success) {
 
-            status.textContent = "FFmpeg終了";
+            status.textContent =
+                "FFmpeg終了";
 
         } else {
 
             status.textContent =
-                "FFmpegエラー: " + data.error;
+                "FFmpegエラー: " +
+                data.error;
         }
 
     } catch (error) {
 
+        console.error(
+            "[BROWSER] 通信エラー:",
+            error
+        );
+
         status.textContent =
-            "通信エラー: " + error;
+            "通信エラー: " +
+            error;
+
+    } finally {
+
+        button.disabled = false;
     }
 }
+
 </script>
 
 </body>
+
 </html>
 """
 
+
+# ==========================================
+# 起動確認
+# ==========================================
+
+print(
+    "==========================================",
+    flush=True
+)
+
+print(
+    "[SUBTITLE TEST] subtitle_test_ffmpeg.py START",
+    flush=True
+)
+
+print(
+    f"[SUBTITLE TEST] Python PID: {os.getpid()}",
+    flush=True
+)
+
+print(
+    f"[SUBTITLE TEST] __file__: {__file__}",
+    flush=True
+)
+
+print(
+    "==========================================",
+    flush=True
+)
+
+
+# ==========================================
+# トップページ
+# ==========================================
 
 @app.route("/")
 def index():
 
     print(
-        "[PYTHON] ブラウザからトップページ要求",
+        "[SUBTITLE TEST] ブラウザからページ要求",
         flush=True
     )
 
-    return render_template_string(HTML)
+    return render_template_string(
+        HTML
+    )
 
 
-@app.route("/run-ffmpeg", methods=["POST"])
+# ==========================================
+# FFmpeg実行
+# ==========================================
+
+@app.route(
+    "/run-ffmpeg",
+    methods=["POST"]
+)
 def run_ffmpeg():
 
     print(
@@ -81,23 +170,28 @@ def run_ffmpeg():
     )
 
     print(
-        "[PYTHON] /run-ffmpeg 呼び出し開始",
+        "[SUBTITLE TEST] /run-ffmpeg 開始",
         flush=True
     )
 
     print(
-        "[PYTHON] FFmpegを起動します",
+        "[SUBTITLE TEST] FFmpegを起動します",
         flush=True
     )
 
-    start = time.monotonic()
-
     try:
+
+        # --------------------------------------
+        # FFmpegを実行
+        #
+        # 動画処理は一切しない。
+        # バージョン確認だけ。
+        # --------------------------------------
 
         result = subprocess.run(
             [
                 "/usr/bin/ffmpeg",
-                "-version",
+                "-version"
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -105,41 +199,73 @@ def run_ffmpeg():
             timeout=30,
         )
 
-        elapsed = (
-            time.monotonic() - start
+        print(
+            "[SUBTITLE TEST] FFmpegプロセス終了",
+            flush=True
         )
 
         print(
-            f"[PYTHON] FFmpeg returncode: "
+            f"[SUBTITLE TEST] returncode: "
             f"{result.returncode}",
             flush=True
         )
 
-        print(
-            f"[PYTHON] FFmpeg実行時間: "
-            f"{elapsed:.2f}秒",
-            flush=True
-        )
+        # --------------------------------------
+        # FFmpegバージョン
+        # --------------------------------------
 
         if result.stdout:
 
-            first_line = (
+            lines = (
                 result.stdout
-                .splitlines()[0]
+                .splitlines()
             )
 
+            if lines:
+
+                print(
+                    f"[FFMPEG] {lines[0]}",
+                    flush=True
+                )
+
+        # --------------------------------------
+        # 成功
+        # --------------------------------------
+
+        if result.returncode == 0:
+
             print(
-                f"[FFMPEG] {first_line}",
+                "[SUBTITLE TEST] "
+                "FFmpeg終了 → ブラウザへ返します",
                 flush=True
             )
 
-        print(
-            "[PYTHON] FFmpeg終了",
-            flush=True
+            print(
+                "==========================================",
+                flush=True
+            )
+
+            return jsonify(
+                {
+                    "success": True,
+                    "message": "FFmpeg終了"
+                }
+            )
+
+        # --------------------------------------
+        # FFmpegエラー
+        # --------------------------------------
+
+        error_message = (
+            result.stderr.strip()
+            if result.stderr
+            else
+            f"returncode={result.returncode}"
         )
 
         print(
-            "[PYTHON] ブラウザへ「FFmpeg終了」を返します",
+            "[SUBTITLE TEST] "
+            f"FFmpeg ERROR: {error_message}",
             flush=True
         )
 
@@ -148,71 +274,73 @@ def run_ffmpeg():
             flush=True
         )
 
-        return jsonify({
-            "success": True,
-            "message": "FFmpeg終了",
-        })
+        return jsonify(
+            {
+                "success": False,
+                "error": error_message
+            }
+        ), 500
+
+    # ------------------------------------------
+    # timeout
+    # ------------------------------------------
 
     except subprocess.TimeoutExpired:
 
         print(
-            "[PYTHON] FFmpeg TIMEOUT",
+            "[SUBTITLE TEST] "
+            "FFmpeg TIMEOUT",
             flush=True
         )
 
-        return jsonify({
-            "success": False,
-            "error": "FFmpeg TIMEOUT",
-        }), 500
+        return jsonify(
+            {
+                "success": False,
+                "error": "FFmpeg TIMEOUT"
+            }
+        ), 500
+
+    # ------------------------------------------
+    # その他のエラー
+    # ------------------------------------------
 
     except Exception as e:
 
         print(
-            "[PYTHON] FFmpeg実行エラー",
+            "[SUBTITLE TEST] "
+            "FFmpeg実行例外",
             flush=True
         )
 
         print(
-            f"[PYTHON] ERROR TYPE: "
-            f"{type(e).__name__}",
+            f"[SUBTITLE TEST] "
+            f"ERROR TYPE: {type(e).__name__}",
             flush=True
         )
 
         print(
-            f"[PYTHON] ERROR: {e}",
+            f"[SUBTITLE TEST] "
+            f"ERROR: {e}",
             flush=True
         )
 
-        return jsonify({
-            "success": False,
-            "error": str(e),
-        }), 500
+        return jsonify(
+            {
+                "success": False,
+                "error": str(e)
+            }
+        ), 500
 
+
+# ==========================================
+# 直接実行
+# ==========================================
 
 if __name__ == "__main__":
 
     print(
-        "==========================================",
-        flush=True
-    )
-
-    print(
-        "[PYTHON] ffmpeg_test.py START",
-        flush=True
-    )
-
-    print(
-        f"[PYTHON] Python PID: {os.getpid()}",
-        flush=True
-    )
-
-    print(
-        "[PYTHON] Flask起動",
-        flush=True
-    )
-
-    print(
-        "==========================================",
+        "[SUBTITLE TEST] "
+        "直接実行モード",
         flush=True
     )
 
