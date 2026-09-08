@@ -4,14 +4,41 @@ import subprocess
 
 DOWNLOAD_DIR = Path("/app/downloads")
 
-INPUT_MP4 = DOWNLOAD_DIR / "test.mp4"
-OUTPUT_MP4 = DOWNLOAD_DIR / "test_embed.mp4"
+DEFAULT_INPUT_MP4 = DOWNLOAD_DIR / "test.mp4"
+DEFAULT_OUTPUT_MP4 = DOWNLOAD_DIR / "test_embed.mp4"
 
 
-def run_ffmpeg_subtitle_test():
+def run_ffmpeg_subtitle_test(
+    input_path=None,
+    output_path=None
+):
     print("==========================================", flush=True)
     print("[SUBTITLE TEST] START", flush=True)
     print("==========================================", flush=True)
+
+    # -------------------------------------
+    # パス決定
+    # -------------------------------------
+
+    if input_path is None:
+        input_file = DEFAULT_INPUT_MP4
+    else:
+        input_file = Path(input_path)
+
+    if output_path is None:
+        output_file = DEFAULT_OUTPUT_MP4
+    else:
+        output_file = Path(output_path)
+
+    print(
+        f"[SUBTITLE TEST] input: {input_file}",
+        flush=True
+    )
+
+    print(
+        f"[SUBTITLE TEST] output: {output_file}",
+        flush=True
+    )
 
     # -------------------------------------
     # MP4存在確認
@@ -22,12 +49,17 @@ def run_ffmpeg_subtitle_test():
         flush=True
     )
 
-    if not INPUT_MP4.exists():
+    if not input_file.exists():
         raise FileNotFoundError(
-            f"入力ファイルが存在しません: {INPUT_MP4}"
+            f"入力ファイルが存在しません: {input_file}"
         )
 
-    input_size = INPUT_MP4.stat().st_size
+    if not input_file.is_file():
+        raise FileNotFoundError(
+            f"入力ファイルではありません: {input_file}"
+        )
+
+    input_size = input_file.stat().st_size
 
     print(
         "[SUBTITLE TEST] MP4存在確認 OK",
@@ -40,16 +72,26 @@ def run_ffmpeg_subtitle_test():
     )
 
     # -------------------------------------
+    # 出力ディレクトリ確認
+    # -------------------------------------
+
+    output_file.parent.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    # -------------------------------------
     # 既存出力削除
     # -------------------------------------
 
-    if OUTPUT_MP4.exists():
+    if output_file.exists():
+
         print(
             "[SUBTITLE TEST] 既存出力削除",
             flush=True
         )
 
-        OUTPUT_MP4.unlink()
+        output_file.unlink()
 
     # -------------------------------------
     # FFmpegコマンド
@@ -57,26 +99,41 @@ def run_ffmpeg_subtitle_test():
     # 今回は字幕処理なし
     # 再エンコードなし
     # 単純コピー
+    #
+    # FFmpegが1回だけ実行されるかを確認する。
     # -------------------------------------
 
     command = [
         "/usr/bin/ffmpeg",
+
         "-y",
+
         "-nostdin",
+
         "-hide_banner",
+
         "-loglevel",
         "error",
+
         "-i",
-        str(INPUT_MP4),
+        str(input_file),
+
         "-map",
         "0",
+
         "-c",
         "copy",
-        str(OUTPUT_MP4)
+
+        str(output_file)
     ]
 
     print("==========================================", flush=True)
-    print("[SUBTITLE TEST] FFmpeg command", flush=True)
+
+    print(
+        "[SUBTITLE TEST] FFmpeg command",
+        flush=True
+    )
+
     print("==========================================", flush=True)
 
     print(
@@ -89,10 +146,12 @@ def run_ffmpeg_subtitle_test():
     # -------------------------------------
 
     print("==========================================", flush=True)
+
     print(
         "[SUBTITLE TEST] FFmpeg起動【1回だけ】",
         flush=True
     )
+
     print("==========================================", flush=True)
 
     print(
@@ -117,21 +176,25 @@ def run_ffmpeg_subtitle_test():
     # -------------------------------------
 
     print("==========================================", flush=True)
+
     print(
         "[SUBTITLE TEST] FFmpeg終了",
         flush=True
     )
+
     print(
         f"[SUBTITLE TEST] returncode: {result.returncode}",
         flush=True
     )
+
     print("==========================================", flush=True)
 
     # -------------------------------------
-    # FFmpeg stderr
+    # stderr
     # -------------------------------------
 
     if result.stderr:
+
         print(
             "[SUBTITLE TEST] FFmpeg stderr:",
             flush=True
@@ -147,8 +210,9 @@ def run_ffmpeg_subtitle_test():
     # -------------------------------------
 
     if result.returncode != 0:
+
         raise RuntimeError(
-            f"FFmpeg処理失敗 "
+            "FFmpeg処理失敗 "
             f"(returncode={result.returncode})"
         )
 
@@ -161,13 +225,21 @@ def run_ffmpeg_subtitle_test():
         flush=True
     )
 
-    if not OUTPUT_MP4.exists():
+    if not output_file.exists():
+
         raise FileNotFoundError(
             "FFmpeg終了後も出力ファイルがありません: "
-            f"{OUTPUT_MP4}"
+            f"{output_file}"
         )
 
-    output_size = OUTPUT_MP4.stat().st_size
+    if not output_file.is_file():
+
+        raise FileNotFoundError(
+            "FFmpeg出力がファイルではありません: "
+            f"{output_file}"
+        )
+
+    output_size = output_file.stat().st_size
 
     print(
         "[SUBTITLE TEST] 出力ファイル確認 OK",
@@ -175,7 +247,8 @@ def run_ffmpeg_subtitle_test():
     )
 
     print(
-        f"[SUBTITLE TEST] 出力サイズ: {output_size} bytes",
+        f"[SUBTITLE TEST] 出力サイズ: "
+        f"{output_size} bytes",
         flush=True
     )
 
@@ -184,10 +257,12 @@ def run_ffmpeg_subtitle_test():
     # -------------------------------------
 
     print("==========================================", flush=True)
+
     print(
         "[SUBTITLE TEST] COMPLETE",
         flush=True
     )
+
     print("==========================================", flush=True)
 
-    return OUTPUT_MP4
+    return output_file
