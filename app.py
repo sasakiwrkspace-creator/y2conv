@@ -2,12 +2,32 @@
 # YouTube Converter
 # app.py
 #
-# FFmpeg単体テスト 最小構成版
+# FFmpeg単体テスト用・最小検証版
+#
+# 今回のテスト:
+#
+# ブラウザ
+#   ↓
+# Python
+#   ↓
+# MP4存在確認
+#   ↓
+# FFmpegを1回だけ起動
+#   ↓
+# H.264再エンコード
+#   ↓
+# FFmpeg終了を待つ
+#   ↓
+# 「FFmpeg終了」
+#
+# 字幕処理はまだ行わない。
 # =====================================
+
 
 from flask import Flask, render_template
 from pathlib import Path
 import subprocess
+
 import config
 
 
@@ -246,25 +266,16 @@ def test_page():
 # =====================================
 # FFmpeg単体テスト
 #
-# 重要:
+# 今回は字幕処理なし。
 #
-# ここでは字幕処理を一切しない。
+# test.mp4
+#     ↓
+# FFmpeg
+#     ↓
+# H.264再エンコード
+#     ↓
+# test_ffmpeg_output.mp4
 #
-# 動作:
-#
-# ブラウザ
-#   ↓
-# POST
-#   ↓
-# MP4存在確認
-#   ↓
-# FFmpeg起動
-#   ↓
-# wait()
-#   ↓
-# FFmpeg終了
-#   ↓
-# ブラウザへ結果
 # =====================================
 
 @app.route(
@@ -320,17 +331,15 @@ def subtitle_test_ffmpeg_route():
         flush=True
     )
 
-    exists = input_path.exists()
-
-    print(
-        f"[APP] MP4 exists: {exists}",
-        flush=True
-    )
-
-    if not exists:
+    if not input_path.exists():
 
         print(
-            "[APP] MP4が存在しません",
+            "[APP] MP4 exists: False",
+            flush=True
+        )
+
+        print(
+            "[APP] 入力ファイルが存在しません",
             flush=True
         )
 
@@ -340,33 +349,40 @@ def subtitle_test_ffmpeg_route():
         )
 
         return (
-            "FFmpegテスト失敗\n\n"
+            "【字幕FFmpegテスト失敗】\n\n"
             "入力ファイルが存在しません:\n"
             f"{input_path}",
             500
         )
 
 
+    print(
+        "[APP] MP4 exists: True",
+        flush=True
+    )
+
+
     # =====================================
     # STEP 3
-    # ファイルサイズ確認
+    # 入力サイズ
     # =====================================
 
     try:
 
-        file_size = (
+        input_size = (
             input_path.stat().st_size
         )
 
         print(
-            f"[APP] MP4 size: {file_size} bytes",
+            f"[APP] input size: "
+            f"{input_size} bytes",
             flush=True
         )
 
     except Exception as error:
 
         print(
-            "[APP] MP4サイズ取得失敗",
+            "[APP] 入力サイズ取得失敗",
             flush=True
         )
 
@@ -397,9 +413,6 @@ def subtitle_test_ffmpeg_route():
     # =====================================
     # STEP 5
     # 出力ファイル
-    #
-    # 字幕なし
-    # 単純コピー
     # =====================================
 
     output_path = (
@@ -415,33 +428,96 @@ def subtitle_test_ffmpeg_route():
 
     # =====================================
     # STEP 6
+    # 古い出力ファイル削除
+    # =====================================
+
+    if output_path.exists():
+
+        print(
+            "[APP] 古い出力ファイルを削除します",
+            flush=True
+        )
+
+        try:
+
+            output_path.unlink()
+
+            print(
+                "[APP] 古い出力ファイル削除 OK",
+                flush=True
+            )
+
+        except Exception as error:
+
+            print(
+                "[APP] 古い出力ファイル削除 FAILED",
+                flush=True
+            )
+
+            print(
+                f"[APP] ERROR: {error}",
+                flush=True
+            )
+
+            return (
+                "【字幕FFmpegテスト失敗】\n\n"
+                "古い出力ファイルを削除できませんでした。\n\n"
+                f"{error}",
+                500
+            )
+
+
+    # =====================================
+    # STEP 7
     # FFmpegコマンド
     #
-    # ここでは映像変換すらしない。
+    # 重要:
     #
-    # -c copy
+    # 字幕なし
+    # libassなし
+    # fontsdirなし
+    # scaleなし
     #
-    # つまりMP4をそのまま
-    # 別ファイルへコピーするだけ。
+    # H.264再エンコードのみ。
     #
-    # 目的:
-    #
-    # 「FFmpegを起動して終了を待つ」
-    #
-    # だけを確認する。
+    # ultrafast + threads 1
+    # でメモリ使用量を抑える。
     # =====================================
 
     command = [
         ffmpeg_path,
+
         "-y",
         "-nostdin",
+
         "-hide_banner",
         "-loglevel",
         "error",
+
         "-i",
         str(input_path),
-        "-c",
-        "copy",
+
+        "-c:v",
+        "libx264",
+
+        "-threads",
+        "1",
+
+        "-preset",
+        "ultrafast",
+
+        "-crf",
+        "28",
+
+        "-c:a",
+        "aac",
+
+        "-b:a",
+        "128k",
+
+        "-movflags",
+        "+faststart",
+
         str(output_path),
     ]
 
@@ -473,12 +549,10 @@ def subtitle_test_ffmpeg_route():
 
 
     # =====================================
-    # STEP 7
+    # STEP 8
     # FFmpeg起動
     #
-    # ここが重要。
-    #
-    # FFmpegはこの1回だけ起動する。
+    # ここで1回だけPopenする。
     # =====================================
 
     try:
@@ -498,7 +572,7 @@ def subtitle_test_ffmpeg_route():
         )
 
         print(
-            "[APP] FFmpeg起動 FAILED",
+            "[APP] FFmpeg START FAILED",
             flush=True
         )
 
@@ -519,6 +593,7 @@ def subtitle_test_ffmpeg_route():
         )
 
         return (
+            "【字幕FFmpegテスト失敗】\n\n"
             "FFmpeg起動失敗\n\n"
             f"ERROR TYPE:\n"
             f"{type(error).__name__}\n\n"
@@ -540,13 +615,10 @@ def subtitle_test_ffmpeg_route():
 
 
     # =====================================
-    # STEP 8
+    # STEP 9
     # FFmpeg終了待ち
     #
-    # timeoutなし。
-    #
-    # まず純粋に
-    # FFmpegが終了するかだけを見る。
+    # communicate() で終了を待つ。
     # =====================================
 
     try:
@@ -584,7 +656,8 @@ def subtitle_test_ffmpeg_route():
         )
 
         return (
-            "FFmpeg待機失敗\n\n"
+            "【字幕FFmpegテスト失敗】\n\n"
+            "FFmpeg待機中にエラーが発生しました。\n\n"
             f"ERROR TYPE:\n"
             f"{type(error).__name__}\n\n"
             f"ERROR:\n"
@@ -594,7 +667,7 @@ def subtitle_test_ffmpeg_route():
 
 
     # =====================================
-    # STEP 9
+    # STEP 10
     # FFmpeg終了
     # =====================================
 
@@ -614,6 +687,11 @@ def subtitle_test_ffmpeg_route():
     )
 
 
+    # =====================================
+    # STEP 11
+    # FFmpegエラー確認
+    # =====================================
+
     if stderr_data:
 
         print(
@@ -628,11 +706,21 @@ def subtitle_test_ffmpeg_route():
 
 
     # =====================================
-    # STEP 10
-    # 終了結果
+    # STEP 12
+    # 正常終了
     # =====================================
 
     if returncode == 0:
+
+        print(
+            "[APP] FFmpeg returncode = 0",
+            flush=True
+        )
+
+
+        # ---------------------------------
+        # 出力ファイル確認
+        # ---------------------------------
 
         output_exists = (
             output_path.exists()
@@ -643,6 +731,7 @@ def subtitle_test_ffmpeg_route():
             f"{output_exists}",
             flush=True
         )
+
 
         if output_exists:
 
@@ -658,9 +747,18 @@ def subtitle_test_ffmpeg_route():
                     flush=True
                 )
 
-            except Exception:
-                pass
+            except Exception as error:
 
+                print(
+                    f"[APP] output size取得失敗: "
+                    f"{error}",
+                    flush=True
+                )
+
+
+        # ---------------------------------
+        # ブラウザへ返す
+        # ---------------------------------
 
         print(
             "[APP] ブラウザへ「FFmpeg終了」を返します",
@@ -672,6 +770,7 @@ def subtitle_test_ffmpeg_route():
             flush=True
         )
 
+
         return (
             "【字幕FFmpegテスト完了】\n\n"
             "FFmpeg終了",
@@ -680,11 +779,12 @@ def subtitle_test_ffmpeg_route():
 
 
     # =====================================
+    # STEP 13
     # FFmpeg異常終了
     # =====================================
 
     print(
-        "[APP] FFmpeg異常終了",
+        "[APP] FFmpeg returncode != 0",
         flush=True
     )
 
@@ -693,10 +793,13 @@ def subtitle_test_ffmpeg_route():
         flush=True
     )
 
+
     return (
         "【字幕FFmpegテスト失敗】\n\n"
         "FFmpegが異常終了しました。\n\n"
-        f"returncode: {returncode}\n\n"
+        f"returncode:\n"
+        f"{returncode}\n\n"
+        f"stderr:\n"
         f"{stderr_data}",
         500
     )
