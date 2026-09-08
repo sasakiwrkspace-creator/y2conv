@@ -2,7 +2,8 @@
 # YouTube Converter
 # app.py
 #
-# FFmpeg字幕 最小テスト版
+# FFmpeg字幕 最小テスト
+# force_style追加版
 #
 # 流れ:
 #
@@ -16,7 +17,7 @@
 #   ↓
 # FFmpegを1回だけ起動
 #   ↓
-# 字幕を焼き込み
+# subtitles + force_style
 #   ↓
 # test_embed.mp4
 #   ↓
@@ -24,15 +25,17 @@
 #   ↓
 # ブラウザ表示
 #
-# 今回は調査のため、
-# 以下は使用しない:
+# 今回追加するもの:
+#
+# ・force_style
+#
+# 今回まだ追加しないもの:
 #
 # ・fontsdir
 # ・scale
 # ・-progress
 # ・ログ読み取りスレッド
 # ・バックグラウンド処理
-# ・run_ffmpeg_subtitle_test()
 # ・subtitle_test_ffmpeg.py
 # =====================================
 
@@ -331,8 +334,6 @@ def subtitle_test_ffmpeg_route():
         # =====================================
         # STEP 3
         # 出力先
-        #
-        # 今後も必ず test_embed.mp4
         # =====================================
 
         output_path = (
@@ -364,22 +365,38 @@ def subtitle_test_ffmpeg_route():
 
             output_path.unlink()
 
+            print(
+                "[TEST] 既存ファイル削除完了",
+                flush=True
+            )
+
 
         # =====================================
         # STEP 4
-        # 字幕フィルター
+        # force_style
         #
-        # 今回は最小構成。
+        # 字幕処理そのものは前回成功済み。
         #
-        # fontsdirなし
-        # force_styleなし
+        # 今回は見た目だけ追加。
         #
-        # libassの標準フォント処理に任せる。
+        # 白文字
+        # 赤い縁取り
         # =====================================
+
+        force_style = (
+            "FontName=Noto Sans CJK JP,"
+            "PrimaryColour=&H00FFFFFF,"
+            "OutlineColour=&H000000FF,"
+            "Outline=5"
+        )
+
 
         subtitle_filter = (
             "subtitles="
             + str(subtitle_path)
+            + ":force_style='"
+            + force_style
+            + "'"
         )
 
 
@@ -389,7 +406,14 @@ def subtitle_test_ffmpeg_route():
         )
 
         print(
-            f"[TEST] filter: {subtitle_filter}",
+            f"[TEST] force_style: "
+            f"{force_style}",
+            flush=True
+        )
+
+        print(
+            f"[TEST] filter: "
+            f"{subtitle_filter}",
             flush=True
         )
 
@@ -397,8 +421,6 @@ def subtitle_test_ffmpeg_route():
         # =====================================
         # STEP 5
         # FFmpegコマンド
-        #
-        # FFmpegは1回だけ。
         # =====================================
 
         ffmpeg_command = [
@@ -460,9 +482,8 @@ def subtitle_test_ffmpeg_route():
         # STEP 6
         # FFmpeg開始
         #
-        # subprocess.run()
-        #
-        # ここでFFmpeg終了まで待つ。
+        # 1回だけ起動。
+        # 終了するまで待つ。
         # =====================================
 
         print(
