@@ -2,38 +2,34 @@
 # YouTube Converter
 # app.py
 #
-# アプリケーションの入口
+# 今回の調査版
 #
-# 今回の調査目的:
+# 目的:
+# ・Flask起動
+# ・/test 表示
+# ・FFmpegボタンを押した時だけ
+#   subtitle_test_ffmpeg.py の処理を呼ぶ
 #
-# ・既存のimport / route登録は通常通り行う
-# ・/test も通常通り表示する
-# ・FFmpegボタンのrouteだけはFFmpegを実行しない
-#
-# 調査段階:
-#
-# ブラウザ
-#   ↓
-# POST /subtitle-test/ffmpeg
-#   ↓
-# Python
-#   ↓
-# 何もしない
-#   ↓
-# ブラウザに「FFmpeg終了」
-#
-# IMPORTANT:
-# この段階では
-# subtitle_test_ffmpeg.py をimportしない。
-# FFmpegも起動しない。
+# 重要:
+# ・app.py 起動時にはFFmpegを実行しない
+# ・FFmpeg実行は POST /subtitle-test/ffmpeg
+#   が呼ばれた時だけ
 # =====================================
 
 
 from flask import Flask, render_template
 
 
+# =====================================
+# 設定
+# =====================================
+
 import config
 
+
+# =====================================
+# 既存Routes
+# =====================================
 
 from routes.index import register_index
 from routes.files import register_files
@@ -42,8 +38,6 @@ from routes.check import register_video_info, register_check
 from routes.gemini import register_gemini
 from routes.completed_files import register_completed_files
 
-
-# subtitle_routes.py は Blueprint方式
 from routes.subtitle_routes import subtitle_bp
 
 
@@ -59,265 +53,154 @@ app = Flask(__name__)
 # =====================================
 
 BASE_DIR = config.BASE_DIR
-
 DOWNLOAD_DIR = config.DOWNLOAD_DIR
 
 
 # =====================================
-# Routes登録開始
+# 起動ログ
 # =====================================
 
+print("==========================================", flush=True)
+print("[APP] app.py START", flush=True)
+print("==========================================", flush=True)
+
 print(
-    "==========================================",
+    f"[APP] BASE_DIR: {BASE_DIR}",
     flush=True
 )
 
 print(
-    "[APP] Registering routes",
+    f"[APP] DOWNLOAD_DIR: {DOWNLOAD_DIR}",
     flush=True
 )
 
-print(
-    "==========================================",
-    flush=True
-)
+
+# =====================================
+# Routes登録
+# =====================================
+
+print("==========================================", flush=True)
+print("[APP] Registering routes", flush=True)
+print("==========================================", flush=True)
 
 
 # -------------------------------------
 # index
 # -------------------------------------
 
-print(
-    "[APP] register_index START",
-    flush=True
-)
+print("[APP] register_index START", flush=True)
 
 register_index(app)
 
-print(
-    "[APP] register_index END",
-    flush=True
-)
+print("[APP] register_index OK", flush=True)
 
 
 # -------------------------------------
 # files
 # -------------------------------------
 
-print(
-    "[APP] register_files START",
-    flush=True
-)
+print("[APP] register_files START", flush=True)
 
 register_files(app)
 
-print(
-    "[APP] register_files END",
-    flush=True
-)
+print("[APP] register_files OK", flush=True)
 
 
 # -------------------------------------
 # convert
 # -------------------------------------
 
-print(
-    "[APP] register_convert START",
-    flush=True
-)
+print("[APP] register_convert START", flush=True)
 
 register_convert(app)
 
-print(
-    "[APP] register_convert END",
-    flush=True
-)
+print("[APP] register_convert OK", flush=True)
 
 
 # -------------------------------------
 # video-info / check
 # -------------------------------------
 
-print(
-    "[APP] register_video_info START",
-    flush=True
-)
+print("[APP] register_video_info START", flush=True)
 
 register_video_info(app)
 
-print(
-    "[APP] register_video_info END",
-    flush=True
-)
+print("[APP] register_video_info OK", flush=True)
 
 
-print(
-    "[APP] register_check START",
-    flush=True
-)
+print("[APP] register_check START", flush=True)
 
 register_check(app)
 
-print(
-    "[APP] register_check END",
-    flush=True
-)
+print("[APP] register_check OK", flush=True)
 
 
 # -------------------------------------
-# Gemini / SRT
+# Gemini
 # -------------------------------------
 
-print(
-    "[APP] register_gemini START",
-    flush=True
-)
+print("[APP] register_gemini START", flush=True)
 
 register_gemini(app)
 
-print(
-    "[APP] register_gemini END",
-    flush=True
-)
+print("[APP] register_gemini OK", flush=True)
 
 
 # -------------------------------------
-# subtitle
-#
-# subtitle_routes.py は Blueprint方式。
-#
-# タブ2:
-#
-# MP3アップロード
-#     ↓
-# Gemini
-#     ↓
-# SRT
-#
-# MP4アップロード
-# SRTアップロード
-#     ↓
-# MP4 + SRT
-#     ↓
-# 字幕付きMP4
-#
+# subtitle Blueprint
 # -------------------------------------
 
-print(
-    "[APP] subtitle_bp register START",
-    flush=True
-)
+print("[APP] subtitle_bp register START", flush=True)
 
 app.register_blueprint(
     subtitle_bp
 )
 
-print(
-    "[APP] subtitle_bp register END",
-    flush=True
-)
+print("[APP] subtitle_bp register OK", flush=True)
 
 
 # -------------------------------------
 # completed files
 # -------------------------------------
 
-print(
-    "[APP] register_completed_files START",
-    flush=True
-)
+print("[APP] register_completed_files START", flush=True)
 
-register_completed_files(
-    app
-)
+register_completed_files(app)
 
-print(
-    "[APP] register_completed_files END",
-    flush=True
-)
+print("[APP] register_completed_files OK", flush=True)
 
 
 # =====================================
-# test route
+# TEST画面
 #
-# 単体テスト画面
+# GET /test
 #
-# ブラウザ:
-#
-# /test
-#
+# ここではFFmpegを絶対に実行しない
 # =====================================
 
-@app.route(
-    "/test",
-    methods=["GET"]
-)
+@app.route("/test", methods=["GET"])
 def test_page():
 
+    print("==========================================", flush=True)
+    print("[APP] /test START", flush=True)
+
     print(
-        "==========================================",
+        "[APP] test.html を表示します",
         flush=True
     )
 
-    print(
-        "[APP] /test START",
-        flush=True
-    )
+    print("[APP] /test END", flush=True)
+    print("==========================================", flush=True)
 
-    print(
-        "[APP] render_template(test.html) START",
-        flush=True
-    )
-
-    result = render_template(
-        "test.html"
-    )
-
-    print(
-        "[APP] render_template(test.html) END",
-        flush=True
-    )
-
-    print(
-        "[APP] /test END",
-        flush=True
-    )
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    return result
+    return render_template("test.html")
 
 
 # =====================================
-# FFmpeg字幕単体テスト
+# FFmpegテスト
 #
 # POST /subtitle-test/ffmpeg
 #
-# =====================================
-#
-# IMPORTANT:
-#
-# ★ 今回はFFmpegを一切起動しない
-# ★ subtitle_test_ffmpeg.pyもimportしない
-# ★ run_ffmpeg_subtitle_test()も呼ばない
-#
-# まずここだけを確認する。
-#
-# ブラウザ
-#   ↓
-# ボタン
-#   ↓
-# POST
-#   ↓
-# このroute
-#   ↓
-# 「FFmpeg終了」
-#   ↓
-# ブラウザ
-#
+# ブラウザのボタンを押した時だけ実行
 # =====================================
 
 @app.route(
@@ -326,228 +209,209 @@ def test_page():
 )
 def subtitle_test_ffmpeg_route():
 
+    print("==========================================", flush=True)
+    print("[APP] /subtitle-test/ffmpeg START", flush=True)
+    print("==========================================", flush=True)
+
+
+    # -------------------------------------
+    # この時点で初めて
+    # subtitle_test_ffmpeg を読み込む
+    #
+    # importだけではFFmpegを実行しないことが前提
+    # -------------------------------------
+
     print(
-        "==========================================",
+        "[APP] subtitle_test_ffmpeg import START",
         flush=True
     )
 
+    try:
+
+        from subtitle_test_ffmpeg import (
+            run_ffmpeg_subtitle_test
+        )
+
+    except Exception as error:
+
+        import traceback
+
+        print(
+            "[APP] subtitle_test_ffmpeg import FAILED",
+            flush=True
+        )
+
+        print(
+            f"[APP] ERROR TYPE: {type(error).__name__}",
+            flush=True
+        )
+
+        print(
+            f"[APP] ERROR: {error}",
+            flush=True
+        )
+
+        traceback.print_exc()
+
+        return (
+            "FFmpeg処理開始前にエラー\n\n"
+            f"ERROR TYPE:\n"
+            f"{type(error).__name__}\n\n"
+            f"ERROR:\n"
+            f"{error}",
+            500
+        )
+
+
     print(
-        "[TEST] ① /subtitle-test/ffmpeg START",
+        "[APP] subtitle_test_ffmpeg import OK",
         flush=True
     )
 
 
     # -------------------------------------
-    # ここでは何もしない
+    # FFmpeg処理開始
     # -------------------------------------
 
+    print("==========================================", flush=True)
+
     print(
-        "[TEST] ② subtitle_test_ffmpeg.py はimportしません",
+        "[APP] run_ffmpeg_subtitle_test() START",
         flush=True
     )
 
     print(
-        "[TEST] ③ run_ffmpeg_subtitle_test() は呼びません",
+        "[APP] ここから先はsubtitle_test_ffmpeg.py",
+        flush=True
+    )
+
+    print("==========================================", flush=True)
+
+
+    try:
+
+        output_path = run_ffmpeg_subtitle_test()
+
+
+    except Exception as error:
+
+        import traceback
+
+        print("==========================================", flush=True)
+
+        print(
+            "[APP] run_ffmpeg_subtitle_test() FAILED",
+            flush=True
+        )
+
+        print(
+            f"[APP] ERROR TYPE: {type(error).__name__}",
+            flush=True
+        )
+
+        print(
+            f"[APP] ERROR: {error}",
+            flush=True
+        )
+
+        print(
+            "[APP] TRACEBACK START",
+            flush=True
+        )
+
+        traceback.print_exc()
+
+        print(
+            "[APP] TRACEBACK END",
+            flush=True
+        )
+
+        print("==========================================", flush=True)
+
+
+        return (
+            "FFmpeg処理失敗\n\n"
+            f"ERROR TYPE:\n"
+            f"{type(error).__name__}\n\n"
+            f"ERROR:\n"
+            f"{error}",
+            500
+        )
+
+
+    # -------------------------------------
+    # FFmpeg処理終了
+    # -------------------------------------
+
+    print("==========================================", flush=True)
+
+    print(
+        "[APP] run_ffmpeg_subtitle_test() END",
         flush=True
     )
 
     print(
-        "[TEST] ④ FFmpegは起動しません",
+        f"[APP] output_path: {output_path}",
         flush=True
     )
+
+    print("==========================================", flush=True)
 
 
     # -------------------------------------
     # ブラウザへ返す
     # -------------------------------------
 
-    print(
-        "[TEST] ⑤ ブラウザへ「FFmpeg終了」を返します",
-        flush=True
-    )
-
-
-    print(
-        "[TEST] ⑥ /subtitle-test/ffmpeg END",
-        flush=True
-    )
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-
     return (
+        "【字幕FFmpegテスト完了】\n\n"
         "FFmpeg終了",
         200
     )
 
 
 # =====================================
-# 404確認
+# ルート一覧
 # =====================================
 
-@app.errorhandler(404)
-def page_not_found(error):
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    print(
-        "[APP] 404 NOT FOUND",
-        flush=True
-    )
-
-    try:
-
-        from flask import request
-
-        print(
-            "[APP] method:",
-            request.method,
-            flush=True
-        )
-
-        print(
-            "[APP] path:",
-            request.path,
-            flush=True
-        )
-
-    except Exception as request_error:
-
-        print(
-            "[APP] request情報取得失敗:",
-            request_error,
-            flush=True
-        )
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-
-    return (
-        "Not Found",
-        404
-    )
-
-
-# =====================================
-# 登録ルート確認
-# =====================================
-
-print(
-    "==========================================",
-    flush=True
-)
-
-print(
-    "[APP] Registered routes",
-    flush=True
-)
-
-print(
-    "==========================================",
-    flush=True
-)
+print("==========================================", flush=True)
+print("[APP] Registered routes", flush=True)
+print("==========================================", flush=True)
 
 
 for rule in app.url_map.iter_rules():
 
     print(
-        "[APP] ROUTE:",
-        rule,
-        "->",
-        rule.endpoint,
+        f"[APP] {rule} -> {rule.endpoint}",
         flush=True
     )
 
 
-print(
-    "==========================================",
-    flush=True
-)
+print("==========================================", flush=True)
 
 
 # =====================================
-# 起動確認
+# app.py 読み込み完了
 # =====================================
 
-print(
-    "[APP] app.py loaded successfully",
-    flush=True
-)
-
-print(
-    "[APP] FFmpeg test route: DISABLED",
-    flush=True
-)
-
-print(
-    "[APP] subtitle_test_ffmpeg.py: NOT IMPORTED",
-    flush=True
-)
+print("==========================================", flush=True)
+print("[APP] app.py READY", flush=True)
+print("[APP] FFmpegはまだ実行していません", flush=True)
+print("==========================================", flush=True)
 
 
 # =====================================
-# Flask起動
+# ローカル起動
 # =====================================
 
 if __name__ == "__main__":
 
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    print(
-        "[APP] YouTube Converter",
-        flush=True
-    )
-
-    print(
-        "[APP] MAIN START",
-        flush=True
-    )
-
-    print(
-        "[APP] BASE_DIR:",
-        BASE_DIR,
-        flush=True
-    )
-
-    print(
-        "[APP] DOWNLOAD_DIR:",
-        DOWNLOAD_DIR,
-        flush=True
-    )
-
-    print(
-        "[APP] FFmpeg:",
-        "DISABLED",
-        flush=True
-    )
-
-    print(
-        "[APP] subtitle_test_ffmpeg.py:",
-        "DISABLED",
-        flush=True
-    )
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
+    print("==========================================", flush=True)
+    print("[APP] YouTube Converter", flush=True)
+    print("[APP] Flask starting...", flush=True)
+    print("==========================================", flush=True)
 
     app.run(
         host="0.0.0.0",
         port=10000,
-        debug=False,
-        use_reloader=False
+        debug=False
     )
