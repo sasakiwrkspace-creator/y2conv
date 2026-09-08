@@ -23,6 +23,12 @@
 # ・SRTアップロード
 # ・MP4 + SRT → 字幕MP4
 #
+# タブ3:
+# ・FFmpeg字幕焼き込み単体テスト
+# ・downloads/test.mp4
+# ・downloads/test.srt
+# ・test_embed.mp4作成
+#
 # 完成ファイル確認:
 # ・/find-completed-files
 #
@@ -33,7 +39,7 @@
 # 注意:
 # ・converter.js / subtitle.js の処理は
 #   このファイルでは行わない。
-# ・subtitle_test.py は Flask から呼び出す
+# ・subtitle_test_ffmpeg.py は Flask から呼び出す
 #   単体テスト用モジュールとして使用する。
 # =====================================
 
@@ -184,6 +190,228 @@ def test_page():
 
 
 # =====================================
+# FFmpeg字幕単体テスト
+#
+# POST /subtitle-test/ffmpeg
+#
+# test.html のFFmpegボタンから呼び出す。
+#
+# 実処理:
+# subtitle_test_ffmpeg.py
+#
+# 入力:
+# downloads/test.mp4
+# downloads/test.srt
+#
+# 出力:
+# downloads/test_embed.mp4
+#
+# =====================================
+
+@app.route(
+    "/subtitle-test/ffmpeg",
+    methods=["POST"]
+)
+def subtitle_test_ffmpeg_route():
+
+    print(
+        "==========================================",
+        flush=True
+    )
+
+    print(
+        "[APP] /subtitle-test/ffmpeg START",
+        flush=True
+    )
+
+    try:
+
+        # -------------------------------------
+        # 単体テストモジュール読み込み
+        # -------------------------------------
+
+        print(
+            "[APP] subtitle_test_ffmpeg import START",
+            flush=True
+        )
+
+        from subtitle_test_ffmpeg import (
+            run_ffmpeg_subtitle_test
+        )
+
+        print(
+            "[APP] subtitle_test_ffmpeg import OK",
+            flush=True
+        )
+
+
+        # -------------------------------------
+        # FFmpeg字幕焼き込み実行
+        # -------------------------------------
+
+        print(
+            "[APP] run_ffmpeg_subtitle_test() START",
+            flush=True
+        )
+
+        output_path = (
+            run_ffmpeg_subtitle_test()
+        )
+
+
+        # -------------------------------------
+        # 成功
+        # -------------------------------------
+
+        print(
+            "[APP] run_ffmpeg_subtitle_test() SUCCESS",
+            flush=True
+        )
+
+        print(
+            f"[APP] output_path: {output_path}",
+            flush=True
+        )
+
+        print(
+            f"[APP] output_path type: "
+            f"{type(output_path).__name__}",
+            flush=True
+        )
+
+
+        # -------------------------------------
+        # 最終ファイル確認
+        # -------------------------------------
+
+        try:
+
+            from pathlib import Path
+
+            final_path = Path(
+                output_path
+            ).resolve()
+
+            print(
+                f"[APP] final resolved path: "
+                f"{final_path}",
+                flush=True
+            )
+
+            print(
+                f"[APP] final exists: "
+                f"{final_path.exists()}",
+                flush=True
+            )
+
+            print(
+                f"[APP] final is_file: "
+                f"{final_path.is_file()}",
+                flush=True
+            )
+
+            if final_path.exists():
+
+                try:
+
+                    print(
+                        f"[APP] final size: "
+                        f"{final_path.stat().st_size} bytes",
+                        flush=True
+                    )
+
+                except Exception as stat_error:
+
+                    print(
+                        f"[APP] final size取得失敗: "
+                        f"{stat_error}",
+                        flush=True
+                    )
+
+        except Exception as path_error:
+
+            print(
+                f"[APP] 最終ファイル確認失敗: "
+                f"{path_error}",
+                flush=True
+            )
+
+
+        print(
+            "[APP] /subtitle-test/ffmpeg SUCCESS",
+            flush=True
+        )
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+
+        return (
+            "FFmpeg字幕焼き込み成功\n\n"
+            f"出力ファイル:\n"
+            f"{output_path}",
+            200
+        )
+
+
+    except Exception as error:
+
+        import traceback
+
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+        print(
+            "[APP] /subtitle-test/ffmpeg FAILED",
+            flush=True
+        )
+
+        print(
+            f"[APP] ERROR TYPE: "
+            f"{type(error).__name__}",
+            flush=True
+        )
+
+        print(
+            f"[APP] ERROR: "
+            f"{error}",
+            flush=True
+        )
+
+        print(
+            "[APP] TRACEBACK START",
+            flush=True
+        )
+
+        traceback.print_exc()
+
+        print(
+            "[APP] TRACEBACK END",
+            flush=True
+        )
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+
+        return (
+            "FFmpeg字幕焼き込み失敗\n\n"
+            f"ERROR TYPE:\n"
+            f"{type(error).__name__}\n\n"
+            f"ERROR:\n"
+            f"{error}",
+            500
+        )
+
+
+# =====================================
 # 登録ルート確認
 # =====================================
 
@@ -225,6 +453,7 @@ if __name__ == "__main__":
     )
 
     print("==========================================")
+
 
     app.run(
         host="0.0.0.0",
