@@ -171,6 +171,13 @@
             word-break: break-word;
 
             min-height: 80px;
+
+            font-family:
+                Consolas,
+                "Courier New",
+                monospace;
+
+            line-height: 1.5;
         }
 
         .success {
@@ -186,7 +193,7 @@
         }
 
         /* ==============================
-           タブ2説明
+           説明
            ============================== */
 
         .description {
@@ -273,6 +280,15 @@
             タブ2
         </button>
 
+
+        <button
+            id="tab3"
+            class="tab-button"
+            onclick="openTab('tab3-content', this)"
+        >
+            タブ3
+        </button>
+
     </div>
 
 
@@ -301,9 +317,7 @@
         <div class="test-row">
 
             <div class="test-label">
-
                 URL
-
             </div>
 
 
@@ -322,9 +336,7 @@
         <div class="test-row">
 
             <div class="test-label">
-
                 MP3
-
             </div>
 
 
@@ -343,9 +355,7 @@
         <div class="test-row">
 
             <div class="test-label">
-
                 MP4
-
             </div>
 
 
@@ -364,9 +374,7 @@
         <div class="test-row">
 
             <div class="test-label">
-
                 SRT
-
             </div>
 
 
@@ -416,7 +424,6 @@
 
         <div class="test-row">
 
-
             <div class="test-label">
 
                 ローカルファイルを
@@ -451,7 +458,6 @@
              ================================= -->
 
         <div class="test-row">
-
 
             <div class="test-label">
 
@@ -488,7 +494,6 @@
 
         <div class="test-row">
 
-
             <div class="test-label">
 
                 FFmpegでファイルを合わせる
@@ -515,7 +520,6 @@
 
         <div class="test-row">
 
-
             <div class="test-label">
 
                 字幕MP4
@@ -531,6 +535,93 @@
                 字幕MP4
             </button>
 
+
+        </div>
+
+
+    </div>
+
+
+    <!-- =================================
+         タブ3
+         ================================= -->
+
+    <div
+        id="tab3-content"
+        class="tab-content"
+    >
+
+
+        <div class="description">
+
+            <strong>
+                タブ3：subtitle_test_ffmpeg.py 単体テスト
+            </strong>
+
+            <br><br>
+
+            downloadsフォルダにある
+
+            <br>
+
+            <strong>test.mp4</strong>
+
+            <br>
+
+            <strong>test.srt</strong>
+
+            <br><br>
+
+            を使用して、字幕焼き込みFFmpeg処理を実行します。
+
+            <br><br>
+
+            出力予定：
+
+            <br>
+
+            <strong>test_embed.mp4</strong>
+
+            <br>
+
+            既に存在する場合：
+
+            <br>
+
+            <strong>test_embed_2.mp4</strong>
+
+            <br>
+
+            <strong>test_embed_3.mp4</strong>
+
+            <br>
+
+            というように連番になります。
+
+        </div>
+
+
+        <!-- =================================
+             FFmpeg字幕テスト
+             ================================= -->
+
+        <div class="test-row">
+
+            <div class="test-label">
+
+                subtitle_test_ffmpeg.py
+                を実行
+
+            </div>
+
+
+            <button
+                id="subtitle-ffmpeg-test-button"
+                class="test-button"
+                onclick="runSubtitleFfmpegTest()"
+            >
+                FFmpeg字幕テスト
+            </button>
 
         </div>
 
@@ -1093,6 +1184,87 @@ async function testSubtitleMp4() {
 
 
 // ======================================================
+// タブ3
+// subtitle_test_ffmpeg.py テスト
+// ======================================================
+
+async function runSubtitleFfmpegTest() {
+
+    showResult(
+        "字幕FFmpeg単体テストを開始します...\n\n" +
+        "対象ファイル:\n" +
+        "downloads/test.mp4\n" +
+        "downloads/test.srt\n\n" +
+        "FFmpeg処理中です。しばらくお待ちください...",
+        "info"
+    );
+
+
+    setButtonLoading(
+        "subtitle-ffmpeg-test-button",
+        true
+    );
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/subtitle-test/ffmpeg",
+                {
+                    method: "POST"
+                }
+            );
+
+
+        const text =
+            await response.text();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                text ||
+                "字幕FFmpegテストに失敗しました。"
+            );
+
+        }
+
+
+        showResult(
+            "【字幕FFmpegテスト完了】\n\n" +
+            text,
+            "success"
+        );
+
+    }
+    catch (error) {
+
+        console.error(
+            error
+        );
+
+
+        showResult(
+            "【字幕FFmpegテスト失敗】\n\n" +
+            error.message,
+            "error"
+        );
+
+    }
+    finally {
+
+        setButtonLoading(
+            "subtitle-ffmpeg-test-button",
+            false
+        );
+
+    }
+
+}
+
+
+// ======================================================
 // タブ1
 // 仮テスト
 // ======================================================
@@ -1183,39 +1355,39 @@ function testSrt() {
 
 // ======================================================
 // 初期表示
+// ======================================================
 //
-// ★重要
-// 初期状態ではタブ2を表示
+// タブ3を最初に表示
 // ======================================================
 
 document.addEventListener(
     "DOMContentLoaded",
     function() {
 
-        const tab2 =
+        const tab3 =
             document.getElementById(
-                "tab2"
+                "tab3"
             );
 
 
-        const tab2Content =
+        const tab3Content =
             document.getElementById(
-                "tab2-content"
+                "tab3-content"
             );
 
 
-        if (tab2) {
+        if (tab3) {
 
-            tab2.classList.add(
+            tab3.classList.add(
                 "active"
             );
 
         }
 
 
-        if (tab2Content) {
+        if (tab3Content) {
 
-            tab2Content.classList.add(
+            tab3Content.classList.add(
                 "active"
             );
 
