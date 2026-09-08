@@ -466,7 +466,7 @@ def make_temp_output_path(
 
 
 # ==========================================================
-# FFmpeg存在確認
+# FFmpeg存在・機能確認
 # ==========================================================
 
 def check_ffmpeg():
@@ -474,6 +474,10 @@ def check_ffmpeg():
     log_start(
         "FFmpeg確認開始"
     )
+
+    # ======================================================
+    # STEP A: FFmpeg本体の場所を確認
+    # ======================================================
 
     ffmpeg_path = shutil.which(
         "ffmpeg"
@@ -486,13 +490,17 @@ def check_ffmpeg():
     if not ffmpeg_path:
 
         raise RuntimeError(
-            "FFmpegが見つかりません。"
-            "Render側にFFmpegをインストールしてください。"
+            "FFmpegがPATH上に見つかりません。"
+            "Render環境にFFmpegをインストールしてください。"
         )
 
     log(
         f"FFmpeg path: {ffmpeg_path}"
     )
+
+    # ======================================================
+    # STEP B: FFmpeg本体をPythonから直接起動
+    # ======================================================
 
     try:
 
@@ -504,26 +512,29 @@ def check_ffmpeg():
             ],
 
             stdout=subprocess.PIPE,
+
             stderr=subprocess.PIPE,
 
             text=True,
 
             encoding="utf-8",
+
             errors="replace",
 
             timeout=30
+
         )
 
     except FileNotFoundError:
 
         raise RuntimeError(
-            "FFmpegが見つかりません。"
+            "FFmpeg実行ファイルが見つかりません。"
         )
 
     except subprocess.TimeoutExpired:
 
         raise RuntimeError(
-            "FFmpegの確認がタイムアウトしました。"
+            "FFmpegの起動確認がタイムアウトしました。"
         )
 
     except OSError as error:
@@ -548,25 +559,302 @@ def check_ffmpeg():
         )
 
         raise RuntimeError(
-            "FFmpegを実行できませんでした。"
+            "FFmpegを正常に起動できませんでした。"
         )
 
-    first_line = (
+    if result.stdout:
 
-        result.stdout.splitlines()[0]
+        first_line = (
+            result.stdout.splitlines()[0]
+            if result.stdout.splitlines()
+            else "FFmpeg"
+        )
 
-        if result.stdout
+    else:
 
-        else "FFmpeg"
-
-    )
+        first_line = "FFmpeg"
 
     log(
         f"FFmpeg version: {first_line}"
     )
 
     log(
+        "FFmpeg本体確認: OK"
+    )
+
+    # ======================================================
+    # STEP C: libx264確認
+    # ======================================================
+
+    log(
+        "libx264確認開始"
+    )
+
+    try:
+
+        encoder_result = subprocess.run(
+
+            [
+                ffmpeg_path,
+                "-hide_banner",
+                "-encoders"
+            ],
+
+            stdout=subprocess.PIPE,
+
+            stderr=subprocess.PIPE,
+
+            text=True,
+
+            encoding="utf-8",
+
+            errors="replace",
+
+            timeout=30
+
+        )
+
+    except subprocess.TimeoutExpired:
+
+        raise RuntimeError(
+            "FFmpegのlibx264確認がタイムアウトしました。"
+        )
+
+    except OSError as error:
+
+        raise RuntimeError(
+            f"FFmpegのエンコーダー確認に失敗しました: {error}"
+        ) from error
+
+    encoder_text = (
+        encoder_result.stdout
+        +
+        encoder_result.stderr
+    )
+
+    log(
+        f"FFmpeg -encoders returncode: "
+        f"{encoder_result.returncode}"
+    )
+
+    if encoder_result.returncode != 0:
+
+        log(
+            "FFmpeg -encoders stderr:"
+        )
+
+        log(
+            encoder_result.stderr[-2000:]
+        )
+
+        raise RuntimeError(
+            "FFmpegのエンコーダー一覧を取得できませんでした。"
+        )
+
+    if "libx264" not in encoder_text:
+
+        log(
+            "ERROR: libx264が見つかりません。"
+        )
+
+        raise RuntimeError(
+
+            "FFmpegにlibx264エンコーダーがありません。"
+            "字幕焼き込みにはlibx264が必要です。"
+
+        )
+
+    log(
+        "libx264: OK"
+    )
+
+    # ======================================================
+    # STEP D: subtitlesフィルター確認
+    # ======================================================
+
+    log(
+        "subtitlesフィルター確認開始"
+    )
+
+    try:
+
+        filter_result = subprocess.run(
+
+            [
+                ffmpeg_path,
+                "-hide_banner",
+                "-filters"
+            ],
+
+            stdout=subprocess.PIPE,
+
+            stderr=subprocess.PIPE,
+
+            text=True,
+
+            encoding="utf-8",
+
+            errors="replace",
+
+            timeout=30
+
+        )
+
+    except subprocess.TimeoutExpired:
+
+        raise RuntimeError(
+            "FFmpegのsubtitlesフィルター確認が"
+            "タイムアウトしました。"
+        )
+
+    except OSError as error:
+
+        raise RuntimeError(
+            f"FFmpegのフィルター確認に失敗しました: {error}"
+        ) from error
+
+    filter_text = (
+        filter_result.stdout
+        +
+        filter_result.stderr
+    )
+
+    log(
+        f"FFmpeg -filters returncode: "
+        f"{filter_result.returncode}"
+    )
+
+    if filter_result.returncode != 0:
+
+        log(
+            "FFmpeg -filters stderr:"
+        )
+
+        log(
+            filter_result.stderr[-2000:]
+        )
+
+        raise RuntimeError(
+            "FFmpegのフィルター一覧を取得できませんでした。"
+        )
+
+    if "subtitles" not in filter_text:
+
+        log(
+            "ERROR: subtitlesフィルターが"
+            "見つかりません。"
+        )
+
+        raise RuntimeError(
+
+            "FFmpegにsubtitlesフィルターがありません。"
+            "libass対応のFFmpegが必要です。"
+
+        )
+
+    log(
+        "subtitles filter: OK"
+    )
+
+    # ======================================================
+    # STEP E: libass確認
+    # ======================================================
+
+    log(
+        "libass確認開始"
+    )
+
+    try:
+
+        build_result = subprocess.run(
+
+            [
+                ffmpeg_path,
+                "-buildconf"
+            ],
+
+            stdout=subprocess.PIPE,
+
+            stderr=subprocess.PIPE,
+
+            text=True,
+
+            encoding="utf-8",
+
+            errors="replace",
+
+            timeout=30
+
+        )
+
+    except subprocess.TimeoutExpired:
+
+        log(
+            "WARNING: -buildconf確認がタイムアウトしました。"
+        )
+
+        build_result = None
+
+    except OSError as error:
+
+        log(
+            f"WARNING: -buildconf確認失敗: {error}"
+        )
+
+        build_result = None
+
+    if build_result:
+
+        build_text = (
+            build_result.stdout
+            +
+            build_result.stderr
+        )
+
+        if "libass" in build_text.lower():
+
+            log(
+                "libass: OK"
+            )
+
+        else:
+
+            log(
+                "WARNING: -buildconfから"
+                "libassを確認できませんでした。"
+            )
+
+            log(
+                "subtitlesフィルター自体は存在するため、"
+                "処理を続行します。"
+            )
+
+    # ======================================================
+    # 完了
+    # ======================================================
+
+    log(
         "FFmpeg確認完了"
+    )
+
+    log(
+        f"使用FFmpeg: {ffmpeg_path}"
+    )
+
+    log(
+        "確認結果:"
+    )
+
+    log(
+        "  FFmpeg本体: OK"
+    )
+
+    log(
+        "  libx264: OK"
+    )
+
+    log(
+        "  subtitles filter: OK"
     )
 
     return ffmpeg_path
