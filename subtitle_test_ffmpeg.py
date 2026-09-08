@@ -819,12 +819,14 @@ def verify_output(
 # =====================================
 # FFmpeg実行
 # =====================================
+# ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
 
 def run_ffmpeg(
     ffmpeg: str,
     command: list[str],
     temporary_output: Path
 ):
+
     separator()
     log("FFmpeg開始")
     separator()
@@ -840,6 +842,7 @@ def run_ffmpeg(
     start_time = time.monotonic()
 
     process = None
+    output_lines = []
 
     try:
 
@@ -857,17 +860,18 @@ def run_ffmpeg(
 
         assert process.stdout is not None
 
-        output_lines = []
-
-        # =================================
+        # =====================================
         # FFmpegログ取得
-        # =================================
+        # =====================================
 
-        for line in process.stdout:
+        while True:
 
-            line = line.rstrip()
+            line = process.stdout.readline()
 
             if line:
+
+                line = line.rstrip()
+
                 output_lines.append(line)
 
                 print(
@@ -875,13 +879,78 @@ def run_ffmpeg(
                     flush=True
                 )
 
-        # =================================
-        # FFmpeg終了待ち
-        # =================================
+                continue
 
-        returncode = process.wait(
-            timeout=FFMPEG_TIMEOUT
-        )
+            # =================================
+            # stdout EOF
+            # =================================
+
+            returncode = process.poll()
+
+            if returncode is not None:
+
+                break
+
+            # =================================
+            # timeout確認
+            # =================================
+
+            elapsed = (
+                time.monotonic()
+                - start_time
+            )
+
+            if elapsed > FFMPEG_TIMEOUT:
+
+                log(
+                    "FFmpeg TIMEOUT"
+                )
+
+                log(
+                    f"経過時間: "
+                    f"{elapsed:.2f}秒"
+                )
+
+                log(
+                    f"FFmpeg poll: "
+                    f"{process.poll()}"
+                )
+
+                try:
+
+                    process.kill()
+
+                    log(
+                        "FFmpeg kill() 実行"
+                    )
+
+                except Exception as e:
+
+                    log(
+                        f"kill失敗: {e}"
+                    )
+
+                try:
+
+                    process.wait(
+                        timeout=10
+                    )
+
+                except Exception as e:
+
+                    log(
+                        f"wait失敗: {e}"
+                    )
+
+                raise TimeoutError(
+                    f"FFmpegが"
+                    f"{FFMPEG_TIMEOUT}秒以内に"
+                    f"終了しませんでした"
+                )
+
+        # =====================================
+        # 終了情報
+        # =====================================
 
         elapsed = (
             time.monotonic()
@@ -890,7 +959,9 @@ def run_ffmpeg(
 
         separator()
 
-        log("FFmpeg終了")
+        log(
+            "FFmpegプロセス終了を検出"
+        )
 
         log(
             f"FFmpeg returncode: "
@@ -899,16 +970,55 @@ def run_ffmpeg(
 
         log(
             f"FFmpeg経過時間: "
-            f"{elapsed:.2f}秒"
+            f"{elapsed:.3f}秒"
         )
 
-        # =================================
-        # 失敗
-        # =================================
+        # =====================================
+        # 負のreturncode
+        # =====================================
+
+        if returncode < 0:
+
+            signal_number = -returncode
+
+            log(
+                "FFmpegがシグナルによって"
+                "終了しました"
+            )
+
+            log(
+                f"signal: "
+                f"{signal_number}"
+            )
+
+            if signal_number == 9:
+
+                log(
+                    "SIGKILL (9) で終了しています"
+                )
+
+            elif signal_number == 15:
+
+                log(
+                    "SIGTERM (15) で終了しています"
+                )
+
+            raise RuntimeError(
+                "FFmpegがシグナルによって"
+                f"終了しました "
+                f"(returncode={returncode}, "
+                f"signal={signal_number})"
+            )
+
+        # =====================================
+        # returncode != 0
+        # =====================================
 
         if returncode != 0:
 
-            log("FFmpeg FAILED")
+            log(
+                "FFmpeg FAILED"
+            )
 
             log(
                 "FFmpeg最後のログ:"
@@ -925,16 +1035,15 @@ def run_ffmpeg(
                 f"(returncode={returncode})"
             )
 
-        # =================================
-        # 出力確認
-        # =================================
+        # =====================================
+        # 成功
+        # =====================================
+
+        log(
+            "FFmpeg returncode=0"
+        )
 
         if not temporary_output.exists():
-
-            log(
-                "FFmpeg returncode=0ですが"
-                "出力ファイルが存在しません"
-            )
 
             raise RuntimeError(
                 "FFmpegは成功しましたが、"
@@ -962,44 +1071,12 @@ def run_ffmpeg(
 
         return returncode
 
-    except subprocess.TimeoutExpired:
-
-        elapsed = (
-            time.monotonic()
-            - start_time
-        )
-
-        log("FFmpeg TIMEOUT")
-
-        log(
-            f"経過時間: "
-            f"{elapsed:.2f}秒"
-        )
-
-        if process is not None:
-
-            try:
-                process.kill()
-            except Exception:
-                pass
-
-            try:
-                process.wait(
-                    timeout=10
-                )
-            except Exception:
-                pass
-
-        raise TimeoutError(
-            f"FFmpegが"
-            f"{FFMPEG_TIMEOUT}秒以内に"
-            f"終了しませんでした"
-        )
-
     except Exception as e:
 
+        separator()
+
         log(
-            "run_ffmpeg内部で例外発生"
+            "run_ffmpeg EXCEPTION"
         )
 
         log(
@@ -1014,27 +1091,27 @@ def run_ffmpeg(
 
         if process is not None:
 
-            if process.poll() is None:
+            try:
 
-                log(
-                    "FFmpegプロセスを停止します"
+                current_returncode = (
+                    process.poll()
                 )
 
-                try:
-                    process.kill()
-                except Exception:
-                    pass
+                log(
+                    f"FFmpeg poll: "
+                    f"{current_returncode}"
+                )
 
-                try:
-                    process.wait(
-                        timeout=10
-                    )
-                except Exception:
-                    pass
+            except Exception as poll_error:
+
+                log(
+                    f"poll失敗: "
+                    f"{poll_error}"
+                )
 
         raise
 
-
+# ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
 # =====================================
 # メイン処理
 # =====================================
