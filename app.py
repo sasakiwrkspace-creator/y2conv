@@ -2,38 +2,40 @@
 # YouTube Converter
 # app.py
 #
-# FFmpeg単体テスト用・最小検証版
+# 現在の調査用最小構成
 #
-# 今回のテスト:
+# 目的:
+# ・アプリ起動確認
+# ・既存Route登録
+# ・/test 表示
+# ・ブラウザのボタン
+#       ↓
+#   Python
+#       ↓
+#   test.mp4存在確認
+#       ↓
+#   FFmpegを1回だけ起動
+#       ↓
+#   FFmpeg終了を待つ
+#       ↓
+#   test_embed.mp4作成
+#       ↓
+#   ブラウザに「FFmpeg終了」
 #
-# ブラウザ
-#   ↓
-# Python
-#   ↓
-# MP4存在確認
-#   ↓
-# FFmpegを1回だけ起動
-#   ↓
-# H.264再エンコード
-#   ↓
-# FFmpeg終了を待つ
-#   ↓
-# 「FFmpeg終了」
-#
-# 字幕処理はまだ行わない。
+# 注意:
+# ・字幕処理は行わない
+# ・SRTは使用しない
+# ・字幕フィルターは使用しない
+# ・FFmpegのループ処理はしない
+# ・バックグラウンドFFmpegは使用しない
 # =====================================
 
 
 from flask import Flask, render_template
-from pathlib import Path
-import subprocess
+
 
 import config
 
-
-# =====================================
-# 既存Routes
-# =====================================
 
 from routes.index import register_index
 from routes.files import register_files
@@ -49,46 +51,42 @@ from routes.subtitle_routes import subtitle_bp
 # Flask
 # =====================================
 
+print("==========================================", flush=True)
+print("[APP] app.py START", flush=True)
+print("==========================================", flush=True)
+
+
 app = Flask(__name__)
 
 
 # =====================================
-# 設定
+# プロジェクト設定
 # =====================================
 
 BASE_DIR = config.BASE_DIR
 DOWNLOAD_DIR = config.DOWNLOAD_DIR
 
 
-# =====================================
-# 起動ログ
-# =====================================
-
-print("==========================================", flush=True)
-print("[APP] app.py START", flush=True)
-print("==========================================", flush=True)
-
 print(
-    f"[APP] BASE_DIR: {BASE_DIR}",
+    "[APP] BASE_DIR:",
+    BASE_DIR,
     flush=True
 )
 
 print(
-    f"[APP] DOWNLOAD_DIR: {DOWNLOAD_DIR}",
+    "[APP] DOWNLOAD_DIR:",
+    DOWNLOAD_DIR,
     flush=True
 )
-
-print("==========================================", flush=True)
 
 
 # =====================================
 # Routes登録
 # =====================================
 
-print(
-    "[APP] Registering routes",
-    flush=True
-)
+print("==========================================", flush=True)
+print("[APP] Registering routes", flush=True)
+print("==========================================", flush=True)
 
 
 # -------------------------------------
@@ -244,12 +242,7 @@ def test_page():
     )
 
     print(
-        "[APP] /test START",
-        flush=True
-    )
-
-    print(
-        "[APP] test.html を表示します",
+        "[APP] /test が呼ばれました",
         flush=True
     )
 
@@ -266,15 +259,25 @@ def test_page():
 # =====================================
 # FFmpeg単体テスト
 #
-# 今回は字幕処理なし。
+# POST /subtitle-test/ffmpeg
 #
-# test.mp4
-#     ↓
-# FFmpeg
-#     ↓
-# H.264再エンコード
-#     ↓
-# test_ffmpeg_output.mp4
+# 今回はここだけを調査する。
+#
+# 処理:
+#
+# ブラウザ
+#   ↓
+# Python
+#   ↓
+# test.mp4確認
+#   ↓
+# FFmpeg 1回
+#   ↓
+# test_embed.mp4
+#   ↓
+# FFmpeg終了
+#   ↓
+# ブラウザへ返す
 #
 # =====================================
 
@@ -284,287 +287,349 @@ def test_page():
 )
 def subtitle_test_ffmpeg_route():
 
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    print(
-        "[APP] /subtitle-test/ffmpeg START",
-        flush=True
-    )
-
-    print(
-        "==========================================",
-        flush=True
-    )
+    import subprocess
+    import traceback
+    from pathlib import Path
 
 
-    # =====================================
-    # STEP 1
-    # MP4パス
-    # =====================================
+    print("==========================================", flush=True)
+    print("[TEST] /subtitle-test/ffmpeg START", flush=True)
+    print("==========================================", flush=True)
 
-    print(
-        "[APP] STEP 1: MP4パス確認",
-        flush=True
-    )
-
-    input_path = (
-        Path(DOWNLOAD_DIR)
-        / "test.mp4"
-    )
-
-    print(
-        f"[APP] input_path: {input_path}",
-        flush=True
-    )
-
-
-    # =====================================
-    # STEP 2
-    # MP4存在確認
-    # =====================================
-
-    print(
-        "[APP] STEP 2: MP4存在確認 START",
-        flush=True
-    )
-
-    if not input_path.exists():
-
-        print(
-            "[APP] MP4 exists: False",
-            flush=True
-        )
-
-        print(
-            "[APP] 入力ファイルが存在しません",
-            flush=True
-        )
-
-        print(
-            "==========================================",
-            flush=True
-        )
-
-        return (
-            "【字幕FFmpegテスト失敗】\n\n"
-            "入力ファイルが存在しません:\n"
-            f"{input_path}",
-            500
-        )
-
-
-    print(
-        "[APP] MP4 exists: True",
-        flush=True
-    )
-
-
-    # =====================================
-    # STEP 3
-    # 入力サイズ
-    # =====================================
 
     try:
+
+        # =====================================
+        # 1. 入力ファイル
+        # =====================================
+
+        input_path = (
+            Path(DOWNLOAD_DIR)
+            / "test.mp4"
+        )
+
+        print(
+            "[TEST] STEP 1: 入力ファイル確認",
+            flush=True
+        )
+
+        print(
+            f"[TEST] input: {input_path}",
+            flush=True
+        )
+
+
+        if not input_path.exists():
+
+            print(
+                "[TEST] ERROR: test.mp4 が存在しません",
+                flush=True
+            )
+
+            return (
+                "【字幕FFmpegテスト失敗】\n\n"
+                "入力ファイルが存在しません:\n"
+                f"{input_path}",
+                500
+            )
+
+
+        if not input_path.is_file():
+
+            print(
+                "[TEST] ERROR: test.mp4 がファイルではありません",
+                flush=True
+            )
+
+            return (
+                "【字幕FFmpegテスト失敗】\n\n"
+                "入力ファイルが通常のファイルではありません:\n"
+                f"{input_path}",
+                500
+            )
+
 
         input_size = (
             input_path.stat().st_size
         )
 
         print(
-            f"[APP] input size: "
+            f"[TEST] test.mp4 exists: True",
+            flush=True
+        )
+
+        print(
+            f"[TEST] test.mp4 size: "
             f"{input_size} bytes",
             flush=True
         )
 
-    except Exception as error:
+
+        # =====================================
+        # 2. 出力先
+        #
+        # 今後は必ず test_embed.mp4
+        # =====================================
+
+        output_path = (
+            Path(DOWNLOAD_DIR)
+            / "test_embed.mp4"
+        )
 
         print(
-            "[APP] 入力サイズ取得失敗",
+            "[TEST] STEP 2: 出力先確認",
             flush=True
         )
 
         print(
-            f"[APP] ERROR: {error}",
+            f"[TEST] output: {output_path}",
             flush=True
         )
 
 
-    # =====================================
-    # STEP 4
-    # FFmpegパス
-    # =====================================
+        # =====================================
+        # 3. 古い出力を削除
+        # =====================================
 
-    print(
-        "[APP] STEP 3: FFmpegパス確認",
-        flush=True
-    )
+        if output_path.exists():
 
-    ffmpeg_path = "/usr/bin/ffmpeg"
-
-    print(
-        f"[APP] ffmpeg_path: {ffmpeg_path}",
-        flush=True
-    )
-
-
-    # =====================================
-    # STEP 5
-    # 出力ファイル
-    # =====================================
-
-    output_path = (
-        Path(DOWNLOAD_DIR)
-        / "test_ffmpeg_output.mp4"
-    )
-
-    print(
-        f"[APP] output_path: {output_path}",
-        flush=True
-    )
-
-
-    # =====================================
-    # STEP 6
-    # 古い出力ファイル削除
-    # =====================================
-
-    if output_path.exists():
-
-        print(
-            "[APP] 古い出力ファイルを削除します",
-            flush=True
-        )
-
-        try:
+            print(
+                "[TEST] 既存test_embed.mp4を削除します",
+                flush=True
+            )
 
             output_path.unlink()
 
             print(
-                "[APP] 古い出力ファイル削除 OK",
+                "[TEST] 既存ファイル削除完了",
                 flush=True
             )
 
-        except Exception as error:
+
+        # =====================================
+        # 4. FFmpegコマンド
+        #
+        # 字幕なし。
+        #
+        # test.mp4をそのままMP4として
+        # test_embed.mp4へ変換する。
+        #
+        # 低メモリ環境用:
+        # ・scaleなし
+        # ・字幕なし
+        # ・threads 1
+        # ・ultrafast
+        # =====================================
+
+        ffmpeg_command = [
+            "/usr/bin/ffmpeg",
+
+            "-y",
+
+            "-nostdin",
+
+            "-hide_banner",
+
+            "-loglevel",
+            "error",
+
+            "-i",
+            str(input_path),
+
+            "-c:v",
+            "libx264",
+
+            "-threads",
+            "1",
+
+            "-preset",
+            "ultrafast",
+
+            "-crf",
+            "28",
+
+            "-c:a",
+            "aac",
+
+            "-b:a",
+            "128k",
+
+            "-movflags",
+            "+faststart",
+
+            str(output_path),
+        ]
+
+
+        print(
+            "[TEST] STEP 3: FFmpegコマンド",
+            flush=True
+        )
+
+        print(
+            "[TEST] FFmpeg command:",
+            flush=True
+        )
+
+        print(
+            " ".join(ffmpeg_command),
+            flush=True
+        )
+
+
+        # =====================================
+        # 5. FFmpeg起動
+        #
+        # 重要:
+        # subprocess.run() なので
+        # FFmpeg終了までここで待つ。
+        #
+        # ループしない。
+        # =====================================
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+        print(
+            "[TEST] STEP 4: FFmpeg START",
+            flush=True
+        )
+
+        print(
+            "[TEST] FFmpegを1回だけ起動します",
+            flush=True
+        )
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+
+        result = subprocess.run(
+            ffmpeg_command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=120,
+            check=False
+        )
+
+
+        # =====================================
+        # 6. FFmpeg終了
+        # =====================================
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+        print(
+            "[TEST] STEP 5: FFmpeg END",
+            flush=True
+        )
+
+        print(
+            f"[TEST] FFmpeg returncode: "
+            f"{result.returncode}",
+            flush=True
+        )
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+
+        # =====================================
+        # 7. FFmpegエラー
+        # =====================================
+
+        if result.returncode != 0:
 
             print(
-                "[APP] 古い出力ファイル削除 FAILED",
+                "[TEST] FFmpeg FAILED",
                 flush=True
             )
 
             print(
-                f"[APP] ERROR: {error}",
+                "[TEST] FFmpeg stderr:",
+                flush=True
+            )
+
+            print(
+                result.stderr,
+                flush=True
+            )
+
+
+            if output_path.exists():
+
+                try:
+                    output_path.unlink()
+                except Exception:
+                    pass
+
+
+            return (
+                "【字幕FFmpegテスト失敗】\n\n"
+                "FFmpeg処理失敗\n\n"
+                f"returncode:\n"
+                f"{result.returncode}\n\n"
+                f"stderr:\n"
+                f"{result.stderr}",
+                500
+            )
+
+
+        # =====================================
+        # 8. 出力確認
+        # =====================================
+
+        print(
+            "[TEST] STEP 6: 出力ファイル確認",
+            flush=True
+        )
+
+
+        if not output_path.exists():
+
+            print(
+                "[TEST] ERROR: 出力ファイルがありません",
                 flush=True
             )
 
             return (
                 "【字幕FFmpegテスト失敗】\n\n"
-                "古い出力ファイルを削除できませんでした。\n\n"
-                f"{error}",
+                "FFmpegは終了しましたが、"
+                "test_embed.mp4 が作成されませんでした。",
                 500
             )
 
 
-    # =====================================
-    # STEP 7
-    # FFmpegコマンド
-    #
-    # 重要:
-    #
-    # 字幕なし
-    # libassなし
-    # fontsdirなし
-    # scaleなし
-    #
-    # H.264再エンコードのみ。
-    #
-    # ultrafast + threads 1
-    # でメモリ使用量を抑える。
-    # =====================================
-
-    command = [
-        ffmpeg_path,
-
-        "-y",
-        "-nostdin",
-
-        "-hide_banner",
-        "-loglevel",
-        "error",
-
-        "-i",
-        str(input_path),
-
-        "-c:v",
-        "libx264",
-
-        "-threads",
-        "1",
-
-        "-preset",
-        "ultrafast",
-
-        "-crf",
-        "28",
-
-        "-c:a",
-        "aac",
-
-        "-b:a",
-        "128k",
-
-        "-movflags",
-        "+faststart",
-
-        str(output_path),
-    ]
-
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    print(
-        "[APP] STEP 4: FFmpeg START",
-        flush=True
-    )
-
-    print(
-        "[APP] FFmpeg command:",
-        flush=True
-    )
-
-    print(
-        " ".join(command),
-        flush=True
-    )
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-
-    # =====================================
-    # STEP 8
-    # FFmpeg起動
-    #
-    # ここで1回だけPopenする。
-    # =====================================
-
-    try:
-
-        process = subprocess.Popen(
-            command,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-            text=True,
+        output_size = (
+            output_path.stat().st_size
         )
 
-    except Exception as error:
+
+        print(
+            f"[TEST] output exists: True",
+            flush=True
+        )
+
+        print(
+            f"[TEST] output size: "
+            f"{output_size} bytes",
+            flush=True
+        )
+
+
+        # =====================================
+        # 9. ブラウザへ返す
+        # =====================================
 
         print(
             "==========================================",
@@ -572,196 +637,12 @@ def subtitle_test_ffmpeg_route():
         )
 
         print(
-            "[APP] FFmpeg START FAILED",
+            "[TEST] SUCCESS",
             flush=True
         )
 
         print(
-            f"[APP] ERROR TYPE: "
-            f"{type(error).__name__}",
-            flush=True
-        )
-
-        print(
-            f"[APP] ERROR: {error}",
-            flush=True
-        )
-
-        print(
-            "==========================================",
-            flush=True
-        )
-
-        return (
-            "【字幕FFmpegテスト失敗】\n\n"
-            "FFmpeg起動失敗\n\n"
-            f"ERROR TYPE:\n"
-            f"{type(error).__name__}\n\n"
-            f"ERROR:\n"
-            f"{error}",
-            500
-        )
-
-
-    print(
-        f"[APP] FFmpeg PID: {process.pid}",
-        flush=True
-    )
-
-    print(
-        "[APP] FFmpeg WAIT START",
-        flush=True
-    )
-
-
-    # =====================================
-    # STEP 9
-    # FFmpeg終了待ち
-    #
-    # communicate() で終了を待つ。
-    # =====================================
-
-    try:
-
-        stderr_data, _ = process.communicate()
-
-        returncode = process.returncode
-
-    except Exception as error:
-
-        print(
-            "==========================================",
-            flush=True
-        )
-
-        print(
-            "[APP] FFmpeg WAIT FAILED",
-            flush=True
-        )
-
-        print(
-            f"[APP] ERROR TYPE: "
-            f"{type(error).__name__}",
-            flush=True
-        )
-
-        print(
-            f"[APP] ERROR: {error}",
-            flush=True
-        )
-
-        print(
-            "==========================================",
-            flush=True
-        )
-
-        return (
-            "【字幕FFmpegテスト失敗】\n\n"
-            "FFmpeg待機中にエラーが発生しました。\n\n"
-            f"ERROR TYPE:\n"
-            f"{type(error).__name__}\n\n"
-            f"ERROR:\n"
-            f"{error}",
-            500
-        )
-
-
-    # =====================================
-    # STEP 10
-    # FFmpeg終了
-    # =====================================
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    print(
-        "[APP] FFmpeg FINISHED",
-        flush=True
-    )
-
-    print(
-        f"[APP] returncode: {returncode}",
-        flush=True
-    )
-
-
-    # =====================================
-    # STEP 11
-    # FFmpegエラー確認
-    # =====================================
-
-    if stderr_data:
-
-        print(
-            "[APP] FFmpeg stderr:",
-            flush=True
-        )
-
-        print(
-            stderr_data,
-            flush=True
-        )
-
-
-    # =====================================
-    # STEP 12
-    # 正常終了
-    # =====================================
-
-    if returncode == 0:
-
-        print(
-            "[APP] FFmpeg returncode = 0",
-            flush=True
-        )
-
-
-        # ---------------------------------
-        # 出力ファイル確認
-        # ---------------------------------
-
-        output_exists = (
-            output_path.exists()
-        )
-
-        print(
-            f"[APP] output exists: "
-            f"{output_exists}",
-            flush=True
-        )
-
-
-        if output_exists:
-
-            try:
-
-                output_size = (
-                    output_path.stat().st_size
-                )
-
-                print(
-                    f"[APP] output size: "
-                    f"{output_size} bytes",
-                    flush=True
-                )
-
-            except Exception as error:
-
-                print(
-                    f"[APP] output size取得失敗: "
-                    f"{error}",
-                    flush=True
-                )
-
-
-        # ---------------------------------
-        # ブラウザへ返す
-        # ---------------------------------
-
-        print(
-            "[APP] ブラウザへ「FFmpeg終了」を返します",
+            "[TEST] ブラウザへ「FFmpeg終了」を返します",
             flush=True
         )
 
@@ -773,109 +654,126 @@ def subtitle_test_ffmpeg_route():
 
         return (
             "【字幕FFmpegテスト完了】\n\n"
-            "FFmpeg終了",
+            "FFmpeg終了\n\n"
+            f"出力ファイル:\n"
+            f"{output_path}\n\n"
+            f"出力サイズ:\n"
+            f"{output_size} bytes",
             200
         )
 
 
-    # =====================================
-    # STEP 13
-    # FFmpeg異常終了
-    # =====================================
+    except subprocess.TimeoutExpired:
 
-    print(
-        "[APP] FFmpeg returncode != 0",
-        flush=True
-    )
+        print(
+            "==========================================",
+            flush=True
+        )
 
-    print(
-        "==========================================",
-        flush=True
-    )
+        print(
+            "[TEST] FFmpeg TIMEOUT",
+            flush=True
+        )
+
+        print(
+            "==========================================",
+            flush=True
+        )
 
 
-    return (
-        "【字幕FFmpegテスト失敗】\n\n"
-        "FFmpegが異常終了しました。\n\n"
-        f"returncode:\n"
-        f"{returncode}\n\n"
-        f"stderr:\n"
-        f"{stderr_data}",
-        500
-    )
+        return (
+            "【字幕FFmpegテスト失敗】\n\n"
+            "FFmpegが120秒以内に終了しませんでした。",
+            500
+        )
+
+
+    except Exception as error:
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+        print(
+            "[TEST] EXCEPTION",
+            flush=True
+        )
+
+        print(
+            f"[TEST] ERROR TYPE: "
+            f"{type(error).__name__}",
+            flush=True
+        )
+
+        print(
+            f"[TEST] ERROR: "
+            f"{error}",
+            flush=True
+        )
+
+        print(
+            "[TEST] TRACEBACK START",
+            flush=True
+        )
+
+        traceback.print_exc()
+
+        print(
+            "[TEST] TRACEBACK END",
+            flush=True
+        )
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+
+        return (
+            "【字幕FFmpegテスト失敗】\n\n"
+            "字幕FFmpegテストに失敗しました。\n\n"
+            f"ERROR TYPE:\n"
+            f"{type(error).__name__}\n\n"
+            f"ERROR:\n"
+            f"{error}",
+            500
+        )
 
 
 # =====================================
-# Routes確認
+# 登録Route確認
 # =====================================
 
-print(
-    "==========================================",
-    flush=True
-)
-
-print(
-    "[APP] Registered routes",
-    flush=True
-)
-
-print(
-    "==========================================",
-    flush=True
-)
+print("==========================================", flush=True)
+print("[APP] Registered routes", flush=True)
+print("==========================================", flush=True)
 
 
 for rule in app.url_map.iter_rules():
 
     print(
-        f"[APP] {rule} -> {rule.endpoint}",
+        rule,
+        "->",
+        rule.endpoint,
         flush=True
     )
 
 
-# =====================================
-# 起動完了
-# =====================================
-
-print(
-    "==========================================",
-    flush=True
-)
-
-print(
-    "[APP] app.py READY",
-    flush=True
-)
-
-print(
-    "[APP] FFmpegはまだ実行していません",
-    flush=True
-)
-
-print(
-    "==========================================",
-    flush=True
-)
+print("==========================================", flush=True)
+print("[APP] app.py READY", flush=True)
+print("[APP] FFmpegはまだ実行していません", flush=True)
+print("==========================================", flush=True)
 
 
 # =====================================
-# Flask起動
+# 起動
 # =====================================
 
 if __name__ == "__main__":
 
     print(
-        "==========================================",
-        flush=True
-    )
-
-    print(
-        "[APP] Flask START",
-        flush=True
-    )
-
-    print(
-        "==========================================",
+        "[APP] Flask直接起動",
         flush=True
     )
 
