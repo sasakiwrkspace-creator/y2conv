@@ -2941,6 +2941,7 @@ def embed_subtitle(
         if process:
 
             try:
+
                 log(
                     "FFmpeg process.kill()を実行します"
                 )
@@ -2955,6 +2956,7 @@ def embed_subtitle(
                 )
 
             try:
+
                 process.wait(
                     timeout=10
                 )
