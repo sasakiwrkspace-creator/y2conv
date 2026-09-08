@@ -2,392 +2,120 @@
 # YouTube Converter
 # app.py
 #
-# 完全最小テスト版
+# 調査用最小構成
 #
-# 目的:
+# 今回の目的:
 #
-#   まずアプリケーションの通信だけを確認する。
+# 1. app.py が正常起動しているか
+# 2. 起動時に余計な処理が動いていないか
+# 3. /test が正常に表示されるか
+# 4. /subtitle-test/ffmpeg が呼ばれたか
+# 5. FFmpegを起動せずにブラウザへ応答できるか
 #
-#   ブラウザ
-#       ↓
-#   Flask
-#       ↓
-#   /subtitle-test/ffmpeg
-#       ↓
-#   「FFmpeg終了」
-#       ↓
-#   ブラウザ
-#
-#
-# IMPORTANT
-#
-# このファイルでは、
-#
-# ・FFmpegを起動しない
-# ・subtitle_test_ffmpeg.pyをimportしない
-# ・routes.*をimportしない
-# ・subtitle_fontをimportしない
-# ・SRTを読まない
-# ・MP4を読まない
-# ・Geminiを呼ばない
-# ・動画変換をしない
-#
+# IMPORTANT:
+# このファイルではFFmpegを一切起動しない。
+# subtitle_test_ffmpeg.py もimportしない。
 # =====================================
 
 
-from flask import Flask
+from flask import Flask, render_template
 
 
 # =====================================
-# Flask
+# Flask生成
 # =====================================
+
+print(
+    "==========================================",
+    flush=True
+)
+
+print(
+    "[APP] app.py import START",
+    flush=True
+)
+
+print(
+    "[APP] Flask instance CREATE",
+    flush=True
+)
 
 app = Flask(__name__)
 
-
-# =====================================
-# 起動ログ
-# =====================================
-
 print(
-    "==========================================",
-    flush=True
-)
-
-print(
-    "[APP] MINIMAL TEST APP START",
-    flush=True
-)
-
-print(
-    "[APP] FFmpeg: DISABLED",
-    flush=True
-)
-
-print(
-    "[APP] subtitle_test_ffmpeg.py: DISABLED",
-    flush=True
-)
-
-print(
-    "[APP] routes.*: DISABLED",
-    flush=True
-)
-
-print(
-    "==========================================",
+    "[APP] Flask instance CREATE OK",
     flush=True
 )
 
 
 # =====================================
-# トップページ
+# /test
+#
+# ブラウザから開く確認用
 # =====================================
 
-@app.route("/")
-def index():
+@app.route(
+    "/test",
+    methods=["GET"]
+)
+def test_page():
 
     print(
-        "[APP] GET /",
+        "==========================================",
         flush=True
     )
 
-    return """
-<!DOCTYPE html>
-
-<html lang="ja">
-
-<head>
-
-    <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>FFmpeg 最小テスト</title>
-
-    <style>
-
-        body {
-            font-family:
-                -apple-system,
-                BlinkMacSystemFont,
-                "Segoe UI",
-                sans-serif;
-
-            padding: 40px;
-
-            background: #f5f5f5;
-
-            color: #222;
-        }
-
-        .container {
-
-            max-width: 700px;
-
-            margin: 0 auto;
-
-            background: white;
-
-            padding: 30px;
-
-            border-radius: 12px;
-
-            box-shadow:
-                0 2px 10px
-                rgba(0, 0, 0, 0.08);
-        }
-
-        h1 {
-
-            margin-top: 0;
-
-        }
-
-        button {
-
-            padding:
-                14px 24px;
-
-            font-size: 18px;
-
-            border: none;
-
-            border-radius: 8px;
-
-            background: #2563eb;
-
-            color: white;
-
-            cursor: pointer;
-        }
-
-        button:hover {
-
-            background: #1d4ed8;
-
-        }
-
-        button:disabled {
-
-            background: #999;
-
-            cursor: not-allowed;
-
-        }
-
-        #result {
-
-            margin-top: 25px;
-
-            padding: 20px;
-
-            border-radius: 8px;
-
-            background: #eee;
-
-            font-size: 20px;
-
-            min-height: 30px;
-        }
-
-        .success {
-
-            background: #dcfce7 !important;
-
-            color: #166534;
-
-        }
-
-        .error {
-
-            background: #fee2e2 !important;
-
-            color: #991b1b;
-
-        }
-
-    </style>
-
-</head>
-
-
-<body>
-
-<div class="container">
-
-    <h1>
-        FFmpeg 最小テスト
-    </h1>
-
-
-    <p>
-        このテストではFFmpegを実行しません。
-    </p>
-
-
-    <p>
-        ブラウザ → Python → ブラウザ
-        の通信だけを確認します。
-    </p>
-
-
-    <button
-        id="testButton"
-        onclick="runTest()"
-    >
-        テスト開始
-    </button>
-
-
-    <div id="result">
-
-        まだ実行していません。
-
-    </div>
-
-</div>
-
-
-<script>
-
-async function runTest() {
-
-    const button =
-        document.getElementById(
-            "testButton"
-        );
-
-    const result =
-        document.getElementById(
-            "result"
-        );
-
-
-    console.log(
-        "[BROWSER] テスト開始"
-    );
-
-
-    button.disabled = true;
-
-
-    result.className = "";
-
-
-    result.textContent =
-        "Pythonを呼び出しています...";
-
-
-    try {
-
-        console.log(
-            "[BROWSER] POST /subtitle-test/ffmpeg"
-        );
-
-
-        const response =
-            await fetch(
-                "/subtitle-test/ffmpeg",
-                {
-                    method: "POST"
-                }
-            );
-
-
-        console.log(
-            "[BROWSER] response received",
-            response.status
-        );
-
-
-        const text =
-            await response.text();
-
-
-        console.log(
-            "[BROWSER] response:",
-            text
-        );
-
-
-        if (response.ok) {
-
-            result.className =
-                "success";
-
-
-            result.textContent =
-                text;
-
-
-            console.log(
-                "[BROWSER] テスト成功"
-            );
-
-        } else {
-
-            result.className =
-                "error";
-
-
-            result.textContent =
-                "HTTPエラー: " +
-                response.status +
-                "\\n" +
-                text;
-
-
-            console.error(
-                "[BROWSER] HTTPエラー",
-                response.status
-            );
-        }
-
-
-    } catch (error) {
-
-        console.error(
-            "[BROWSER] 通信エラー",
-            error
-        );
-
-
-        result.className =
-            "error";
-
-
-        result.textContent =
-            "通信エラー: " +
-            error;
-
-
-    } finally {
-
-        button.disabled = false;
-
-    }
-
-}
-
-</script>
-
-
-</body>
-
-</html>
-"""
+    print(
+        "[APP] /test START",
+        flush=True
+    )
+
+    print(
+        "[APP] Python is responding",
+        flush=True
+    )
+
+    print(
+        "[APP] render_template START",
+        flush=True
+    )
+
+    result = render_template(
+        "test.html"
+    )
+
+    print(
+        "[APP] render_template END",
+        flush=True
+    )
+
+    print(
+        "[APP] /test END",
+        flush=True
+    )
+
+    print(
+        "==========================================",
+        flush=True
+    )
+
+    return result
 
 
 # =====================================
-# FFmpegテスト
+# FFmpegテスト用ルート
 #
 # IMPORTANT:
 #
-# ここではFFmpegを実行しない。
+# 現段階ではFFmpegを一切起動しない。
+#
+# ブラウザ
+#   ↓
+# POST
+#   ↓
+# Python
+#   ↓
+# 「FFmpeg終了」
 #
 # =====================================
 
@@ -407,109 +135,99 @@ def subtitle_test_ffmpeg_route():
         flush=True
     )
 
-
-    # -------------------------------------
-    # Python到達確認
-    # -------------------------------------
-
     print(
-        "[APP] Pythonルート到達",
+        "[APP] FFmpeg START処理には入りません",
         flush=True
     )
 
-
-    # -------------------------------------
-    # FFmpeg無効確認
-    # -------------------------------------
-
     print(
-        "[APP] FFmpegは実行しません",
+        "[APP] subprocessは呼びません",
         flush=True
     )
 
-
-    # -------------------------------------
-    # subtitle_test_ffmpeg.py無効確認
-    # -------------------------------------
-
     print(
-        "[APP] subtitle_test_ffmpeg.pyは呼びません",
+        "[APP] subtitle_test_ffmpeg.pyはimportしません",
         flush=True
     )
 
-
-    # -------------------------------------
-    # routes無効確認
-    # -------------------------------------
-
     print(
-        "[APP] routesモジュールは呼びません",
+        "[APP] FFmpeg終了をブラウザへ返します",
         flush=True
     )
-
-
-    # -------------------------------------
-    # 処理終了
-    # -------------------------------------
-
-    print(
-        "[APP] Python処理終了",
-        flush=True
-    )
-
-
-    print(
-        "[APP] ブラウザへ「FFmpeg終了」を返します",
-        flush=True
-    )
-
 
     print(
         "[APP] /subtitle-test/ffmpeg END",
         flush=True
     )
 
+    print(
+        "==========================================",
+        flush=True
+    )
+
+    return (
+        "FFmpeg終了",
+        200
+    )
+
+
+# =====================================
+# 404確認
+# =====================================
+
+@app.errorhandler(404)
+def page_not_found(error):
 
     print(
         "==========================================",
         flush=True
     )
 
-
-    return (
-        "FFmpeg終了",
-        200,
-        {
-            "Content-Type":
-                "text/plain; charset=utf-8"
-        }
+    print(
+        "[APP] 404 NOT FOUND",
+        flush=True
     )
 
+    print(
+        "[APP] path:",
+        flush=True
+    )
 
-# =====================================
-# ヘルスチェック
-#
-# Render確認用
-# =====================================
+    try:
+        from flask import request
 
-@app.route(
-    "/health"
-)
-def health():
+        print(
+            request.path,
+            flush=True
+        )
+
+        print(
+            "[APP] method:",
+            request.method,
+            flush=True
+        )
+
+    except Exception as e:
+
+        print(
+            "[APP] request情報取得失敗:",
+            e,
+            flush=True
+        )
 
     print(
-        "[APP] GET /health",
+        "==========================================",
         flush=True
     )
 
     return (
-        "OK",
-        200
+        "Not Found",
+        404
     )
 
 
 # =====================================
-# ルート確認
+# 登録URL確認
 # =====================================
 
 print(
@@ -518,7 +236,7 @@ print(
 )
 
 print(
-    "[APP] Registered routes:",
+    "[APP] Registered routes START",
     flush=True
 )
 
@@ -526,10 +244,18 @@ print(
 for rule in app.url_map.iter_rules():
 
     print(
-        f"[APP] {rule}",
+        "[APP] ROUTE:",
+        rule,
+        "->",
+        rule.endpoint,
         flush=True
     )
 
+
+print(
+    "[APP] Registered routes END",
+    flush=True
+)
 
 print(
     "==========================================",
@@ -538,15 +264,17 @@ print(
 
 
 # =====================================
-# 直接実行
-#
-# RenderでGunicornを使用する場合は、
-# 通常ここは実行されない。
-#
-# 例:
-#
-# gunicorn app:app
-#
+# import完了
+# =====================================
+
+print(
+    "[APP] app.py import END",
+    flush=True
+)
+
+
+# =====================================
+# 起動
 # =====================================
 
 if __name__ == "__main__":
@@ -557,7 +285,17 @@ if __name__ == "__main__":
     )
 
     print(
-        "[APP] Direct execution mode",
+        "[APP] MAIN START",
+        flush=True
+    )
+
+    print(
+        "[APP] FFmpeg: DISABLED",
+        flush=True
+    )
+
+    print(
+        "[APP] subtitle_test_ffmpeg.py: DISABLED",
         flush=True
     )
 
@@ -571,10 +309,9 @@ if __name__ == "__main__":
         flush=True
     )
 
-
     app.run(
         host="0.0.0.0",
         port=10000,
         debug=False,
-        threaded=True
+        use_reloader=False
     )
