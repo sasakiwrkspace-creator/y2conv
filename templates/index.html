@@ -1,43 +1,31 @@
 # =====================================
-# subtitle_test_ffmpeg.py
+# ffmpeg_test.py
 #
-# 最小FFmpeg起動テスト
+# 最小FFmpeg動作テスト
 #
-# 入力:
-#   /app/downloads/test.mp4
+# 目的:
+#   ブラウザのボタンを押す
+#       ↓
+#   PythonがFFmpegを実行
+#       ↓
+#   FFmpeg終了
+#       ↓
+#   ブラウザに「FFmpeg終了」を表示
 #
-# 出力:
-#   /app/downloads/test_copy.mp4
+# 字幕処理:
+#   一切しない
 #
-# 今回の目的:
+# SRT:
+#   一切使用しない
 #
-# 1. このPythonファイルが実際に実行されているか確認
-# 2. run_ffmpeg() に到達しているか確認
-# 3. subprocess.Popen() が実行されているか確認
-# 4. FFmpeg PIDを取得できるか確認
-# 5. FFmpegのRSSメモリ使用量を表示
-# 6. FFmpegが正常終了するか確認
+# libass:
+#   一切使用しない
 #
-# 注意:
+# フォント:
+#   一切使用しない
 #
-# 今回は字幕処理を一切行わない。
-#
-# 以下を全て使用しない:
-#   - subtitle_font
-#   - SRT
-#   - libass
-#   - subtitles filter
-#   - scale
-#   - libx264
-#   - AAC
-#
-# FFmpeg:
-#
-#   ffmpeg -y -nostdin -hide_banner -loglevel info
-#          -i test.mp4
-#          -c copy
-#          test_copy.mp4
-#
+# メモリ監視:
+#   一切しない
 # =====================================
 
 from __future__ import annotations
@@ -45,526 +33,259 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
-import threading
 import time
-from pathlib import Path
+
+from flask import Flask, jsonify, render_template_string
+
+
+# =====================================
+# Flask
+# =====================================
+
+app = Flask(__name__)
 
 
 # =====================================
 # 設定
 # =====================================
 
-BASE_DIR = Path(
-    os.environ.get(
-        "BASE_DIR",
-        "/app",
+BASE_DIR = os.environ.get(
+    "BASE_DIR",
+    "/app"
+)
+
+DOWNLOAD_DIR = os.environ.get(
+    "DOWNLOAD_DIR",
+    os.path.join(
+        BASE_DIR,
+        "downloads"
     )
 )
 
-DOWNLOAD_DIR = Path(
-    os.environ.get(
-        "DOWNLOAD_DIR",
-        str(BASE_DIR / "downloads"),
-    )
+INPUT_FILE = os.path.join(
+    DOWNLOAD_DIR,
+    "test.mp4"
 )
 
-INPUT_MP4 = (
-    DOWNLOAD_DIR
-    / "test.mp4"
+OUTPUT_FILE = os.path.join(
+    DOWNLOAD_DIR,
+    "ffmpeg_test_output.mp4"
 )
-
-OUTPUT_MP4 = (
-    DOWNLOAD_DIR
-    / "test_copy.mp4"
-)
-
-
-# =====================================
-# FFmpeg設定
-# =====================================
 
 FFMPEG_TIMEOUT = 120
-
-
-# =====================================
-# メモリ設定
-# =====================================
-
-# 512MB
-MEMORY_LIMIT_BYTES = (
-    512 * 1024 * 1024
-)
-
-# 90%
-MEMORY_WARNING_BYTES = int(
-    MEMORY_LIMIT_BYTES * 0.90
-)
-
-# 95%
-MEMORY_CRITICAL_BYTES = int(
-    MEMORY_LIMIT_BYTES * 0.95
-)
-
-# 1秒ごとに表示
-MEMORY_LOG_INTERVAL = 1.0
 
 
 # =====================================
 # ログ
 # =====================================
 
-def log(message: str = ""):
+def log(message: str):
+
     print(
         f"[FFMPEG TEST] {message}",
-        flush=True,
-    )
-
-
-def separator():
-    print(
-        "[FFMPEG TEST] ==========================================",
-        flush=True,
+        flush=True
     )
 
 
 # =====================================
-# Bytes → MB
+# ブラウザ画面
 # =====================================
 
-def bytes_to_mb(
-    value: int,
-) -> float:
+HTML = """
+<!DOCTYPE html>
 
-    return (
-        value
-        / (1024 * 1024)
+<html lang="ja">
+
+<head>
+
+<meta charset="UTF-8">
+
+<title>FFmpeg Test</title>
+
+<style>
+
+body {
+    font-family: sans-serif;
+    padding: 40px;
+}
+
+button {
+    font-size: 20px;
+    padding: 15px 30px;
+    cursor: pointer;
+}
+
+#status {
+    margin-top: 30px;
+    padding: 20px;
+    border: 1px solid #ccc;
+    white-space: pre-wrap;
+    font-size: 18px;
+}
+
+.success {
+    color: green;
+}
+
+.error {
+    color: red;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>FFmpeg単体テスト</h1>
+
+<p>
+字幕処理は一切行いません。
+</p>
+
+<button
+    id="runButton"
+    onclick="runFFmpeg()"
+>
+FFmpegを実行
+</button>
+
+<div id="status">
+まだ実行していません。
+</div>
+
+
+<script>
+
+async function runFFmpeg() {
+
+    const button =
+        document.getElementById(
+            "runButton"
+        );
+
+    const status =
+        document.getElementById(
+            "status"
+        );
+
+    button.disabled = true;
+
+    status.className = "";
+
+    status.textContent =
+        "FFmpeg開始中...";
+
+    try {
+
+        const response =
+            await fetch(
+                "/run-ffmpeg",
+                {
+                    method: "POST"
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (data.success) {
+
+            status.className =
+                "success";
+
+            status.textContent =
+                "FFmpeg終了\\n\\n"
+                + "returncode: "
+                + data.returncode
+                + "\\n"
+                + "処理時間: "
+                + data.elapsed
+                + " 秒\\n"
+                + "出力: "
+                + data.output;
+
+        } else {
+
+            status.className =
+                "error";
+
+            status.textContent =
+                "FFmpeg失敗\\n\\n"
+                + data.message;
+
+        }
+
+    } catch (error) {
+
+        status.className =
+            "error";
+
+        status.textContent =
+            "ブラウザ側エラー\\n\\n"
+            + error;
+
+    } finally {
+
+        button.disabled = false;
+
+    }
+
+}
+
+</script>
+
+</body>
+
+</html>
+"""
+
+
+# =====================================
+# トップページ
+# =====================================
+
+@app.route("/")
+def index():
+
+    log(
+        "ブラウザからトップページへのアクセス"
+    )
+
+    return render_template_string(
+        HTML
     )
 
 
 # =====================================
-# Pythonプロセス情報
+# FFmpeg実行
 # =====================================
 
-def print_python_info():
+@app.route(
+    "/run-ffmpeg",
+    methods=["POST"]
+)
+def run_ffmpeg():
 
-    separator()
-
+    log("")
     log(
-        "PYTHON / ENVIRONMENT INFO"
+        "=========================================="
     )
-
     log(
-        f"Python PID: {os.getpid()}"
+        "ブラウザからFFmpeg実行要求を受信"
     )
-
     log(
-        f"Python executable: "
-        f"{os.sys.executable}"
+        "=========================================="
     )
 
-    log(
-        f"Current working directory: "
-        f"{Path.cwd()}"
-    )
-
-    log(
-        f"BASE_DIR: "
-        f"{BASE_DIR}"
-    )
-
-    log(
-        f"DOWNLOAD_DIR: "
-        f"{DOWNLOAD_DIR}"
-    )
-
-    log(
-        f"INPUT_MP4: "
-        f"{INPUT_MP4}"
-    )
-
-    log(
-        f"OUTPUT_MP4: "
-        f"{OUTPUT_MP4}"
-    )
-
-    log(
-        f"MEMORY LIMIT: "
-        f"{bytes_to_mb(MEMORY_LIMIT_BYTES):.1f} MB"
-    )
-
-    log(
-        f"MEMORY WARNING: "
-        f"{bytes_to_mb(MEMORY_WARNING_BYTES):.1f} MB"
-    )
-
-    log(
-        f"MEMORY CRITICAL: "
-        f"{bytes_to_mb(MEMORY_CRITICAL_BYTES):.1f} MB"
-    )
-
-    separator()
-
-
-# =====================================
-# FFmpeg RSS取得
-# =====================================
-
-def get_process_rss_bytes(
-    pid: int,
-) -> int | None:
-
-    status_path = Path(
-        f"/proc/{pid}/status"
-    )
-
-    try:
-
-        if not status_path.exists():
-
-            return None
-
-        text = status_path.read_text(
-            encoding="utf-8",
-            errors="replace",
-        )
-
-        for line in text.splitlines():
-
-            if not line.startswith(
-                "VmRSS:"
-            ):
-
-                continue
-
-            parts = line.split()
-
-            if len(parts) < 2:
-
-                return None
-
-            # LinuxのVmRSSは通常kB
-            kb = int(
-                parts[1]
-            )
-
-            return (
-                kb * 1024
-            )
-
-    except Exception as e:
-
-        log(
-            f"[MEMORY] RSS取得エラー: "
-            f"{type(e).__name__}: {e}"
-        )
-
-        return None
-
-    return None
-
-
-# =====================================
-# FFmpegメモリ監視
-# =====================================
-
-class FFmpegMemoryMonitor:
-
-    def __init__(
-        self,
-        pid: int,
-    ):
-
-        self.pid = pid
-
-        self.stop_event = (
-            threading.Event()
-        )
-
-        self.thread = None
-
-        self.max_rss = 0
-
-        self.last_rss = 0
-
-        self.warning_logged = False
-
-        self.critical_logged = False
-
+    start_time = time.monotonic()
 
     # =================================
-    # 開始
+    # FFmpeg確認
     # =================================
 
-    def start(self):
-
-        log(
-            "[MEMORY] FFmpegMemoryMonitor.start()"
-        )
-
-        log(
-            f"[MEMORY] PID: {self.pid}"
-        )
-
-        self.thread = threading.Thread(
-            target=self._monitor_loop,
-            name="ffmpeg-memory-monitor",
-            daemon=True,
-        )
-
-        log(
-            "[MEMORY] thread.start() 前"
-        )
-
-        self.thread.start()
-
-        log(
-            "[MEMORY] thread.start() 完了"
-        )
-
-
-    # =================================
-    # 停止
-    # =================================
-
-    def stop(self):
-
-        log(
-            "[MEMORY] monitor.stop() 開始"
-        )
-
-        self.stop_event.set()
-
-        if self.thread is not None:
-
-            self.thread.join(
-                timeout=3
-            )
-
-        log(
-            "[MEMORY] monitor.stop() 完了"
-        )
-
-
-    # =================================
-    # 監視ループ
-    # =================================
-
-    def _monitor_loop(self):
-
-        log(
-            "[MEMORY] 監視スレッド開始"
-        )
-
-        log(
-            f"[MEMORY] 監視対象PID: "
-            f"{self.pid}"
-        )
-
-        while not self.stop_event.is_set():
-
-            rss = (
-                get_process_rss_bytes(
-                    self.pid
-                )
-            )
-
-            # =============================
-            # RSS取得成功
-            # =============================
-
-            if rss is not None:
-
-                self.last_rss = rss
-
-                if rss > self.max_rss:
-
-                    self.max_rss = rss
-
-                rss_mb = (
-                    bytes_to_mb(
-                        rss
-                    )
-                )
-
-                max_mb = (
-                    bytes_to_mb(
-                        self.max_rss
-                    )
-                )
-
-                limit_mb = (
-                    bytes_to_mb(
-                        MEMORY_LIMIT_BYTES
-                    )
-                )
-
-                log(
-                    "[MEMORY] "
-                    f"FFmpeg RSS: "
-                    f"{rss_mb:.1f} MB "
-                    f"/ MAX: "
-                    f"{max_mb:.1f} MB "
-                    f"/ LIMIT: "
-                    f"{limit_mb:.1f} MB"
-                )
-
-                # =========================
-                # 90%
-                # =========================
-
-                if (
-                    rss
-                    >= MEMORY_WARNING_BYTES
-                    and not self.warning_logged
-                ):
-
-                    self.warning_logged = True
-
-                    log(
-                        "[MEMORY] "
-                        "WARNING: "
-                        "FFmpeg RSSが512MBの90%を超えました"
-                    )
-
-                # =========================
-                # 95%
-                # =========================
-
-                if (
-                    rss
-                    >= MEMORY_CRITICAL_BYTES
-                    and not self.critical_logged
-                ):
-
-                    self.critical_logged = True
-
-                    log(
-                        "[MEMORY] "
-                        "CRITICAL: "
-                        "FFmpeg RSSが512MBの95%を超えました"
-                    )
-
-                # =========================
-                # 512MB超過
-                # =========================
-
-                if (
-                    rss
-                    >= MEMORY_LIMIT_BYTES
-                ):
-
-                    log(
-                        "[MEMORY] "
-                        "!!! CRITICAL: "
-                        "FFmpeg RSSが512MBを超えています !!!"
-                    )
-
-            # =============================
-            # RSS取得不可
-            # =============================
-
-            else:
-
-                proc_path = Path(
-                    f"/proc/{self.pid}"
-                )
-
-                if not proc_path.exists():
-
-                    log(
-                        "[MEMORY] "
-                        "FFmpegプロセスが終了したため監視終了"
-                    )
-
-                    break
-
-                log(
-                    "[MEMORY] "
-                    "RSS取得不可"
-                )
-
-            self.stop_event.wait(
-                MEMORY_LOG_INTERVAL
-            )
-
-        log(
-            "[MEMORY] 監視スレッド終了"
-        )
-
-
-# =====================================
-# 入力ファイル確認
-# =====================================
-
-def check_input():
-
-    separator()
-
     log(
-        "STEP 1: 入力ファイル確認"
-    )
-
-    log(
-        f"INPUT: {INPUT_MP4}"
-    )
-
-    log(
-        f"exists: {INPUT_MP4.exists()}"
-    )
-
-    if not INPUT_MP4.exists():
-
-        raise FileNotFoundError(
-            f"入力ファイルがありません: "
-            f"{INPUT_MP4}"
-        )
-
-    if not INPUT_MP4.is_file():
-
-        raise RuntimeError(
-            f"入力パスがファイルではありません: "
-            f"{INPUT_MP4}"
-        )
-
-    size = (
-        INPUT_MP4.stat().st_size
-    )
-
-    log(
-        f"INPUT SIZE: "
-        f"{size} bytes"
-    )
-
-    log(
-        f"INPUT SIZE: "
-        f"{bytes_to_mb(size):.3f} MB"
-    )
-
-    if size <= 0:
-
-        raise RuntimeError(
-            "入力ファイルサイズが0です"
-        )
-
-    log(
-        "入力ファイル確認OK"
-    )
-
-
-# =====================================
-# FFmpeg確認
-# =====================================
-
-def check_ffmpeg():
-
-    separator()
-
-    log(
-        "STEP 2: FFmpeg確認"
-    )
-
-    log(
-        "shutil.which('ffmpeg') 実行"
+        "STEP 1: FFmpeg検索"
     )
 
     ffmpeg = shutil.which(
@@ -572,80 +293,91 @@ def check_ffmpeg():
     )
 
     log(
-        f"FFmpeg PATH: {ffmpeg}"
+        f"ffmpeg: {ffmpeg}"
     )
 
     if not ffmpeg:
 
-        raise RuntimeError(
-            "FFmpegが見つかりません"
+        log(
+            "ERROR: FFmpegが見つかりません"
         )
 
-    log(
-        "FFmpeg version確認開始"
-    )
+        return jsonify(
+            {
+                "success": False,
+                "message":
+                    "FFmpegが見つかりません"
+            }
+        ), 500
 
-    result = subprocess.run(
-        [
-            ffmpeg,
-            "-version",
-        ],
-        capture_output=True,
-        text=True,
-        timeout=10,
-    )
+    # =================================
+    # 入力確認
+    # =================================
 
     log(
-        f"FFmpeg version returncode: "
-        f"{result.returncode}"
+        "STEP 2: 入力ファイル確認"
     )
 
-    if result.stdout:
+    log(
+        f"INPUT_FILE: {INPUT_FILE}"
+    )
 
-        first_line = (
-            result.stdout
-            .splitlines()[0]
-        )
+    if not os.path.exists(
+        INPUT_FILE
+    ):
 
         log(
-            f"FFmpeg version: "
-            f"{first_line}"
+            "ERROR: test.mp4がありません"
         )
 
-    if result.returncode != 0:
+        return jsonify(
+            {
+                "success": False,
+                "message":
+                    f"入力ファイルがありません: "
+                    f"{INPUT_FILE}"
+            }
+        ), 400
 
-        raise RuntimeError(
-            "FFmpeg version確認失敗"
+    input_size = os.path.getsize(
+        INPUT_FILE
+    )
+
+    log(
+        f"入力ファイルサイズ: "
+        f"{input_size} bytes"
+    )
+
+    # =================================
+    # 出力削除
+    # =================================
+
+    log(
+        "STEP 3: 既存出力削除"
+    )
+
+    if os.path.exists(
+        OUTPUT_FILE
+    ):
+
+        log(
+            f"既存ファイル削除: "
+            f"{OUTPUT_FILE}"
         )
 
-    log(
-        "FFmpeg確認OK"
-    )
+        os.remove(
+            OUTPUT_FILE
+        )
 
-    return ffmpeg
-
-
-# =====================================
-# FFmpegコマンド作成
-# =====================================
-
-def create_command(
-    ffmpeg: str,
-):
-
-    separator()
-
-    log(
-        "STEP 3: FFmpegコマンド作成"
-    )
-
-    # ---------------------------------
-    # 最小構成
+    # =================================
+    # FFmpegコマンド
     #
-    # 再エンコードなし
     # 字幕なし
-    # filterなし
-    # ---------------------------------
+    # フィルターなし
+    #
+    # test.mp4をそのまま
+    # H.264 + AACに変換するだけ。
+    # =================================
 
     command = [
 
@@ -661,105 +393,50 @@ def create_command(
         "info",
 
         "-i",
-        str(INPUT_MP4),
+        INPUT_FILE,
 
-        "-c",
-        "copy",
+        "-c:v",
+        "libx264",
 
-        str(OUTPUT_MP4),
+        "-preset",
+        "ultrafast",
+
+        "-crf",
+        "30",
+
+        "-c:a",
+        "aac",
+
+        "-b:a",
+        "128k",
+
+        "-movflags",
+        "+faststart",
+
+        OUTPUT_FILE,
     ]
 
     log(
-        "FFmpegコマンド:"
+        "STEP 4: FFmpegコマンド"
     )
 
     log(
-        " ".join(
-            str(x)
-            for x in command
-        )
+        " ".join(command)
     )
-
-    log(
-        "FFmpegコマンド作成完了"
-    )
-
-    return command
-
-
-# =====================================
-# run_ffmpeg
-# =====================================
-
-def run_ffmpeg(
-    ffmpeg: str,
-    command: list[str],
-):
-
-    separator()
-
-    log(
-        "★★★★★ run_ffmpeg() ENTER ★★★★★"
-    )
-
-    log(
-        f"FFmpeg executable: "
-        f"{ffmpeg}"
-    )
-
-    log(
-        f"command length: "
-        f"{len(command)}"
-    )
-
-    log(
-        "★★★★★ run_ffmpeg() ENTER END ★★★★★"
-    )
-
-    start_time = (
-        time.monotonic()
-    )
-
-    process = None
-
-    memory_monitor = None
-
-    output_lines = []
 
     # =================================
-    # Popen直前
+    # FFmpeg開始
     # =================================
 
-    separator()
-
     log(
-        "STEP 4: subprocess.Popen() 直前"
+        "STEP 5: FFmpeg開始"
     )
 
     log(
-        "★ これからFFmpegプロセスを起動します ★"
-    )
-
-    log(
-        "COMMAND:"
-    )
-
-    log(
-        " ".join(
-            str(x)
-            for x in command
-        )
+        "ここからFFmpeg subprocess.Popen()"
     )
 
     try:
-
-        # =============================
-        # Popen
-        # =============================
-
-        log(
-            "★★★★★ subprocess.Popen() CALL ★★★★★"
-        )
 
         process = subprocess.Popen(
 
@@ -775,200 +452,56 @@ def run_ffmpeg(
 
         )
 
-        # =============================
-        # Popen完了
-        # =============================
+    except Exception as e:
 
         log(
-            "★★★★★ subprocess.Popen() RETURN ★★★★★"
+            "FFmpeg Popen() FAILED"
         )
 
         log(
-            "FFmpegプロセス起動成功"
+            f"ERROR TYPE: "
+            f"{type(e).__name__}"
         )
 
         log(
-            f"FFmpeg PID: "
-            f"{process.pid}"
+            f"ERROR: {e}"
         )
 
-        # =================================
-        # PID存在確認
-        # =================================
+        return jsonify(
+            {
+                "success": False,
+                "message":
+                    f"FFmpeg起動失敗: {e}"
+            }
+        ), 500
 
-        proc_path = Path(
-            f"/proc/{process.pid}"
-        )
+    # =================================
+    # PID
+    # =================================
 
-        log(
-            f"/proc/{process.pid} exists: "
-            f"{proc_path.exists()}"
-        )
+    log(
+        f"FFmpeg PID: {process.pid}"
+    )
 
-        # =================================
-        # 初期RSS
-        # =================================
+    log(
+        "FFmpegプロセスは起動しました"
+    )
 
-        log(
-            "STEP 5: FFmpeg初期RSS確認"
-        )
+    # =================================
+    # FFmpegログ読み取り
+    # =================================
 
-        initial_rss = (
-            get_process_rss_bytes(
-                process.pid
-            )
-        )
+    ffmpeg_logs = []
 
-        if initial_rss is not None:
+    try:
 
-            log(
-                "[MEMORY] "
-                "FFmpeg開始時RSS: "
-                f"{bytes_to_mb(initial_rss):.1f} MB"
-            )
+        if process.stdout is not None:
 
-        else:
-
-            log(
-                "[MEMORY] "
-                "FFmpeg開始時RSS: 取得不可"
-            )
-
-        # =================================
-        # MemoryMonitor作成
-        # =================================
-
-        separator()
-
-        log(
-            "STEP 6: MemoryMonitor作成"
-        )
-
-        log(
-            "★★★★★ MemoryMonitor作成前 ★★★★★"
-        )
-
-        memory_monitor = (
-            FFmpegMemoryMonitor(
-                process.pid
-            )
-        )
-
-        log(
-            "★★★★★ MemoryMonitor作成完了 ★★★★★"
-        )
-
-        # =================================
-        # MemoryMonitor開始
-        # =================================
-
-        log(
-            "★★★★★ MemoryMonitor.start() 前 ★★★★★"
-        )
-
-        memory_monitor.start()
-
-        log(
-            "★★★★★ MemoryMonitor.start() 完了 ★★★★★"
-        )
-
-        # =================================
-        # stdout
-        # =================================
-
-        separator()
-
-        log(
-            "STEP 7: FFmpegログ読み取り開始"
-        )
-
-        log(
-            "★ FFmpegは現在実行中です ★"
-        )
-
-        assert process.stdout is not None
-
-        # =================================
-        # ログ読み取り
-        # =================================
-
-        while True:
-
-            # -----------------------------
-            # timeout確認
-            # -----------------------------
-
-            elapsed = (
-                time.monotonic()
-                - start_time
-            )
-
-            if (
-                elapsed
-                > FFMPEG_TIMEOUT
-            ):
-
-                log(
-                    "!!! FFmpeg TIMEOUT !!!"
-                )
-
-                log(
-                    f"elapsed: "
-                    f"{elapsed:.3f} sec"
-                )
-
-                log(
-                    f"PID: "
-                    f"{process.pid}"
-                )
-
-                try:
-
-                    process.kill()
-
-                    log(
-                        "process.kill() 実行"
-                    )
-
-                except Exception as e:
-
-                    log(
-                        f"process.kill() FAILED: "
-                        f"{e}"
-                    )
-
-                try:
-
-                    process.wait(
-                        timeout=10
-                    )
-
-                except Exception as e:
-
-                    log(
-                        f"process.wait() FAILED: "
-                        f"{e}"
-                    )
-
-                raise TimeoutError(
-                    f"FFmpegが"
-                    f"{FFMPEG_TIMEOUT}秒以内に"
-                    f"終了しませんでした"
-                )
-
-            # -----------------------------
-            # stdout読み取り
-            # -----------------------------
-
-            line = (
-                process.stdout.readline()
-            )
-
-            if line:
+            for line in process.stdout:
 
                 line = line.rstrip()
 
-                output_lines.append(
+                ffmpeg_logs.append(
                     line
                 )
 
@@ -977,320 +510,71 @@ def run_ffmpeg(
                     flush=True
                 )
 
-                continue
+                # ログが増えすぎないように
+                # 最後の100行だけ保持
+                if len(ffmpeg_logs) > 100:
 
-            # -----------------------------
-            # stdout EOF
-            # -----------------------------
+                    ffmpeg_logs.pop(0)
 
-            returncode = (
-                process.poll()
-            )
+                # -------------------------
+                # timeout
+                # -------------------------
 
-            if returncode is not None:
-
-                log(
-                    "FFmpegプロセス終了を検出"
+                elapsed = (
+                    time.monotonic()
+                    - start_time
                 )
 
-                break
-
-            # -----------------------------
-            # 少し待つ
-            # -----------------------------
-
-            time.sleep(
-                0.05
-            )
-
-        # =================================
-        # wait
-        # =================================
-
-        log(
-            "STEP 8: process.wait()"
-        )
-
-        returncode = (
-            process.wait()
-        )
-
-        log(
-            f"process.wait() returncode: "
-            f"{returncode}"
-        )
-
-        # =================================
-        # MemoryMonitor停止
-        # =================================
-
-        if memory_monitor:
-
-            log(
-                "★★★★★ MemoryMonitor.stop() 前 ★★★★★"
-            )
-
-            memory_monitor.stop()
-
-            log(
-                "★★★★★ MemoryMonitor.stop() 完了 ★★★★★"
-            )
-
-        # =================================
-        # 経過時間
-        # =================================
-
-        elapsed = (
-            time.monotonic()
-            - start_time
-        )
-
-        # =================================
-        # 最大RSS
-        # =================================
-
-        separator()
-
-        log(
-            "STEP 9: FFmpeg終了情報"
-        )
-
-        log(
-            f"FFmpeg returncode: "
-            f"{returncode}"
-        )
-
-        log(
-            f"FFmpeg elapsed: "
-            f"{elapsed:.3f} sec"
-        )
-
-        if memory_monitor:
-
-            max_rss = (
-                memory_monitor.max_rss
-            )
-
-            log(
-                "------------------------------------------"
-            )
-
-            log(
-                "FFmpeg最大メモリ使用量"
-            )
-
-            log(
-                f"MAX RSS: "
-                f"{bytes_to_mb(max_rss):.1f} MB"
-            )
-
-            remaining = (
-                MEMORY_LIMIT_BYTES
-                - max_rss
-            )
-
-            log(
-                f"512MBまで残り: "
-                f"{bytes_to_mb(remaining):.1f} MB"
-            )
-
-            if max_rss >= MEMORY_LIMIT_BYTES:
-
-                log(
-                    "!!! CRITICAL !!!"
-                )
-
-                log(
-                    "FFmpeg RSSが512MB以上です"
-                )
-
-            elif (
-                max_rss
-                >= MEMORY_WARNING_BYTES
-            ):
-
-                log(
-                    "!!! WARNING !!!"
-                )
-
-                log(
-                    "FFmpeg RSSが512MBの90%以上です"
-                )
-
-            else:
-
-                log(
-                    "FFmpeg RSSは512MB未満です"
-                )
-
-            log(
-                "------------------------------------------"
-            )
-
-        # =================================
-        # returncode確認
-        # =================================
-
-        if returncode < 0:
-
-            signal_number = (
-                -returncode
-            )
-
-            log(
-                "FFmpegがシグナル終了しました"
-            )
-
-            log(
-                f"signal: "
-                f"{signal_number}"
-            )
-
-            if signal_number == 9:
-
-                log(
-                    "SIGKILL (9)"
-                )
-
-                log(
-                    "OOM Killの可能性があります"
-                )
-
-            raise RuntimeError(
-                "FFmpeg signal termination: "
-                f"{signal_number}"
-            )
-
-        if returncode != 0:
-
-            log(
-                "!!! FFmpeg FAILED !!!"
-            )
-
-            log(
-                "最後のFFmpegログ:"
-            )
-
-            for line in output_lines[-30:]:
-
-                log(
-                    f"  {line}"
-                )
-
-            raise RuntimeError(
-                "FFmpeg failed: "
-                f"returncode={returncode}"
-            )
-
-        # =================================
-        # 出力確認
-        # =================================
-
-        separator()
-
-        log(
-            "STEP 10: 出力ファイル確認"
-        )
-
-        log(
-            f"OUTPUT: "
-            f"{OUTPUT_MP4}"
-        )
-
-        if not OUTPUT_MP4.exists():
-
-            raise RuntimeError(
-                "FFmpeg returncode=0ですが"
-                "出力ファイルがありません"
-            )
-
-        output_size = (
-            OUTPUT_MP4.stat().st_size
-        )
-
-        log(
-            f"OUTPUT SIZE: "
-            f"{output_size} bytes"
-        )
-
-        log(
-            f"OUTPUT SIZE: "
-            f"{bytes_to_mb(output_size):.3f} MB"
-        )
-
-        if output_size <= 0:
-
-            raise RuntimeError(
-                "出力ファイルサイズが0です"
-            )
-
-        # =================================
-        # SUCCESS
-        # =================================
-
-        separator()
-
-        log(
-            "★★★★★ run_ffmpeg() SUCCESS ★★★★★"
-        )
-
-        log(
-            f"returncode: {returncode}"
-        )
-
-        log(
-            f"max RSS: "
-            f"{bytes_to_mb(memory_monitor.max_rss):.1f} MB"
-            if memory_monitor
-            else "max RSS: unknown"
-        )
-
-        log(
-            f"output: {OUTPUT_MP4}"
-        )
-
-        separator()
-
-        return {
-            "success": True,
-            "returncode": returncode,
-            "output": str(
-                OUTPUT_MP4
-            ),
-            "output_size": output_size,
-            "output_size_mb": round(
-                bytes_to_mb(
-                    output_size
-                ),
-                3,
-            ),
-            "max_rss": (
-                memory_monitor.max_rss
-                if memory_monitor
-                else None
-            ),
-            "max_rss_mb": (
-                round(
-                    bytes_to_mb(
-                        memory_monitor.max_rss
-                    ),
-                    3,
-                )
-                if memory_monitor
-                else None
-            ),
-        }
+                if (
+                    elapsed
+                    > FFMPEG_TIMEOUT
+                ):
+
+                    log(
+                        "FFmpeg TIMEOUT"
+                    )
+
+                    log(
+                        f"経過時間: "
+                        f"{elapsed:.1f} 秒"
+                    )
+
+                    try:
+
+                        process.kill()
+
+                        log(
+                            "process.kill() 実行"
+                        )
+
+                    except Exception as e:
+
+                        log(
+                            f"kill失敗: {e}"
+                        )
+
+                    process.wait(
+                        timeout=10
+                    )
+
+                    return jsonify(
+                        {
+                            "success": False,
+                            "message":
+                                "FFmpegが"
+                                f"{FFMPEG_TIMEOUT}秒"
+                                "以内に終了しませんでした",
+                            "pid":
+                                process.pid,
+                            "logs":
+                                ffmpeg_logs,
+                        }
+                    ), 500
 
     except Exception as e:
 
-        # =================================
-        # EXCEPTION
-        # =================================
-
-        separator()
-
         log(
-            "★★★★★ run_ffmpeg() EXCEPTION ★★★★★"
+            "FFmpegログ読み取り中に例外"
         )
 
         log(
@@ -1299,228 +583,275 @@ def run_ffmpeg(
         )
 
         log(
-            f"ERROR: "
-            f"{e}"
+            f"ERROR: {e}"
         )
 
-        # =================================
-        # プロセス状態
-        # =================================
+        try:
 
-        if process is not None:
+            process.kill()
 
-            try:
+        except Exception:
 
-                poll_result = (
-                    process.poll()
-                )
+            pass
 
-                log(
-                    f"FFmpeg poll: "
-                    f"{poll_result}"
-                )
+        try:
 
-                current_rss = (
-                    get_process_rss_bytes(
-                        process.pid
-                    )
-                )
+            process.wait(
+                timeout=10
+            )
 
-                if current_rss is not None:
+        except Exception:
 
-                    log(
-                        "[MEMORY] "
-                        "例外発生時RSS: "
-                        f"{bytes_to_mb(current_rss):.1f} MB"
-                    )
+            pass
 
-            except Exception as status_error:
+        return jsonify(
+            {
+                "success": False,
+                "message":
+                    f"FFmpegログ読み取り失敗: {e}",
+                "pid":
+                    process.pid,
+                "logs":
+                    ffmpeg_logs,
+            }
+        ), 500
 
-                log(
-                    f"FFmpeg状態取得失敗: "
-                    f"{status_error}"
-                )
-
-        # =================================
-        # monitor停止
-        # =================================
-
-        if memory_monitor:
-
-            try:
-
-                memory_monitor.stop()
-
-            except Exception as monitor_error:
-
-                log(
-                    f"MemoryMonitor停止失敗: "
-                    f"{monitor_error}"
-                )
-
-        raise
-
-    finally:
-
-        # =================================
-        # 最終monitor停止
-        # =================================
-
-        if memory_monitor:
-
-            try:
-
-                memory_monitor.stop()
-
-            except Exception:
-
-                pass
-
-
-# =====================================
-# メイン
-# =====================================
-
-def main():
-
-    separator()
+    # =================================
+    # FFmpeg終了待ち
+    # =================================
 
     log(
-        "★★★★★ subtitle_test_ffmpeg.py START ★★★★★"
+        "STEP 6: FFmpeg終了待ち"
     )
 
-    separator()
+    try:
 
-    print_python_info()
+        returncode = process.wait(
+            timeout=10
+        )
+
+    except subprocess.TimeoutExpired:
+
+        log(
+            "FFmpeg終了待ちTIMEOUT"
+        )
+
+        try:
+
+            process.kill()
+
+        except Exception:
+
+            pass
+
+        return jsonify(
+            {
+                "success": False,
+                "message":
+                    "FFmpegプロセスが終了しません",
+                "pid":
+                    process.pid,
+            }
+        ), 500
 
     # =================================
-    # STEP 1
+    # 終了
     # =================================
 
-    check_input()
-
-    # =================================
-    # STEP 2
-    # =================================
-
-    ffmpeg = check_ffmpeg()
-
-    # =================================
-    # STEP 3
-    # =================================
-
-    command = create_command(
-        ffmpeg
-    )
-
-    # =================================
-    # ★重要★
-    #
-    # run_ffmpeg() 呼び出し直前
-    # =================================
-
-    separator()
-
-    log(
-        "STEP 4: run_ffmpeg() 呼び出し直前"
+    elapsed = (
+        time.monotonic()
+        - start_time
     )
 
     log(
-        "★★★★★ これからrun_ffmpeg()を呼び出します ★★★★★"
+        "STEP 7: FFmpeg終了"
     )
 
     log(
-        "FFmpegはまだ起動していません"
-    )
-
-    # =================================
-    # run_ffmpeg
-    # =================================
-
-    result = run_ffmpeg(
-        ffmpeg,
-        command,
-    )
-
-    # =================================
-    # ★重要★
-    #
-    # run_ffmpeg() 呼び出し後
-    # =================================
-
-    separator()
-
-    log(
-        "★★★★★ run_ffmpeg() 呼び出し完了 ★★★★★"
+        f"returncode: {returncode}"
     )
 
     log(
-        f"RESULT: {result}"
+        f"elapsed: {elapsed:.3f} 秒"
     )
 
     # =================================
-    # 最終結果
+    # returncode確認
     # =================================
 
-    separator()
+    if returncode != 0:
 
-    log(
-        "★★★★★ MINIMAL FFMPEG TEST SUCCESS ★★★★★"
-    )
-
-    log(
-        f"OUTPUT: {OUTPUT_MP4}"
-    )
-
-    if OUTPUT_MP4.exists():
-
-        size = (
-            OUTPUT_MP4.stat().st_size
+        log(
+            "FFmpeg FAILED"
         )
 
         log(
-            f"OUTPUT SIZE: "
-            f"{size} bytes"
+            "最後のFFmpegログ:"
         )
+
+        for line in ffmpeg_logs[-30:]:
+
+            log(
+                f"[FFMPEG-LAST] {line}"
+            )
+
+        return jsonify(
+            {
+                "success": False,
+                "message":
+                    f"FFmpeg失敗 "
+                    f"(returncode={returncode})",
+                "returncode":
+                    returncode,
+                "elapsed":
+                    round(
+                        elapsed,
+                        3
+                    ),
+                "logs":
+                    ffmpeg_logs,
+            }
+        ), 500
+
+    # =================================
+    # 出力確認
+    # =================================
+
+    log(
+        "STEP 8: FFmpeg出力確認"
+    )
+
+    if not os.path.exists(
+        OUTPUT_FILE
+    ):
 
         log(
-            f"OUTPUT SIZE: "
-            f"{bytes_to_mb(size):.3f} MB"
+            "ERROR: FFmpegはreturncode=0ですが"
+            "出力ファイルがありません"
         )
 
-    separator()
+        return jsonify(
+            {
+                "success": False,
+                "message":
+                    "FFmpegは終了しましたが"
+                    "出力ファイルがありません",
+                "returncode":
+                    returncode,
+                "elapsed":
+                    round(
+                        elapsed,
+                        3
+                    ),
+            }
+        ), 500
 
-    return result
+    output_size = os.path.getsize(
+        OUTPUT_FILE
+    )
+
+    log(
+        f"出力ファイル: "
+        f"{OUTPUT_FILE}"
+    )
+
+    log(
+        f"出力サイズ: "
+        f"{output_size} bytes"
+    )
+
+    # =================================
+    # ★ ここが今回の確認ポイント
+    # =================================
+
+    log(
+        "=========================================="
+    )
+
+    log(
+        "FFmpeg終了"
+    )
+
+    log(
+        "=========================================="
+    )
+
+    return jsonify(
+        {
+            "success":
+                True,
+
+            "message":
+                "FFmpeg終了",
+
+            "returncode":
+                returncode,
+
+            "elapsed":
+                round(
+                    elapsed,
+                    3
+                ),
+
+            "output":
+                OUTPUT_FILE,
+
+            "output_size":
+                output_size,
+
+            "logs":
+                ffmpeg_logs[-30:],
+        }
+    )
 
 
 # =====================================
-# 直接実行
+# 起動
 # =====================================
 
 if __name__ == "__main__":
 
-    try:
+    log(
+        "=========================================="
+    )
 
-        main()
+    log(
+        "ffmpeg_test.py START"
+    )
 
-    except Exception as e:
+    log(
+        f"BASE_DIR: {BASE_DIR}"
+    )
 
-        separator()
+    log(
+        f"DOWNLOAD_DIR: {DOWNLOAD_DIR}"
+    )
 
-        log(
-            "★★★★★ PROGRAM FAILED ★★★★★"
-        )
+    log(
+        f"INPUT_FILE: {INPUT_FILE}"
+    )
 
-        log(
-            f"ERROR TYPE: "
-            f"{type(e).__name__}"
-        )
+    log(
+        f"OUTPUT_FILE: {OUTPUT_FILE}"
+    )
 
-        log(
-            f"ERROR: "
-            f"{e}"
-        )
+    log(
+        f"FFMPEG_TIMEOUT: "
+        f"{FFMPEG_TIMEOUT}"
+    )
 
-        separator()
+    log(
+        "=========================================="
+    )
 
-        raise
+    app.run(
+        host="0.0.0.0",
+        port=int(
+            os.environ.get(
+                "PORT",
+                "10000"
+            )
+        ),
+        debug=False,
+        threaded=True,
+    )
