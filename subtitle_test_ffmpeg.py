@@ -24,6 +24,7 @@ import shutil
 import subprocess
 import tempfile
 import time
+import threading
 from pathlib import Path
 
 
@@ -56,12 +57,6 @@ OUTPUT_MP4 = DOWNLOAD_DIR / OUTPUT_FILENAME
 
 # =====================================
 # FFmpeg設定
-#
-# まず一度通すことを優先して
-# 解像度を640x360へ縮小する。
-#
-# 字幕焼き込み自体の確認が目的なので、
-# 本番品質のエンコード設定ではない。
 # =====================================
 
 FFMPEG_TIMEOUT = 120
@@ -72,6 +67,10 @@ VIDEO_HEIGHT = 360
 VIDEO_THREADS = 1
 VIDEO_PRESET = "ultrafast"
 VIDEO_CRF = "28"
+
+# 音声はコピーではなくAACへ再エンコード。
+# 字幕焼き込み処理そのものの切り分けを優先する。
+AUDIO_BITRATE = "128k"
 
 
 # =====================================
@@ -120,6 +119,12 @@ try:
 except Exception as e:
 
     log("subtitle_font import FAILED")
+    log(
+        f"ERROR TYPE: {type(e).__name__}"
+    )
+    log(
+        f"ERROR: {e}"
+    )
 
     raise
 
@@ -173,7 +178,10 @@ def check_input_file(
 
     size = resolved.stat().st_size
 
-    log(f"file size: {size} bytes")
+    log(
+        f"file size: "
+        f"{size} bytes"
+    )
 
     if size <= 0:
 
@@ -268,9 +276,6 @@ def get_ass_color(
     color_name,
     default_color
 ):
-
-    # subtitle_font.py 側に
-    # カラー変換関数が存在する場合は使用する。
 
     candidates = [
         "get_ass_color",
@@ -382,7 +387,8 @@ def create_subtitle_filter(
         )
 
     log(
-        f"最終FontName: {font_name}"
+        f"最終FontName: "
+        f"{font_name}"
     )
 
     log(
@@ -391,15 +397,37 @@ def create_subtitle_filter(
     )
 
     log("字幕スタイル:")
-    log(f"preset_name: {preset_name}")
-    log(f"font: {font_name}")
-    log(f"text_color: {text_color}")
-    log(f"text_color ASS: {text_ass}")
-    log(f"outline_color: {outline_color}")
+
+    log(
+        f"preset_name: "
+        f"{preset_name}"
+    )
+
+    log(
+        f"font: "
+        f"{font_name}"
+    )
+
+    log(
+        f"text_color: "
+        f"{text_color}"
+    )
+
+    log(
+        f"text_color ASS: "
+        f"{text_ass}"
+    )
+
+    log(
+        f"outline_color: "
+        f"{outline_color}"
+    )
+
     log(
         f"outline_color ASS: "
         f"{outline_ass}"
     )
+
     log(
         f"outline_width: "
         f"{outline_width}"
@@ -407,9 +435,6 @@ def create_subtitle_filter(
 
     # ---------------------------------
     # FFmpeg subtitles filter
-    #
-    # Pathはsubprocessへ渡すので
-    # shellエスケープは不要。
     # ---------------------------------
 
     srt_for_filter = (
@@ -539,10 +564,13 @@ def check_ffmpeg_features(
         timeout=15,
     )
 
-    if (
-        "libx264" not in
+    encoder_output = (
         result.stdout
-    ):
+        + "\n"
+        + result.stderr
+    )
+
+    if "libx264" not in encoder_output:
 
         raise RuntimeError(
             "libx264が利用できません"
@@ -569,10 +597,13 @@ def check_ffmpeg_features(
         timeout=15,
     )
 
-    if (
-        "subtitles" not in
+    filter_output = (
         result.stdout
-    ):
+        + "\n"
+        + result.stderr
+    )
+
+    if "subtitles" not in filter_output:
 
         raise RuntimeError(
             "subtitlesフィルターが利用できません"
@@ -588,19 +619,16 @@ def check_ffmpeg_features(
 
     log("libass確認開始")
 
-    if (
-        "libass" not in
-        result.stdout
-    ):
+    if "libass" in filter_output:
+
+        log("libass: OK")
+
+    else:
 
         log(
             "libass文字列をfilters一覧から"
             "確認できませんでした"
         )
-
-    else:
-
-        log("libass: OK")
 
     log(
         "FFmpeg機能確認完了"
@@ -732,94 +760,56 @@ def find_font(
 
 
 # =====================================
-# ffprobeによる出力確認
+# FFmpegログ読み取り
+#
+# FFmpegのstderr/stdoutを
+# 別スレッドで常時読み取る。
+#
+# これによりPopenのパイプ詰まりを防ぐ。
 # =====================================
 
-def verify_output(
-    ffprobe: str,
-    output_path: Path
+def _read_ffmpeg_output(
+    stream,
+    output_lines: list[str],
+    stop_event: threading.Event
 ):
 
-    separator()
-    log("出力ファイル確認開始")
+    try:
 
-    if not output_path.exists():
+        for raw_line in iter(
+            stream.readline,
+            ""
+        ):
 
-        raise RuntimeError(
-            "FFmpeg出力ファイルが存在しません"
-        )
+            if not raw_line:
+                break
 
-    size = output_path.stat().st_size
+            line = raw_line.rstrip()
 
-    log(
-        f"出力ファイルサイズ: "
-        f"{size} bytes"
-    )
+            output_lines.append(line)
 
-    if size <= 0:
-
-        raise RuntimeError(
-            "出力ファイルサイズが0です"
-        )
-
-    # ---------------------------------
-    # ffprobe
-    # ---------------------------------
-
-    log("ffprobe確認開始")
-
-    result = subprocess.run(
-        [
-            ffprobe,
-            "-v",
-            "error",
-            "-show_entries",
-            "format=duration,size",
-            "-of",
-            "default=noprint_wrappers=1",
-            str(output_path),
-        ],
-        capture_output=True,
-        text=True,
-        timeout=20,
-    )
-
-    log(
-        f"ffprobe returncode: "
-        f"{result.returncode}"
-    )
-
-    if result.stdout:
-
-        for line in result.stdout.splitlines():
-
-            log(
-                f"ffprobe: {line}"
+            print(
+                f"[FFMPEG] {line}",
+                flush=True
             )
 
-    if result.stderr:
+    except Exception as e:
 
-        for line in result.stderr.splitlines():
-
-            log(
-                f"ffprobe stderr: {line}"
-            )
-
-    if result.returncode != 0:
-
-        raise RuntimeError(
-            "出力MP4のffprobe確認に失敗しました"
+        print(
+            "[FFMPEG] "
+            f"ログ読み取りエラー: "
+            f"{type(e).__name__}: {e}",
+            flush=True
         )
 
-    log(
-        "出力ファイル確認OK"
-    )
+    finally:
+
+        stop_event.set()
 
 
 # =====================================
 # FFmpeg実行
 # =====================================
-# ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
 
 def run_ffmpeg(
     ffmpeg: str,
@@ -832,6 +822,7 @@ def run_ffmpeg(
     separator()
 
     log("FFmpeg command:")
+
     log(
         " ".join(
             str(x)
@@ -842,65 +833,115 @@ def run_ffmpeg(
     start_time = time.monotonic()
 
     process = None
-    output_lines = []
+
+    output_lines: list[str] = []
+
+    reader_thread = None
+
+    reader_finished = threading.Event()
 
     try:
 
+        # =====================================
+        # Popen
+        # =====================================
+
         process = subprocess.Popen(
             command,
+
+            stdin=subprocess.DEVNULL,
+
             stdout=subprocess.PIPE,
+
             stderr=subprocess.STDOUT,
+
             text=True,
+
+            encoding="utf-8",
+
+            errors="replace",
+
             bufsize=1,
         )
 
         log(
-            f"FFmpeg PID: {process.pid}"
+            f"FFmpeg PID: "
+            f"{process.pid}"
         )
+
+        # =====================================
+        # ログ読み取りスレッド
+        # =====================================
 
         assert process.stdout is not None
 
+        reader_thread = threading.Thread(
+            target=_read_ffmpeg_output,
+            args=(
+                process.stdout,
+                output_lines,
+                reader_finished,
+            ),
+            daemon=True,
+        )
+
+        reader_thread.start()
+
+        log(
+            "FFmpegログ読み取りスレッド開始"
+        )
+
         # =====================================
-        # FFmpegログ取得
+        # プロセス終了待機
         # =====================================
 
         while True:
 
-            line = process.stdout.readline()
-
-            if line:
-
-                line = line.rstrip()
-
-                output_lines.append(line)
-
-                print(
-                    f"[FFMPEG] {line}",
-                    flush=True
-                )
-
-                continue
-
-            # =================================
-            # stdout EOF
-            # =================================
-
             returncode = process.poll()
-
-            if returncode is not None:
-
-                break
-
-            # =================================
-            # timeout確認
-            # =================================
 
             elapsed = (
                 time.monotonic()
                 - start_time
             )
 
-            if elapsed > FFMPEG_TIMEOUT:
+            # ---------------------------------
+            # FFmpeg終了
+            # ---------------------------------
+
+            if returncode is not None:
+
+                log(
+                    "FFmpegプロセス終了を検出"
+                )
+
+                break
+
+            # ---------------------------------
+            # 進行ログ
+            # ---------------------------------
+
+            if int(elapsed) % 5 == 0:
+
+                # 同じ秒で大量出力しないため
+                # 簡易的に待機する。
+                log(
+                    f"FFmpeg実行中..."
+                    f"経過={elapsed:.1f}秒"
+                )
+
+                time.sleep(1)
+
+            else:
+
+                time.sleep(0.2)
+
+            # ---------------------------------
+            # timeout
+            # ---------------------------------
+
+            if elapsed >= FFMPEG_TIMEOUT:
+
+                separator()
 
                 log(
                     "FFmpeg TIMEOUT"
@@ -916,6 +957,10 @@ def run_ffmpeg(
                     f"{process.poll()}"
                 )
 
+                # ---------------------------------
+                # kill
+                # ---------------------------------
+
                 try:
 
                     process.kill()
@@ -927,8 +972,12 @@ def run_ffmpeg(
                 except Exception as e:
 
                     log(
-                        f"kill失敗: {e}"
+                        f"FFmpeg kill失敗: {e}"
                     )
+
+                # ---------------------------------
+                # wait
+                # ---------------------------------
 
                 try:
 
@@ -939,7 +988,7 @@ def run_ffmpeg(
                 except Exception as e:
 
                     log(
-                        f"wait失敗: {e}"
+                        f"FFmpeg wait失敗: {e}"
                     )
 
                 raise TimeoutError(
@@ -949,7 +998,17 @@ def run_ffmpeg(
                 )
 
         # =====================================
-        # 終了情報
+        # ログ読み取り終了待機
+        # =====================================
+
+        if reader_thread is not None:
+
+            reader_thread.join(
+                timeout=5
+            )
+
+        # =====================================
+        # 経過時間
         # =====================================
 
         elapsed = (
@@ -960,7 +1019,7 @@ def run_ffmpeg(
         separator()
 
         log(
-            "FFmpegプロセス終了を検出"
+            "FFmpeg終了処理完了"
         )
 
         log(
@@ -974,7 +1033,7 @@ def run_ffmpeg(
         )
 
         # =====================================
-        # 負のreturncode
+        # シグナル終了
         # =====================================
 
         if returncode < 0:
@@ -1011,7 +1070,7 @@ def run_ffmpeg(
             )
 
         # =====================================
-        # returncode != 0
+        # エラー終了
         # =====================================
 
         if returncode != 0:
@@ -1024,7 +1083,7 @@ def run_ffmpeg(
                 "FFmpeg最後のログ:"
             )
 
-            for line in output_lines[-50:]:
+            for line in output_lines[-100:]:
 
                 log(
                     f"  {line}"
@@ -1042,6 +1101,10 @@ def run_ffmpeg(
         log(
             "FFmpeg returncode=0"
         )
+
+        # =====================================
+        # 一時ファイル確認
+        # =====================================
 
         if not temporary_output.exists():
 
@@ -1089,6 +1152,10 @@ def run_ffmpeg(
             f"{e}"
         )
 
+        # =====================================
+        # プロセスがまだ動いていた場合
+        # =====================================
+
         if process is not None:
 
             try:
@@ -1102,6 +1169,40 @@ def run_ffmpeg(
                     f"{current_returncode}"
                 )
 
+                if current_returncode is None:
+
+                    log(
+                        "FFmpegがまだ実行中です"
+                    )
+
+                    try:
+
+                        process.kill()
+
+                        log(
+                            "例外処理でFFmpeg kill()"
+                        )
+
+                    except Exception as kill_error:
+
+                        log(
+                            f"例外処理kill失敗: "
+                            f"{kill_error}"
+                        )
+
+                    try:
+
+                        process.wait(
+                            timeout=5
+                        )
+
+                    except Exception as wait_error:
+
+                        log(
+                            f"例外処理wait失敗: "
+                            f"{wait_error}"
+                        )
+
             except Exception as poll_error:
 
                 log(
@@ -1109,9 +1210,138 @@ def run_ffmpeg(
                     f"{poll_error}"
                 )
 
+        # =====================================
+        # 最後のFFmpegログ
+        # =====================================
+
+        if output_lines:
+
+            separator()
+
+            log(
+                "EXCEPTION時のFFmpeg最後のログ:"
+            )
+
+            for line in output_lines[-100:]:
+
+                log(
+                    f"  {line}"
+                )
+
         raise
 
-# ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+    finally:
+
+        # =====================================
+        # stdoutクローズ
+        # =====================================
+
+        if process is not None:
+
+            try:
+
+                if process.stdout is not None:
+
+                    process.stdout.close()
+
+            except Exception:
+
+                pass
+
+
+# =====================================
+# ffprobeによる出力確認
+# =====================================
+
+def verify_output(
+    ffprobe: str,
+    output_path: Path
+):
+
+    separator()
+    log("出力ファイル確認開始")
+
+    if not output_path.exists():
+
+        raise RuntimeError(
+            "FFmpeg出力ファイルが存在しません"
+        )
+
+    size = output_path.stat().st_size
+
+    log(
+        f"出力ファイルサイズ: "
+        f"{size} bytes"
+    )
+
+    if size <= 0:
+
+        raise RuntimeError(
+            "出力ファイルサイズが0です"
+        )
+
+    # ---------------------------------
+    # ffprobe
+    # ---------------------------------
+
+    log("ffprobe確認開始")
+
+    result = subprocess.run(
+        [
+            ffprobe,
+            "-v",
+            "error",
+
+            "-show_entries",
+            "format=duration,size",
+
+            "-of",
+            "default=noprint_wrappers=1",
+
+            str(output_path),
+        ],
+
+        capture_output=True,
+
+        text=True,
+
+        timeout=20,
+    )
+
+    log(
+        f"ffprobe returncode: "
+        f"{result.returncode}"
+    )
+
+    if result.stdout:
+
+        for line in result.stdout.splitlines():
+
+            log(
+                f"ffprobe: "
+                f"{line}"
+            )
+
+    if result.stderr:
+
+        for line in result.stderr.splitlines():
+
+            log(
+                f"ffprobe stderr: "
+                f"{line}"
+            )
+
+    if result.returncode != 0:
+
+        raise RuntimeError(
+            "出力MP4のffprobe確認に失敗しました"
+        )
+
+    log(
+        "出力ファイル確認OK"
+    )
+
+
 # =====================================
 # メイン処理
 # =====================================
@@ -1119,9 +1349,11 @@ def run_ffmpeg(
 def run_ffmpeg_subtitle_test():
 
     separator()
+
     log(
         "FFmpeg字幕焼き込みテスト START"
     )
+
     separator()
 
     temporary_output = None
@@ -1133,15 +1365,19 @@ def run_ffmpeg_subtitle_test():
         # =================================
 
         separator()
-        log("STEP 1: 固定入力ファイル決定")
+        log(
+            "STEP 1: 固定入力ファイル決定"
+        )
         separator()
 
         log(
-            f"固定MP4: {TEST_MP4}"
+            f"固定MP4: "
+            f"{TEST_MP4}"
         )
 
         log(
-            f"固定SRT: {TEST_SRT}"
+            f"固定SRT: "
+            f"{TEST_SRT}"
         )
 
         # =================================
@@ -1149,7 +1385,9 @@ def run_ffmpeg_subtitle_test():
         # =================================
 
         separator()
-        log("STEP 2: MP4確認")
+        log(
+            "STEP 2: MP4確認"
+        )
         separator()
 
         mp4_path = check_input_file(
@@ -1162,7 +1400,9 @@ def run_ffmpeg_subtitle_test():
         # =================================
 
         separator()
-        log("STEP 3: SRT確認")
+        log(
+            "STEP 3: SRT確認"
+        )
         separator()
 
         srt_path = check_input_file(
@@ -1175,7 +1415,9 @@ def run_ffmpeg_subtitle_test():
         # =================================
 
         separator()
-        log("STEP 4: SRT UTF-8確認")
+        log(
+            "STEP 4: SRT UTF-8確認"
+        )
         separator()
 
         check_srt_utf8(
@@ -1201,7 +1443,9 @@ def run_ffmpeg_subtitle_test():
         # =================================
 
         separator()
-        log("STEP 6: 出力先決定")
+        log(
+            "STEP 6: 出力先決定"
+        )
         separator()
 
         log(
@@ -1214,7 +1458,9 @@ def run_ffmpeg_subtitle_test():
         # =================================
 
         separator()
-        log("STEP 7: FFmpeg確認")
+        log(
+            "STEP 7: FFmpeg確認"
+        )
         separator()
 
         ffmpeg = check_ffmpeg()
@@ -1233,7 +1479,9 @@ def run_ffmpeg_subtitle_test():
         # =================================
 
         separator()
-        log("STEP 8: 日本語フォント確認")
+        log(
+            "STEP 8: 日本語フォント確認"
+        )
         separator()
 
         requested_font = settings.get(
@@ -1255,7 +1503,9 @@ def run_ffmpeg_subtitle_test():
         # =================================
 
         separator()
-        log("STEP 9: 字幕フィルター生成")
+        log(
+            "STEP 9: 字幕フィルター生成"
+        )
         separator()
 
         video_filter = (
@@ -1271,7 +1521,9 @@ def run_ffmpeg_subtitle_test():
         # =================================
 
         separator()
-        log("STEP 10: 入力サイズ確認")
+        log(
+            "STEP 10: 入力サイズ確認"
+        )
         separator()
 
         input_size = (
@@ -1285,11 +1537,12 @@ def run_ffmpeg_subtitle_test():
 
         # =================================
         # STEP 11
-        # 一時ファイル
         # =================================
 
         separator()
-        log("STEP 11: 一時出力パス生成")
+        log(
+            "STEP 11: 一時出力パス生成"
+        )
         separator()
 
         DOWNLOAD_DIR.mkdir(
@@ -1329,11 +1582,12 @@ def run_ffmpeg_subtitle_test():
 
         # =================================
         # STEP 12
-        # FFmpegコマンド
         # =================================
 
         separator()
-        log("STEP 12: FFmpegコマンド生成")
+        log(
+            "STEP 12: FFmpegコマンド生成"
+        )
         separator()
 
         log(
@@ -1341,27 +1595,38 @@ def run_ffmpeg_subtitle_test():
         )
 
         log(
-            f"width: {VIDEO_WIDTH}"
+            f"width: "
+            f"{VIDEO_WIDTH}"
         )
 
         log(
-            f"height: {VIDEO_HEIGHT}"
+            f"height: "
+            f"{VIDEO_HEIGHT}"
         )
 
         log(
-            f"threads: {VIDEO_THREADS}"
+            f"threads: "
+            f"{VIDEO_THREADS}"
         )
 
         log(
-            f"preset: {VIDEO_PRESET}"
+            f"preset: "
+            f"{VIDEO_PRESET}"
         )
 
         log(
-            f"crf: {VIDEO_CRF}"
+            f"crf: "
+            f"{VIDEO_CRF}"
         )
 
         log(
-            f"timeout: {FFMPEG_TIMEOUT}"
+            f"audio bitrate: "
+            f"{AUDIO_BITRATE}"
+        )
+
+        log(
+            f"timeout: "
+            f"{FFMPEG_TIMEOUT}"
         )
 
         log(
@@ -1372,11 +1637,9 @@ def run_ffmpeg_subtitle_test():
             video_filter
         )
 
-        # ---------------------------------
-        # 軽量テスト
-        #
-        # 640x360へ縮小して字幕焼き込み。
-        # ---------------------------------
+        # =================================
+        # FFmpegコマンド
+        # =================================
 
         command = [
 
@@ -1391,6 +1654,13 @@ def run_ffmpeg_subtitle_test():
             "-loglevel",
             "info",
 
+            # ---------------------------------
+            # progressをstdoutへ出す
+            # ---------------------------------
+
+            "-progress",
+            "pipe:1",
+
             "-i",
             str(mp4_path),
 
@@ -1401,6 +1671,10 @@ def run_ffmpeg_subtitle_test():
                 f"{VIDEO_HEIGHT},"
                 f"{video_filter}"
             ),
+
+            # ---------------------------------
+            # video
+            # ---------------------------------
 
             "-c:v",
             "libx264",
@@ -1414,8 +1688,19 @@ def run_ffmpeg_subtitle_test():
             "-crf",
             VIDEO_CRF,
 
+            # ---------------------------------
+            # audio
+            # ---------------------------------
+
             "-c:a",
-            "copy",
+            "aac",
+
+            "-b:a",
+            AUDIO_BITRATE,
+
+            # ---------------------------------
+            # MP4
+            # ---------------------------------
 
             "-movflags",
             "+faststart",
@@ -1436,11 +1721,12 @@ def run_ffmpeg_subtitle_test():
 
         # =================================
         # STEP 13
-        # FFmpeg開始
         # =================================
 
         separator()
-        log("STEP 13: FFmpeg開始")
+        log(
+            "STEP 13: FFmpeg開始"
+        )
         separator()
 
         run_ffmpeg(
@@ -1451,12 +1737,34 @@ def run_ffmpeg_subtitle_test():
 
         # =================================
         # STEP 14
-        # 完成ファイル移動
         # =================================
 
         separator()
-        log("STEP 14: 完成ファイル確定")
+        log(
+            "STEP 14: 完成ファイル確定"
+        )
         separator()
+
+        if not temporary_output.exists():
+
+            raise RuntimeError(
+                "一時出力ファイルが存在しません"
+            )
+
+        temporary_size = (
+            temporary_output.stat().st_size
+        )
+
+        log(
+            f"完成前一時ファイルサイズ: "
+            f"{temporary_size} bytes"
+        )
+
+        if temporary_size <= 0:
+
+            raise RuntimeError(
+                "一時ファイルサイズが0です"
+            )
 
         if OUTPUT_MP4.exists():
 
@@ -1475,11 +1783,12 @@ def run_ffmpeg_subtitle_test():
 
         # =================================
         # STEP 15
-        # 出力確認
         # =================================
 
         separator()
-        log("STEP 15: 出力MP4確認")
+        log(
+            "STEP 15: 出力MP4確認"
+        )
         separator()
 
         ffprobe = shutil.which(
@@ -1509,12 +1818,17 @@ def run_ffmpeg_subtitle_test():
         )
 
         log(
-            f"OUTPUT: {OUTPUT_MP4}"
+            f"OUTPUT: "
+            f"{OUTPUT_MP4}"
+        )
+
+        output_size = (
+            OUTPUT_MP4.stat().st_size
         )
 
         log(
             f"OUTPUT SIZE: "
-            f"{OUTPUT_MP4.stat().st_size} bytes"
+            f"{output_size} bytes"
         )
 
         separator()
@@ -1522,13 +1836,16 @@ def run_ffmpeg_subtitle_test():
 
         return {
             "success": True,
+
             "message": (
                 "FFmpeg字幕焼き込みテスト成功"
             ),
+
             "output": str(
                 OUTPUT_MP4
             ),
-            "size": OUTPUT_MP4.stat().st_size,
+
+            "size": output_size,
         }
 
     except Exception as e:
@@ -1538,9 +1855,11 @@ def run_ffmpeg_subtitle_test():
         # =================================
 
         separator()
+
         log(
             "FFmpeg字幕焼き込みテスト FAILED"
         )
+
         separator()
 
         log(
@@ -1570,6 +1889,10 @@ def run_ffmpeg_subtitle_test():
 
                 temporary_output.unlink()
 
+                log(
+                    "一時ファイル削除完了"
+                )
+
             except Exception as cleanup_error:
 
                 log(
@@ -1579,8 +1902,9 @@ def run_ffmpeg_subtitle_test():
 
         separator()
 
-        # ルート側でJSONエラーへ変換できるよう
-        # 例外をそのまま投げる。
+        # ---------------------------------
+        # ルート側でJSONエラーへ変換
+        # ---------------------------------
 
         raise
 
@@ -1595,7 +1919,9 @@ if __name__ == "__main__":
         "直接実行モード"
     )
 
-    result = run_ffmpeg_subtitle_test()
+    result = (
+        run_ffmpeg_subtitle_test()
+    )
 
     print(
         result,
