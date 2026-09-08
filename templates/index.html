@@ -1,23 +1,42 @@
 # =====================================
 # subtitle_test_ffmpeg.py
 #
-# FFmpeg字幕焼き込み単体テスト
+# 最小FFmpeg起動テスト
 #
-# 固定入力:
+# 入力:
 #   /app/downloads/test.mp4
-#   /app/downloads/test.srt
 #
 # 出力:
-#   /app/downloads/test_embed.mp4
+#   /app/downloads/test_copy.mp4
 #
-# 目的:
-#   Render環境で
-#   FFmpeg + libass + 日本語フォント + SRT
-#   による字幕焼き込みが最後まで完了するか確認する。
+# 今回の目的:
 #
-# 追加目的:
-#   FFmpegプロセスのRAM使用量(RSS)を監視し、
-#   512MB制限に近づいていないか確認する。
+# 1. このPythonファイルが実際に実行されているか確認
+# 2. run_ffmpeg() に到達しているか確認
+# 3. subprocess.Popen() が実行されているか確認
+# 4. FFmpeg PIDを取得できるか確認
+# 5. FFmpegのRSSメモリ使用量を表示
+# 6. FFmpegが正常終了するか確認
+#
+# 注意:
+#
+# 今回は字幕処理を一切行わない。
+#
+# 以下を全て使用しない:
+#   - subtitle_font
+#   - SRT
+#   - libass
+#   - subtitles filter
+#   - scale
+#   - libx264
+#   - AAC
+#
+# FFmpeg:
+#
+#   ffmpeg -y -nostdin -hide_banner -loglevel info
+#          -i test.mp4
+#          -c copy
+#          test_copy.mp4
 #
 # =====================================
 
@@ -26,7 +45,6 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
-import tempfile
 import threading
 import time
 from pathlib import Path
@@ -39,63 +57,55 @@ from pathlib import Path
 BASE_DIR = Path(
     os.environ.get(
         "BASE_DIR",
-        "/app"
+        "/app",
     )
 )
 
 DOWNLOAD_DIR = Path(
     os.environ.get(
         "DOWNLOAD_DIR",
-        str(BASE_DIR / "downloads")
+        str(BASE_DIR / "downloads"),
     )
 )
 
-TEST_MP4_FILENAME = "test.mp4"
-TEST_SRT_FILENAME = "test.srt"
-OUTPUT_FILENAME = "test_embed.mp4"
+INPUT_MP4 = (
+    DOWNLOAD_DIR
+    / "test.mp4"
+)
 
-TEST_MP4 = DOWNLOAD_DIR / TEST_MP4_FILENAME
-TEST_SRT = DOWNLOAD_DIR / TEST_SRT_FILENAME
-OUTPUT_MP4 = DOWNLOAD_DIR / OUTPUT_FILENAME
+OUTPUT_MP4 = (
+    DOWNLOAD_DIR
+    / "test_copy.mp4"
+)
 
 
 # =====================================
 # FFmpeg設定
-#
-# 512MB RAM環境を想定し、
-# できるだけ軽い設定にする。
 # =====================================
 
 FFMPEG_TIMEOUT = 120
 
-VIDEO_WIDTH = 640
-VIDEO_HEIGHT = 360
-
-VIDEO_THREADS = 1
-VIDEO_PRESET = "ultrafast"
-VIDEO_CRF = "30"
-
-# 音声は再エンコードせずコピーする。
-AUDIO_COPY = True
-
 
 # =====================================
-# RAM監視設定
+# メモリ設定
 # =====================================
 
 # 512MB
-MEMORY_LIMIT_BYTES = 512 * 1024 * 1024
+MEMORY_LIMIT_BYTES = (
+    512 * 1024 * 1024
+)
 
-# 512MBの90%
+# 90%
 MEMORY_WARNING_BYTES = int(
     MEMORY_LIMIT_BYTES * 0.90
 )
 
-# 512MBの95%
+# 95%
 MEMORY_CRITICAL_BYTES = int(
     MEMORY_LIMIT_BYTES * 0.95
 )
 
+# 1秒ごとに表示
 MEMORY_LOG_INTERVAL = 1.0
 
 
@@ -105,35 +115,102 @@ MEMORY_LOG_INTERVAL = 1.0
 
 def log(message: str = ""):
     print(
-        f"[SUBTITLE TEST] {message}",
-        flush=True
+        f"[FFMPEG TEST] {message}",
+        flush=True,
     )
 
 
 def separator():
     print(
-        "[SUBTITLE TEST] ==========================================",
-        flush=True
+        "[FFMPEG TEST] ==========================================",
+        flush=True,
     )
 
 
 # =====================================
-# バイト → MB
+# Bytes → MB
 # =====================================
 
-def bytes_to_mb(value: int) -> float:
+def bytes_to_mb(
+    value: int,
+) -> float:
 
-    return value / (
-        1024 * 1024
+    return (
+        value
+        / (1024 * 1024)
     )
 
 
 # =====================================
-# プロセスRSS取得
+# Pythonプロセス情報
+# =====================================
+
+def print_python_info():
+
+    separator()
+
+    log(
+        "PYTHON / ENVIRONMENT INFO"
+    )
+
+    log(
+        f"Python PID: {os.getpid()}"
+    )
+
+    log(
+        f"Python executable: "
+        f"{os.sys.executable}"
+    )
+
+    log(
+        f"Current working directory: "
+        f"{Path.cwd()}"
+    )
+
+    log(
+        f"BASE_DIR: "
+        f"{BASE_DIR}"
+    )
+
+    log(
+        f"DOWNLOAD_DIR: "
+        f"{DOWNLOAD_DIR}"
+    )
+
+    log(
+        f"INPUT_MP4: "
+        f"{INPUT_MP4}"
+    )
+
+    log(
+        f"OUTPUT_MP4: "
+        f"{OUTPUT_MP4}"
+    )
+
+    log(
+        f"MEMORY LIMIT: "
+        f"{bytes_to_mb(MEMORY_LIMIT_BYTES):.1f} MB"
+    )
+
+    log(
+        f"MEMORY WARNING: "
+        f"{bytes_to_mb(MEMORY_WARNING_BYTES):.1f} MB"
+    )
+
+    log(
+        f"MEMORY CRITICAL: "
+        f"{bytes_to_mb(MEMORY_CRITICAL_BYTES):.1f} MB"
+    )
+
+    separator()
+
+
+# =====================================
+# FFmpeg RSS取得
 # =====================================
 
 def get_process_rss_bytes(
-    pid: int
+    pid: int,
 ) -> int | None:
 
     status_path = Path(
@@ -148,25 +225,38 @@ def get_process_rss_bytes(
 
         text = status_path.read_text(
             encoding="utf-8",
-            errors="replace"
+            errors="replace",
         )
 
         for line in text.splitlines():
 
-            if line.startswith("VmRSS:"):
+            if not line.startswith(
+                "VmRSS:"
+            ):
 
-                parts = line.split()
+                continue
 
-                if len(parts) < 2:
+            parts = line.split()
 
-                    return None
+            if len(parts) < 2:
 
-                # LinuxのVmRSSは通常kB
-                kb = int(parts[1])
+                return None
 
-                return kb * 1024
+            # LinuxのVmRSSは通常kB
+            kb = int(
+                parts[1]
+            )
 
-    except Exception:
+            return (
+                kb * 1024
+            )
+
+    except Exception as e:
+
+        log(
+            f"[MEMORY] RSS取得エラー: "
+            f"{type(e).__name__}: {e}"
+        )
 
         return None
 
@@ -174,128 +264,14 @@ def get_process_rss_bytes(
 
 
 # =====================================
-# システムメモリ情報
+# FFmpegメモリ監視
 # =====================================
 
-def get_system_memory():
-
-    meminfo_path = Path(
-        "/proc/meminfo"
-    )
-
-    try:
-
-        if not meminfo_path.exists():
-
-            return None
-
-        values = {}
-
-        text = meminfo_path.read_text(
-            encoding="utf-8",
-            errors="replace"
-        )
-
-        for line in text.splitlines():
-
-            if ":" not in line:
-
-                continue
-
-            key, value = line.split(
-                ":",
-                1
-            )
-
-            parts = value.strip().split()
-
-            if not parts:
-
-                continue
-
-            try:
-
-                number = int(parts[0])
-
-            except ValueError:
-
-                continue
-
-            # meminfoは通常kB
-            if len(parts) >= 2:
-                unit = parts[1].lower()
-
-                if unit == "kb":
-                    number *= 1024
-
-            values[key] = number
-
-        return values
-
-    except Exception:
-
-        return None
-
-
-# =====================================
-# システムメモリログ
-# =====================================
-
-def log_system_memory():
-
-    memory = get_system_memory()
-
-    if not memory:
-
-        log(
-            "システムメモリ情報取得不可"
-        )
-
-        return
-
-    total = memory.get(
-        "MemTotal"
-    )
-
-    available = memory.get(
-        "MemAvailable"
-    )
-
-    free = memory.get(
-        "MemFree"
-    )
-
-    if total is not None:
-
-        log(
-            f"System RAM total: "
-            f"{bytes_to_mb(total):.1f} MB"
-        )
-
-    if available is not None:
-
-        log(
-            f"System RAM available: "
-            f"{bytes_to_mb(available):.1f} MB"
-        )
-
-    if free is not None:
-
-        log(
-            f"System RAM free: "
-            f"{bytes_to_mb(free):.1f} MB"
-        )
-
-
-# =====================================
-# FFmpeg RAM監視
-# =====================================
-
-class MemoryMonitor:
+class FFmpegMemoryMonitor:
 
     def __init__(
         self,
-        pid: int
+        pid: int,
     ):
 
         self.pid = pid
@@ -314,21 +290,47 @@ class MemoryMonitor:
 
         self.critical_logged = False
 
+
+    # =================================
+    # 開始
+    # =================================
+
     def start(self):
 
+        log(
+            "[MEMORY] FFmpegMemoryMonitor.start()"
+        )
+
+        log(
+            f"[MEMORY] PID: {self.pid}"
+        )
+
         self.thread = threading.Thread(
-            target=self._run,
+            target=self._monitor_loop,
             name="ffmpeg-memory-monitor",
             daemon=True,
+        )
+
+        log(
+            "[MEMORY] thread.start() 前"
         )
 
         self.thread.start()
 
         log(
-            "FFmpeg RAM監視スレッド開始"
+            "[MEMORY] thread.start() 完了"
         )
 
+
+    # =================================
+    # 停止
+    # =================================
+
     def stop(self):
+
+        log(
+            "[MEMORY] monitor.stop() 開始"
+        )
 
         self.stop_event.set()
 
@@ -339,16 +341,36 @@ class MemoryMonitor:
             )
 
         log(
-            "FFmpeg RAM監視スレッド終了"
+            "[MEMORY] monitor.stop() 完了"
         )
 
-    def _run(self):
+
+    # =================================
+    # 監視ループ
+    # =================================
+
+    def _monitor_loop(self):
+
+        log(
+            "[MEMORY] 監視スレッド開始"
+        )
+
+        log(
+            f"[MEMORY] 監視対象PID: "
+            f"{self.pid}"
+        )
 
         while not self.stop_event.is_set():
 
-            rss = get_process_rss_bytes(
-                self.pid
+            rss = (
+                get_process_rss_bytes(
+                    self.pid
+                )
             )
+
+            # =============================
+            # RSS取得成功
+            # =============================
 
             if rss is not None:
 
@@ -358,492 +380,175 @@ class MemoryMonitor:
 
                     self.max_rss = rss
 
-                rss_mb = bytes_to_mb(
-                    rss
+                rss_mb = (
+                    bytes_to_mb(
+                        rss
+                    )
                 )
 
-                max_mb = bytes_to_mb(
-                    self.max_rss
+                max_mb = (
+                    bytes_to_mb(
+                        self.max_rss
+                    )
                 )
 
-                limit_mb = bytes_to_mb(
-                    MEMORY_LIMIT_BYTES
+                limit_mb = (
+                    bytes_to_mb(
+                        MEMORY_LIMIT_BYTES
+                    )
                 )
 
                 log(
-                    f"FFmpeg RAM: "
+                    "[MEMORY] "
+                    f"FFmpeg RSS: "
                     f"{rss_mb:.1f} MB "
-                    f"/ max {max_mb:.1f} MB "
-                    f"/ limit {limit_mb:.1f} MB"
+                    f"/ MAX: "
+                    f"{max_mb:.1f} MB "
+                    f"/ LIMIT: "
+                    f"{limit_mb:.1f} MB"
                 )
 
-                # -----------------------------
+                # =========================
                 # 90%
-                # -----------------------------
+                # =========================
 
                 if (
-                    rss >= MEMORY_WARNING_BYTES
+                    rss
+                    >= MEMORY_WARNING_BYTES
                     and not self.warning_logged
                 ):
 
                     self.warning_logged = True
 
                     log(
+                        "[MEMORY] "
                         "WARNING: "
-                        "FFmpeg RAMが512MB制限の90%を超えました"
+                        "FFmpeg RSSが512MBの90%を超えました"
                     )
 
-                # -----------------------------
+                # =========================
                 # 95%
-                # -----------------------------
+                # =========================
 
                 if (
-                    rss >= MEMORY_CRITICAL_BYTES
+                    rss
+                    >= MEMORY_CRITICAL_BYTES
                     and not self.critical_logged
                 ):
 
                     self.critical_logged = True
 
                     log(
+                        "[MEMORY] "
                         "CRITICAL: "
-                        "FFmpeg RAMが512MB制限の95%を超えました"
+                        "FFmpeg RSSが512MBの95%を超えました"
                     )
+
+                # =========================
+                # 512MB超過
+                # =========================
+
+                if (
+                    rss
+                    >= MEMORY_LIMIT_BYTES
+                ):
+
+                    log(
+                        "[MEMORY] "
+                        "!!! CRITICAL: "
+                        "FFmpeg RSSが512MBを超えています !!!"
+                    )
+
+            # =============================
+            # RSS取得不可
+            # =============================
 
             else:
 
-                # プロセス終了後は
-                # /proc/PID/statusが消えるので
-                # 静かに終了する。
-                if not Path(
+                proc_path = Path(
                     f"/proc/{self.pid}"
-                ).exists():
+                )
+
+                if not proc_path.exists():
+
+                    log(
+                        "[MEMORY] "
+                        "FFmpegプロセスが終了したため監視終了"
+                    )
 
                     break
+
+                log(
+                    "[MEMORY] "
+                    "RSS取得不可"
+                )
 
             self.stop_event.wait(
                 MEMORY_LOG_INTERVAL
             )
 
-
-# =====================================
-# モジュールロード確認
-# =====================================
-
-separator()
-log(
-    "subtitle_test_ffmpeg.py "
-    "MODULE LOAD COMPLETE"
-)
-log(
-    f"Current working directory: "
-    f"{Path.cwd()}"
-)
-log(
-    f"BASE_DIR: {BASE_DIR}"
-)
-log(
-    f"DOWNLOAD_DIR: {DOWNLOAD_DIR}"
-)
-log(
-    f"TEST_MP4: {TEST_MP4}"
-)
-log(
-    f"TEST_SRT: {TEST_SRT}"
-)
-log(
-    f"OUTPUT_MP4: {OUTPUT_MP4}"
-)
-separator()
-
-
-# =====================================
-# subtitle_font
-# =====================================
-
-try:
-
-    import subtitle_font
-
-    log(
-        "subtitle_font import OK"
-    )
-
-except Exception:
-
-    log(
-        "subtitle_font import FAILED"
-    )
-
-    raise
-
-
-# =====================================
-# ファイル確認
-# =====================================
-
-def check_input_file(
-    file_path: Path,
-    expected_extension: str
-):
-
-    separator()
-    log(
-        "入力ファイル確認開始"
-    )
-
-    log(
-        f"file_path: {file_path}"
-    )
-
-    log(
-        f"expected extension: "
-        f"{expected_extension}"
-    )
-
-    resolved = file_path.resolve()
-
-    log(
-        f"resolved path: {resolved}"
-    )
-
-    log(
-        f"actual extension: "
-        f"{resolved.suffix}"
-    )
-
-    if not resolved.exists():
-
-        raise FileNotFoundError(
-            f"入力ファイルが存在しません: "
-            f"{resolved}"
+        log(
+            "[MEMORY] 監視スレッド終了"
         )
 
-    if not resolved.is_file():
+
+# =====================================
+# 入力ファイル確認
+# =====================================
+
+def check_input():
+
+    separator()
+
+    log(
+        "STEP 1: 入力ファイル確認"
+    )
+
+    log(
+        f"INPUT: {INPUT_MP4}"
+    )
+
+    log(
+        f"exists: {INPUT_MP4.exists()}"
+    )
+
+    if not INPUT_MP4.exists():
+
+        raise FileNotFoundError(
+            f"入力ファイルがありません: "
+            f"{INPUT_MP4}"
+        )
+
+    if not INPUT_MP4.is_file():
 
         raise RuntimeError(
             f"入力パスがファイルではありません: "
-            f"{resolved}"
+            f"{INPUT_MP4}"
         )
 
-    if (
-        resolved.suffix.lower()
-        != expected_extension
-    ):
-
-        raise ValueError(
-            f"拡張子が不正です: "
-            f"{resolved.suffix}"
-        )
-
-    size = resolved.stat().st_size
+    size = (
+        INPUT_MP4.stat().st_size
+    )
 
     log(
-        f"file size: {size} bytes"
+        f"INPUT SIZE: "
+        f"{size} bytes"
+    )
+
+    log(
+        f"INPUT SIZE: "
+        f"{bytes_to_mb(size):.3f} MB"
     )
 
     if size <= 0:
 
         raise RuntimeError(
-            f"ファイルサイズが0です: "
-            f"{resolved}"
+            "入力ファイルサイズが0です"
         )
 
     log(
         "入力ファイル確認OK"
     )
-
-    return resolved
-
-
-# =====================================
-# SRT UTF-8確認
-# =====================================
-
-def check_srt_utf8(
-    srt_path: Path
-):
-
-    separator()
-    log(
-        "SRT UTF-8確認開始"
-    )
-
-    try:
-
-        text = srt_path.read_text(
-            encoding="utf-8"
-        )
-
-    except UnicodeDecodeError as e:
-
-        raise RuntimeError(
-            f"SRTがUTF-8ではありません: {e}"
-        )
-
-    log(
-        f"SRT先頭文字数: "
-        f"{len(text[:100])}"
-    )
-
-    if not text.strip():
-
-        raise RuntimeError(
-            "SRTが空です"
-        )
-
-    log(
-        "SRT UTF-8確認OK"
-    )
-
-    return text
-
-
-# =====================================
-# 字幕設定取得
-# =====================================
-
-def get_subtitle_settings():
-
-    separator()
-    log(
-        "字幕設定取得開始"
-    )
-
-    default_settings = (
-        subtitle_font
-        .get_default_subtitle_font_settings()
-    )
-
-    log(
-        f"default: "
-        f"{default_settings}"
-    )
-
-    settings = (
-        subtitle_font
-        .select_subtitle_font(
-            default_settings
-        )
-    )
-
-    log(
-        f"最終字幕設定: "
-        f"{settings}"
-    )
-
-    return settings
-
-
-# =====================================
-# ASSカラー取得
-# =====================================
-
-def get_ass_color(
-    color_name,
-    default_color
-):
-
-    candidates = [
-        "get_ass_color",
-        "color_to_ass",
-        "convert_color_to_ass",
-    ]
-
-    for name in candidates:
-
-        func = getattr(
-            subtitle_font,
-            name,
-            None
-        )
-
-        if callable(func):
-
-            try:
-
-                result = func(
-                    color_name
-                )
-
-                if result:
-
-                    return result
-
-            except Exception:
-
-                pass
-
-    return default_color
-
-
-# =====================================
-# 字幕フィルター生成
-# =====================================
-
-def create_subtitle_filter(
-    srt_path: Path,
-    settings: dict,
-    font_path: Path | None
-):
-
-    separator()
-    log(
-        "字幕フィルター作成開始"
-    )
-
-    font_name = settings.get(
-        "font",
-        "Noto Sans CJK JP"
-    )
-
-    text_color = settings.get(
-        "text_color",
-        "白"
-    )
-
-    outline_color = settings.get(
-        "outline_color",
-        "青"
-    )
-
-    outline_width = settings.get(
-        "outline_width",
-        5
-    )
-
-    preset_name = settings.get(
-        "preset_name",
-        "標準"
-    )
-
-    # =================================
-    # ASSカラー
-    # =================================
-
-    text_ass = get_ass_color(
-        text_color,
-        "&H00FFFFFF"
-    )
-
-    outline_ass = get_ass_color(
-        outline_color,
-        "&H00FF0000"
-    )
-
-    log(
-        f"ASSカラー取得: "
-        f"{text_color}"
-    )
-
-    log(
-        f"ASSカラー取得: "
-        f"{outline_color}"
-    )
-
-    # =================================
-    # フォントディレクトリ
-    # =================================
-
-    if font_path is not None:
-
-        font_dir = (
-            font_path.parent
-        )
-
-    else:
-
-        font_dir = Path(
-            "/usr/share/fonts/opentype/noto"
-        )
-
-    log(
-        f"最終FontName: "
-        f"{font_name}"
-    )
-
-    log(
-        f"字幕フォントディレクトリ: "
-        f"{font_dir}"
-    )
-
-    log("字幕スタイル:")
-
-    log(
-        f"preset_name: "
-        f"{preset_name}"
-    )
-
-    log(
-        f"font: "
-        f"{font_name}"
-    )
-
-    log(
-        f"text_color: "
-        f"{text_color}"
-    )
-
-    log(
-        f"text_color ASS: "
-        f"{text_ass}"
-    )
-
-    log(
-        f"outline_color: "
-        f"{outline_color}"
-    )
-
-    log(
-        f"outline_color ASS: "
-        f"{outline_ass}"
-    )
-
-    log(
-        f"outline_width: "
-        f"{outline_width}"
-    )
-
-    # =================================
-    # FFmpeg subtitles filter
-    # =================================
-
-    srt_for_filter = (
-        str(srt_path)
-        .replace("\\", "/")
-        .replace("'", r"\'")
-        .replace(":", r"\:")
-    )
-
-    font_dir_for_filter = (
-        str(font_dir)
-        .replace("\\", "/")
-        .replace("'", r"\'")
-        .replace(":", r"\:")
-    )
-
-    force_style = (
-        f"FontName={font_name},"
-        f"PrimaryColour={text_ass},"
-        f"OutlineColour={outline_ass},"
-        f"Outline={outline_width}"
-    )
-
-    video_filter = (
-        f"subtitles='{srt_for_filter}'"
-        f":fontsdir='{font_dir_for_filter}'"
-        f":force_style='{force_style}'"
-    )
-
-    log(
-        f"完成video_filter: "
-        f"{video_filter}"
-    )
-
-    log(
-        "字幕フィルター作成完了"
-    )
-
-    return video_filter
 
 
 # =====================================
@@ -853,8 +558,13 @@ def create_subtitle_filter(
 def check_ffmpeg():
 
     separator()
+
     log(
-        "FFmpeg確認開始"
+        "STEP 2: FFmpeg確認"
+    )
+
+    log(
+        "shutil.which('ffmpeg') 実行"
     )
 
     ffmpeg = shutil.which(
@@ -862,8 +572,7 @@ def check_ffmpeg():
     )
 
     log(
-        f"shutil.which(ffmpeg): "
-        f"{ffmpeg}"
+        f"FFmpeg PATH: {ffmpeg}"
     )
 
     if not ffmpeg:
@@ -871,6 +580,10 @@ def check_ffmpeg():
         raise RuntimeError(
             "FFmpegが見つかりません"
         )
+
+    log(
+        "FFmpeg version確認開始"
+    )
 
     result = subprocess.run(
         [
@@ -887,16 +600,17 @@ def check_ffmpeg():
         f"{result.returncode}"
     )
 
-    first_line = (
-        result.stdout.splitlines()[0]
-        if result.stdout
-        else ""
-    )
+    if result.stdout:
 
-    log(
-        f"FFmpeg version: "
-        f"{first_line}"
-    )
+        first_line = (
+            result.stdout
+            .splitlines()[0]
+        )
+
+        log(
+            f"FFmpeg version: "
+            f"{first_line}"
+        )
 
     if result.returncode != 0:
 
@@ -905,362 +619,58 @@ def check_ffmpeg():
         )
 
     log(
-        "FFmpeg確認完了"
+        "FFmpeg確認OK"
     )
 
     return ffmpeg
 
 
 # =====================================
-# FFmpeg機能確認
+# FFmpegコマンド作成
 # =====================================
 
-def check_ffmpeg_features(
-    ffmpeg: str
+def create_command(
+    ffmpeg: str,
 ):
 
     separator()
-    log(
-        "FFmpeg機能確認"
-    )
-
-    # =================================
-    # libx264
-    # =================================
 
     log(
-        "libx264確認開始"
+        "STEP 3: FFmpegコマンド作成"
     )
 
-    result = subprocess.run(
-        [
-            ffmpeg,
-            "-hide_banner",
-            "-encoders",
-        ],
-        capture_output=True,
-        text=True,
-        timeout=15,
-    )
+    # ---------------------------------
+    # 最小構成
+    #
+    # 再エンコードなし
+    # 字幕なし
+    # filterなし
+    # ---------------------------------
 
-    if (
-        "libx264"
-        not in result.stdout
-    ):
+    command = [
 
-        raise RuntimeError(
-            "libx264が利用できません"
-        )
+        ffmpeg,
 
-    log(
-        "libx264: OK"
-    )
+        "-y",
 
-    # =================================
-    # subtitles
-    # =================================
+        "-nostdin",
 
-    log(
-        "subtitlesフィルター確認開始"
-    )
+        "-hide_banner",
 
-    result = subprocess.run(
-        [
-            ffmpeg,
-            "-hide_banner",
-            "-filters",
-        ],
-        capture_output=True,
-        text=True,
-        timeout=15,
-    )
+        "-loglevel",
+        "info",
 
-    if (
-        "subtitles"
-        not in result.stdout
-    ):
+        "-i",
+        str(INPUT_MP4),
 
-        raise RuntimeError(
-            "subtitlesフィルターが利用できません"
-        )
+        "-c",
+        "copy",
 
-    log(
-        "subtitles filter: OK"
-    )
-
-    # =================================
-    # libass
-    # =================================
-
-    log(
-        "libass確認開始"
-    )
-
-    if (
-        "libass"
-        not in result.stdout
-    ):
-
-        log(
-            "libass文字列を"
-            "filters一覧から"
-            "確認できませんでした"
-        )
-
-    else:
-
-        log(
-            "libass: OK"
-        )
-
-    log(
-        "FFmpeg機能確認完了"
-    )
-
-
-# =====================================
-# 日本語フォント確認
-# =====================================
-
-def find_font(
-    requested_font: str
-):
-
-    separator()
-    log(
-        "日本語フォント検索開始"
-    )
-
-    log(
-        f"requested_font: "
-        f"{requested_font}"
-    )
-
-    env_font = os.environ.get(
-        "SUBTITLE_FONT"
-    )
-
-    log(
-        f"SUBTITLE_FONT: "
-        f"{env_font}"
-    )
-
-    # =================================
-    # 環境変数指定
-    # =================================
-
-    if env_font:
-
-        candidate = Path(
-            env_font
-        )
-
-        if candidate.exists():
-
-            log(
-                f"SUBTITLE_FONT使用: "
-                f"{candidate}"
-            )
-
-            return candidate
-
-    # =================================
-    # fc-match
-    # =================================
-
-    fc_match = shutil.which(
-        "fc-match"
-    )
-
-    if fc_match:
-
-        result = subprocess.run(
-            [
-                fc_match,
-                "-f",
-                "%{file}\\n",
-                requested_font,
-            ],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-
-        font_file = (
-            result.stdout.strip()
-        )
-
-        log(
-            f"fc-match: "
-            f"{font_file}"
-        )
-
-        if font_file:
-
-            path = Path(
-                font_file
-            )
-
-            if path.exists():
-
-                log(
-                    f"font path: "
-                    f"{path}"
-                )
-
-                return path
-
-    # =================================
-    # fallback
-    # =================================
-
-    candidates = [
-
-        Path(
-            "/usr/share/fonts/opentype/noto/"
-            "NotoSansCJK-Regular.ttc"
-        ),
-
-        Path(
-            "/usr/share/fonts/"
-            "NotoSansCJK-Regular.ttc"
-        ),
-
+        str(OUTPUT_MP4),
     ]
 
-    for candidate in candidates:
-
-        if candidate.exists():
-
-            log(
-                f"fallback font: "
-                f"{candidate}"
-            )
-
-            return candidate
-
-    raise RuntimeError(
-        "日本語フォントが見つかりません"
-    )
-
-
-# =====================================
-# ffprobeによる出力確認
-# =====================================
-
-def verify_output(
-    ffprobe: str,
-    output_path: Path
-):
-
-    separator()
     log(
-        "出力ファイル確認開始"
-    )
-
-    if not output_path.exists():
-
-        raise RuntimeError(
-            "FFmpeg出力ファイルが存在しません"
-        )
-
-    size = output_path.stat().st_size
-
-    log(
-        f"出力ファイルサイズ: "
-        f"{size} bytes"
-    )
-
-    log(
-        f"出力ファイルサイズ: "
-        f"{bytes_to_mb(size):.3f} MB"
-    )
-
-    if size <= 0:
-
-        raise RuntimeError(
-            "出力ファイルサイズが0です"
-        )
-
-    # =================================
-    # ffprobe
-    # =================================
-
-    log(
-        "ffprobe確認開始"
-    )
-
-    result = subprocess.run(
-        [
-            ffprobe,
-            "-v",
-            "error",
-            "-show_entries",
-            "format=duration,size",
-            "-of",
-            "default=noprint_wrappers=1",
-            str(output_path),
-        ],
-        capture_output=True,
-        text=True,
-        timeout=20,
-    )
-
-    log(
-        f"ffprobe returncode: "
-        f"{result.returncode}"
-    )
-
-    if result.stdout:
-
-        for line in (
-            result.stdout.splitlines()
-        ):
-
-            log(
-                f"ffprobe: {line}"
-            )
-
-    if result.stderr:
-
-        for line in (
-            result.stderr.splitlines()
-        ):
-
-            log(
-                f"ffprobe stderr: {line}"
-            )
-
-    if result.returncode != 0:
-
-        raise RuntimeError(
-            "出力MP4のffprobe確認に"
-            "失敗しました"
-        )
-
-    log(
-        "出力ファイル確認OK"
-    )
-
-
-# =====================================
-# FFmpeg実行
-# =====================================
-
-def run_ffmpeg(
-    ffmpeg: str,
-    command: list[str],
-    temporary_output: Path
-):
-
-    separator()
-    log(
-        "FFmpeg開始"
-    )
-    separator()
-
-    log(
-        "FFmpeg command:"
+        "FFmpegコマンド:"
     )
 
     log(
@@ -1270,24 +680,111 @@ def run_ffmpeg(
         )
     )
 
+    log(
+        "FFmpegコマンド作成完了"
+    )
+
+    return command
+
+
+# =====================================
+# run_ffmpeg
+# =====================================
+
+def run_ffmpeg(
+    ffmpeg: str,
+    command: list[str],
+):
+
+    separator()
+
+    log(
+        "★★★★★ run_ffmpeg() ENTER ★★★★★"
+    )
+
+    log(
+        f"FFmpeg executable: "
+        f"{ffmpeg}"
+    )
+
+    log(
+        f"command length: "
+        f"{len(command)}"
+    )
+
+    log(
+        "★★★★★ run_ffmpeg() ENTER END ★★★★★"
+    )
+
     start_time = (
         time.monotonic()
     )
 
     process = None
 
+    memory_monitor = None
+
     output_lines = []
 
-    memory_monitor = None
+    # =================================
+    # Popen直前
+    # =================================
+
+    separator()
+
+    log(
+        "STEP 4: subprocess.Popen() 直前"
+    )
+
+    log(
+        "★ これからFFmpegプロセスを起動します ★"
+    )
+
+    log(
+        "COMMAND:"
+    )
+
+    log(
+        " ".join(
+            str(x)
+            for x in command
+        )
+    )
 
     try:
 
+        # =============================
+        # Popen
+        # =============================
+
+        log(
+            "★★★★★ subprocess.Popen() CALL ★★★★★"
+        )
+
         process = subprocess.Popen(
+
             command,
+
             stdout=subprocess.PIPE,
+
             stderr=subprocess.STDOUT,
+
             text=True,
+
             bufsize=1,
+
+        )
+
+        # =============================
+        # Popen完了
+        # =============================
+
+        log(
+            "★★★★★ subprocess.Popen() RETURN ★★★★★"
+        )
+
+        log(
+            "FFmpegプロセス起動成功"
         )
 
         log(
@@ -1296,8 +793,25 @@ def run_ffmpeg(
         )
 
         # =================================
-        # 初期RAM確認
+        # PID存在確認
         # =================================
+
+        proc_path = Path(
+            f"/proc/{process.pid}"
+        )
+
+        log(
+            f"/proc/{process.pid} exists: "
+            f"{proc_path.exists()}"
+        )
+
+        # =================================
+        # 初期RSS
+        # =================================
+
+        log(
+            "STEP 5: FFmpeg初期RSS確認"
+        )
 
         initial_rss = (
             get_process_rss_bytes(
@@ -1308,36 +822,143 @@ def run_ffmpeg(
         if initial_rss is not None:
 
             log(
-                f"FFmpeg開始時RAM: "
+                "[MEMORY] "
+                "FFmpeg開始時RSS: "
                 f"{bytes_to_mb(initial_rss):.1f} MB"
             )
 
         else:
 
             log(
-                "FFmpeg開始時RAM: "
-                "取得不可"
+                "[MEMORY] "
+                "FFmpeg開始時RSS: 取得不可"
             )
 
         # =================================
-        # RAM監視開始
+        # MemoryMonitor作成
         # =================================
 
+        separator()
+
+        log(
+            "STEP 6: MemoryMonitor作成"
+        )
+
+        log(
+            "★★★★★ MemoryMonitor作成前 ★★★★★"
+        )
+
         memory_monitor = (
-            MemoryMonitor(
+            FFmpegMemoryMonitor(
                 process.pid
             )
         )
 
+        log(
+            "★★★★★ MemoryMonitor作成完了 ★★★★★"
+        )
+
+        # =================================
+        # MemoryMonitor開始
+        # =================================
+
+        log(
+            "★★★★★ MemoryMonitor.start() 前 ★★★★★"
+        )
+
         memory_monitor.start()
+
+        log(
+            "★★★★★ MemoryMonitor.start() 完了 ★★★★★"
+        )
+
+        # =================================
+        # stdout
+        # =================================
+
+        separator()
+
+        log(
+            "STEP 7: FFmpegログ読み取り開始"
+        )
+
+        log(
+            "★ FFmpegは現在実行中です ★"
+        )
 
         assert process.stdout is not None
 
         # =================================
-        # FFmpegログ
+        # ログ読み取り
         # =================================
 
         while True:
+
+            # -----------------------------
+            # timeout確認
+            # -----------------------------
+
+            elapsed = (
+                time.monotonic()
+                - start_time
+            )
+
+            if (
+                elapsed
+                > FFMPEG_TIMEOUT
+            ):
+
+                log(
+                    "!!! FFmpeg TIMEOUT !!!"
+                )
+
+                log(
+                    f"elapsed: "
+                    f"{elapsed:.3f} sec"
+                )
+
+                log(
+                    f"PID: "
+                    f"{process.pid}"
+                )
+
+                try:
+
+                    process.kill()
+
+                    log(
+                        "process.kill() 実行"
+                    )
+
+                except Exception as e:
+
+                    log(
+                        f"process.kill() FAILED: "
+                        f"{e}"
+                    )
+
+                try:
+
+                    process.wait(
+                        timeout=10
+                    )
+
+                except Exception as e:
+
+                    log(
+                        f"process.wait() FAILED: "
+                        f"{e}"
+                    )
+
+                raise TimeoutError(
+                    f"FFmpegが"
+                    f"{FFMPEG_TIMEOUT}秒以内に"
+                    f"終了しませんでした"
+                )
+
+            # -----------------------------
+            # stdout読み取り
+            # -----------------------------
 
             line = (
                 process.stdout.readline()
@@ -1358,9 +979,9 @@ def run_ffmpeg(
 
                 continue
 
-            # =================================
+            # -----------------------------
             # stdout EOF
-            # =================================
+            # -----------------------------
 
             returncode = (
                 process.poll()
@@ -1368,78 +989,55 @@ def run_ffmpeg(
 
             if returncode is not None:
 
+                log(
+                    "FFmpegプロセス終了を検出"
+                )
+
                 break
 
-            # =================================
-            # timeout
-            # =================================
+            # -----------------------------
+            # 少し待つ
+            # -----------------------------
 
-            elapsed = (
-                time.monotonic()
-                - start_time
+            time.sleep(
+                0.05
             )
 
-            if (
-                elapsed
-                > FFMPEG_TIMEOUT
-            ):
+        # =================================
+        # wait
+        # =================================
 
-                log(
-                    "FFmpeg TIMEOUT"
-                )
+        log(
+            "STEP 8: process.wait()"
+        )
 
-                log(
-                    f"経過時間: "
-                    f"{elapsed:.2f}秒"
-                )
+        returncode = (
+            process.wait()
+        )
 
-                log(
-                    f"FFmpeg poll: "
-                    f"{process.poll()}"
-                )
-
-                try:
-
-                    process.kill()
-
-                    log(
-                        "FFmpeg kill() 実行"
-                    )
-
-                except Exception as e:
-
-                    log(
-                        f"kill失敗: {e}"
-                    )
-
-                try:
-
-                    process.wait(
-                        timeout=10
-                    )
-
-                except Exception as e:
-
-                    log(
-                        f"wait失敗: {e}"
-                    )
-
-                raise TimeoutError(
-                    f"FFmpegが"
-                    f"{FFMPEG_TIMEOUT}秒以内に"
-                    f"終了しませんでした"
-                )
+        log(
+            f"process.wait() returncode: "
+            f"{returncode}"
+        )
 
         # =================================
-        # RAM監視停止
+        # MemoryMonitor停止
         # =================================
 
         if memory_monitor:
 
+            log(
+                "★★★★★ MemoryMonitor.stop() 前 ★★★★★"
+            )
+
             memory_monitor.stop()
 
+            log(
+                "★★★★★ MemoryMonitor.stop() 完了 ★★★★★"
+            )
+
         # =================================
-        # 終了情報
+        # 経過時間
         # =================================
 
         elapsed = (
@@ -1447,10 +1045,14 @@ def run_ffmpeg(
             - start_time
         )
 
+        # =================================
+        # 最大RSS
+        # =================================
+
         separator()
 
         log(
-            "FFmpegプロセス終了を検出"
+            "STEP 9: FFmpeg終了情報"
         )
 
         log(
@@ -1459,13 +1061,9 @@ def run_ffmpeg(
         )
 
         log(
-            f"FFmpeg経過時間: "
-            f"{elapsed:.3f}秒"
+            f"FFmpeg elapsed: "
+            f"{elapsed:.3f} sec"
         )
-
-        # =================================
-        # 最大RAM
-        # =================================
 
         if memory_monitor:
 
@@ -1473,75 +1071,64 @@ def run_ffmpeg(
                 memory_monitor.max_rss
             )
 
-            if max_rss > 0:
+            log(
+                "------------------------------------------"
+            )
 
-                max_mb = (
-                    bytes_to_mb(
-                        max_rss
-                    )
+            log(
+                "FFmpeg最大メモリ使用量"
+            )
+
+            log(
+                f"MAX RSS: "
+                f"{bytes_to_mb(max_rss):.1f} MB"
+            )
+
+            remaining = (
+                MEMORY_LIMIT_BYTES
+                - max_rss
+            )
+
+            log(
+                f"512MBまで残り: "
+                f"{bytes_to_mb(remaining):.1f} MB"
+            )
+
+            if max_rss >= MEMORY_LIMIT_BYTES:
+
+                log(
+                    "!!! CRITICAL !!!"
                 )
 
                 log(
-                    "=========================================="
+                    "FFmpeg RSSが512MB以上です"
+                )
+
+            elif (
+                max_rss
+                >= MEMORY_WARNING_BYTES
+            ):
+
+                log(
+                    "!!! WARNING !!!"
                 )
 
                 log(
-                    f"FFmpeg最大RAM使用量: "
-                    f"{max_mb:.1f} MB"
+                    "FFmpeg RSSが512MBの90%以上です"
                 )
+
+            else:
 
                 log(
-                    f"512MB制限まで残り: "
-                    f"{bytes_to_mb("
-                        MEMORY_LIMIT_BYTES
-                        - max_rss
-                    ):.1f} MB"
+                    "FFmpeg RSSは512MB未満です"
                 )
 
-                log(
-                    "=========================================="
-                )
-
-                if (
-                    max_rss
-                    >= MEMORY_LIMIT_BYTES
-                ):
-
-                    log(
-                        "CRITICAL: "
-                        "FFmpegが512MBを超えています"
-                    )
-
-                elif (
-                    max_rss
-                    >= MEMORY_WARNING_BYTES
-                ):
-
-                    log(
-                        "WARNING: "
-                        "FFmpeg RAMが512MBに"
-                        "非常に近いです"
-                    )
-
-                else:
-
-                    log(
-                        "FFmpeg RAM: "
-                        "512MB未満です"
-                    )
+            log(
+                "------------------------------------------"
+            )
 
         # =================================
-        # システムRAM
-        # =================================
-
-        log(
-            "FFmpeg終了後のシステムRAM:"
-        )
-
-        log_system_memory()
-
-        # =================================
-        # シグナル終了
+        # returncode確認
         # =================================
 
         if returncode < 0:
@@ -1551,8 +1138,7 @@ def run_ffmpeg(
             )
 
             log(
-                "FFmpegがシグナルによって"
-                "終了しました"
+                "FFmpegがシグナル終了しました"
             )
 
             log(
@@ -1563,687 +1149,60 @@ def run_ffmpeg(
             if signal_number == 9:
 
                 log(
-                    "SIGKILL (9) で終了しています"
+                    "SIGKILL (9)"
                 )
 
                 log(
-                    "Render側のOOM Killの"
-                    "可能性があります"
-                )
-
-            elif signal_number == 15:
-
-                log(
-                    "SIGTERM (15) で終了しています"
+                    "OOM Killの可能性があります"
                 )
 
             raise RuntimeError(
-                "FFmpegがシグナルによって"
-                f"終了しました "
-                f"(returncode={returncode}, "
-                f"signal={signal_number})"
+                "FFmpeg signal termination: "
+                f"{signal_number}"
             )
-
-        # =================================
-        # returncode != 0
-        # =================================
 
         if returncode != 0:
 
             log(
-                "FFmpeg FAILED"
+                "!!! FFmpeg FAILED !!!"
             )
 
             log(
-                "FFmpeg最後のログ:"
+                "最後のFFmpegログ:"
             )
 
-            for line in (
-                output_lines[-50:]
-            ):
+            for line in output_lines[-30:]:
 
                 log(
                     f"  {line}"
                 )
 
             raise RuntimeError(
-                "FFmpeg字幕焼き込みに"
-                "失敗しました "
-                f"(returncode={returncode})"
+                "FFmpeg failed: "
+                f"returncode={returncode}"
             )
 
         # =================================
-        # 成功
-        # =================================
-
-        log(
-            "FFmpeg returncode=0"
-        )
-
-        if not temporary_output.exists():
-
-            raise RuntimeError(
-                "FFmpegは成功しましたが、"
-                "一時出力ファイルがありません"
-            )
-
-        temporary_size = (
-            temporary_output.stat().st_size
-        )
-
-        log(
-            f"一時出力サイズ: "
-            f"{temporary_size} bytes"
-        )
-
-        log(
-            f"一時出力サイズ: "
-            f"{bytes_to_mb(temporary_size):.3f} MB"
-        )
-
-        if temporary_size <= 0:
-
-            raise RuntimeError(
-                "FFmpeg一時出力サイズが0です"
-            )
-
-        log(
-            "FFmpeg字幕焼き込み成功"
-        )
-
-        return returncode
-
-    except Exception as e:
-
-        separator()
-
-        log(
-            "run_ffmpeg EXCEPTION"
-        )
-
-        log(
-            f"ERROR TYPE: "
-            f"{type(e).__name__}"
-        )
-
-        log(
-            f"ERROR: "
-            f"{e}"
-        )
-
-        if process is not None:
-
-            try:
-
-                current_returncode = (
-                    process.poll()
-                )
-
-                log(
-                    f"FFmpeg poll: "
-                    f"{current_returncode}"
-                )
-
-                current_rss = (
-                    get_process_rss_bytes(
-                        process.pid
-                    )
-                )
-
-                if current_rss is not None:
-
-                    log(
-                        f"例外発生時FFmpeg RAM: "
-                        f"{bytes_to_mb(current_rss):.1f} MB"
-                    )
-
-            except Exception as poll_error:
-
-                log(
-                    f"状態取得失敗: "
-                    f"{poll_error}"
-                )
-
-        raise
-
-    finally:
-
-        if memory_monitor:
-
-            try:
-
-                memory_monitor.stop()
-
-            except Exception:
-
-                pass
-
-
-# =====================================
-# メイン処理
-# =====================================
-
-def run_ffmpeg_subtitle_test():
-
-    separator()
-
-    log(
-        "FFmpeg字幕焼き込みテスト START"
-    )
-
-    separator()
-
-    temporary_output = None
-
-    try:
-
-        # =================================
-        # STEP 1
-        # =================================
-
-        separator()
-
-        log(
-            "STEP 1: 固定入力ファイル決定"
-        )
-
-        separator()
-
-        log(
-            f"固定MP4: "
-            f"{TEST_MP4}"
-        )
-
-        log(
-            f"固定SRT: "
-            f"{TEST_SRT}"
-        )
-
-        # =================================
-        # STEP 2
-        # =================================
-
-        separator()
-
-        log(
-            "STEP 2: MP4確認"
-        )
-
-        separator()
-
-        mp4_path = check_input_file(
-            TEST_MP4,
-            ".mp4"
-        )
-
-        # =================================
-        # STEP 3
-        # =================================
-
-        separator()
-
-        log(
-            "STEP 3: SRT確認"
-        )
-
-        separator()
-
-        srt_path = check_input_file(
-            TEST_SRT,
-            ".srt"
-        )
-
-        # =================================
-        # STEP 4
-        # =================================
-
-        separator()
-
-        log(
-            "STEP 4: SRT UTF-8確認"
-        )
-
-        separator()
-
-        check_srt_utf8(
-            srt_path
-        )
-
-        # =================================
-        # STEP 5
-        # =================================
-
-        separator()
-
-        log(
-            "STEP 5: subtitle_font.py設定取得"
-        )
-
-        separator()
-
-        settings = (
-            get_subtitle_settings()
-        )
-
-        # =================================
-        # STEP 6
-        # =================================
-
-        separator()
-
-        log(
-            "STEP 6: 出力先決定"
-        )
-
-        separator()
-
-        log(
-            f"最終出力: "
-            f"{OUTPUT_MP4}"
-        )
-
-        # =================================
-        # STEP 7
-        # =================================
-
-        separator()
-
-        log(
-            "STEP 7: FFmpeg確認"
-        )
-
-        separator()
-
-        ffmpeg = check_ffmpeg()
-
-        check_ffmpeg_features(
-            ffmpeg
-        )
-
-        log(
-            f"使用FFmpeg: "
-            f"{ffmpeg}"
-        )
-
-        # =================================
-        # STEP 8
-        # =================================
-
-        separator()
-
-        log(
-            "STEP 8: 日本語フォント確認"
-        )
-
-        separator()
-
-        requested_font = (
-            settings.get(
-                "font",
-                "Noto Sans CJK JP"
-            )
-        )
-
-        font_path = find_font(
-            requested_font
-        )
-
-        log(
-            f"font path: "
-            f"{font_path}"
-        )
-
-        # =================================
-        # STEP 9
-        # =================================
-
-        separator()
-
-        log(
-            "STEP 9: 字幕フィルター生成"
-        )
-
-        separator()
-
-        video_filter = (
-            create_subtitle_filter(
-                srt_path,
-                settings,
-                font_path
-            )
-        )
-
-        # =================================
-        # STEP 10
-        # =================================
-
-        separator()
-
-        log(
-            "STEP 10: 入力サイズ確認"
-        )
-
-        separator()
-
-        input_size = (
-            mp4_path.stat().st_size
-        )
-
-        log(
-            f"入力MP4サイズ: "
-            f"{input_size} bytes"
-        )
-
-        log(
-            f"入力MP4サイズ: "
-            f"{bytes_to_mb(input_size):.3f} MB"
-        )
-
-        # =================================
-        # STEP 11
-        # 一時ファイル
-        # =================================
-
-        separator()
-
-        log(
-            "STEP 11: 一時出力パス生成"
-        )
-
-        separator()
-
-        DOWNLOAD_DIR.mkdir(
-            parents=True,
-            exist_ok=True
-        )
-
-        temp_file = (
-            tempfile.NamedTemporaryFile(
-                prefix=".test_embed.",
-                suffix=".tmp.mp4",
-                dir=str(DOWNLOAD_DIR),
-                delete=False,
-            )
-        )
-
-        temporary_output = Path(
-            temp_file.name
-        )
-
-        temp_file.close()
-
-        log(
-            f"一時出力パス: "
-            f"{temporary_output}"
-        )
-
-        # =================================
-        # 既存出力削除
-        # =================================
-
-        if OUTPUT_MP4.exists():
-
-            log(
-                "既存test_embed.mp4を削除"
-            )
-
-            OUTPUT_MP4.unlink()
-
-        # =================================
-        # STEP 12
-        # FFmpegコマンド
-        # =================================
-
-        separator()
-
-        log(
-            "STEP 12: FFmpegコマンド生成"
-        )
-
-        separator()
-
-        log(
-            "FFmpeg設定:"
-        )
-
-        log(
-            f"width: "
-            f"{VIDEO_WIDTH}"
-        )
-
-        log(
-            f"height: "
-            f"{VIDEO_HEIGHT}"
-        )
-
-        log(
-            f"threads: "
-            f"{VIDEO_THREADS}"
-        )
-
-        log(
-            f"preset: "
-            f"{VIDEO_PRESET}"
-        )
-
-        log(
-            f"crf: "
-            f"{VIDEO_CRF}"
-        )
-
-        log(
-            "audio mode: "
-            f"copy"
-        )
-
-        log(
-            f"timeout: "
-            f"{FFMPEG_TIMEOUT}"
-        )
-
-        log(
-            "memory limit: "
-            f"{bytes_to_mb(MEMORY_LIMIT_BYTES):.0f} MB"
-        )
-
-        log(
-            "memory warning: "
-            f"{bytes_to_mb(MEMORY_WARNING_BYTES):.0f} MB"
-        )
-
-        log(
-            "memory critical: "
-            f"{bytes_to_mb(MEMORY_CRITICAL_BYTES):.0f} MB"
-        )
-
-        log(
-            "video filter:"
-        )
-
-        log(
-            video_filter
-        )
-
-        # =================================
-        # 軽量テスト
-        # =================================
-
-        command = [
-
-            ffmpeg,
-
-            "-y",
-
-            "-nostdin",
-
-            "-hide_banner",
-
-            "-loglevel",
-            "info",
-
-            "-i",
-            str(mp4_path),
-
-            "-vf",
-            (
-                f"scale="
-                f"{VIDEO_WIDTH}:"
-                f"{VIDEO_HEIGHT},"
-                f"{video_filter}"
-            ),
-
-            "-c:v",
-            "libx264",
-
-            "-threads",
-            str(VIDEO_THREADS),
-
-            "-preset",
-            VIDEO_PRESET,
-
-            "-crf",
-            VIDEO_CRF,
-
-        ]
-
-        # =================================
-        # 音声
-        #
-        # AAC再エンコードを避ける。
-        # =================================
-
-        if AUDIO_COPY:
-
-            command.extend(
-                [
-                    "-c:a",
-                    "copy",
-                ]
-            )
-
-        else:
-
-            command.extend(
-                [
-                    "-c:a",
-                    "aac",
-                    "-b:a",
-                    "128k",
-                ]
-            )
-
-        command.extend(
-            [
-                "-movflags",
-                "+faststart",
-
-                str(
-                    temporary_output
-                ),
-            ]
-        )
-
-        log(
-            "FFmpeg command:"
-        )
-
-        log(
-            " ".join(
-                str(x)
-                for x in command
-            )
-        )
-
-        # =================================
-        # STEP 13
-        # FFmpeg開始
-        # =================================
-
-        separator()
-
-        log(
-            "STEP 13: FFmpeg開始"
-        )
-
-        separator()
-
-        run_ffmpeg(
-            ffmpeg,
-            command,
-            temporary_output
-        )
-
-        # =================================
-        # STEP 14
-        # 完成ファイル確定
-        # =================================
-
-        separator()
-
-        log(
-            "STEP 14: 完成ファイル確定"
-        )
-
-        separator()
-
-        if OUTPUT_MP4.exists():
-
-            OUTPUT_MP4.unlink()
-
-        temporary_output.replace(
-            OUTPUT_MP4
-        )
-
-        temporary_output = None
-
-        log(
-            f"完成ファイル: "
-            f"{OUTPUT_MP4}"
-        )
-
-        # =================================
-        # STEP 15
         # 出力確認
         # =================================
 
         separator()
 
         log(
-            "STEP 15: 出力MP4確認"
-        )
-
-        separator()
-
-        ffprobe = shutil.which(
-            "ffprobe"
-        )
-
-        if not ffprobe:
-
-            raise RuntimeError(
-                "ffprobeが見つかりません"
-            )
-
-        verify_output(
-            ffprobe,
-            OUTPUT_MP4
-        )
-
-        # =================================
-        # SUCCESS
-        # =================================
-
-        separator()
-        separator()
-
-        log(
-            "FFmpeg字幕焼き込みテスト SUCCESS"
+            "STEP 10: 出力ファイル確認"
         )
 
         log(
             f"OUTPUT: "
             f"{OUTPUT_MP4}"
         )
+
+        if not OUTPUT_MP4.exists():
+
+            raise RuntimeError(
+                "FFmpeg returncode=0ですが"
+                "出力ファイルがありません"
+            )
 
         output_size = (
             OUTPUT_MP4.stat().st_size
@@ -2259,43 +1218,80 @@ def run_ffmpeg_subtitle_test():
             f"{bytes_to_mb(output_size):.3f} MB"
         )
 
+        if output_size <= 0:
+
+            raise RuntimeError(
+                "出力ファイルサイズが0です"
+            )
+
+        # =================================
+        # SUCCESS
+        # =================================
+
         separator()
+
+        log(
+            "★★★★★ run_ffmpeg() SUCCESS ★★★★★"
+        )
+
+        log(
+            f"returncode: {returncode}"
+        )
+
+        log(
+            f"max RSS: "
+            f"{bytes_to_mb(memory_monitor.max_rss):.1f} MB"
+            if memory_monitor
+            else "max RSS: unknown"
+        )
+
+        log(
+            f"output: {OUTPUT_MP4}"
+        )
+
         separator()
 
         return {
             "success": True,
-
-            "message": (
-                "FFmpeg字幕焼き込みテスト成功"
-            ),
-
+            "returncode": returncode,
             "output": str(
                 OUTPUT_MP4
             ),
-
-            "size": output_size,
-
-            "size_mb": round(
+            "output_size": output_size,
+            "output_size_mb": round(
                 bytes_to_mb(
                     output_size
                 ),
-                3
+                3,
+            ),
+            "max_rss": (
+                memory_monitor.max_rss
+                if memory_monitor
+                else None
+            ),
+            "max_rss_mb": (
+                round(
+                    bytes_to_mb(
+                        memory_monitor.max_rss
+                    ),
+                    3,
+                )
+                if memory_monitor
+                else None
             ),
         }
 
     except Exception as e:
 
         # =================================
-        # ERROR
+        # EXCEPTION
         # =================================
 
         separator()
 
         log(
-            "FFmpeg字幕焼き込みテスト FAILED"
+            "★★★★★ run_ffmpeg() EXCEPTION ★★★★★"
         )
-
-        separator()
 
         log(
             f"ERROR TYPE: "
@@ -2308,36 +1304,193 @@ def run_ffmpeg_subtitle_test():
         )
 
         # =================================
-        # 一時ファイル削除
+        # プロセス状態
         # =================================
 
-        if (
-            temporary_output is not None
-            and temporary_output.exists()
-        ):
+        if process is not None:
 
             try:
 
-                log(
-                    "一時ファイル削除"
+                poll_result = (
+                    process.poll()
                 )
 
-                temporary_output.unlink()
-
-            except Exception as cleanup_error:
-
                 log(
-                    f"一時ファイル削除失敗: "
-                    f"{cleanup_error}"
+                    f"FFmpeg poll: "
+                    f"{poll_result}"
                 )
 
-        separator()
+                current_rss = (
+                    get_process_rss_bytes(
+                        process.pid
+                    )
+                )
+
+                if current_rss is not None:
+
+                    log(
+                        "[MEMORY] "
+                        "例外発生時RSS: "
+                        f"{bytes_to_mb(current_rss):.1f} MB"
+                    )
+
+            except Exception as status_error:
+
+                log(
+                    f"FFmpeg状態取得失敗: "
+                    f"{status_error}"
+                )
 
         # =================================
-        # 例外をそのまま投げる
+        # monitor停止
         # =================================
+
+        if memory_monitor:
+
+            try:
+
+                memory_monitor.stop()
+
+            except Exception as monitor_error:
+
+                log(
+                    f"MemoryMonitor停止失敗: "
+                    f"{monitor_error}"
+                )
 
         raise
+
+    finally:
+
+        # =================================
+        # 最終monitor停止
+        # =================================
+
+        if memory_monitor:
+
+            try:
+
+                memory_monitor.stop()
+
+            except Exception:
+
+                pass
+
+
+# =====================================
+# メイン
+# =====================================
+
+def main():
+
+    separator()
+
+    log(
+        "★★★★★ subtitle_test_ffmpeg.py START ★★★★★"
+    )
+
+    separator()
+
+    print_python_info()
+
+    # =================================
+    # STEP 1
+    # =================================
+
+    check_input()
+
+    # =================================
+    # STEP 2
+    # =================================
+
+    ffmpeg = check_ffmpeg()
+
+    # =================================
+    # STEP 3
+    # =================================
+
+    command = create_command(
+        ffmpeg
+    )
+
+    # =================================
+    # ★重要★
+    #
+    # run_ffmpeg() 呼び出し直前
+    # =================================
+
+    separator()
+
+    log(
+        "STEP 4: run_ffmpeg() 呼び出し直前"
+    )
+
+    log(
+        "★★★★★ これからrun_ffmpeg()を呼び出します ★★★★★"
+    )
+
+    log(
+        "FFmpegはまだ起動していません"
+    )
+
+    # =================================
+    # run_ffmpeg
+    # =================================
+
+    result = run_ffmpeg(
+        ffmpeg,
+        command,
+    )
+
+    # =================================
+    # ★重要★
+    #
+    # run_ffmpeg() 呼び出し後
+    # =================================
+
+    separator()
+
+    log(
+        "★★★★★ run_ffmpeg() 呼び出し完了 ★★★★★"
+    )
+
+    log(
+        f"RESULT: {result}"
+    )
+
+    # =================================
+    # 最終結果
+    # =================================
+
+    separator()
+
+    log(
+        "★★★★★ MINIMAL FFMPEG TEST SUCCESS ★★★★★"
+    )
+
+    log(
+        f"OUTPUT: {OUTPUT_MP4}"
+    )
+
+    if OUTPUT_MP4.exists():
+
+        size = (
+            OUTPUT_MP4.stat().st_size
+        )
+
+        log(
+            f"OUTPUT SIZE: "
+            f"{size} bytes"
+        )
+
+        log(
+            f"OUTPUT SIZE: "
+            f"{bytes_to_mb(size):.3f} MB"
+        )
+
+    separator()
+
+    return result
 
 
 # =====================================
@@ -2346,15 +1499,28 @@ def run_ffmpeg_subtitle_test():
 
 if __name__ == "__main__":
 
-    log(
-        "直接実行モード"
-    )
+    try:
 
-    result = (
-        run_ffmpeg_subtitle_test()
-    )
+        main()
 
-    print(
-        result,
-        flush=True
-    )
+    except Exception as e:
+
+        separator()
+
+        log(
+            "★★★★★ PROGRAM FAILED ★★★★★"
+        )
+
+        log(
+            f"ERROR TYPE: "
+            f"{type(e).__name__}"
+        )
+
+        log(
+            f"ERROR: "
+            f"{e}"
+        )
+
+        separator()
+
+        raise
