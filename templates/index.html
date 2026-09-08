@@ -1,38 +1,28 @@
 # =====================================
-# ffmpeg_test.py
+# ffmpeg_memory_test.py
 #
-# 最小FFmpeg動作テスト
+# 最小構成テスト
+#
+# 今回はFFmpegを一切実行しない。
+#
+# ブラウザ
+#   ↓
+# ボタン
+#   ↓
+# Python / Flask
+#   ↓
+# 10秒待機
+#   ↓
+# 「FFmpeg終了」
 #
 # 目的:
-#   ブラウザのボタンを押す
-#       ↓
-#   PythonがFFmpegを実行
-#       ↓
-#   FFmpeg終了
-#       ↓
-#   ブラウザに「FFmpeg終了」を表示
-#
-# 字幕処理:
-#   一切しない
-#
-# SRT:
-#   一切使用しない
-#
-# libass:
-#   一切使用しない
-#
-# フォント:
-#   一切使用しない
-#
-# メモリ監視:
-#   一切しない
+#   Renderの512MB OOMが
+#   FFmpeg以前に発生しているか確認する。
 # =====================================
 
 from __future__ import annotations
 
 import os
-import shutil
-import subprocess
 import time
 
 from flask import Flask, jsonify, render_template_string
@@ -62,27 +52,24 @@ DOWNLOAD_DIR = os.environ.get(
     )
 )
 
-INPUT_FILE = os.path.join(
-    DOWNLOAD_DIR,
-    "test.mp4"
+PORT = int(
+    os.environ.get(
+        "PORT",
+        "10000"
+    )
 )
 
-OUTPUT_FILE = os.path.join(
-    DOWNLOAD_DIR,
-    "ffmpeg_test_output.mp4"
-)
-
-FFMPEG_TIMEOUT = 120
+TEST_SECONDS = 10
 
 
 # =====================================
 # ログ
 # =====================================
 
-def log(message: str):
+def log(message: str = ""):
 
     print(
-        f"[FFMPEG TEST] {message}",
+        f"[MINIMUM TEST] {message}",
         flush=True
     )
 
@@ -100,64 +87,138 @@ HTML = """
 
 <meta charset="UTF-8">
 
-<title>FFmpeg Test</title>
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
+
+<title>最小テスト</title>
 
 <style>
 
 body {
-    font-family: sans-serif;
+    font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+
     padding: 40px;
+
+    max-width: 800px;
+
+    margin: 0 auto;
+}
+
+h1 {
+    margin-bottom: 10px;
+}
+
+.description {
+    color: #555;
+
+    margin-bottom: 30px;
 }
 
 button {
     font-size: 20px;
-    padding: 15px 30px;
+
+    padding:
+        15px 30px;
+
+    border: none;
+
+    border-radius: 8px;
+
+    background: #1976d2;
+
+    color: white;
+
     cursor: pointer;
+}
+
+button:hover {
+    background: #1565c0;
+}
+
+button:disabled {
+    background: #999;
+
+    cursor: not-allowed;
 }
 
 #status {
     margin-top: 30px;
+
     padding: 20px;
-    border: 1px solid #ccc;
+
+    border-radius: 8px;
+
+    background: #f5f5f5;
+
     white-space: pre-wrap;
+
     font-size: 18px;
+
+    line-height: 1.6;
 }
 
 .success {
-    color: green;
+    background: #e8f5e9 !important;
+
+    color: #1b5e20;
 }
 
 .error {
-    color: red;
+    background: #ffebee !important;
+
+    color: #b71c1c;
+}
+
+.running {
+    background: #e3f2fd !important;
+
+    color: #0d47a1;
 }
 
 </style>
 
 </head>
 
+
 <body>
 
-<h1>FFmpeg単体テスト</h1>
+<h1>最小動作テスト</h1>
+
+<div class="description">
 
 <p>
-字幕処理は一切行いません。
+このテストではFFmpegを一切起動しません。
 </p>
+
+<p>
+Python / Flaskだけで正常に処理できるか確認します。
+</p>
+
+</div>
+
 
 <button
     id="runButton"
-    onclick="runFFmpeg()"
+    onclick="runTest()"
 >
-FFmpegを実行
+テスト開始
 </button>
 
-<div id="status">
+
+<div
+    id="status"
+>
 まだ実行していません。
 </div>
 
 
 <script>
 
-async function runFFmpeg() {
+async function runTest() {
 
     const button =
         document.getElementById(
@@ -169,25 +230,29 @@ async function runFFmpeg() {
             "status"
         );
 
+
     button.disabled = true;
 
-    status.className = "";
+    status.className = "running";
 
     status.textContent =
-        "FFmpeg開始中...";
+        "Python処理を開始しています...";
+
 
     try {
 
         const response =
             await fetch(
-                "/run-ffmpeg",
+                "/run-test",
                 {
                     method: "POST"
                 }
             );
 
+
         const data =
             await response.json();
+
 
         if (data.success) {
 
@@ -196,14 +261,13 @@ async function runFFmpeg() {
 
             status.textContent =
                 "FFmpeg終了\\n\\n"
-                + "returncode: "
-                + data.returncode
-                + "\\n"
+                + "これは実際にはFFmpegを"
+                + "実行していません。\\n"
+                + "Python / Flaskのテストが"
+                + "正常終了しました。\\n\\n"
                 + "処理時間: "
                 + data.elapsed
-                + " 秒\\n"
-                + "出力: "
-                + data.output;
+                + " 秒";
 
         } else {
 
@@ -211,10 +275,11 @@ async function runFFmpeg() {
                 "error";
 
             status.textContent =
-                "FFmpeg失敗\\n\\n"
+                "テスト失敗\\n\\n"
                 + data.message;
 
         }
+
 
     } catch (error) {
 
@@ -225,6 +290,7 @@ async function runFFmpeg() {
             "ブラウザ側エラー\\n\\n"
             + error;
 
+
     } finally {
 
         button.disabled = false;
@@ -234,6 +300,7 @@ async function runFFmpeg() {
 }
 
 </script>
+
 
 </body>
 
@@ -252,410 +319,88 @@ def index():
         "ブラウザからトップページへのアクセス"
     )
 
+    log(
+        "Flaskは正常に応答しています"
+    )
+
     return render_template_string(
         HTML
     )
 
 
 # =====================================
-# FFmpeg実行
+# ヘルスチェック
+# =====================================
+
+@app.route("/health")
+def health():
+
+    log(
+        "Health check"
+    )
+
+    return jsonify(
+        {
+            "status": "ok"
+        }
+    )
+
+
+# =====================================
+# 最小テスト
 # =====================================
 
 @app.route(
-    "/run-ffmpeg",
+    "/run-test",
     methods=["POST"]
 )
-def run_ffmpeg():
+def run_test():
 
     log("")
     log(
         "=========================================="
     )
+
     log(
-        "ブラウザからFFmpeg実行要求を受信"
+        "ブラウザからテスト開始要求を受信"
     )
+
     log(
         "=========================================="
     )
 
+
     start_time = time.monotonic()
 
-    # =================================
-    # FFmpeg確認
-    # =================================
-
-    log(
-        "STEP 1: FFmpeg検索"
-    )
-
-    ffmpeg = shutil.which(
-        "ffmpeg"
-    )
-
-    log(
-        f"ffmpeg: {ffmpeg}"
-    )
-
-    if not ffmpeg:
-
-        log(
-            "ERROR: FFmpegが見つかりません"
-        )
-
-        return jsonify(
-            {
-                "success": False,
-                "message":
-                    "FFmpegが見つかりません"
-            }
-        ), 500
 
     # =================================
-    # 入力確認
+    # STEP 1
     # =================================
 
     log(
-        "STEP 2: 入力ファイル確認"
+        "STEP 1: Python処理開始"
     )
 
     log(
-        f"INPUT_FILE: {INPUT_FILE}"
+        "FFmpegはまだ起動していません"
     )
 
-    if not os.path.exists(
-        INPUT_FILE
-    ):
-
-        log(
-            "ERROR: test.mp4がありません"
-        )
-
-        return jsonify(
-            {
-                "success": False,
-                "message":
-                    f"入力ファイルがありません: "
-                    f"{INPUT_FILE}"
-            }
-        ), 400
-
-    input_size = os.path.getsize(
-        INPUT_FILE
-    )
-
-    log(
-        f"入力ファイルサイズ: "
-        f"{input_size} bytes"
-    )
 
     # =================================
-    # 出力削除
+    # STEP 2
     # =================================
 
     log(
-        "STEP 3: 既存出力削除"
+        "STEP 2: 5秒経過確認"
     )
 
-    if os.path.exists(
-        OUTPUT_FILE
-    ):
-
-        log(
-            f"既存ファイル削除: "
-            f"{OUTPUT_FILE}"
-        )
-
-        os.remove(
-            OUTPUT_FILE
-        )
-
-    # =================================
-    # FFmpegコマンド
-    #
-    # 字幕なし
-    # フィルターなし
-    #
-    # test.mp4をそのまま
-    # H.264 + AACに変換するだけ。
-    # =================================
-
-    command = [
-
-        ffmpeg,
-
-        "-y",
-
-        "-nostdin",
-
-        "-hide_banner",
-
-        "-loglevel",
-        "info",
-
-        "-i",
-        INPUT_FILE,
-
-        "-c:v",
-        "libx264",
-
-        "-preset",
-        "ultrafast",
-
-        "-crf",
-        "30",
-
-        "-c:a",
-        "aac",
-
-        "-b:a",
-        "128k",
-
-        "-movflags",
-        "+faststart",
-
-        OUTPUT_FILE,
-    ]
-
-    log(
-        "STEP 4: FFmpegコマンド"
+    time.sleep(
+        TEST_SECONDS
     )
 
-    log(
-        " ".join(command)
-    )
 
     # =================================
-    # FFmpeg開始
-    # =================================
-
-    log(
-        "STEP 5: FFmpeg開始"
-    )
-
-    log(
-        "ここからFFmpeg subprocess.Popen()"
-    )
-
-    try:
-
-        process = subprocess.Popen(
-
-            command,
-
-            stdout=subprocess.PIPE,
-
-            stderr=subprocess.STDOUT,
-
-            text=True,
-
-            bufsize=1,
-
-        )
-
-    except Exception as e:
-
-        log(
-            "FFmpeg Popen() FAILED"
-        )
-
-        log(
-            f"ERROR TYPE: "
-            f"{type(e).__name__}"
-        )
-
-        log(
-            f"ERROR: {e}"
-        )
-
-        return jsonify(
-            {
-                "success": False,
-                "message":
-                    f"FFmpeg起動失敗: {e}"
-            }
-        ), 500
-
-    # =================================
-    # PID
-    # =================================
-
-    log(
-        f"FFmpeg PID: {process.pid}"
-    )
-
-    log(
-        "FFmpegプロセスは起動しました"
-    )
-
-    # =================================
-    # FFmpegログ読み取り
-    # =================================
-
-    ffmpeg_logs = []
-
-    try:
-
-        if process.stdout is not None:
-
-            for line in process.stdout:
-
-                line = line.rstrip()
-
-                ffmpeg_logs.append(
-                    line
-                )
-
-                print(
-                    f"[FFMPEG] {line}",
-                    flush=True
-                )
-
-                # ログが増えすぎないように
-                # 最後の100行だけ保持
-                if len(ffmpeg_logs) > 100:
-
-                    ffmpeg_logs.pop(0)
-
-                # -------------------------
-                # timeout
-                # -------------------------
-
-                elapsed = (
-                    time.monotonic()
-                    - start_time
-                )
-
-                if (
-                    elapsed
-                    > FFMPEG_TIMEOUT
-                ):
-
-                    log(
-                        "FFmpeg TIMEOUT"
-                    )
-
-                    log(
-                        f"経過時間: "
-                        f"{elapsed:.1f} 秒"
-                    )
-
-                    try:
-
-                        process.kill()
-
-                        log(
-                            "process.kill() 実行"
-                        )
-
-                    except Exception as e:
-
-                        log(
-                            f"kill失敗: {e}"
-                        )
-
-                    process.wait(
-                        timeout=10
-                    )
-
-                    return jsonify(
-                        {
-                            "success": False,
-                            "message":
-                                "FFmpegが"
-                                f"{FFMPEG_TIMEOUT}秒"
-                                "以内に終了しませんでした",
-                            "pid":
-                                process.pid,
-                            "logs":
-                                ffmpeg_logs,
-                        }
-                    ), 500
-
-    except Exception as e:
-
-        log(
-            "FFmpegログ読み取り中に例外"
-        )
-
-        log(
-            f"ERROR TYPE: "
-            f"{type(e).__name__}"
-        )
-
-        log(
-            f"ERROR: {e}"
-        )
-
-        try:
-
-            process.kill()
-
-        except Exception:
-
-            pass
-
-        try:
-
-            process.wait(
-                timeout=10
-            )
-
-        except Exception:
-
-            pass
-
-        return jsonify(
-            {
-                "success": False,
-                "message":
-                    f"FFmpegログ読み取り失敗: {e}",
-                "pid":
-                    process.pid,
-                "logs":
-                    ffmpeg_logs,
-            }
-        ), 500
-
-    # =================================
-    # FFmpeg終了待ち
-    # =================================
-
-    log(
-        "STEP 6: FFmpeg終了待ち"
-    )
-
-    try:
-
-        returncode = process.wait(
-            timeout=10
-        )
-
-    except subprocess.TimeoutExpired:
-
-        log(
-            "FFmpeg終了待ちTIMEOUT"
-        )
-
-        try:
-
-            process.kill()
-
-        except Exception:
-
-            pass
-
-        return jsonify(
-            {
-                "success": False,
-                "message":
-                    "FFmpegプロセスが終了しません",
-                "pid":
-                    process.pid,
-            }
-        ), 500
-
-    # =================================
-    # 終了
+    # STEP 3
     # =================================
 
     elapsed = (
@@ -663,105 +408,19 @@ def run_ffmpeg():
         - start_time
     )
 
+
     log(
-        "STEP 7: FFmpeg終了"
+        "STEP 3: Python処理終了"
     )
 
     log(
-        f"returncode: {returncode}"
+        f"処理時間: "
+        f"{elapsed:.3f} 秒"
     )
 
-    log(
-        f"elapsed: {elapsed:.3f} 秒"
-    )
 
     # =================================
-    # returncode確認
-    # =================================
-
-    if returncode != 0:
-
-        log(
-            "FFmpeg FAILED"
-        )
-
-        log(
-            "最後のFFmpegログ:"
-        )
-
-        for line in ffmpeg_logs[-30:]:
-
-            log(
-                f"[FFMPEG-LAST] {line}"
-            )
-
-        return jsonify(
-            {
-                "success": False,
-                "message":
-                    f"FFmpeg失敗 "
-                    f"(returncode={returncode})",
-                "returncode":
-                    returncode,
-                "elapsed":
-                    round(
-                        elapsed,
-                        3
-                    ),
-                "logs":
-                    ffmpeg_logs,
-            }
-        ), 500
-
-    # =================================
-    # 出力確認
-    # =================================
-
-    log(
-        "STEP 8: FFmpeg出力確認"
-    )
-
-    if not os.path.exists(
-        OUTPUT_FILE
-    ):
-
-        log(
-            "ERROR: FFmpegはreturncode=0ですが"
-            "出力ファイルがありません"
-        )
-
-        return jsonify(
-            {
-                "success": False,
-                "message":
-                    "FFmpegは終了しましたが"
-                    "出力ファイルがありません",
-                "returncode":
-                    returncode,
-                "elapsed":
-                    round(
-                        elapsed,
-                        3
-                    ),
-            }
-        ), 500
-
-    output_size = os.path.getsize(
-        OUTPUT_FILE
-    )
-
-    log(
-        f"出力ファイル: "
-        f"{OUTPUT_FILE}"
-    )
-
-    log(
-        f"出力サイズ: "
-        f"{output_size} bytes"
-    )
-
-    # =================================
-    # ★ ここが今回の確認ポイント
+    # 今回の重要メッセージ
     # =================================
 
     log(
@@ -773,8 +432,21 @@ def run_ffmpeg():
     )
 
     log(
+        "※実際にはFFmpegを実行していません"
+    )
+
+    log(
+        "Python / Flaskテスト終了"
+    )
+
+    log(
         "=========================================="
     )
+
+
+    # =================================
+    # ブラウザへ返す
+    # =================================
 
     return jsonify(
         {
@@ -784,23 +456,17 @@ def run_ffmpeg():
             "message":
                 "FFmpeg終了",
 
-            "returncode":
-                returncode,
-
             "elapsed":
                 round(
                     elapsed,
                     3
                 ),
 
-            "output":
-                OUTPUT_FILE,
+            "ffmpeg_executed":
+                False,
 
-            "output_size":
-                output_size,
-
-            "logs":
-                ffmpeg_logs[-30:],
+            "test":
+                "python_flask_only",
         }
     )
 
@@ -816,7 +482,11 @@ if __name__ == "__main__":
     )
 
     log(
-        "ffmpeg_test.py START"
+        "MINIMUM TEST START"
+    )
+
+    log(
+        "FFmpegは使用しません"
     )
 
     log(
@@ -828,30 +498,24 @@ if __name__ == "__main__":
     )
 
     log(
-        f"INPUT_FILE: {INPUT_FILE}"
+        f"PORT: {PORT}"
     )
 
     log(
-        f"OUTPUT_FILE: {OUTPUT_FILE}"
-    )
-
-    log(
-        f"FFMPEG_TIMEOUT: "
-        f"{FFMPEG_TIMEOUT}"
+        f"TEST_SECONDS: {TEST_SECONDS}"
     )
 
     log(
         "=========================================="
     )
 
+
     app.run(
         host="0.0.0.0",
-        port=int(
-            os.environ.get(
-                "PORT",
-                "10000"
-            )
-        ),
+
+        port=PORT,
+
         debug=False,
+
         threaded=True,
     )
