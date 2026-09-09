@@ -52,7 +52,7 @@ SUBTITLE_COLORS = {
         "ass": "&H0000FF00",
     },
 
-    "黄色": {
+    "黄": {
         "hex": "#FFFF00",
         "ass": "&H0000FFFF",
     },
