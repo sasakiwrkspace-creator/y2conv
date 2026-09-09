@@ -4,35 +4,8 @@
 //
 // 日本語字幕フォント設定
 //
-// 変更点:
-//
-//   フォント選択リストをカスタムリストボックス化。
-//   各フォント名を、そのフォント自身で表示する。
-//
-//   例:
-//
-//   Noto Sans CJK JP   ← Noto Sans CJK JP
-//   Noto Serif CJK JP  ← Noto Serif CJK JP
-//   Noto Sans JP       ← Noto Sans JP
-//   Noto Serif JP      ← Noto Serif JP
-//   IPAGothic          ← IPAGothic
-//   IPAMincho          ← IPAMincho
-//
-// 重要:
-//
-// window.subtitleFont.getSettings()
-//
-// の戻り値は必ず以下の形式:
-//
-// {
-//     preset_name: "標準",
-//     font: "Noto Sans CJK JP",
-//     text_color: "白",
-//     text_color_hex: "#FFFFFF",
-//     outline_color: "青",
-//     outline_color_hex: "#0000FF",
-//     outline_width: 5
-// }
+// フォント選択リストをカスタムリストボックス化。
+// 各フォント名を、そのフォント自身で表示する。
 //
 // =====================================
 
@@ -98,9 +71,6 @@
 
         // =====================================
         // フォント一覧
-        //
-        // ここに登録した名前は、
-        // FFmpeg/libassへ渡す FontName と一致させる。
         // =====================================
 
         const FONT_LIST = [
@@ -122,11 +92,6 @@
 
         // =====================================
         // フォントCSS名
-        //
-        // 原則としてFONT_LISTと同じ名前を使用。
-        //
-        // font-familyで認識できない場合でも、
-        // ブラウザ側のフォールバックに任せる。
         // =====================================
 
         const FONT_CSS_MAP = {
@@ -154,6 +119,14 @@
 
         // =====================================
         // プリセット
+        //
+        // 不要な重複プリセットは削除。
+        //
+        // 標準：
+        //   白文字 + 青縁
+        //
+        // 赤文字：
+        //   赤文字 + シアン縁
         // =====================================
 
         const FONT_PRESETS = {
@@ -181,91 +154,22 @@
             },
 
 
-            "ゴシック": {
-
-                font:
-                    "Noto Sans CJK JP",
-
-                textColor:
-                    "白",
-
-                textColorHex:
-                    "#FFFFFF",
-
-                outlineColor:
-                    "青",
-
-                outlineColorHex:
-                    "#0000FF",
-
-                outlineWidth:
-                    5
-
-            },
-
-
-            "明朝": {
+            "赤文字": {
 
                 font:
                     "Noto Serif CJK JP",
 
                 textColor:
-                    "白",
+                    "赤",
 
                 textColorHex:
-                    "#FFFFFF",
+                    "#FF0000",
 
                 outlineColor:
-                    "青",
+                    "シアン",
 
                 outlineColorHex:
-                    "#0000FF",
-
-                outlineWidth:
-                    5
-
-            },
-
-
-            "太字ゴシック": {
-
-                font:
-                    "Noto Sans CJK JP",
-
-                textColor:
-                    "白",
-
-                textColorHex:
-                    "#FFFFFF",
-
-                outlineColor:
-                    "青",
-
-                outlineColorHex:
-                    "#0000FF",
-
-                outlineWidth:
-                    5
-
-            },
-
-
-            "太字明朝": {
-
-                font:
-                    "Noto Serif CJK JP",
-
-                textColor:
-                    "白",
-
-                textColorHex:
-                    "#FFFFFF",
-
-                outlineColor:
-                    "青",
-
-                outlineColorHex:
-                    "#0000FF",
+                    "#00FFFF",
 
                 outlineWidth:
                     5
@@ -294,7 +198,10 @@
                 "#0000FF",
 
             "黄":
-                "#FFFF00"
+                "#FFFF00",
+
+            "シアン":
+                "#00FFFF"
 
         };
 
@@ -316,7 +223,8 @@
             "黒",
             "赤",
             "青",
-            "黄"
+            "黄",
+            "シアン"
 
         ];
 
@@ -726,11 +634,6 @@
 
         // =====================================
         // フォントリストボックス
-        //
-        // 各項目を、そのフォント自身で表示する。
-        //
-        // native <select> ではなく、
-        // divベースのカスタムリストを使用する。
         // =====================================
 
         function createFontListBox(
@@ -1058,10 +961,7 @@
                         fontName;
 
 
-                    // ---------------------------------
-                    // ★各フォント自身で表示
-                    // ---------------------------------
-
+                    // 各フォント自身で表示
                     option.style.fontFamily =
                         FONT_CSS_MAP[
                             fontName
@@ -1260,6 +1160,7 @@
 
                         currentValue =
                             newValue;
+
 
                         updateSelectedDisplay();
 
@@ -1901,10 +1802,6 @@
                 "フォント";
 
 
-            // =================================
-            // ★カスタムフォントリスト
-            // =================================
-
             fontListBox =
                 createFontListBox(
 
@@ -2310,7 +2207,7 @@
                     Math.max(
                         0,
                         Math.min(
-                            10,
+                        10,
                             Math.round(
                                 width
                             )
@@ -2349,13 +2246,6 @@
 
 
             updatePreview();
-
-
-            // =================================
-            // フォント変更
-            // =================================
-
-            // カスタムリストボックス側で処理する。
 
 
             // =================================
@@ -2750,8 +2640,6 @@
 
             // ---------------------------------
             // 設定取得
-            //
-            // ★戻り値の形式は変更しない
             // ---------------------------------
 
             getSettings:
