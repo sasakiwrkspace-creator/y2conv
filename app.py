@@ -230,6 +230,11 @@ def test_page():
         flush=True
     )
 
+    print(
+        "==========================================",
+        flush=True
+    )
+
     return render_template(
         "test.html"
     )
@@ -240,11 +245,11 @@ def test_page():
 #
 # /subtitle-test/ffmpeg
 #
-# 重要:
-#
-# このrouteでは
+# app.py
+#   ↓
 # subtitle_test_ffmpeg.py
-# のみを使用する。
+#   ↓
+# FFmpeg
 #
 # =====================================
 
@@ -308,6 +313,7 @@ def subtitle_test_ffmpeg_route():
             flush=True
         )
 
+
         if not input_path.exists():
 
             raise FileNotFoundError(
@@ -356,7 +362,7 @@ def subtitle_test_ffmpeg_route():
 
 
         # =====================================
-        # import
+        # subtitle_test_ffmpeg import
         # =====================================
 
         print(
@@ -398,15 +404,9 @@ def subtitle_test_ffmpeg_route():
         )
 
 
-        result = (
-            run_ffmpeg_subtitle_test(
-                input_path=str(
-                    input_path
-                ),
-                output_path=str(
-                    output_path
-                )
-            )
+        result = run_ffmpeg_subtitle_test(
+            input_path=str(input_path),
+            output_path=str(output_path)
         )
 
 
@@ -521,10 +521,6 @@ def subtitle_test_ffmpeg_route():
         )
 
 
-    # =====================================
-    # エラー
-    # =====================================
-
     except Exception as error:
 
         print(
@@ -549,7 +545,6 @@ def subtitle_test_ffmpeg_route():
             flush=True
         )
 
-
         print(
             "[APP] ERROR:",
             str(error),
@@ -562,18 +557,10 @@ def subtitle_test_ffmpeg_route():
             flush=True
         )
 
-
         traceback.print_exc()
-
 
         print(
             "[APP] TRACEBACK END",
-            flush=True
-        )
-
-
-        print(
-            "==========================================",
             flush=True
         )
 
@@ -603,8 +590,6 @@ def subtitle_test_ffmpeg_route():
 # フォントテスト
 #
 # /subtitle-test/fonts
-#
-# 今回追加するテスト。
 #
 # app.py
 #   ↓
@@ -706,7 +691,6 @@ def subtitle_test_fonts_route():
             flush=True
         )
 
-
         print(
             f"[APP] FONT TEST "
             f"入力サイズ: {input_size} bytes",
@@ -730,7 +714,8 @@ def subtitle_test_fonts_route():
 
 
         # =====================================
-        # subtitle_test_fonts import
+        # subtitle_test_fonts.py
+        # import
         # =====================================
 
         print(
@@ -773,15 +758,8 @@ def subtitle_test_fonts_route():
 
 
         result = run_font_test(
-
-            input_path=str(
-                input_path
-            ),
-
-            output_path=str(
-                output_path
-            )
-
+            input_path=str(input_path),
+            output_path=str(output_path)
         )
 
 
@@ -848,7 +826,6 @@ def subtitle_test_fonts_route():
             flush=True
         )
 
-
         print(
             f"[APP] FONT TEST "
             f"出力サイズ: {output_size} bytes",
@@ -901,10 +878,6 @@ def subtitle_test_fonts_route():
         )
 
 
-    # =====================================
-    # エラー
-    # =====================================
-
     except Exception as error:
 
         print(
@@ -929,7 +902,6 @@ def subtitle_test_fonts_route():
             flush=True
         )
 
-
         print(
             "[APP] FONT TEST ERROR:",
             str(error),
@@ -942,18 +914,10 @@ def subtitle_test_fonts_route():
             flush=True
         )
 
-
         traceback.print_exc()
-
 
         print(
             "[APP] FONT TEST TRACEBACK END",
-            flush=True
-        )
-
-
-        print(
-            "==========================================",
             flush=True
         )
 
