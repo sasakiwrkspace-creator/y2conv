@@ -4,8 +4,19 @@
 //
 // 日本語字幕フォント設定
 //
-// Python / subtitle.py / subtitle_font.py
-// と同じデータ形式を使用する。
+// 変更点:
+//
+//   フォント選択リストをカスタムリストボックス化。
+//   各フォント名を、そのフォント自身で表示する。
+//
+//   例:
+//
+//   Noto Sans CJK JP   ← Noto Sans CJK JP
+//   Noto Serif CJK JP  ← Noto Serif CJK JP
+//   Noto Sans JP       ← Noto Sans JP
+//   Noto Serif JP      ← Noto Serif JP
+//   IPAGothic          ← IPAGothic
+//   IPAMincho          ← IPAMincho
 //
 // 重要:
 //
@@ -88,12 +99,8 @@
         // =====================================
         // フォント一覧
         //
-        // Docker:
-        //
-        // fonts-noto-cjk
-        // fonts-noto-cjk-extra
-        //
-        // に対応。
+        // ここに登録した名前は、
+        // FFmpeg/libassへ渡す FontName と一致させる。
         // =====================================
 
         const FONT_LIST = [
@@ -111,6 +118,38 @@
             "IPAMincho"
 
         ];
+
+
+        // =====================================
+        // フォントCSS名
+        //
+        // 原則としてFONT_LISTと同じ名前を使用。
+        //
+        // font-familyで認識できない場合でも、
+        // ブラウザ側のフォールバックに任せる。
+        // =====================================
+
+        const FONT_CSS_MAP = {
+
+            "Noto Sans CJK JP":
+                "'Noto Sans CJK JP'",
+
+            "Noto Serif CJK JP":
+                "'Noto Serif CJK JP'",
+
+            "Noto Sans JP":
+                "'Noto Sans JP'",
+
+            "Noto Serif JP":
+                "'Noto Serif JP'",
+
+            "IPAGothic":
+                "'IPAGothic'",
+
+            "IPAMincho":
+                "'IPAMincho'"
+
+        };
 
 
         // =====================================
@@ -686,49 +725,380 @@
 
 
         // =====================================
-        // select生成
+        // フォントリストボックス
+        //
+        // 各項目を、そのフォント自身で表示する。
+        //
+        // native <select> ではなく、
+        // divベースのカスタムリストを使用する。
         // =====================================
 
-        function createSelect(
+        function createFontListBox(
             options,
-            value
+            value,
+            onChange
         ) {
 
-            const select =
+            const wrapper =
                 document.createElement(
-                    "select"
+                    "div"
                 );
 
 
-            options.forEach(
-                function (optionValue) {
+            wrapper.className =
+                "subtitle-font-listbox";
 
-                    const option =
-                        document.createElement(
-                            "option"
+
+            wrapper.setAttribute(
+                "role",
+                "combobox"
+            );
+
+
+            wrapper.setAttribute(
+                "aria-expanded",
+                "false"
+            );
+
+
+            wrapper.setAttribute(
+                "tabindex",
+                "0"
+            );
+
+
+            // =================================
+            // 選択中の表示
+            // =================================
+
+            const selected =
+                document.createElement(
+                    "div"
+                );
+
+
+            selected.className =
+                "subtitle-font-listbox-selected";
+
+
+            // =================================
+            // 矢印
+            // =================================
+
+            const arrow =
+                document.createElement(
+                    "span"
+                );
+
+
+            arrow.className =
+                "subtitle-font-listbox-arrow";
+
+
+            arrow.textContent =
+                "▼";
+
+
+            // =================================
+            // 選択文字
+            // =================================
+
+            const selectedText =
+                document.createElement(
+                    "span"
+                );
+
+
+            selectedText.className =
+                "subtitle-font-listbox-selected-text";
+
+
+            selected.appendChild(
+                selectedText
+            );
+
+
+            selected.appendChild(
+                arrow
+            );
+
+
+            wrapper.appendChild(
+                selected
+            );
+
+
+            // =================================
+            // リスト
+            // =================================
+
+            const list =
+                document.createElement(
+                    "div"
+                );
+
+
+            list.className =
+                "subtitle-font-listbox-options";
+
+
+            list.hidden =
+                true;
+
+
+            list.setAttribute(
+                "role",
+                "listbox"
+            );
+
+
+            wrapper.appendChild(
+                list
+            );
+
+
+            let currentValue =
+                value;
+
+
+            // =================================
+            // 選択表示更新
+            // =================================
+
+            function updateSelectedDisplay() {
+
+                selectedText.textContent =
+                    currentValue;
+
+
+                selectedText.style.fontFamily =
+                    FONT_CSS_MAP[
+                        currentValue
+                    ] ||
+                    "sans-serif";
+
+            }
+
+
+            // =================================
+            // 選択
+            // =================================
+
+            function selectValue(
+                newValue
+            ) {
+
+                if (
+                    !options.includes(
+                        newValue
+                    )
+                ) {
+
+                    return;
+
+                }
+
+
+                currentValue =
+                    newValue;
+
+
+                updateSelectedDisplay();
+
+
+                const optionElements =
+                    list.querySelectorAll(
+                        ".subtitle-font-listbox-option"
+                    );
+
+
+                optionElements.forEach(
+                    function (optionElement) {
+
+                        const isSelected =
+                            optionElement.dataset.value ===
+                            currentValue;
+
+
+                        optionElement.classList.toggle(
+                            "selected",
+                            isSelected
                         );
 
 
-                    option.value =
-                        optionValue;
+                        optionElement.setAttribute(
+                            "aria-selected",
+                            String(
+                                isSelected
+                            )
+                        );
+
+                    }
+                );
+
+
+                closeList();
+
+
+                onChange(
+                    currentValue
+                );
+
+            }
+
+
+            // =================================
+            // リスト開閉
+            // =================================
+
+            function openList() {
+
+                if (
+                    wrapper.classList.contains(
+                        "disabled"
+                    )
+                ) {
+
+                    return;
+
+                }
+
+
+                list.hidden =
+                    false;
+
+
+                wrapper.classList.add(
+                    "open"
+                );
+
+
+                wrapper.setAttribute(
+                    "aria-expanded",
+                    "true"
+                );
+
+            }
+
+
+            function closeList() {
+
+                list.hidden =
+                    true;
+
+
+                wrapper.classList.remove(
+                    "open"
+                );
+
+
+                wrapper.setAttribute(
+                    "aria-expanded",
+                    "false"
+                );
+
+            }
+
+
+            function toggleList() {
+
+                if (
+                    list.hidden
+                ) {
+
+                    openList();
+
+                }
+                else {
+
+                    closeList();
+
+                }
+
+            }
+
+
+            // =================================
+            // 項目生成
+            // =================================
+
+            options.forEach(
+                function (fontName) {
+
+                    const option =
+                        document.createElement(
+                            "div"
+                        );
+
+
+                    option.className =
+                        "subtitle-font-listbox-option";
+
+
+                    option.dataset.value =
+                        fontName;
+
+
+                    option.setAttribute(
+                        "role",
+                        "option"
+                    );
+
+
+                    option.setAttribute(
+                        "aria-selected",
+                        String(
+                            fontName ===
+                            currentValue
+                        )
+                    );
 
 
                     option.textContent =
-                        optionValue;
+                        fontName;
+
+
+                    // ---------------------------------
+                    // ★各フォント自身で表示
+                    // ---------------------------------
+
+                    option.style.fontFamily =
+                        FONT_CSS_MAP[
+                            fontName
+                        ] ||
+                        "sans-serif";
 
 
                     if (
-                        optionValue ===
-                        value
+                        fontName ===
+                        currentValue
                     ) {
 
-                        option.selected =
-                            true;
+                        option.classList.add(
+                            "selected"
+                        );
 
                     }
 
 
-                    select.appendChild(
+                    option.addEventListener(
+                        "click",
+                        function (event) {
+
+                            event.preventDefault();
+
+                            event.stopPropagation();
+
+
+                            selectValue(
+                                fontName
+                            );
+
+                        }
+                    );
+
+
+                    list.appendChild(
                         option
                     );
 
@@ -736,7 +1106,243 @@
             );
 
 
-            return select;
+            // =================================
+            // クリック
+            // =================================
+
+            selected.addEventListener(
+                "click",
+                function (event) {
+
+                    event.preventDefault();
+
+                    event.stopPropagation();
+
+
+                    toggleList();
+
+                }
+            );
+
+
+            // =================================
+            // キーボード
+            // =================================
+
+            wrapper.addEventListener(
+                "keydown",
+                function (event) {
+
+                    if (
+                        event.key ===
+                        "Enter" ||
+                        event.key ===
+                        " "
+                    ) {
+
+                        event.preventDefault();
+
+                        toggleList();
+
+                        return;
+
+                    }
+
+
+                    if (
+                        event.key ===
+                        "Escape"
+                    ) {
+
+                        event.preventDefault();
+
+                        closeList();
+
+                        return;
+
+                    }
+
+
+                    if (
+                        event.key ===
+                        "ArrowDown"
+                    ) {
+
+                        event.preventDefault();
+
+                        const index =
+                            options.indexOf(
+                                currentValue
+                            );
+
+
+                        const nextIndex =
+                            Math.min(
+                                options.length - 1,
+                                index + 1
+                            );
+
+
+                        if (
+                            options[nextIndex]
+                        ) {
+
+                            selectValue(
+                                options[nextIndex]
+                            );
+
+                        }
+
+                        return;
+
+                    }
+
+
+                    if (
+                        event.key ===
+                        "ArrowUp"
+                    ) {
+
+                        event.preventDefault();
+
+                        const index =
+                            options.indexOf(
+                                currentValue
+                            );
+
+
+                        const previousIndex =
+                            Math.max(
+                                0,
+                                index - 1
+                            );
+
+
+                        if (
+                            options[previousIndex]
+                        ) {
+
+                            selectValue(
+                                options[
+                                    previousIndex
+                                ]
+                            );
+
+                        }
+
+                    }
+
+                }
+            );
+
+
+            // =================================
+            // 初期表示
+            // =================================
+
+            updateSelectedDisplay();
+
+
+            // =================================
+            // 外部から値変更
+            // =================================
+
+            wrapper.setValue =
+                function (
+                    newValue
+                ) {
+
+                    if (
+                        options.includes(
+                            newValue
+                        )
+                    ) {
+
+                        currentValue =
+                            newValue;
+
+                        updateSelectedDisplay();
+
+
+                        const optionElements =
+                            list.querySelectorAll(
+                                ".subtitle-font-listbox-option"
+                            );
+
+
+                        optionElements.forEach(
+                            function (optionElement) {
+
+                                const isSelected =
+                                    optionElement.dataset.value ===
+                                    currentValue;
+
+
+                                optionElement.classList.toggle(
+                                    "selected",
+                                    isSelected
+                                );
+
+
+                                optionElement.setAttribute(
+                                    "aria-selected",
+                                    String(
+                                        isSelected
+                                    )
+                                );
+
+                            }
+                        );
+
+                    }
+
+                };
+
+
+            // =================================
+            // 現在値取得
+            // =================================
+
+            wrapper.getValue =
+                function () {
+
+                    return currentValue;
+
+                };
+
+
+            // =================================
+            // 無効化
+            // =================================
+
+            wrapper.setDisabled =
+                function (
+                    disabled
+                ) {
+
+                    const state =
+                        Boolean(
+                            disabled
+                        );
+
+
+                    wrapper.classList.toggle(
+                        "disabled",
+                        state
+                    );
+
+
+                    wrapper.setAttribute(
+                        "aria-disabled",
+                        String(
+                            state
+                        )
+                    );
+
+                };
+
+
+            return wrapper;
 
         }
 
@@ -1211,6 +1817,36 @@
             );
 
 
+            // =================================
+            // フォント選択用変数
+            // =================================
+
+            let fontListBox;
+
+
+            // =================================
+            // フォント変更反映
+            // =================================
+
+            function updateFontValue() {
+
+                if (
+                    fontListBox
+                ) {
+
+                    fontListBox.setValue(
+                        currentValues.font
+                    );
+
+                }
+
+            }
+
+
+            // =================================
+            // プリセット生成
+            // =================================
+
             createPresetButtons(
 
                 presetContainer,
@@ -1219,8 +1855,7 @@
 
                 function () {
 
-                    fontSelect.value =
-                        currentValues.font;
+                    updateFontValue();
 
 
                     updateTextColorRadios(
@@ -1254,7 +1889,7 @@
 
             const fontLabel =
                 document.createElement(
-                    "label"
+                    "div"
                 );
 
 
@@ -1266,22 +1901,36 @@
                 "フォント";
 
 
-            const fontSelect =
-                createSelect(
+            // =================================
+            // ★カスタムフォントリスト
+            // =================================
+
+            fontListBox =
+                createFontListBox(
 
                     FONT_LIST,
 
-                    currentValues.font
+                    currentValues.font,
+
+                    function (fontName) {
+
+                        currentValues.font =
+                            fontName;
+
+
+                        currentValues.preset =
+                            "カスタム";
+
+
+                        updatePreview();
+
+                    }
 
                 );
 
 
-            fontSelect.className =
-                "subtitle-font-select";
-
-
             fontLabel.appendChild(
-                fontSelect
+                fontListBox
             );
 
 
@@ -1706,22 +2355,7 @@
             // フォント変更
             // =================================
 
-            fontSelect.addEventListener(
-                "change",
-                function () {
-
-                    currentValues.font =
-                        fontSelect.value;
-
-
-                    currentValues.preset =
-                        "カスタム";
-
-
-                    updatePreview();
-
-                }
-            );
+            // カスタムリストボックス側で処理する。
 
 
             // =================================
@@ -2117,9 +2751,7 @@
             // ---------------------------------
             // 設定取得
             //
-            // Python / subtitle.js用
-            //
-            // キー名変更禁止
+            // ★戻り値の形式は変更しない
             // ---------------------------------
 
             getSettings:
