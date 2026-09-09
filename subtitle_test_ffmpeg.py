@@ -5,11 +5,13 @@ import subprocess
 DOWNLOAD_DIR = Path("/app/downloads")
 
 DEFAULT_INPUT_MP4 = DOWNLOAD_DIR / "test.mp4"
+DEFAULT_INPUT_SRT = DOWNLOAD_DIR / "test.srt"
 DEFAULT_OUTPUT_MP4 = DOWNLOAD_DIR / "test_embed.mp4"
 
 
 def run_ffmpeg_subtitle_test(
     input_path=None,
+    srt_path=None,
     output_path=None
 ):
     print("==========================================", flush=True)
@@ -25,6 +27,11 @@ def run_ffmpeg_subtitle_test(
     else:
         input_file = Path(input_path)
 
+    if srt_path is None:
+        srt_file = DEFAULT_INPUT_SRT
+    else:
+        srt_file = Path(srt_path)
+
     if output_path is None:
         output_file = DEFAULT_OUTPUT_MP4
     else:
@@ -32,6 +39,11 @@ def run_ffmpeg_subtitle_test(
 
     print(
         f"[SUBTITLE TEST] input: {input_file}",
+        flush=True
+    )
+
+    print(
+        f"[SUBTITLE TEST] subtitle: {srt_file}",
         flush=True
     )
 
@@ -51,12 +63,12 @@ def run_ffmpeg_subtitle_test(
 
     if not input_file.exists():
         raise FileNotFoundError(
-            f"入力ファイルが存在しません: {input_file}"
+            f"入力MP4が存在しません: {input_file}"
         )
 
     if not input_file.is_file():
         raise FileNotFoundError(
-            f"入力ファイルではありません: {input_file}"
+            f"入力MP4ではありません: {input_file}"
         )
 
     input_size = input_file.stat().st_size
@@ -68,6 +80,37 @@ def run_ffmpeg_subtitle_test(
 
     print(
         f"[SUBTITLE TEST] 入力サイズ: {input_size} bytes",
+        flush=True
+    )
+
+    # =====================================
+    # SRT確認
+    # =====================================
+
+    print(
+        "[SUBTITLE TEST] SRT存在確認 START",
+        flush=True
+    )
+
+    if not srt_file.exists():
+        raise FileNotFoundError(
+            f"字幕SRTが存在しません: {srt_file}"
+        )
+
+    if not srt_file.is_file():
+        raise FileNotFoundError(
+            f"字幕SRTではありません: {srt_file}"
+        )
+
+    srt_size = srt_file.stat().st_size
+
+    print(
+        "[SUBTITLE TEST] SRT存在確認 OK",
+        flush=True
+    )
+
+    print(
+        f"[SUBTITLE TEST] SRTサイズ: {srt_size} bytes",
         flush=True
     )
 
@@ -94,13 +137,25 @@ def run_ffmpeg_subtitle_test(
         output_file.unlink()
 
     # =====================================
+    # 字幕フィルター
+    # =====================================
+
+    subtitle_filter = (
+        f"subtitles={srt_file}"
+    )
+
+    # =====================================
     # FFmpegコマンド
     #
-    # 字幕なし
-    # scaleなし
-    #
-    # 動画だけ再エンコード
-    #
+    # test.mp4
+    #     +
+    # test.srt
+    #     ↓
+    # subtitlesフィルター
+    #     ↓
+    # 字幕を映像へ焼き込み
+    #     ↓
+    # test_embed.mp4
     # =====================================
 
     command = [
@@ -117,6 +172,9 @@ def run_ffmpeg_subtitle_test(
 
         "-i",
         str(input_file),
+
+        "-vf",
+        subtitle_filter,
 
         "-map",
         "0:v:0",
@@ -266,7 +324,7 @@ def run_ffmpeg_subtitle_test(
     if result.returncode != 0:
 
         raise RuntimeError(
-            "FFmpeg処理失敗 "
+            "FFmpeg字幕処理失敗 "
             f"(returncode={result.returncode})"
         )
 
