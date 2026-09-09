@@ -8,11 +8,15 @@ DEFAULT_INPUT_MP4 = DOWNLOAD_DIR / "test.mp4"
 DEFAULT_INPUT_SRT = DOWNLOAD_DIR / "test.srt"
 DEFAULT_OUTPUT_MP4 = DOWNLOAD_DIR / "test_embed.mp4"
 
+# フォントディレクトリ
+DEFAULT_FONT_DIR = DOWNLOAD_DIR / "fonts"
+
 
 def run_ffmpeg_subtitle_test(
     input_path=None,
     srt_path=None,
-    output_path=None
+    output_path=None,
+    font_dir=None
 ):
     print("==========================================", flush=True)
     print("[SUBTITLE TEST] START", flush=True)
@@ -37,6 +41,11 @@ def run_ffmpeg_subtitle_test(
     else:
         output_file = Path(output_path)
 
+    if font_dir is None:
+        font_directory = DEFAULT_FONT_DIR
+    else:
+        font_directory = Path(font_dir)
+
     print(
         f"[SUBTITLE TEST] input: {input_file}",
         flush=True
@@ -44,6 +53,11 @@ def run_ffmpeg_subtitle_test(
 
     print(
         f"[SUBTITLE TEST] subtitle: {srt_file}",
+        flush=True
+    )
+
+    print(
+        f"[SUBTITLE TEST] font directory: {font_directory}",
         flush=True
     )
 
@@ -115,6 +129,59 @@ def run_ffmpeg_subtitle_test(
     )
 
     # =====================================
+    # フォントディレクトリ確認
+    # =====================================
+
+    print(
+        "[SUBTITLE TEST] FONT DIRECTORY確認 START",
+        flush=True
+    )
+
+    if not font_directory.exists():
+        raise FileNotFoundError(
+            f"フォントディレクトリが存在しません: "
+            f"{font_directory}"
+        )
+
+    if not font_directory.is_dir():
+        raise FileNotFoundError(
+            f"フォントディレクトリではありません: "
+            f"{font_directory}"
+        )
+
+    print(
+        "[SUBTITLE TEST] FONT DIRECTORY確認 OK",
+        flush=True
+    )
+
+    # =====================================
+    # フォントファイル確認
+    # =====================================
+
+    font_files = []
+
+    for extension in (
+        "*.ttf",
+        "*.ttc",
+        "*.otf"
+    ):
+        font_files.extend(
+            font_directory.glob(extension)
+        )
+
+    print(
+        f"[SUBTITLE TEST] "
+        f"フォントファイル数: {len(font_files)}",
+        flush=True
+    )
+
+    for font_file in font_files:
+        print(
+            f"[SUBTITLE TEST] font: {font_file}",
+            flush=True
+        )
+
+    # =====================================
     # 出力ディレクトリ
     # =====================================
 
@@ -138,24 +205,20 @@ def run_ffmpeg_subtitle_test(
 
     # =====================================
     # 字幕フィルター
+    #
+    # 今回追加するのは fontsdir のみ
+    #
+    # force_styleなどはまだ使用しない
     # =====================================
 
     subtitle_filter = (
-        f"subtitles={srt_file}"
+        f"subtitles="
+        f"filename={srt_file}:"
+        f"fontsdir={font_directory}"
     )
 
     # =====================================
     # FFmpegコマンド
-    #
-    # test.mp4
-    #     +
-    # test.srt
-    #     ↓
-    # subtitlesフィルター
-    #     ↓
-    # 字幕を映像へ焼き込み
-    #     ↓
-    # test_embed.mp4
     # =====================================
 
     command = [
