@@ -25,6 +25,7 @@
 // ・MP4転送ボタンで /subtitle-upload-mp4
 // ・SRT転送ボタンで /subtitle-upload-srt
 // ・字幕mp4作成では転送済みファイルを使用
+// ・新しいファイルを選択したら、古い転送済みファイルを無効化
 // =====================================
 
 (function () {
@@ -234,8 +235,6 @@
 
         // =====================================
         // ファイル表示
-        //
-        // ★不足していた関数を追加
         // =====================================
 
         function updateFileDisplay(
@@ -263,7 +262,8 @@
             else {
 
                 button.textContent =
-                    emptyText || "ファイルを選択";
+                    emptyText ||
+                    "ファイルを選択";
 
                 button.title =
                     "";
@@ -900,152 +900,15 @@
 
         }
 
+
         // =====================================
         // 字幕焼き込み
         //
         // 転送済みMP4 + 転送済みSRTを使用
         //
-        // 注意:
         // ・ここではファイルを再アップロードしない
         // ・フォントUIは操作しない
         // ・subtitle_font.jsから取得した設定だけを渡す
-        // =====================================
-        
-        async function embedSubtitle(
-            mp4Filename,
-            srtFilename
-        ) {
-        
-            if (!mp4Filename) {
-        
-                throw new Error(
-                    "転送済みMP4ファイルがありません。"
-                );
-        
-            }
-        
-        
-            if (!srtFilename) {
-        
-                throw new Error(
-                    "転送済みSRTファイルがありません。"
-                );
-        
-            }
-        
-        
-            const fontSettings =
-                getFontSettings();
-        
-        
-            console.log(
-                "[SUBTITLE] embedSubtitle:",
-                {
-                    mp4_file:
-                        mp4Filename,
-        
-                    srt_file:
-                        srtFilename,
-        
-                    font_settings:
-                        fontSettings
-                }
-            );
-        
-        
-            const response =
-                await fetch(
-                    "/subtitle-test/create-subtitle-mp4",
-                    {
-                        method:
-                            "POST",
-        
-                        headers: {
-                            "Content-Type":
-                                "application/json"
-                        },
-        
-                        body:
-                            JSON.stringify({
-        
-                                mp4_file:
-                                    mp4Filename,
-        
-                                srt_file:
-                                    srtFilename,
-        
-                                font_settings:
-                                    fontSettings
-        
-                            })
-                    }
-                );
-        
-        
-            const data =
-                await parseResponse(
-                    response
-                );
-        
-        
-            if (!response.ok) {
-        
-                throw new Error(
-                    getResponseErrorMessage(
-                        data,
-                        "字幕MP4の作成に失敗しました。"
-                    )
-                );
-        
-            }
-        
-        
-            if (
-                !data ||
-                data.success !== true
-            ) {
-        
-                throw new Error(
-                    getResponseErrorMessage(
-                        data,
-                        "字幕MP4の作成に失敗しました。"
-                    )
-                );
-        
-            }
-        
-        
-            if (
-                !data.filename &&
-                !data.subtitle_mp4_file
-            ) {
-        
-                throw new Error(
-                    "字幕MP4のファイル名を取得できませんでした。"
-                );
-        
-            }
-        
-        
-            return {
-        
-                ...data,
-        
-                filename:
-                    data.filename ||
-                    data.subtitle_mp4_file
-        
-            };
-        
-        }
-
-        // =====================================
-        // 字幕焼き込み
-        //
-        // ★不足していた関数を追加
-        //
-        // 転送済みMP4/SRTを使用する。
-        // フォント設定もここでAPIへ渡す。
         // =====================================
 
         async function embedSubtitle(
@@ -1113,14 +976,6 @@
             );
 
 
-            /*
-             * テスト画面と同じ字幕MP4 APIを使用。
-             *
-             * サーバー側では
-             * mp4_file / srt_file / font設定を受け取り、
-             * downloadsフォルダ内のファイルを使用して
-             * FFmpeg処理を行う想定。
-             */
             const response =
                 await fetch(
                     "/subtitle-test/create-subtitle-mp4",
@@ -1181,7 +1036,8 @@
             const filename =
                 data.filename ||
                 data.output_file ||
-                data.mp4_file;
+                data.mp4_file ||
+                data.subtitle_mp4_file;
 
 
             if (!filename) {
@@ -1454,14 +1310,6 @@
 
                 subtitleState.isProcessing =
                     false;
-
-
-                const elapsed =
-                    getElapsedText();
-
-
-                processingStartTime =
-                    null;
 
 
                 setFontDisabled(
@@ -1744,6 +1592,9 @@
 
         // =====================================
         // MP4選択
+        //
+        // 新しいMP4を選択したら
+        // 古い転送済みMP4を無効化する
         // =====================================
 
         mp4SelectButton.addEventListener(
@@ -1789,30 +1640,35 @@
                         : "";
 
 
-                // 新しいファイルを選択したら
-                // 古い転送済みファイルを無効化
+                // ---------------------------------
+                // 新しいMP4を選択したら
+                // 古い転送済みMP4を無効化
+                // ---------------------------------
+
                 subtitleState.uploadedMp4Filename =
                     "";
-                
+
+
                 // ---------------------------------
-                // ファイル名表示
-                // 「参照」ボタンは変更しない
+                // MP4ファイル名表示
+                // 「参照」ボタン自体は変更しない
                 // ---------------------------------
-                
+
                 const mp4FilenameDisplay =
                     document.getElementById(
                         "subtitle-mp4-filename"
                     );
-                
-                
+
+
                 if (mp4FilenameDisplay) {
-                
+
                     mp4FilenameDisplay.textContent =
                         file
                             ? file.name
                             : "ファイルが選択されていません";
-                
+
                 }
+
 
                 updateSubtitleMp4Button();
 
@@ -1822,6 +1678,9 @@
 
         // =====================================
         // SRT選択
+        //
+        // 新しいSRTを選択したら
+        // 古い転送済みSRTを無効化する
         // =====================================
 
         srtSelectButton.addEventListener(
@@ -1867,8 +1726,11 @@
                         : "";
 
 
-                // 新しいファイルを選択したら
-                // 古い転送済みファイルを無効化
+                // ---------------------------------
+                // 新しいSRTを選択したら
+                // 古い転送済みSRTを無効化
+                // ---------------------------------
+
                 subtitleState.uploadedSrtFilename =
                     "";
 
@@ -1879,14 +1741,6 @@
                     "SRTファイルを選択してください"
                 );
 
-                
-                // ---------------------------------
-                // 新しいファイルを選択したら
-                // 古い転送済みSRTは無効にする
-                // ---------------------------------
-                
-                subtitleState.uploadedSrtFilename =
-                    "";
 
                 updateSubtitleMp4Button();
 
@@ -2122,8 +1976,8 @@
         // =====================================
         // 字幕MP4作成
         //
-        // ★ここではアップロードしない
-        // ★転送済みファイルだけを使用
+        // ・ここではアップロードしない
+        // ・転送済みファイルだけを使用
         // =====================================
 
         subtitleMp4Button.addEventListener(
@@ -2215,6 +2069,7 @@
 
                     );
 
+
                     const embedResult =
                         await embedSubtitle(
                             mp4Filename,
@@ -2272,7 +2127,7 @@
                             error.message
                                 ? error.message
                                 : "不明なエラー"
-                        ) +
+                    ) +
                         "\n\n" +
                         getElapsedText(),
 
@@ -2460,3 +2315,7 @@
     else {
 
         initializeSubtitle();
+
+    }
+
+})();
