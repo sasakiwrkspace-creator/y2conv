@@ -783,134 +783,281 @@
 
 
         // =====================================
-        // プレビュー
+        // 現在の設定プレビュー
+        //
+        // プレビュー文字を「現在の設定」ラベルより
+        // 上に表示する。
+        //
+        // フォント・文字色・縁取り色・縁の太さを
+        // 現在選択されている値で即時反映する。
         // =====================================
-
+        
         function createSettingsPreview(
             container,
             settings,
             presetName
         ) {
-
+        
             if (!container) {
-
+        
                 return;
-
+        
             }
-
-
+        
+        
+            // =================================
+            // 一度すべて削除
+            // =================================
+        
             container.innerHTML =
                 "";
-
-
+        
+        
+            // =================================
+            // プレビュー文字
+            // =================================
+        
+            const previewText =
+                document.createElement(
+                    "div"
+                );
+        
+        
+            previewText.className =
+                "subtitle-font-preview-text";
+        
+        
+            previewText.textContent =
+                "あいうえお ABC 123";
+        
+        
+            // =================================
+            // フォント
+            // =================================
+        
+            previewText.style.fontFamily =
+                FONT_CSS_MAP[
+                    settings.font
+                ] ||
+                "sans-serif";
+        
+        
+            // =================================
+            // 文字色
+            // =================================
+        
+            previewText.style.color =
+                getColorHex(
+                    settings.textColor
+                );
+        
+        
+            // =================================
+            // 縁取り
+            // =================================
+        
+            const outlineColor =
+                getColorHex(
+                    settings.outlineColor
+                );
+        
+        
+            const outlineWidth =
+                Number(
+                    settings.outlineWidth
+                ) || 0;
+        
+        
+            // =================================
+            // 縁なし
+            // =================================
+        
+            if (
+                outlineWidth <= 0
+            ) {
+        
+                previewText.style.textShadow =
+                    "none";
+        
+            }
+        
+        
+            // =================================
+            // 縁あり
+            // =================================
+        
+            else {
+        
+                const shadows = [];
+        
+        
+                for (
+                    let x = -outlineWidth;
+                    x <= outlineWidth;
+                    x++
+                ) {
+        
+                    for (
+                        let y = -outlineWidth;
+                        y <= outlineWidth;
+                        y++
+                    ) {
+        
+                        // 中央の文字そのものは除外
+                        if (
+                            x === 0 &&
+                            y === 0
+                        ) {
+        
+                            continue;
+        
+                        }
+        
+        
+                        shadows.push(
+                            x + "px " +
+                            y + "px 0 " +
+                            outlineColor
+                        );
+        
+                    }
+        
+                }
+        
+        
+                previewText.style.textShadow =
+                    shadows.join(", ");
+        
+            }
+        
+        
+            // =================================
+            // プレビュー文字を追加
+            //
+            // ★「現在の設定」より先
+            // =================================
+        
+            container.appendChild(
+                previewText
+            );
+        
+        
+            // =================================
+            // 現在の設定ラベル
+            // =================================
+        
             const title =
                 document.createElement(
                     "div"
                 );
-
-
+        
+        
             title.className =
                 "subtitle-font-preview-title";
-
-
+        
+        
             title.textContent =
                 "現在の設定";
-
-
+        
+        
             container.appendChild(
                 title
             );
-
-
+        
+        
+            // =================================
+            // 現在の設定一覧
+            // =================================
+        
             const values = [
-
+        
                 [
                     "プリセット",
                     presetName ||
                     "カスタム"
                 ],
-
+        
                 [
                     "フォント",
                     settings.font
                 ],
-
+        
                 [
                     "文字色",
                     settings.textColor
                 ],
-
+        
                 [
                     "縁取り色",
                     settings.outlineColor
                 ],
-
+        
                 [
                     "縁の太さ",
                     settings.outlineWidth
                 ]
-
+        
             ];
-
-
+        
+        
             values.forEach(
                 function (item) {
-
+        
                     const row =
                         document.createElement(
                             "div"
                         );
-
-
+        
+        
                     row.className =
                         "subtitle-font-preview-row";
-
-
+        
+        
                     const label =
                         document.createElement(
                             "span"
                         );
-
-
+        
+        
                     label.className =
                         "subtitle-font-preview-label";
-
-
+        
+        
                     label.textContent =
                         item[0] + "：";
-
-
+        
+        
                     const value =
                         document.createElement(
                             "span"
                         );
-
-
+        
+        
                     value.className =
                         "subtitle-font-preview-value";
-
-
+        
+        
                     value.textContent =
                         item[1];
-
-
+        
+        
                     row.appendChild(
                         label
                     );
-
-
+        
+        
                     row.appendChild(
                         value
                     );
-
-
+        
+        
                     container.appendChild(
                         row
                     );
-
+        
                 }
             );
-
+        
         }
 
 
