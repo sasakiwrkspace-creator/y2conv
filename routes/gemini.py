@@ -1336,6 +1336,15 @@ def wait_for_uploaded_file_ready(
             raise
 
 
+print("[GEMINI] API: client.models.generate_content")
+print("[GEMINI] model:", GEMINI_MODEL)
+print("[GEMINI] word_timestamp:", True)
+print("[GEMINI] language_codes:", ["ja-JP"])
+print("[GEMINI] uploaded_file:", getattr(uploaded_file, "name", None))
+print("[GEMINI] uploaded_file_state:",
+      getattr(getattr(uploaded_file, "state", None), "name", None))
+print("[GEMINI] mime_type:",
+      getattr(uploaded_file, "mime_type", None))
 # ==========================================================
 # GeminiへMP3を送信してSRTを取得
 # ==========================================================
