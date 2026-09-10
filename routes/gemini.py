@@ -32,7 +32,7 @@ import uuid
 import shutil
 import tempfile
 import time
-
+import google.genai
 
 from dotenv import load_dotenv
 
@@ -92,6 +92,12 @@ GEMINI_MODEL = os.getenv(
     "gemini-3.5-transcribe"
 )
 
+print("==========================================")
+print("[GEMINI] ENVIRONMENT")
+print("[GEMINI] GEMINI_MODEL:", GEMINI_MODEL)
+print("[GEMINI] google-genai version:", google.genai.__version__)
+print("[GEMINI] Python:", os.sys.version)
+print("==========================================")
 
 # ==========================================================
 # リトライ設定
