@@ -900,6 +900,144 @@
 
         }
 
+        // =====================================
+        // 字幕焼き込み
+        //
+        // 転送済みMP4 + 転送済みSRTを使用
+        //
+        // 注意:
+        // ・ここではファイルを再アップロードしない
+        // ・フォントUIは操作しない
+        // ・subtitle_font.jsから取得した設定だけを渡す
+        // =====================================
+        
+        async function embedSubtitle(
+            mp4Filename,
+            srtFilename
+        ) {
+        
+            if (!mp4Filename) {
+        
+                throw new Error(
+                    "転送済みMP4ファイルがありません。"
+                );
+        
+            }
+        
+        
+            if (!srtFilename) {
+        
+                throw new Error(
+                    "転送済みSRTファイルがありません。"
+                );
+        
+            }
+        
+        
+            const fontSettings =
+                getFontSettings();
+        
+        
+            console.log(
+                "[SUBTITLE] embedSubtitle:",
+                {
+                    mp4_file:
+                        mp4Filename,
+        
+                    srt_file:
+                        srtFilename,
+        
+                    font_settings:
+                        fontSettings
+                }
+            );
+        
+        
+            const response =
+                await fetch(
+                    "/subtitle-test/create-subtitle-mp4",
+                    {
+                        method:
+                            "POST",
+        
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+        
+                        body:
+                            JSON.stringify({
+        
+                                mp4_file:
+                                    mp4Filename,
+        
+                                srt_file:
+                                    srtFilename,
+        
+                                font_settings:
+                                    fontSettings
+        
+                            })
+                    }
+                );
+        
+        
+            const data =
+                await parseResponse(
+                    response
+                );
+        
+        
+            if (!response.ok) {
+        
+                throw new Error(
+                    getResponseErrorMessage(
+                        data,
+                        "字幕MP4の作成に失敗しました。"
+                    )
+                );
+        
+            }
+        
+        
+            if (
+                !data ||
+                data.success !== true
+            ) {
+        
+                throw new Error(
+                    getResponseErrorMessage(
+                        data,
+                        "字幕MP4の作成に失敗しました。"
+                    )
+                );
+        
+            }
+        
+        
+            if (
+                !data.filename &&
+                !data.subtitle_mp4_file
+            ) {
+        
+                throw new Error(
+                    "字幕MP4のファイル名を取得できませんでした。"
+                );
+        
+            }
+        
+        
+            return {
+        
+                ...data,
+        
+                filename:
+                    data.filename ||
+                    data.subtitle_mp4_file
+        
+            };
+        
+        }
 
         // =====================================
         // 字幕焼き込み
