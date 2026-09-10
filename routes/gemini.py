@@ -1,27 +1,40 @@
 # ==========================================================
 # gemini.py
 #
-# Gemini 3.5 Transcribe 音声文字起こし
+# Gemini 音声文字起こし
 #
-# MP3
-#   ↓
-# Gemini Files API
-#   ↓
-# gemini-3.5-transcribe
-#   ↓
-# word timestamp
-#   ↓
-# PythonでSRT生成
+# 役割:
 #
-# 入口・出口は従来のまま
-#
-# transcribe_mp3(mp3_path)
+#   MP3
 #     ↓
-#     SRT文字列を返す
-#
-# save_srt(mp3_path, srt_text)
+#   Gemini Files API
 #     ↓
-#     mp3と同名の.srtを保存
+#   Gemini
+#     ↓
+#   SRT形式文字起こし
+#
+# ==========================================================
+#
+# 使用箇所:
+#
+# routes/subtitle_routes.py
+#
+#     from routes.gemini import (
+#         transcribe_mp3,
+#         save_srt
+#     )
+#
+# ==========================================================
+#
+# 重要:
+#
+# Gemini側では時間範囲をカットしない。
+#
+# MP4 / MP3の時間指定は、
+# subtitle_mp4.py / media_extract.py側で
+# すでに処理済みのものを使用する。
+#
+# Geminiには完成したMP3全体を渡す。
 #
 # ==========================================================
 
@@ -44,7 +57,6 @@ from flask import (
 
 
 from google import genai
-from google.genai import types
 
 
 from config import DOWNLOAD_DIR
@@ -74,22 +86,32 @@ if not GEMINI_API_KEY:
 # ==========================================================
 
 client = genai.Client(
+
     api_key=GEMINI_API_KEY
+
 )
 
 
 # ==========================================================
 # Geminiモデル
 #
-# Renderの環境変数 GEMINI_MODEL があれば優先。
+# Renderなどの環境変数で変更可能。
 #
-# 重要:
-# デフォルトを Gemini 3.5 Transcribe に変更。
+# GEMINI_MODEL が設定されていれば、
+# それを優先する。
+#
+# 未設定の場合:
+#
+#   gemini-3.5-flash
+#
 # ==========================================================
 
 GEMINI_MODEL = os.getenv(
+
     "GEMINI_MODEL",
-    "gemini-3.5-transcribe"
+
+    "gemini-3.5-flash"
+
 )
 
 
@@ -98,96 +120,100 @@ GEMINI_MODEL = os.getenv(
 # ==========================================================
 
 GEMINI_MAX_RETRIES = int(
+
     os.getenv(
+
         "GEMINI_MAX_RETRIES",
+
         "3"
+
     )
+
 )
 
 
 GEMINI_RETRY_WAIT_SECONDS = int(
+
     os.getenv(
+
         "GEMINI_RETRY_WAIT_SECONDS",
-        "5"
+
+        "3"
+
     )
+
 )
 
 
 # ==========================================================
-# Files API 待機
+# Geminiレスポンス待機
+#
+# Files APIでアップロードしたファイルが
+# 処理中の場合に備える。
+#
 # ==========================================================
 
 GEMINI_FILE_WAIT_SECONDS = int(
+
     os.getenv(
+
         "GEMINI_FILE_WAIT_SECONDS",
+
         "2"
+
     )
+
 )
 
 
 GEMINI_FILE_MAX_WAIT = int(
+
     os.getenv(
+
         "GEMINI_FILE_MAX_WAIT",
+
         "60"
+
     )
+
 )
 
 
 # ==========================================================
-# SRT設定
+# SRT最小文字数
+#
+# 完全に空の場合だけでなく、
+# Geminiが説明文だけ返した場合も検知しやすくする。
+#
 # ==========================================================
 
 MIN_SRT_TEXT_LENGTH = int(
+
     os.getenv(
+
         "MIN_SRT_TEXT_LENGTH",
+
         "5"
+
     )
-)
 
-
-# 1字幕あたりの最大文字数
-#
-# 日本語では、おおむね30～45文字程度を目安にする。
-# ==========================================================
-
-SRT_MAX_CHARS = int(
-    os.getenv(
-        "SRT_MAX_CHARS",
-        "42"
-    )
-)
-
-
-# 1字幕の最大表示秒数
-SRT_MAX_DURATION = float(
-    os.getenv(
-        "SRT_MAX_DURATION",
-        "6.0"
-    )
-)
-
-
-# 1字幕の最小表示秒数
-SRT_MIN_DURATION = float(
-    os.getenv(
-        "SRT_MIN_DURATION",
-        "0.5"
-    )
 )
 
 
 # ==========================================================
-# リトライ可能エラー判定
+# リトライ対象エラー判定
 # ==========================================================
 
-def is_retryable_gemini_error(error):
+def is_retryable_gemini_error(
+    error
+):
 
     error_text = str(
         error
     ).lower()
 
 
-    retryable_words = [
+    retryable_codes = [
 
         "429",
         "500",
@@ -197,35 +223,28 @@ def is_retryable_gemini_error(error):
 
         "too many requests",
         "rate limit",
-
         "temporarily unavailable",
         "service unavailable",
-
         "bad gateway",
         "gateway timeout",
-
         "internal server error",
-        "internal error",
 
         "timeout",
         "timed out",
 
         "deadline exceeded",
-
         "resource exhausted",
 
         "connection reset",
         "connection aborted",
-        "connection error",
-
-        "unavailable",
+        "connection error"
 
     ]
 
 
-    for word in retryable_words:
+    for code in retryable_codes:
 
-        if word in error_text:
+        if code in error_text:
 
             return True
 
@@ -234,10 +253,12 @@ def is_retryable_gemini_error(error):
 
 
 # ==========================================================
-# Geminiレスポンス デバッグ
+# Geminiレスポンス情報ログ
 # ==========================================================
 
-def log_response_debug(response):
+def log_response_debug(
+    response
+):
 
     print(
         "=========================================="
@@ -260,9 +281,13 @@ def log_response_debug(response):
     try:
 
         response_text = getattr(
+
             response,
+
             "text",
+
             None
+
         )
 
 
@@ -272,10 +297,29 @@ def log_response_debug(response):
         )
 
 
-        print(
-            "response.text:",
-            repr(response_text)[:1000]
-        )
+        if response_text is None:
+
+            print(
+                "response.text: None"
+            )
+
+        else:
+
+            print(
+                "response.text length:",
+                len(
+                    str(
+                        response_text
+                    )
+                )
+            )
+
+            print(
+                "response.text preview:",
+                str(
+                    response_text
+                )[:500]
+            )
 
 
     except Exception as error:
@@ -293,9 +337,13 @@ def log_response_debug(response):
     try:
 
         candidates = getattr(
+
             response,
+
             "candidates",
+
             None
+
         )
 
 
@@ -314,13 +362,25 @@ def log_response_debug(response):
 
 
             for index, candidate in enumerate(
+
                 candidates
+
             ):
 
+                print(
+                    f"candidate[{index}] type:",
+                    type(candidate).__name__
+                )
+
+
                 finish_reason = getattr(
+
                     candidate,
+
                     "finish_reason",
+
                     None
+
                 )
 
 
@@ -330,68 +390,139 @@ def log_response_debug(response):
                 )
 
 
-                content = getattr(
+                safety_ratings = getattr(
+
                     candidate,
-                    "content",
+
+                    "safety_ratings",
+
                     None
+
                 )
 
 
                 print(
-                    f"candidate[{index}] content:",
-                    content
+                    f"candidate[{index}] safety_ratings:",
+                    safety_ratings
                 )
 
 
-                if content is not None:
+                content = getattr(
 
-                    parts = getattr(
-                        content,
-                        "parts",
+                    candidate,
+
+                    "content",
+
+                    None
+
+                )
+
+
+                if content is None:
+
+                    print(
+                        f"candidate[{index}] content: None"
+                    )
+
+                    continue
+
+
+                print(
+                    f"candidate[{index}] content type:",
+                    type(content).__name__
+                )
+
+
+                parts = getattr(
+
+                    content,
+
+                    "parts",
+
+                    None
+
+                )
+
+
+                if parts is None:
+
+                    print(
+                        f"candidate[{index}] parts: None"
+                    )
+
+                    continue
+
+
+                print(
+                    f"candidate[{index}] parts count:",
+                    len(parts)
+                )
+
+
+                for part_index, part in enumerate(
+
+                    parts
+
+                ):
+
+                    part_text = getattr(
+
+                        part,
+
+                        "text",
+
                         None
+
                     )
 
 
                     print(
-                        f"candidate[{index}] parts count:",
-                        len(parts)
-                        if parts
-                        else 0
+                        f"candidate[{index}] "
+                        f"part[{part_index}] "
+                        f"text length:",
+                        len(
+                            str(
+                                part_text or ""
+                            )
+                        )
                     )
-
-
-                    if parts:
-
-                        for part_index, part in enumerate(
-                            parts
-                        ):
-
-                            print(
-                                f"candidate[{index}] part[{part_index}] type:",
-                                type(part).__name__
-                            )
-
-
-                            audio_transcription = getattr(
-                                part,
-                                "audio_transcription",
-                                None
-                            )
-
-
-                            if audio_transcription:
-
-                                print(
-                                    f"candidate[{index}] part[{part_index}] "
-                                    "audio_transcription:",
-                                    audio_transcription
-                                )
 
 
     except Exception as error:
 
         print(
-            "candidates解析エラー:",
+            "candidates解析ログエラー:",
+            repr(error)
+        )
+
+
+    # ------------------------------------------------------
+    # prompt feedback
+    # ------------------------------------------------------
+
+    try:
+
+        prompt_feedback = getattr(
+
+            response,
+
+            "prompt_feedback",
+
+            None
+
+        )
+
+
+        print(
+            "prompt_feedback:",
+            prompt_feedback
+        )
+
+
+    except Exception as error:
+
+        print(
+            "prompt_feedback取得エラー:",
             repr(error)
         )
 
@@ -402,674 +533,178 @@ def log_response_debug(response):
 
 
 # ==========================================================
-# 秒へ変換
+# Geminiレスポンスからテキスト抽出
 #
-# Gemini:
-#   "0.100s"
-#   "1.250s"
+# response.textだけに依存しない。
 #
-# をfloat秒へ変換。
 # ==========================================================
 
-def parse_timestamp_seconds(value):
+def extract_response_text(
+    response
+):
 
-    if value is None:
+    if response is None:
 
-        return None
-
-
-    text = str(
-        value
-    ).strip()
+        return ""
 
 
-    if not text:
-
-        return None
-
-
-    # ------------------------------------------------------
-    # 例:
-    #
-    # 0.100s
-    # 1.250s
-    # ------------------------------------------------------
-
-    match = re.match(
-        r"^\s*([0-9]+(?:\.[0-9]+)?)\s*s\s*$",
-        text,
-        flags=re.IGNORECASE
-    )
-
-
-    if match:
-
-        return float(
-            match.group(1)
-        )
-
-
-    # ------------------------------------------------------
-    # 念のため数値だけにも対応
-    # ------------------------------------------------------
+    # ======================================================
+    # ① response.text
+    # ======================================================
 
     try:
 
-        return float(
-            text
-        )
+        response_text = getattr(
 
-    except Exception:
+            response,
 
-        return None
+            "text",
 
-
-# ==========================================================
-# SRT timestamp
-#
-# seconds:
-#   0.0
-#
-# →
-#   00:00:00,000
-# ==========================================================
-
-def seconds_to_srt_timestamp(seconds):
-
-    if seconds is None:
-
-        seconds = 0.0
-
-
-    seconds = max(
-        0.0,
-        float(seconds)
-    )
-
-
-    milliseconds = int(
-        round(
-            seconds * 1000
-        )
-    )
-
-
-    hours = milliseconds // (
-        60 * 60 * 1000
-    )
-
-
-    milliseconds %= (
-        60 * 60 * 1000
-    )
-
-
-    minutes = milliseconds // (
-        60 * 1000
-    )
-
-
-    milliseconds %= (
-        60 * 1000
-    )
-
-
-    secs = milliseconds // 1000
-
-
-    milliseconds %= 1000
-
-
-    return (
-        f"{hours:02d}:"
-        f"{minutes:02d}:"
-        f"{secs:02d},"
-        f"{milliseconds:03d}"
-    )
-
-
-# ==========================================================
-# Geminiレスポンスから単語タイムスタンプを取得
-#
-# 期待する構造:
-#
-# candidates
-#   ↓
-# content.parts
-#   ↓
-# audio_transcription
-#   ↓
-# words
-#
-# word:
-#   word
-#   start_offset
-#   end_offset
-#
-# ==========================================================
-
-def extract_timestamped_words(response):
-
-    words = []
-
-
-    candidates = getattr(
-        response,
-        "candidates",
-        None
-    )
-
-
-    if not candidates:
-
-        return words
-
-
-    for candidate in candidates:
-
-        content = getattr(
-            candidate,
-            "content",
             None
-        )
-
-
-        if content is None:
-
-            continue
-
-
-        parts = getattr(
-            content,
-            "parts",
-            None
-        )
-
-
-        if not parts:
-
-            continue
-
-
-        for part in parts:
-
-            audio_transcription = getattr(
-                part,
-                "audio_transcription",
-                None
-            )
-
-
-            if audio_transcription is None:
-
-                continue
-
-
-            transcription_words = getattr(
-                audio_transcription,
-                "words",
-                None
-            )
-
-
-            if not transcription_words:
-
-                continue
-
-
-            for word_info in transcription_words:
-
-                word_text = getattr(
-                    word_info,
-                    "word",
-                    None
-                )
-
-
-                start_offset = getattr(
-                    word_info,
-                    "start_offset",
-                    None
-                )
-
-
-                end_offset = getattr(
-                    word_info,
-                    "end_offset",
-                    None
-                )
-
-
-                # --------------------------------------------------
-                # SDKによってcamelCaseになる場合にも対応
-                # --------------------------------------------------
-
-                if start_offset is None:
-
-                    start_offset = getattr(
-                        word_info,
-                        "startOffset",
-                        None
-                    )
-
-
-                if end_offset is None:
-
-                    end_offset = getattr(
-                        word_info,
-                        "endOffset",
-                        None
-                    )
-
-
-                if word_text is None:
-
-                    continue
-
-
-                word_text = str(
-                    word_text
-                )
-
-
-                start_seconds = parse_timestamp_seconds(
-                    start_offset
-                )
-
-
-                end_seconds = parse_timestamp_seconds(
-                    end_offset
-                )
-
-
-                if start_seconds is None:
-
-                    continue
-
-
-                if end_seconds is None:
-
-                    end_seconds = start_seconds
-
-
-                words.append({
-
-                    "word":
-                        word_text,
-
-                    "start":
-                        start_seconds,
-
-                    "end":
-                        end_seconds,
-
-                })
-
-
-    return words
-
-
-# ==========================================================
-# 単語一覧からSRT生成
-#
-# 日本語を中心に、
-#
-# - 最大文字数
-# - 最大表示時間
-# - 句読点
-# - 無音
-#
-# を利用して字幕をまとめる。
-#
-# ==========================================================
-
-def words_to_srt(words):
-
-    if not words:
-
-        raise ValueError(
-            "Geminiから単語タイムスタンプを取得できませんでした"
-        )
-
-
-    subtitles = []
-
-
-    current_words = []
-
-
-    current_start = None
-    current_end = None
-
-
-    def flush():
-
-        nonlocal current_words
-        nonlocal current_start
-        nonlocal current_end
-
-
-        if not current_words:
-
-            return
-
-
-        text = "".join(
-            current_words
-        ).strip()
-
-
-        if not text:
-
-            current_words = []
-
-            current_start = None
-            current_end = None
-
-            return
-
-
-        start = (
-            current_start
-            if current_start is not None
-            else 0.0
-        )
-
-
-        end = (
-            current_end
-            if current_end is not None
-            else start + SRT_MIN_DURATION
-        )
-
-
-        if end <= start:
-
-            end = (
-                start
-                +
-                SRT_MIN_DURATION
-            )
-
-
-        subtitles.append({
-
-            "start": start,
-
-            "end": end,
-
-            "text": text,
-
-        })
-
-
-        current_words = []
-
-        current_start = None
-
-        current_end = None
-
-
-    for index, item in enumerate(
-        words
-    ):
-
-        word = str(
-            item.get(
-                "word",
-                ""
-            )
-        )
-
-
-        start = item.get(
-            "start"
-        )
-
-
-        end = item.get(
-            "end"
-        )
-
-
-        if not word:
-
-            continue
-
-
-        if start is None:
-
-            continue
-
-
-        if end is None:
-
-            end = start
-
-
-        # --------------------------------------------------
-        # 新しい字幕を開始
-        # --------------------------------------------------
-
-        if current_start is None:
-
-            current_start = start
-
-
-        # --------------------------------------------------
-        # 現在字幕に追加した場合の長さ
-        # --------------------------------------------------
-
-        candidate_text = (
-            "".join(
-                current_words
-            )
-            +
-            word
-        )
-
-
-        candidate_duration = (
-            end
-            -
-            current_start
-        )
-
-
-        # --------------------------------------------------
-        # 句読点で字幕を切る
-        # --------------------------------------------------
-
-        punctuation_break = bool(
-
-            re.search(
-                r"[。！？!?]",
-                word
-            )
 
         )
 
 
-        # --------------------------------------------------
-        # 無音区間
-        #
-        # 前の単語終了から次の単語開始まで
-        # 1秒以上空いていたら区切る。
-        # --------------------------------------------------
+        if response_text:
 
-        silence_break = False
+            response_text = str(
 
+                response_text
 
-        if current_end is not None:
-
-            silence = (
-                start
-                -
-                current_end
-            )
+            ).strip()
 
 
-            if silence >= 1.0:
+            if response_text:
 
-                silence_break = True
-
-
-        # --------------------------------------------------
-        # 最大文字数
-        # --------------------------------------------------
-
-        length_break = (
-            len(candidate_text)
-            >
-            SRT_MAX_CHARS
-        )
+                return response_text
 
 
-        # --------------------------------------------------
-        # 最大時間
-        # --------------------------------------------------
+    except Exception as error:
 
-        duration_break = (
-            candidate_duration
-            >
-            SRT_MAX_DURATION
-        )
-
-
-        # --------------------------------------------------
-        # 追加前に区切る
-        #
-        # ただし現在字幕が空なら追加する。
-        # --------------------------------------------------
-
-        if current_words and (
-
-            length_break
-            or
-            duration_break
-            or
-            silence_break
-
-        ):
-
-            flush()
-
-            current_start = start
-
-
-        current_words.append(
-            word
-        )
-
-
-        current_end = end
-
-
-        # --------------------------------------------------
-        # 句読点後は字幕を確定
-        # --------------------------------------------------
-
-        if punctuation_break:
-
-            flush()
-
-
-    # ------------------------------------------------------
-    # 最後の字幕
-    # ------------------------------------------------------
-
-    flush()
-
-
-    if not subtitles:
-
-        raise ValueError(
-            "字幕を生成できませんでした"
+        print(
+            "[GEMINI] response.text取得失敗:",
+            repr(error)
         )
 
 
     # ======================================================
-    # SRT本文
+    # ② candidates
     # ======================================================
 
-    output = []
+    try:
 
+        candidates = getattr(
 
-    for index, subtitle in enumerate(
-        subtitles,
-        start=1
-    ):
+            response,
 
-        start = subtitle[
-            "start"
-        ]
+            "candidates",
 
-
-        end = subtitle[
-            "end"
-        ]
-
-
-        text = subtitle[
-            "text"
-        ]
-
-
-        # --------------------------------------------------
-        # 最低表示時間
-        # --------------------------------------------------
-
-        if (
-            end - start
-            <
-            SRT_MIN_DURATION
-        ):
-
-            end = (
-                start
-                +
-                SRT_MIN_DURATION
-            )
-
-
-        output.append(
-            str(index)
-        )
-
-
-        output.append(
-
-            seconds_to_srt_timestamp(
-                start
-            )
-            +
-            " --> "
-            +
-            seconds_to_srt_timestamp(
-                end
-            )
+            None
 
         )
 
 
-        output.append(
-            text
+        if candidates:
+
+            collected_parts = []
+
+
+            for candidate in candidates:
+
+                content = getattr(
+
+                    candidate,
+
+                    "content",
+
+                    None
+
+                )
+
+
+                if content is None:
+
+                    continue
+
+
+                parts = getattr(
+
+                    content,
+
+                    "parts",
+
+                    None
+
+                )
+
+
+                if not parts:
+
+                    continue
+
+
+                for part in parts:
+
+                    part_text = getattr(
+
+                        part,
+
+                        "text",
+
+                        None
+
+                    )
+
+
+                    if part_text:
+
+                        collected_parts.append(
+
+                            str(
+                                part_text
+                            )
+
+                        )
+
+
+            if collected_parts:
+
+                combined_text = "\n".join(
+
+                    collected_parts
+
+                ).strip()
+
+
+                if combined_text:
+
+                    return combined_text
+
+
+    except Exception as error:
+
+        print(
+            "[GEMINI] candidatesからのテキスト取得失敗:",
+            repr(error)
         )
 
 
-        output.append("")
+    # ======================================================
+    # ③ それでも取れない
+    # ======================================================
 
-
-    return "\n".join(
-        output
-    ).strip()
+    return ""
 
 
 # ==========================================================
-# SRT整形
+# Geminiが返したSRTを整形
+#
+# Markdownコードブロックなどを除去。
 # ==========================================================
 
-def clean_srt_text(text):
+def clean_srt_text(
+    text
+):
 
     if text is None:
 
@@ -1086,36 +721,120 @@ def clean_srt_text(text):
         return ""
 
 
+    # ------------------------------------------------------
+    # ```srt
+    # ```
+    # ------------------------------------------------------
+
+    text = re.sub(
+
+        r"^\s*```(?:srt|text)?\s*",
+
+        "",
+
+        text,
+
+        flags=re.IGNORECASE
+
+    )
+
+
+    text = re.sub(
+
+        r"\s*```\s*$",
+
+        "",
+
+        text,
+
+        flags=re.IGNORECASE
+
+    )
+
+
+    text = text.strip()
+
+
+    # ------------------------------------------------------
+    # BOM
+    # ------------------------------------------------------
+
     text = text.lstrip(
         "\ufeff"
     )
 
 
+    # ------------------------------------------------------
+    # 改行統一
+    # ------------------------------------------------------
+
     text = text.replace(
+
         "\r\n",
+
         "\n"
+
     )
 
 
     text = text.replace(
+
         "\r",
+
         "\n"
+
     )
 
 
-    return text.strip()
+    # ------------------------------------------------------
+    # 先頭の説明文を除去
+    #
+    # Geminiが
+    #
+    # "以下がSRTです:"
+    #
+    # のような文を付けた場合、
+    # 最初のSRT番号から開始する。
+    # ------------------------------------------------------
+
+    match = re.search(
+
+        r"(?m)^\s*1\s*$",
+
+        text
+
+    )
+
+
+    if match:
+
+        text = text[
+            match.start():
+        ]
+
+
+    # ------------------------------------------------------
+    # 末尾空白除去
+    # ------------------------------------------------------
+
+    text = text.strip()
+
+
+    return text
 
 
 # ==========================================================
-# SRT簡易チェック
+# SRT形式簡易チェック
 # ==========================================================
 
-def validate_srt_text(srt_text):
+def validate_srt_text(
+    srt_text
+):
 
     if not srt_text:
 
         raise ValueError(
-            "SRT結果が空です"
+            "Gemini結果が空です"
         )
 
 
@@ -1127,13 +846,21 @@ def validate_srt_text(srt_text):
     if len(text) < MIN_SRT_TEXT_LENGTH:
 
         raise ValueError(
-            "SRT結果が短すぎます: "
+
+            "Gemini結果が短すぎます: "
             +
             str(len(text))
             +
             "文字"
+
         )
 
+
+    # ------------------------------------------------------
+    # SRTの時間形式
+    #
+    # 00:00:00,000 --> 00:00:05,000
+    # ------------------------------------------------------
 
     timestamp_pattern = re.compile(
 
@@ -1149,17 +876,28 @@ def validate_srt_text(srt_text):
     ):
 
         raise ValueError(
-            "SRT結果に時間情報がありません"
+
+            "Gemini結果にSRTの時間情報がありません"
+
         )
 
 
+    # ------------------------------------------------------
+    # SRT番号
+    # ------------------------------------------------------
+
     if not re.search(
+
         r"(?m)^\s*\d+\s*$",
+
         text
+
     ):
 
         raise ValueError(
-            "SRT結果に字幕番号がありません"
+
+            "Gemini結果にSRT字幕番号がありません"
+
         )
 
 
@@ -1167,7 +905,7 @@ def validate_srt_text(srt_text):
 
 
 # ==========================================================
-# Files API状態取得
+# Gemini Files APIの状態取得
 # ==========================================================
 
 def get_uploaded_file_state(
@@ -1179,21 +917,42 @@ def get_uploaded_file_state(
         return None
 
 
+    # ------------------------------------------------------
+    # state
+    # ------------------------------------------------------
+
     try:
 
-        return getattr(
+        state = getattr(
+
             uploaded_file,
+
             "state",
+
             None
+
         )
+
+
+        if state is not None:
+
+            return state
+
 
     except Exception:
 
-        return None
+        pass
+
+
+    return None
 
 
 # ==========================================================
-# Files API処理待機
+# Gemini Files APIアップロード後の状態確認
+#
+# 音声ファイルが処理中の場合、
+# ACTIVEになるまで少し待つ。
+#
 # ==========================================================
 
 def wait_for_uploaded_file_ready(
@@ -1207,16 +966,30 @@ def wait_for_uploaded_file_ready(
         )
 
 
+    print(
+        ">>> Gemini uploaded file 状態確認開始"
+    )
+
+
+    # ======================================================
+    # stateが取れない場合
+    #
+    # SDKのバージョンによってはstateが直接取得できる。
+    # 取れない場合はそのまま進む。
+    # ======================================================
+
     current_state = get_uploaded_file_state(
+
         uploaded_file
+
     )
 
 
     if current_state is None:
 
         print(
-            "[GEMINI] uploaded_file.state "
-            "を取得できないため、そのまま使用します"
+            ">>> uploaded_file.state を取得できません。"
+            "そのまま generate_content を実行します。"
         )
 
         return uploaded_file
@@ -1230,67 +1003,120 @@ def wait_for_uploaded_file_ready(
         state_name = str(
 
             getattr(
+
                 current_state,
+
                 "name",
+
                 current_state
+
             )
 
         ).upper()
 
 
         print(
-            "[GEMINI] file state:",
+            ">>> Gemini file state:",
             state_name
         )
 
 
+        # --------------------------------------------------
+        # ACTIVE
+        # --------------------------------------------------
+
         if "ACTIVE" in state_name:
+
+            print(
+                ">>> Gemini file ACTIVE"
+            )
 
             return uploaded_file
 
 
+        # --------------------------------------------------
+        # FAILED
+        # --------------------------------------------------
+
         if (
+
             "FAILED" in state_name
             or
             "ERROR" in state_name
+
         ):
 
             raise RuntimeError(
-                "Gemini Files APIの処理に失敗しました: "
+
+                "Gemini Files APIのファイル処理に失敗しました: "
                 +
                 state_name
+
             )
 
 
-        if (
+        # --------------------------------------------------
+        # タイムアウト
+        # --------------------------------------------------
+
+        elapsed = (
+
             time.time()
             -
             start_time
-            >=
-            GEMINI_FILE_MAX_WAIT
-        ):
 
-            raise TimeoutError(
-                "Gemini Files APIの処理待機が"
-                "タイムアウトしました: "
-                +
-                state_name
-            )
-
-
-        time.sleep(
-            GEMINI_FILE_WAIT_SECONDS
         )
 
 
+        if elapsed >= GEMINI_FILE_MAX_WAIT:
+
+            raise TimeoutError(
+
+                "Gemini Files APIのファイル処理待機が"
+                "タイムアウトしました。"
+                f" state={state_name}"
+
+            )
+
+
+        print(
+
+            ">>> Gemini file 処理中。"
+            f" {GEMINI_FILE_WAIT_SECONDS}秒待機します"
+
+        )
+
+
+        time.sleep(
+
+            GEMINI_FILE_WAIT_SECONDS
+
+        )
+
+
+        # --------------------------------------------------
+        # files.get
+        #
+        # nameが取れる場合は最新状態を取得する。
+        # --------------------------------------------------
+
         file_name = getattr(
+
             uploaded_file,
+
             "name",
+
             None
+
         )
 
 
         if not file_name:
+
+            print(
+                ">>> uploaded_file.name が取得できないため、"
+                "現在の状態のまま再確認します。"
+            )
 
             continue
 
@@ -1298,16 +1124,24 @@ def wait_for_uploaded_file_ready(
         try:
 
             uploaded_file = client.files.get(
+
                 name=file_name
+
             )
 
 
             current_state = get_uploaded_file_state(
+
                 uploaded_file
+
             )
 
 
             if current_state is None:
+
+                print(
+                    ">>> 最新stateが取得できません。"
+                )
 
                 return uploaded_file
 
@@ -1315,14 +1149,23 @@ def wait_for_uploaded_file_ready(
         except Exception as error:
 
             print(
-                "[GEMINI] file state取得エラー:",
+                ">>> Gemini file state取得エラー:",
                 repr(error)
             )
 
 
+            # ファイル状態取得だけの一時エラーなら
+            # 少し待って再確認する。
+
             if is_retryable_gemini_error(
                 error
             ):
+
+                time.sleep(
+
+                    GEMINI_FILE_WAIT_SECONDS
+
+                )
 
                 continue
 
@@ -1331,18 +1174,24 @@ def wait_for_uploaded_file_ready(
 
 
 # ==========================================================
-# GeminiへMP3を送信してSRTを取得
+# GeminiへMP3送信
 # ==========================================================
 
-def transcribe_mp3(mp3_path):
+def transcribe_mp3(
+    mp3_path
+):
 
     mp3_path = os.path.abspath(
-        str(mp3_path)
+
+        str(
+            mp3_path
+        )
+
     )
 
 
     # ======================================================
-    # MP3確認
+    # MP3存在確認
     # ======================================================
 
     if not os.path.exists(
@@ -1350,7 +1199,9 @@ def transcribe_mp3(mp3_path):
     ):
 
         raise FileNotFoundError(
+
             f"MP3がありません: {mp3_path}"
+
         )
 
 
@@ -1359,7 +1210,9 @@ def transcribe_mp3(mp3_path):
     ):
 
         raise ValueError(
+
             "指定されたパスはファイルではありません"
+
         )
 
 
@@ -1368,59 +1221,67 @@ def transcribe_mp3(mp3_path):
     ):
 
         raise ValueError(
+
             "MP3ファイルを指定してください"
+
         )
 
 
+    # ======================================================
+    # MP3サイズ確認
+    # ======================================================
+
     mp3_size = os.path.getsize(
+
         mp3_path
+
     )
 
 
     if mp3_size <= 0:
 
         raise ValueError(
+
             "MP3ファイルが0 bytesです"
+
         )
 
+
+    # ======================================================
+    # ログ
+    # ======================================================
 
     print(
         "=========================================="
     )
 
     print(
-        "Gemini 3.5 Transcribe 解析開始"
+        "[GEMINI] 解析開始"
     )
 
     print(
-        "MP3:",
+        "[GEMINI] MP3:",
         mp3_path
     )
 
     print(
-        "MP3サイズ:",
+        "[GEMINI] MP3サイズ:",
         mp3_size,
         "bytes"
     )
 
     print(
-        "Geminiモデル:",
+        "[GEMINI] モデル:",
         GEMINI_MODEL
     )
 
     print(
-        "タイムスタンプ:",
-        "word_timestamp=True"
+        "[GEMINI] 時間カット:",
+        "なし"
     )
 
     print(
-        "日本語:",
-        "language_codes=['ja-JP']"
-    )
-
-    print(
-        "SRT生成:",
-        "Python"
+        "[GEMINI] MP3全体をGeminiへ送信"
     )
 
     print(
@@ -1429,7 +1290,10 @@ def transcribe_mp3(mp3_path):
 
 
     # ======================================================
-    # 一時ファイル
+    # 日本語ファイル名対策
+    #
+    # Gemini upload用の一時ファイルを作る。
+    # 元MP3は変更しない。
     # ======================================================
 
     temp_mp3 = os.path.join(
@@ -1451,49 +1315,67 @@ def transcribe_mp3(mp3_path):
     try:
 
         # ==================================================
-        # MP3コピー
+        # 一時MP3作成
         # ==================================================
 
         shutil.copy2(
+
             mp3_path,
+
+            temp_mp3
+
+        )
+
+
+        print(
+            "[GEMINI] upload用一時MP3:",
             temp_mp3
         )
 
 
+        # ==================================================
+        # 一時MP3確認
+        # ==================================================
+
         temp_size = os.path.getsize(
+
             temp_mp3
+
         )
 
 
         if temp_size <= 0:
 
             raise RuntimeError(
+
                 "Gemini送信用MP3が0 bytesです"
+
             )
 
 
         print(
-            "Gemini upload用一時MP3:",
-            temp_mp3
-        )
-
-        print(
-            "Gemini送信用MP3サイズ:",
+            "[GEMINI] upload用MP3サイズ:",
             temp_size,
             "bytes"
         )
 
 
         # ==================================================
-        # Files API upload
+        # Gemini Files API
         # ==================================================
 
-        upload_error = None
+        print(
+            ">>> Gemini Files API upload開始"
+        )
+
+
+        upload_exception = None
 
 
         for upload_attempt in range(
 
             1,
+
             GEMINI_MAX_RETRIES + 1
 
         ):
@@ -1501,9 +1383,10 @@ def transcribe_mp3(mp3_path):
             try:
 
                 print(
-                    ">>> Gemini Files API upload:",
-                    f"{upload_attempt}/"
-                    f"{GEMINI_MAX_RETRIES}"
+
+                    ">>> upload試行:",
+                    f"{upload_attempt}/{GEMINI_MAX_RETRIES}"
+
                 )
 
 
@@ -1520,298 +1403,24 @@ def transcribe_mp3(mp3_path):
 
 
                 print(
-                    ">>> file name:",
-                    getattr(
-                        uploaded_file,
-                        "name",
-                        None
-                    )
+                    ">>> uploaded_file:",
+                    uploaded_file
                 )
 
 
-                print(
-                    ">>> file uri:",
-                    getattr(
-                        uploaded_file,
-                        "uri",
-                        None
-                    )
-                )
+                upload_exception = None
 
-
-                print(
-                    ">>> mime type:",
-                    getattr(
-                        uploaded_file,
-                        "mime_type",
-                        None
-                    )
-                )
-
-
-                upload_error = None
 
                 break
 
 
             except Exception as error:
 
-                upload_error = error
+                upload_exception = error
 
 
                 print(
-                    ">>> Gemini uploadエラー:",
-                    repr(error)
-                )
-
-
-                if (
-                    upload_attempt
-                    >=
-                    GEMINI_MAX_RETRIES
-                ):
-
-                    raise
-
-
-                if not is_retryable_gemini_error(
-                    error
-                ):
-
-                    raise
-
-
-                wait_seconds = (
-                    upload_attempt
-                    *
-                    GEMINI_RETRY_WAIT_SECONDS
-                )
-
-
-                print(
-                    ">>>",
-                    wait_seconds,
-                    "秒待って再試行"
-                )
-
-
-                time.sleep(
-                    wait_seconds
-                )
-
-
-        if upload_error is not None:
-
-            raise upload_error
-
-
-        if uploaded_file is None:
-
-            raise RuntimeError(
-                "Gemini Files APIから"
-                "uploaded_fileが返されませんでした"
-            )
-
-
-        # ==================================================
-        # Files API ACTIVE待ち
-        # ==================================================
-
-        uploaded_file = wait_for_uploaded_file_ready(
-            uploaded_file
-        )
-
-
-        # ==================================================
-        # Gemini Transcribe
-        #
-        # Google公式仕様:
-        #
-        # audio_transcription_config=
-        #     AudioTranscriptionConfig(
-        #         language_codes=["ja-JP"],
-        #         word_timestamp=True,
-        #     )
-        #
-        # ==================================================
-
-        last_error = None
-
-
-        for attempt in range(
-
-            1,
-            GEMINI_MAX_RETRIES + 1
-
-        ):
-
-            print(
-                "------------------------------------------"
-            )
-
-            print(
-                "[GEMINI] Transcribe"
-            )
-
-            print(
-                "[GEMINI] 試行:",
-                f"{attempt}/{GEMINI_MAX_RETRIES}"
-            )
-
-            print(
-                "------------------------------------------"
-            )
-
-
-            try:
-
-                # ==================================================
-                # Gemini 3.5 Transcribe
-                # ==================================================
-
-                response = client.models.generate_content(
-
-                    model=GEMINI_MODEL,
-
-                    contents=[
-                        uploaded_file
-                    ],
-
-                    config=types.GenerateContentConfig(
-
-                        audio_transcription_config=(
-                            types.AudioTranscriptionConfig(
-
-                                language_codes=[
-                                    "ja-JP"
-                                ],
-
-                                word_timestamp=True
-
-                            )
-                        )
-
-                    )
-
-                )
-
-
-                print(
-                    ">>> Gemini Transcribe API成功"
-                )
-
-
-                # ==================================================
-                # レスポンスデバッグ
-                # ==================================================
-
-                log_response_debug(
-                    response
-                )
-
-
-                # ==================================================
-                # word timestamp取得
-                # ==================================================
-
-                words = extract_timestamped_words(
-                    response
-                )
-
-
-                print(
-                    "[GEMINI] timestamp付き単語数:",
-                    len(words)
-                )
-
-
-                if not words:
-
-                    # --------------------------------------------------
-                    # timestampが返らなかった場合の診断用
-                    # --------------------------------------------------
-
-                    response_text = getattr(
-                        response,
-                        "text",
-                        None
-                    )
-
-
-                    print(
-                        "[GEMINI] response.text:",
-                        repr(response_text)[:3000]
-                    )
-
-
-                    raise RuntimeError(
-                        "Geminiからword timestampが"
-                        "返されませんでした"
-                    )
-
-
-                # ==================================================
-                # SRT生成
-                # ==================================================
-
-                srt_text = words_to_srt(
-                    words
-                )
-
-
-                srt_text = clean_srt_text(
-                    srt_text
-                )
-
-
-                print(
-                    "[GEMINI] SRT文字数:",
-                    len(srt_text)
-                )
-
-
-                # ==================================================
-                # SRTチェック
-                # ==================================================
-
-                validate_srt_text(
-                    srt_text
-                )
-
-
-                print(
-                    "=========================================="
-                )
-
-                print(
-                    "[GEMINI] 解析完了"
-                )
-
-                print(
-                    "[GEMINI] timestamp付き単語数:",
-                    len(words)
-                )
-
-                print(
-                    "[GEMINI] SRT文字数:",
-                    len(srt_text)
-                )
-
-                print(
-                    "=========================================="
-                )
-
-
-                return srt_text
-
-
-            except Exception as error:
-
-                last_error = error
-
-
-                print(
-                    ">>> Gemini Transcribeエラー"
+                    ">>> Gemini Files API upload失敗"
                 )
 
                 print(
@@ -1825,29 +1434,9 @@ def transcribe_mp3(mp3_path):
                 )
 
 
-                retryable = (
+                retryable = is_retryable_gemini_error(
 
-                    is_retryable_gemini_error(
-                        error
-                    )
-
-                    or
-
-                    "INTERNAL"
-                    in
-                    str(error).upper()
-
-                    or
-
-                    "MALFORMED_RESPONSE"
-                    in
-                    str(error).upper()
-
-                    or
-
-                    "TIMESTAMP"
-                    in
-                    str(error).upper()
+                    error
 
                 )
 
@@ -1858,11 +1447,13 @@ def transcribe_mp3(mp3_path):
                 )
 
 
-                if attempt >= GEMINI_MAX_RETRIES:
+                if (
 
-                    print(
-                        ">>> 最大リトライ回数に到達"
-                    )
+                    upload_attempt
+                    >=
+                    GEMINI_MAX_RETRIES
+
+                ):
 
                     raise
 
@@ -1873,9 +1464,463 @@ def transcribe_mp3(mp3_path):
 
 
                 wait_seconds = (
+
+                    upload_attempt
+                    *
+                    GEMINI_RETRY_WAIT_SECONDS
+
+                )
+
+
+                print(
+                    ">>>",
+                    wait_seconds,
+                    "秒待ってuploadを再試行します"
+                )
+
+
+                time.sleep(
+
+                    wait_seconds
+
+                )
+
+
+        if upload_exception is not None:
+
+            raise upload_exception
+
+
+        if uploaded_file is None:
+
+            raise RuntimeError(
+
+                "Gemini Files APIから"
+                "uploaded_fileが返されませんでした"
+
+            )
+
+
+        # ==================================================
+        # Files API状態確認
+        # ==================================================
+
+        uploaded_file = wait_for_uploaded_file_ready(
+
+            uploaded_file
+
+        )
+
+
+        # ==================================================
+        # Geminiプロンプト
+        # ==================================================
+
+        prompt = """
+この音声ファイル全体を日本語で正確に文字起こししてください。
+
+重要:
+
+・渡されたMP3に含まれている音声を最初から最後まで対象にする
+・音声の一部だけを選択しない
+・音声をカットしない
+・開始時間を判断してカットしない
+・終了時間を判断してカットしない
+・音声の開始位置や終了位置を変更しない
+・音声全体を文字起こしする
+・文章を省略しない
+・要約しない
+・可能な限り正確に聞き取る
+・日本語で文字起こしする
+・字幕として読みやすい単位に分割する
+・各字幕に正確な時間情報を付ける
+・SRT形式で出力する
+・説明文を書かない
+・前置きを書かない
+・後書きを書かない
+・Markdownのコードブロックを使用しない
+・```srt を付けない
+・SRT以外の文章を出力しない
+
+このMP3は、必要な時間範囲がすでに切り出されています。
+
+そのため、元動画の時間範囲を推測したり、
+音声の一部を選択したりせず、
+渡されたMP3そのものを最初から最後まで
+文字起こししてください。
+
+SRT形式:
+
+1
+00:00:00,000 --> 00:00:05,000
+字幕文章
+
+2
+00:00:05,000 --> 00:00:10,000
+字幕文章
+
+必ずSRT形式だけを返してください。
+"""
+
+
+        # ==================================================
+        # Gemini generate_content
+        # ==================================================
+
+        print(
+            ">>> Gemini generate_content開始"
+        )
+
+
+        response = None
+
+
+        for attempt in range(
+
+            1,
+
+            GEMINI_MAX_RETRIES + 1
+
+        ):
+
+            try:
+
+                print(
+                    "------------------------------------------"
+                )
+
+                print(
+                    "[GEMINI] generate_content"
+                )
+
+                print(
+                    "[GEMINI] 試行:",
+                    f"{attempt}/{GEMINI_MAX_RETRIES}"
+                )
+
+                print(
+                    "------------------------------------------"
+                )
+
+
+                response = client.models.generate_content(
+
+                    model=GEMINI_MODEL,
+
+                    contents=[
+
+                        uploaded_file,
+
+                        prompt
+
+                    ]
+
+                )
+
+
+                print(
+                    ">>> Gemini generate_content API成功"
+                )
+
+
+                # --------------------------------------------------
+                # レスポンス詳細
+                # --------------------------------------------------
+
+                log_response_debug(
+
+                    response
+
+                )
+
+
+                # --------------------------------------------------
+                # テキスト抽出
+                # --------------------------------------------------
+
+                raw_text = extract_response_text(
+
+                    response
+
+                )
+
+
+                print(
+                    ">>> 抽出テキスト長:",
+                    len(
+                        raw_text
+                    )
+                )
+
+
+                # --------------------------------------------------
+                # 空レスポンス
+                #
+                # API自体は成功しているが、
+                # テキストが取れなかった場合。
+                # --------------------------------------------------
+
+                if not raw_text:
+
+                    print(
+                        ">>> Geminiレスポンスに"
+                        "テキストがありません"
+                    )
+
+
+                    # ----------------------------------------------
+                    # 最終試行なら詳細エラー
+                    # ----------------------------------------------
+
+                    if (
+
+                        attempt
+                        >=
+                        GEMINI_MAX_RETRIES
+
+                    ):
+
+                        raise RuntimeError(
+
+                            "Gemini APIはレスポンスを返しましたが、"
+                            "テキスト結果が空でした。"
+                            "レスポンス詳細はログを確認してください。"
+
+                        )
+
+
+                    print(
+
+                        ">>> 空レスポンスのため"
+                        "リトライします"
+
+                    )
+
+
+                    wait_seconds = (
+
+                        attempt
+                        *
+                        GEMINI_RETRY_WAIT_SECONDS
+
+                    )
+
+
+                    time.sleep(
+
+                        wait_seconds
+
+                    )
+
+
+                    continue
+
+
+                # --------------------------------------------------
+                # SRT整形
+                # --------------------------------------------------
+
+                srt_text = clean_srt_text(
+
+                    raw_text
+
+                )
+
+
+                print(
+                    ">>> 整形後SRT長:",
+                    len(
+                        srt_text
+                    )
+                )
+
+
+                # --------------------------------------------------
+                # SRT形式確認
+                # --------------------------------------------------
+
+                try:
+
+                    validate_srt_text(
+
+                        srt_text
+
+                    )
+
+
+                except Exception as validation_error:
+
+                    print(
+                        ">>> SRT形式チェック失敗"
+                    )
+
+                    print(
+                        ">>> ERROR:",
+                        repr(
+                            validation_error
+                        )
+                    )
+
+                    print(
+                        ">>> Gemini raw result:"
+                    )
+
+                    print(
+                        raw_text[:3000]
+                    )
+
+
+                    # SRT形式がおかしい場合も、
+                    # 一時的な生成異常を考慮して
+                    # 再試行する。
+
+                    if (
+
+                        attempt
+                        >=
+                        GEMINI_MAX_RETRIES
+
+                    ):
+
+                        raise RuntimeError(
+
+                            "Geminiから有効なSRTを取得できませんでした: "
+                            +
+                            str(
+                                validation_error
+                            )
+
+                        ) from validation_error
+
+
+                    wait_seconds = (
+
+                        attempt
+                        *
+                        GEMINI_RETRY_WAIT_SECONDS
+
+                    )
+
+
+                    print(
+
+                        ">>>",
+                        wait_seconds,
+                        "秒待って再生成します"
+
+                    )
+
+
+                    time.sleep(
+
+                        wait_seconds
+
+                    )
+
+
+                    continue
+
+
+                # --------------------------------------------------
+                # 成功
+                # --------------------------------------------------
+
+                print(
+                    "=========================================="
+                )
+
+                print(
+                    "[GEMINI] 解析完了"
+                )
+
+                print(
+                    "[GEMINI] SRT文字数:",
+                    len(
+                        srt_text
+                    )
+                )
+
+                print(
+                    "=========================================="
+                )
+
+
+                return srt_text
+
+
+            except Exception as error:
+
+                print(
+                    ">>> Gemini generate_content失敗"
+                )
+
+                print(
+                    ">>> TYPE:",
+                    type(error).__name__
+                )
+
+                print(
+                    ">>> ERROR:",
+                    repr(error)
+                )
+
+
+                # ----------------------------------------------
+                # リトライ判定
+                # ----------------------------------------------
+
+                retryable = is_retryable_gemini_error(
+
+                    error
+
+                )
+
+
+                print(
+                    ">>> リトライ対象:",
+                    retryable
+                )
+
+
+                # ----------------------------------------------
+                # 最大回数
+                # ----------------------------------------------
+
+                if (
+
+                    attempt
+                    >=
+                    GEMINI_MAX_RETRIES
+
+                ):
+
+                    print(
+                        ">>> 最大リトライ回数に到達"
+                    )
+
+                    raise
+
+
+                # ----------------------------------------------
+                # リトライ対象外
+                # ----------------------------------------------
+
+                if not retryable:
+
+                    print(
+                        ">>> 一時的エラーではないため"
+                        "リトライしません"
+                    )
+
+                    raise
+
+
+                wait_seconds = (
+
                     attempt
                     *
                     GEMINI_RETRY_WAIT_SECONDS
+
                 )
 
 
@@ -1887,35 +1932,47 @@ def transcribe_mp3(mp3_path):
 
 
                 time.sleep(
+
                     wait_seconds
+
                 )
 
 
-        if last_error is not None:
-
-            raise last_error
-
+        # ======================================================
+        # ここまで来た場合
+        # ======================================================
 
         raise RuntimeError(
-            "Gemini文字起こし処理が"
-            "完了しませんでした"
+
+            "Gemini文字起こし処理が完了しませんでした"
+
         )
 
 
     finally:
 
-        # ==================================================
-        # Gemini Files API削除
-        # ==================================================
+        # ======================================================
+        # Gemini Files APIのファイル削除
+        #
+        # アップロードしたファイルを削除できる場合は
+        # 削除する。
+        #
+        # SDK / APIの状態によって削除失敗しても、
+        # ローカルMP3処理自体は壊さない。
+        # ======================================================
 
         if uploaded_file is not None:
 
             try:
 
                 uploaded_name = getattr(
+
                     uploaded_file,
+
                     "name",
+
                     None
+
                 )
 
 
@@ -1928,7 +1985,9 @@ def transcribe_mp3(mp3_path):
 
 
                     client.files.delete(
+
                         name=uploaded_name
+
                     )
 
 
@@ -1940,17 +1999,19 @@ def transcribe_mp3(mp3_path):
             except Exception as error:
 
                 print(
-                    "[GEMINI] WARNING:"
+
+                    "[GEMINI] WARNING: "
                     "uploaded file削除失敗:",
                     repr(error)
+
                 )
 
 
-        # ==================================================
-        # 一時MP3削除
+        # ======================================================
+        # ローカル一時MP3削除
         #
         # 元MP3は削除しない。
-        # ==================================================
+        # ======================================================
 
         if os.path.exists(
             temp_mp3
@@ -1959,12 +2020,14 @@ def transcribe_mp3(mp3_path):
             try:
 
                 os.remove(
+
                     temp_mp3
+
                 )
 
 
                 print(
-                    "Gemini一時MP3削除:",
+                    "[GEMINI] 一時MP3削除:",
                     temp_mp3
                 )
 
@@ -1972,20 +2035,22 @@ def transcribe_mp3(mp3_path):
             except Exception as error:
 
                 print(
-                    "[GEMINI] WARNING:"
+
+                    "[GEMINI] WARNING: "
                     "一時MP3削除失敗:",
                     repr(error)
+
                 )
 
 
 # ==========================================================
 # SRT保存
 #
-# MP3:
-#   sample.mp3
+# MP3と同じ名前にする。
 #
-# SRT:
-#   sample.srt
+# sample.mp3
+# ↓
+# sample.srt
 #
 # ==========================================================
 
@@ -1995,41 +2060,64 @@ def save_srt(
 ):
 
     mp3_path = os.path.abspath(
-        str(mp3_path)
+
+        str(
+            mp3_path
+        )
+
     )
 
+
+    # ======================================================
+    # SRT本文確認
+    # ======================================================
 
     if not srt_text:
 
         raise ValueError(
+
             "保存するSRT本文が空です"
+
         )
 
 
     srt_text = clean_srt_text(
+
         srt_text
+
     )
 
 
     if not srt_text:
 
         raise ValueError(
+
             "整形後のSRT本文が空です"
+
         )
 
+
+    # ======================================================
+    # SRTパス
+    # ======================================================
 
     srt_path = (
 
         os.path.splitext(
+
             mp3_path
+
         )[0]
 
         +
-
         ".srt"
 
     )
 
+
+    # ======================================================
+    # 保存
+    # ======================================================
 
     print(
         "[GEMINI] SRT保存開始:"
@@ -2052,18 +2140,26 @@ def save_srt(
     ) as f:
 
         f.write(
+
             srt_text
+
         )
 
+
+    # ======================================================
+    # 保存確認
+    # ======================================================
 
     if not os.path.exists(
         srt_path
     ):
 
         raise IOError(
+
             "SRTファイルの保存に失敗しました: "
             +
             srt_path
+
         )
 
 
@@ -2072,23 +2168,29 @@ def save_srt(
     ):
 
         raise IOError(
+
             "SRT保存先がファイルではありません: "
             +
             srt_path
+
         )
 
 
     srt_size = os.path.getsize(
+
         srt_path
+
     )
 
 
     if srt_size <= 0:
 
         raise ValueError(
+
             "SRTファイルが0 bytesです: "
             +
             srt_path
+
         )
 
 
@@ -2124,7 +2226,6 @@ def save_srt(
 #
 # /gemini-transcribe
 #
-# 入口は変更しない
 # ==========================================================
 
 def register_gemini(
@@ -2148,7 +2249,9 @@ def register_gemini(
             # ==================================================
 
             data = request.get_json(
+
                 silent=True
+
             )
 
 
@@ -2156,7 +2259,8 @@ def register_gemini(
 
                 return jsonify({
 
-                    "success": False,
+                    "success":
+                        False,
 
                     "message":
                         "JSONデータがありません"
@@ -2165,11 +2269,13 @@ def register_gemini(
 
 
             # ==================================================
-            # ファイル名
+            # MP3ファイル名
             # ==================================================
 
             filename = data.get(
+
                 "file"
+
             )
 
 
@@ -2177,7 +2283,8 @@ def register_gemini(
 
                 return jsonify({
 
-                    "success": False,
+                    "success":
+                        False,
 
                     "message":
                         "MP3ファイル名がありません"
@@ -2186,7 +2293,9 @@ def register_gemini(
 
 
             filename = str(
+
                 filename
+
             ).strip()
 
 
@@ -2194,7 +2303,8 @@ def register_gemini(
 
                 return jsonify({
 
-                    "success": False,
+                    "success":
+                        False,
 
                     "message":
                         "MP3ファイル名がありません"
@@ -2203,25 +2313,32 @@ def register_gemini(
 
 
             # ==================================================
-            # basename
+            # パス区切り文字対策
+            #
+            # basenameだけを使用。
             # ==================================================
 
             filename = os.path.basename(
+
                 filename
+
             )
 
 
             # ==================================================
-            # MP3限定
+            # MP3以外禁止
             # ==================================================
 
             if not filename.lower().endswith(
+
                 ".mp3"
+
             ):
 
                 return jsonify({
 
-                    "success": False,
+                    "success":
+                        False,
 
                     "message":
                         "MP3ファイルを指定してください"
@@ -2230,11 +2347,15 @@ def register_gemini(
 
 
             # ==================================================
-            # DOWNLOAD_DIR
+            # downloads
             # ==================================================
 
             download_root = os.path.abspath(
-                str(DOWNLOAD_DIR)
+
+                str(
+                    DOWNLOAD_DIR
+                )
+
             )
 
 
@@ -2257,13 +2378,17 @@ def register_gemini(
 
             try:
 
-                common_path = os.path.commonpath([
+                common_path = os.path.commonpath(
 
-                    download_root,
+                    [
 
-                    mp3_path
+                        download_root,
 
-                ])
+                        mp3_path
+
+                    ]
+
+                )
 
             except ValueError:
 
@@ -2274,7 +2399,8 @@ def register_gemini(
 
                 return jsonify({
 
-                    "success": False,
+                    "success":
+                        False,
 
                     "message":
                         "不正なファイルパスです"
@@ -2287,12 +2413,15 @@ def register_gemini(
             # ==================================================
 
             if not os.path.exists(
+
                 mp3_path
+
             ):
 
                 return jsonify({
 
-                    "success": False,
+                    "success":
+                        False,
 
                     "message":
                         f"MP3がありません: {filename}"
@@ -2301,12 +2430,15 @@ def register_gemini(
 
 
             if not os.path.isfile(
+
                 mp3_path
+
             ):
 
                 return jsonify({
 
-                    "success": False,
+                    "success":
+                        False,
 
                     "message":
                         "指定されたパスはファイルではありません"
@@ -2314,8 +2446,14 @@ def register_gemini(
                 }), 400
 
 
+            # ==================================================
+            # MP3サイズ
+            # ==================================================
+
             mp3_size = os.path.getsize(
+
                 mp3_path
+
             )
 
 
@@ -2323,13 +2461,18 @@ def register_gemini(
 
                 return jsonify({
 
-                    "success": False,
+                    "success":
+                        False,
 
                     "message":
                         "MP3ファイルが0 bytesです"
 
                 }), 400
 
+
+            # ==================================================
+            # ログ
+            # ==================================================
 
             print(
                 "=========================================="
@@ -2365,7 +2508,9 @@ def register_gemini(
             # ==================================================
 
             srt_text = transcribe_mp3(
+
                 mp3_path
+
             )
 
 
@@ -2411,16 +2556,21 @@ def register_gemini(
 
             return jsonify({
 
-                "success": True,
+                "success":
+                    True,
 
                 "srt_file":
                     os.path.basename(
+
                         srt_path
+
                     ),
 
                 "mp3_file":
                     os.path.basename(
+
                         mp3_path
+
                     ),
 
                 "text":
@@ -2432,14 +2582,27 @@ def register_gemini(
         except FileNotFoundError as error:
 
             print(
-                "[GEMINI ROUTE] FILE NOT FOUND:",
+                "=========================================="
+            )
+
+            print(
+                "[GEMINI ROUTE] FILE NOT FOUND"
+            )
+
+            print(
+                "ERROR:",
                 str(error)
+            )
+
+            print(
+                "=========================================="
             )
 
 
             return jsonify({
 
-                "success": False,
+                "success":
+                    False,
 
                 "message":
                     str(error)
@@ -2474,7 +2637,8 @@ def register_gemini(
 
             return jsonify({
 
-                "success": False,
+                "success":
+                    False,
 
                 "message":
                     str(error)
