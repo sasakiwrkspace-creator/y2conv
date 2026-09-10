@@ -2195,17 +2195,6 @@
 
                     );
 
-
-                    const fontSettings =
-                        getFontSettings();
-
-
-                    console.log(
-                        "[SUBTITLE] FFmpeg settings:",
-                        fontSettings
-                    );
-
-
                     const embedResult =
                         await embedSubtitle(
                             mp4Filename,
