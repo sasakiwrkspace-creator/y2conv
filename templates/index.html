@@ -523,90 +523,54 @@
 
             <div class="file-select-row subtitle-action-row">
 
-
-                <input
-                    id="subtitle-mp4-input"
-                    class="hidden-file-input"
-                    type="file"
-                    accept=".mp4,video/mp4"
-                >
-
-
-                <button
-                    id="subtitle-mp4-select"
-                    class="file-select-display"
-                    type="button"
-                    aria-label="MP4ファイルを選択"
-                >
-                    ファイルが選択されていません
-                    → mp4ファイルを選択してください
-                </button>
-
-
-                <!-- MP4転送 -->
-
-                <button
-                    id="subtitle-mp4-upload"
-                    class="upload-button"
-                    type="button"
-                    disabled
-                >
-                    転送
-                </button>
-
-
-            </div>
-
-
-
-            <!-- =================================
-                 SRT
-            ================================== -->
-
-            <div class="file-select-row subtitle-action-row">
-
-
-                <input
-                    id="subtitle-srt-input"
-                    class="hidden-file-input"
-                    type="file"
-                    accept=".srt,text/plain"
-                >
-
-
-                <button
-                    id="subtitle-srt-select"
-                    class="file-select-display"
-                    type="button"
-                    aria-label="SRTファイルを選択"
-                >
-                    ファイルが選択されていません
-                    → srtファイルを選択してください
-                </button>
-
-
-                <!-- SRT転送 -->
-
-                <button
-                    id="subtitle-srt-upload"
-                    class="upload-button"
-                    type="button"
-                    disabled
-                >
-                    転送
-                </button>
-
-
-                <!-- 字幕MP4作成 -->
-
-                <button
-                    id="subtitle-mp4-create-button"
-                    class="execute-button"
-                    type="button"
-                    disabled
-                >
-                    字幕mp4を作成
-                </button>
+            <input
+                id="subtitle-mp4-input"
+                type="file"
+                accept=".mp4,video/mp4"
+            >
+            
+            <button
+                id="subtitle-mp4-select"
+                type="button"
+            >
+                MP4ファイルを選択
+            </button>
+            
+            <button
+                id="subtitle-mp4-upload-button"
+                type="button"
+            >
+                MP4転送
+            </button>
+            
+            
+            <input
+                id="subtitle-srt-input"
+                type="file"
+                accept=".srt"
+            >
+            
+            <button
+                id="subtitle-srt-select"
+                type="button"
+            >
+                SRTファイルを選択
+            </button>
+            
+            <button
+                id="subtitle-srt-upload-button"
+                type="button"
+            >
+                SRT転送
+            </button>
+            
+            
+            <button
+                id="subtitle-mp4-create-button"
+                type="button"
+            >
+                字幕MP4作成
+            </button>
 
 
             </div>
