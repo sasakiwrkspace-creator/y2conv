@@ -33,17 +33,19 @@ import shutil
 import tempfile
 import time
 
-import google.genai
 
 from dotenv import load_dotenv
+
 
 from flask import (
     request,
     jsonify
 )
 
+
 from google import genai
 from google.genai import types
+
 
 from config import DOWNLOAD_DIR
 
@@ -81,41 +83,13 @@ client = genai.Client(
 #
 # Renderの環境変数 GEMINI_MODEL があれば優先。
 #
-# デフォルト:
-# gemini-3.5-transcribe
+# 重要:
+# デフォルトを Gemini 3.5 Transcribe に変更。
 # ==========================================================
 
 GEMINI_MODEL = os.getenv(
     "GEMINI_MODEL",
     "gemini-3.5-transcribe"
-)
-
-
-print(
-    "=========================================="
-)
-
-print(
-    "[GEMINI] ENVIRONMENT"
-)
-
-print(
-    "[GEMINI] GEMINI_MODEL:",
-    GEMINI_MODEL
-)
-
-print(
-    "[GEMINI] google-genai version:",
-    google.genai.__version__
-)
-
-print(
-    "[GEMINI] Python:",
-    os.sys.version
-)
-
-print(
-    "=========================================="
 )
 
 
@@ -172,6 +146,10 @@ MIN_SRT_TEXT_LENGTH = int(
 
 
 # 1字幕あたりの最大文字数
+#
+# 日本語では、おおむね30～45文字程度を目安にする。
+# ==========================================================
+
 SRT_MAX_CHARS = int(
     os.getenv(
         "SRT_MAX_CHARS",
@@ -195,34 +173,6 @@ SRT_MIN_DURATION = float(
         "SRT_MIN_DURATION",
         "0.5"
     )
-)
-
-
-# ==========================================================
-# 起動時ログ
-#
-# 注意:
-# uploaded_file は transcribe_mp3() の中で生成される
-# ローカル変数なので、ここでは絶対に参照しない。
-# ==========================================================
-
-print(
-    "[GEMINI] API: client.models.generate_content"
-)
-
-print(
-    "[GEMINI] model:",
-    GEMINI_MODEL
-)
-
-print(
-    "[GEMINI] word_timestamp:",
-    True
-)
-
-print(
-    "[GEMINI] language_codes:",
-    ["ja-JP"]
 )
 
 
@@ -417,8 +367,7 @@ def log_response_debug(response):
                         ):
 
                             print(
-                                f"candidate[{index}] "
-                                f"part[{part_index}] type:",
+                                f"candidate[{index}] part[{part_index}] type:",
                                 type(part).__name__
                             )
 
@@ -433,8 +382,7 @@ def log_response_debug(response):
                             if audio_transcription:
 
                                 print(
-                                    f"candidate[{index}] "
-                                    f"part[{part_index}] "
+                                    f"candidate[{index}] part[{part_index}] "
                                     "audio_transcription:",
                                     audio_transcription
                                 )
@@ -455,6 +403,12 @@ def log_response_debug(response):
 
 # ==========================================================
 # 秒へ変換
+#
+# Gemini:
+#   "0.100s"
+#   "1.250s"
+#
+# をfloat秒へ変換。
 # ==========================================================
 
 def parse_timestamp_seconds(value):
@@ -476,6 +430,7 @@ def parse_timestamp_seconds(value):
 
     # ------------------------------------------------------
     # 例:
+    #
     # 0.100s
     # 1.250s
     # ------------------------------------------------------
@@ -495,7 +450,7 @@ def parse_timestamp_seconds(value):
 
 
     # ------------------------------------------------------
-    # 数値だけにも対応
+    # 念のため数値だけにも対応
     # ------------------------------------------------------
 
     try:
@@ -511,6 +466,12 @@ def parse_timestamp_seconds(value):
 
 # ==========================================================
 # SRT timestamp
+#
+# seconds:
+#   0.0
+#
+# →
+#   00:00:00,000
 # ==========================================================
 
 def seconds_to_srt_timestamp(seconds):
@@ -569,6 +530,22 @@ def seconds_to_srt_timestamp(seconds):
 
 # ==========================================================
 # Geminiレスポンスから単語タイムスタンプを取得
+#
+# 期待する構造:
+#
+# candidates
+#   ↓
+# content.parts
+#   ↓
+# audio_transcription
+#   ↓
+# words
+#
+# word:
+#   word
+#   start_offset
+#   end_offset
+#
 # ==========================================================
 
 def extract_timestamped_words(response):
@@ -734,6 +711,16 @@ def extract_timestamped_words(response):
 
 # ==========================================================
 # 単語一覧からSRT生成
+#
+# 日本語を中心に、
+#
+# - 最大文字数
+# - 最大表示時間
+# - 句読点
+# - 無音
+#
+# を利用して字幕をまとめる。
+#
 # ==========================================================
 
 def words_to_srt(words):
@@ -823,7 +810,9 @@ def words_to_srt(words):
         current_end = None
 
 
-    for item in words:
+    for index, item in enumerate(
+        words
+    ):
 
         word = str(
             item.get(
@@ -868,7 +857,7 @@ def words_to_srt(words):
 
 
         # --------------------------------------------------
-        # 現在字幕に追加した場合
+        # 現在字幕に追加した場合の長さ
         # --------------------------------------------------
 
         candidate_text = (
@@ -888,7 +877,7 @@ def words_to_srt(words):
 
 
         # --------------------------------------------------
-        # 句読点
+        # 句読点で字幕を切る
         # --------------------------------------------------
 
         punctuation_break = bool(
@@ -903,6 +892,9 @@ def words_to_srt(words):
 
         # --------------------------------------------------
         # 無音区間
+        #
+        # 前の単語終了から次の単語開始まで
+        # 1秒以上空いていたら区切る。
         # --------------------------------------------------
 
         silence_break = False
@@ -946,6 +938,8 @@ def words_to_srt(words):
 
         # --------------------------------------------------
         # 追加前に区切る
+        #
+        # ただし現在字幕が空なら追加する。
         # --------------------------------------------------
 
         if current_words and (
@@ -972,7 +966,7 @@ def words_to_srt(words):
 
 
         # --------------------------------------------------
-        # 句読点後は確定
+        # 句読点後は字幕を確定
         # --------------------------------------------------
 
         if punctuation_break:
@@ -1555,20 +1549,6 @@ def transcribe_mp3(mp3_path):
                 )
 
 
-                print(
-                    ">>> file state:",
-                    getattr(
-                        getattr(
-                            uploaded_file,
-                            "state",
-                            None
-                        ),
-                        "name",
-                        None
-                    )
-                )
-
-
                 upload_error = None
 
                 break
@@ -1642,47 +1622,17 @@ def transcribe_mp3(mp3_path):
         )
 
 
-        print(
-            "[GEMINI] uploaded_file ACTIVE"
-        )
-
-
-        print(
-            "[GEMINI] uploaded_file:",
-            getattr(
-                uploaded_file,
-                "name",
-                None
-            )
-        )
-
-
-        print(
-            "[GEMINI] uploaded_file_state:",
-            getattr(
-                getattr(
-                    uploaded_file,
-                    "state",
-                    None
-                ),
-                "name",
-                None
-            )
-        )
-
-
-        print(
-            "[GEMINI] mime_type:",
-            getattr(
-                uploaded_file,
-                "mime_type",
-                None
-            )
-        )
-
-
         # ==================================================
         # Gemini Transcribe
+        #
+        # Google公式仕様:
+        #
+        # audio_transcription_config=
+        #     AudioTranscriptionConfig(
+        #         language_codes=["ja-JP"],
+        #         word_timestamp=True,
+        #     )
+        #
         # ==================================================
 
         last_error = None
@@ -1776,6 +1726,10 @@ def transcribe_mp3(mp3_path):
 
 
                 if not words:
+
+                    # --------------------------------------------------
+                    # timestampが返らなかった場合の診断用
+                    # --------------------------------------------------
 
                     response_text = getattr(
                         response,
@@ -2032,6 +1986,7 @@ def transcribe_mp3(mp3_path):
 #
 # SRT:
 #   sample.srt
+#
 # ==========================================================
 
 def save_srt(
