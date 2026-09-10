@@ -756,6 +756,14 @@
         margin-top: 16px;
     }
 
+    .subtitle-font-preview-text {
+        min-height: 70px;
+
+        padding: 14px 10px;
+
+        font-size: 22px;
+    }
+
 }
 
 
