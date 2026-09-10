@@ -887,14 +887,29 @@ def validate_input_file(
 def make_output_path(
     mp4_path
 ):
+    """
+    字幕焼き込み後の出力パスを生成する。
+
+    出力ファイルが既に存在する場合も、
+    _2、_3などの別名は作成せず、
+    常に同じパスを返す。
+
+    実際の上書きは embed_subtitle() 内で
+    一時ファイルを生成した後、
+    os.replace() によって安全に行う。
+    """
 
     log_start(
         "出力ファイル名生成開始"
     )
 
-    mp4_path = Path(
-        mp4_path
-    ).resolve()
+    mp4_path = (
+        Path(
+            mp4_path
+        )
+        .expanduser()
+        .resolve()
+    )
 
     stem = mp4_path.stem
 
@@ -904,35 +919,35 @@ def make_output_path(
         base_suffix
     ):
 
-        candidate = (
-            mp4_path.parent
-            /
-            f"{stem}_2.mp4"
+        base_stem = stem
+
+    else:
+
+        base_stem = (
+            f"{stem}{base_suffix}"
+        )
+
+    candidate = (
+        mp4_path.parent
+        /
+        f"{base_stem}.mp4"
+    )
+
+    if candidate.exists():
+
+        log(
+            f"既存出力ファイルあり: {candidate}"
+        )
+
+        log(
+            "既存ファイルを上書きします。"
         )
 
     else:
 
-        candidate = (
-            mp4_path.parent
-            /
-            f"{stem}{base_suffix}.mp4"
-        )
-
-    counter = 2
-
-    while candidate.exists():
-
         log(
-            f"出力候補が既に存在: {candidate}"
+            f"新規出力ファイル: {candidate}"
         )
-
-        candidate = (
-            mp4_path.parent
-            /
-            f"{stem}_{counter}.mp4"
-        )
-
-        counter += 1
 
     log(
         f"決定出力パス: {candidate}"
