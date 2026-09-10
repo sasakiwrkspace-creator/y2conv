@@ -15,40 +15,106 @@
 #     ↓
 # test_embed_fonts.mp4
 #
+#
+# 重要:
+#
+#   /app/downloads/fonts
+#   が存在しない場合でもエラーにしない。
+#
+#   fontsdirが存在:
+#       ↓
+#       fontsdirを使用
+#
+#   fontsdirが存在しない:
+#       ↓
+#       システムフォント検索を使用
+#
+#
+# FFmpeg subtitles filter対策:
+#
+#   PythonからSRTが存在していても、
+#   libass/subtitles filter側から
+#   /app/downloads/*.srt を開けない環境がある。
+#
+#   そのためFFmpeg実行時にはSRTを
+#   一時ディレクトリへコピーして使用する。
+#
 # ==========================================================
 
+
 from pathlib import Path
+import os
 import shutil
 import subprocess
+import tempfile
+import uuid
 
 
 # ==========================================================
 # パス
 # ==========================================================
 
-DOWNLOAD_DIR = Path("/app/downloads")
-
-DEFAULT_INPUT_MP4 = DOWNLOAD_DIR / "test.mp4"
-DEFAULT_INPUT_SRT = DOWNLOAD_DIR / "test.srt"
-DEFAULT_OUTPUT_MP4 = DOWNLOAD_DIR / "test_embed_fonts.mp4"
-DEFAULT_FONTS_DIR = DOWNLOAD_DIR / "fonts"
+DOWNLOAD_DIR = Path(
+    "/app/downloads"
+)
 
 
-# ==========================================================
-# デフォルト値
-# ==========================================================
+DEFAULT_INPUT_MP4 = (
+    DOWNLOAD_DIR /
+    "test.mp4"
+)
 
-DEFAULT_FONT = "Noto Sans CJK JP"
-DEFAULT_TEXT_COLOR = "白"
-DEFAULT_OUTLINE_COLOR = "青"
-DEFAULT_OUTLINE_WIDTH = 5
+
+DEFAULT_INPUT_SRT = (
+    DOWNLOAD_DIR /
+    "test.srt"
+)
+
+
+DEFAULT_OUTPUT_MP4 = (
+    DOWNLOAD_DIR /
+    "test_embed_fonts.mp4"
+)
+
+
+DEFAULT_FONTS_DIR = (
+    DOWNLOAD_DIR /
+    "fonts"
+)
 
 
 # ==========================================================
 # FFmpeg
 # ==========================================================
 
-DEFAULT_FFMPEG = "/usr/bin/ffmpeg"
+FFMPEG_CANDIDATES = (
+    "/usr/bin/ffmpeg",
+    "/usr/local/bin/ffmpeg",
+)
+
+
+# ==========================================================
+# デフォルト値
+#
+# subtitle_font.pyと合わせる。
+# ==========================================================
+
+DEFAULT_FONT = (
+    "Noto Sans CJK JP"
+)
+
+
+DEFAULT_TEXT_COLOR = (
+    "白"
+)
+
+
+DEFAULT_OUTLINE_COLOR = (
+    "青"
+)
+
+
+DEFAULT_OUTLINE_WIDTH = 5
 
 
 # ==========================================================
@@ -64,123 +130,70 @@ def _log(message):
 
 
 # ==========================================================
-# パスを絶対パスへ
+# FFmpeg検索
 # ==========================================================
 
-def _absolute_path(path):
-    return Path(path).expanduser().resolve()
+def _find_ffmpeg():
 
-
-# ==========================================================
-# FFmpeg filter用パスエスケープ
-#
-# 重要:
-#
-# subprocess.run() は shell=False なので、
-# shell用の quoting はしない。
-#
-# ここで必要なのは FFmpeg filtergraph 用の
-# エスケープだけ。
-#
-# Linux:
-#   /app/downloads/test.srt
-#
-# Windows:
-#   C:\xxx\test.srt
-#
-# FFmpeg filtergraphでは以下をエスケープする。
-#
-#   \
-#   :
-#   '
-#   [
-#   ]
-#   ,
-#   ;
-#
-# ==========================================================
-
-def _escape_filter_path(path):
-
-    value = str(
-        _absolute_path(path)
+    _log(
+        "FFmpeg検索 START"
     )
 
-    # バックスラッシュを最初に処理
-    value = value.replace(
-        "\\",
-        "\\\\"
+    # ------------------------------------------------------
+    # shutil.which()
+    # ------------------------------------------------------
+
+    which_path = shutil.which(
+        "ffmpeg"
     )
 
-    # FFmpeg filtergraph の特殊文字
-    value = value.replace(
-        ":",
-        "\\:"
+    if which_path:
+
+        ffmpeg_path = Path(
+            which_path
+        )
+
+        if (
+            ffmpeg_path.exists()
+            and
+            ffmpeg_path.is_file()
+        ):
+
+            _log(
+                f"FFmpeg path: {ffmpeg_path}"
+            )
+
+            return str(
+                ffmpeg_path
+            )
+
+    # ------------------------------------------------------
+    # 固定パス
+    # ------------------------------------------------------
+
+    for candidate in FFMPEG_CANDIDATES:
+
+        path = Path(
+            candidate
+        )
+
+        if (
+            path.exists()
+            and
+            path.is_file()
+        ):
+
+            _log(
+                f"FFmpeg path: {path}"
+            )
+
+            return str(
+                path
+            )
+
+    raise FileNotFoundError(
+        "FFmpegが見つかりません"
     )
-
-    value = value.replace(
-        "'",
-        "\\'"
-    )
-
-    value = value.replace(
-        "[",
-        "\\["
-    )
-
-    value = value.replace(
-        "]",
-        "\\]"
-    )
-
-    value = value.replace(
-        ",",
-        "\\,"
-    )
-
-    value = value.replace(
-        ";",
-        "\\;"
-    )
-
-    return value
-
-
-# ==========================================================
-# force_style用エスケープ
-#
-# フォント名などにカンマや特殊文字が入っても
-# filtergraphを壊しにくくする。
-# ==========================================================
-
-def _escape_style_value(value):
-
-    if value is None:
-        return ""
-
-    value = str(value)
-
-    value = value.replace(
-        "\\",
-        "\\\\"
-    )
-
-    value = value.replace(
-        "'",
-        "\\'"
-    )
-
-    value = value.replace(
-        ",",
-        "\\,"
-    )
-
-    value = value.replace(
-        ":",
-        "\\:"
-    )
-
-    return value
 
 
 # ==========================================================
@@ -220,6 +233,10 @@ def _get_font_settings(
         "subtitle_font.py import OK"
     )
 
+    # ------------------------------------------------------
+    # 標準設定
+    # ------------------------------------------------------
+
     settings = select_subtitle_font(
 
         preset_name="標準",
@@ -247,6 +264,7 @@ def _get_font_settings(
             if outline_width is not None
             else DEFAULT_OUTLINE_WIDTH
         )
+
     )
 
     _log(
@@ -257,60 +275,369 @@ def _get_font_settings(
 
 
 # ==========================================================
-# ASSカラー取得
+# SRT UTF-8確認
 # ==========================================================
 
-def _get_colors(settings):
+def _check_srt_utf8(
+    srt_file
+):
+
+    _log(
+        "SRT UTF-8確認 START"
+    )
+
+    try:
+
+        data = srt_file.read_bytes()
+
+        data.decode(
+            "utf-8-sig"
+        )
+
+    except UnicodeDecodeError as error:
+
+        _log(
+            "SRT UTF-8確認 FAILED"
+        )
+
+        raise RuntimeError(
+            "SRTがUTF-8として読み込めません: "
+            f"{error}"
+        )
+
+    _log(
+        "SRT UTF-8確認 OK"
+    )
+
+
+# ==========================================================
+# FFmpeg用SRT作成
+#
+# /app/downloads を直接libassに読ませず、
+# /tmp配下へコピーする。
+# ==========================================================
+
+def _prepare_ffmpeg_srt(
+    source_srt
+):
+
+    _log(
+        "FFmpeg用SRT準備 START"
+    )
+
+    source_srt = Path(
+        source_srt
+    )
+
+    if not source_srt.exists():
+
+        raise FileNotFoundError(
+            "元SRTが存在しません: "
+            f"{source_srt}"
+        )
+
+    if not source_srt.is_file():
+
+        raise FileNotFoundError(
+            "元SRTがファイルではありません: "
+            f"{source_srt}"
+        )
+
+    # ------------------------------------------------------
+    # UTF-8として読み込み、
+    # UTF-8 BOMなしで一時SRTを作成
+    # ------------------------------------------------------
+
+    try:
+
+        text = source_srt.read_text(
+            encoding="utf-8-sig"
+        )
+
+    except UnicodeDecodeError as error:
+
+        raise RuntimeError(
+            "SRTをUTF-8として読み込めません: "
+            f"{error}"
+        )
+
+    # ------------------------------------------------------
+    # /tmp/ffmpeg_subtitles
+    # ------------------------------------------------------
+
+    temp_dir = Path(
+        tempfile.mkdtemp(
+            prefix="subtitle_test_"
+        )
+    )
+
+    # ------------------------------------------------------
+    # ASCIIだけのファイル名にする。
+    #
+    # 日本語・空白・特殊文字を避ける。
+    # ------------------------------------------------------
+
+    temp_srt = (
+        temp_dir /
+        "subtitle.srt"
+    )
+
+    temp_srt.write_text(
+        text,
+        encoding="utf-8",
+        newline=""
+    )
+
+    # ------------------------------------------------------
+    # 確認
+    # ------------------------------------------------------
+
+    if not temp_srt.exists():
+
+        raise RuntimeError(
+            "FFmpeg用一時SRTの作成に失敗しました: "
+            f"{temp_srt}"
+        )
+
+    if not temp_srt.is_file():
+
+        raise RuntimeError(
+            "FFmpeg用SRTがファイルではありません: "
+            f"{temp_srt}"
+        )
+
+    size = (
+        temp_srt.stat().st_size
+    )
+
+    _log(
+        f"元SRT: {source_srt}"
+    )
+
+    _log(
+        f"FFmpeg用SRT: {temp_srt}"
+    )
+
+    _log(
+        "FFmpeg用SRT作成 OK"
+    )
+
+    _log(
+        f"FFmpeg用SRTサイズ: {size} bytes"
+    )
+
+    return temp_dir, temp_srt
+
+
+# ==========================================================
+# FFmpeg filter用エスケープ
+#
+# FFmpeg filtergraph用。
+#
+# Linux絶対パス:
+#
+# /tmp/abc/subtitle.srt
+#
+# はそのまま使用できるようにする。
+# ==========================================================
+
+def _escape_filter_path(
+    path
+):
+
+    value = str(
+        Path(path).resolve()
+    )
+
+    # ------------------------------------------------------
+    # バックスラッシュ
+    # ------------------------------------------------------
+
+    value = value.replace(
+        "\\",
+        "\\\\"
+    )
+
+    # ------------------------------------------------------
+    # filtergraphで特殊な : をエスケープ
+    # ------------------------------------------------------
+
+    value = value.replace(
+        ":",
+        "\\:"
+    )
+
+    # ------------------------------------------------------
+    # カンマ
+    # ------------------------------------------------------
+
+    value = value.replace(
+        ",",
+        "\\,"
+    )
+
+    # ------------------------------------------------------
+    # セミコロン
+    # ------------------------------------------------------
+
+    value = value.replace(
+        ";",
+        "\\;"
+    )
+
+    # ------------------------------------------------------
+    # シングルクォート
+    # ------------------------------------------------------
+
+    value = value.replace(
+        "'",
+        "\\'"
+    )
+
+    # ------------------------------------------------------
+    # [ ]
+    # ------------------------------------------------------
+
+    value = value.replace(
+        "[",
+        "\\["
+    )
+
+    value = value.replace(
+        "]",
+        "\\]"
+    )
+
+    return value
+
+
+# ==========================================================
+# ASSスタイル値エスケープ
+# ==========================================================
+
+def _escape_style_value(
+    value
+):
+
+    value = str(
+        value
+        if value is not None
+        else ""
+    )
+
+    # ------------------------------------------------------
+    # force_styleの区切りに使われる文字を処理
+    # ------------------------------------------------------
+
+    value = value.replace(
+        "\\",
+        "\\\\"
+    )
+
+    value = value.replace(
+        "'",
+        "\\'"
+    )
+
+    value = value.replace(
+        ",",
+        "\\,"
+    )
+
+    return value
+
+
+# ==========================================================
+# FFmpeg字幕filter生成
+# ==========================================================
+
+def _build_subtitles_filter(
+    srt_path,
+    fonts_dir,
+    settings
+):
+
+    _log(
+        "字幕filter生成 START"
+    )
+
+    # ------------------------------------------------------
+    # 絶対パス化
+    # ------------------------------------------------------
+
+    srt_path = Path(
+        srt_path
+    ).resolve()
+
+    _log(
+        f"字幕filter用SRT絶対パス: {srt_path}"
+    )
+
+    escaped_srt = _escape_filter_path(
+        srt_path
+    )
+
+    _log(
+        f"字幕filter用SRTエスケープ後: {escaped_srt}"
+    )
+
+    # ------------------------------------------------------
+    # フォント
+    # ------------------------------------------------------
+
+    font_name = (
+        settings.get(
+            "font"
+        )
+        or
+        DEFAULT_FONT
+    )
+
+    font_name = _escape_style_value(
+        font_name
+    )
+
+    # ------------------------------------------------------
+    # 色
+    # ------------------------------------------------------
 
     from subtitle_font import (
         get_subtitle_color
     )
 
-    text_color_name = (
-        settings.get(
-            "text_color",
-            DEFAULT_TEXT_COLOR
-        )
-    )
-
-    outline_color_name = (
-        settings.get(
-            "outline_color",
-            DEFAULT_OUTLINE_COLOR
-        )
-    )
-
     text_color_info = (
         get_subtitle_color(
-            text_color_name
+            settings.get(
+                "text_color",
+                DEFAULT_TEXT_COLOR
+            )
         )
     )
 
     outline_color_info = (
         get_subtitle_color(
-            outline_color_name
+            settings.get(
+                "outline_color",
+                DEFAULT_OUTLINE_COLOR
+            )
         )
     )
 
     text_color_ass = (
-        text_color_info["ass"]
+        text_color_info[
+            "ass"
+        ]
     )
 
     outline_color_ass = (
-        outline_color_info["ass"]
+        outline_color_info[
+            "ass"
+        ]
     )
 
-    return (
-        text_color_ass,
-        outline_color_ass
-    )
-
-
-# ==========================================================
-# 縁太さ
-# ==========================================================
-
-def _get_outline_width(settings):
+    # ------------------------------------------------------
+    # 縁太さ
+    # ------------------------------------------------------
 
     try:
 
@@ -338,83 +665,12 @@ def _get_outline_width(settings):
         )
     )
 
-    return outline_width
-
-
-# ==========================================================
-# FFmpeg subtitles filter生成
-#
-# ★重要
-#
-# 以下の形式を使用する。
-#
-# subtitles='/app/downloads/test.srt'
-#
-# filename= を使わない。
-#
-# ==========================================================
-
-def _build_subtitles_filter(
-    srt_path,
-    fonts_dir,
-    settings
-):
-
-    _log(
-        "字幕filter生成 START"
-    )
-
-    # ======================================================
-    # SRT絶対パス
-    # ======================================================
-
-    srt_absolute = _absolute_path(
-        srt_path
-    )
-
-    _log(
-        f"字幕filter用SRT絶対パス: {srt_absolute}"
-    )
-
-    escaped_srt = _escape_filter_path(
-        srt_absolute
-    )
-
-    _log(
-        f"字幕filter用SRTエスケープ後: {escaped_srt}"
-    )
-
-    # ======================================================
-    # フォント
-    # ======================================================
-
-    font_name = (
-        settings.get(
-            "font"
-        )
-        or
-        DEFAULT_FONT
-    )
+    # ------------------------------------------------------
+    # ログ
+    # ------------------------------------------------------
 
     _log(
         f"FontName: {font_name}"
-    )
-
-    escaped_font_name = (
-        _escape_style_value(
-            font_name
-        )
-    )
-
-    # ======================================================
-    # 色
-    # ======================================================
-
-    (
-        text_color_ass,
-        outline_color_ass
-    ) = _get_colors(
-        settings
     )
 
     _log(
@@ -425,58 +681,49 @@ def _build_subtitles_filter(
         f"OutlineColour: {outline_color_ass}"
     )
 
-    # ======================================================
-    # 縁太さ
-    # ======================================================
-
-    outline_width = _get_outline_width(
-        settings
-    )
-
     _log(
         f"Outline: {outline_width}"
     )
 
-    # ======================================================
+    # ------------------------------------------------------
     # force_style
-    #
-    # ここでは force_style 全体を
-    # シングルクォートで囲む。
-    # ======================================================
+    # ------------------------------------------------------
 
     force_style = (
-        f"FontName={escaped_font_name},"
+        f"FontName={font_name},"
         f"PrimaryColour={text_color_ass},"
         f"OutlineColour={outline_color_ass},"
         f"Outline={outline_width}"
     )
 
-    # ======================================================
+    # ------------------------------------------------------
     # subtitles filter
     #
-    # ★ filename= は使わない
+    # 重要:
     #
-    # ★ SRTパスを直接指定
-    # ======================================================
+    # filename= を使わず、
+    # subtitles='PATH'
+    # とする。
+    # ------------------------------------------------------
 
     filter_value = (
         "subtitles="
         f"'{escaped_srt}'"
     )
 
-    # ======================================================
+    # ------------------------------------------------------
     # fontsdir
-    # ======================================================
+    # ------------------------------------------------------
 
     if fonts_dir is not None:
 
-        fonts_absolute = _absolute_path(
+        fonts_dir = Path(
             fonts_dir
-        )
+        ).resolve()
 
         escaped_fonts_dir = (
             _escape_filter_path(
-                fonts_absolute
+                fonts_dir
             )
         )
 
@@ -484,9 +731,9 @@ def _build_subtitles_filter(
             f":fontsdir='{escaped_fonts_dir}'"
         )
 
-    # ======================================================
+    # ------------------------------------------------------
     # force_style
-    # ======================================================
+    # ------------------------------------------------------
 
     filter_value += (
         f":force_style='{force_style}'"
@@ -504,145 +751,61 @@ def _build_subtitles_filter(
 
 
 # ==========================================================
-# FFmpeg存在確認
+# FFmpeg実行前SRT確認
 # ==========================================================
 
-def _find_ffmpeg():
-
-    _log(
-        "FFmpeg検索 START"
-    )
-
-    ffmpeg_path = shutil.which(
-        "ffmpeg"
-    )
-
-    if not ffmpeg_path:
-
-        if Path(DEFAULT_FFMPEG).exists():
-
-            ffmpeg_path = DEFAULT_FFMPEG
-
-    if not ffmpeg_path:
-
-        raise FileNotFoundError(
-            "FFmpegが見つかりません"
-        )
-
-    _log(
-        f"FFmpeg path: {ffmpeg_path}"
-    )
-
-    return ffmpeg_path
-
-
-# ==========================================================
-# SRT UTF-8確認
-#
-# FFmpeg/libassに渡すSRTはUTF-8として読めることを
-# 事前に確認する。
-# ==========================================================
-
-def _verify_srt_utf8(srt_file):
-
-    _log(
-        "SRT UTF-8確認 START"
-    )
-
-    try:
-
-        data = srt_file.read_bytes()
-
-        data.decode(
-            "utf-8-sig"
-        )
-
-    except UnicodeDecodeError as error:
-
-        _log(
-            "SRT UTF-8確認 FAILED"
-        )
-
-        raise RuntimeError(
-            "SRTがUTF-8として読み込めません: "
-            f"{srt_file}"
-        ) from error
-
-    _log(
-        "SRT UTF-8確認 OK"
-    )
-
-
-# ==========================================================
-# FFmpeg実行
-# ==========================================================
-
-def _run_ffmpeg(
-    command,
-    timeout=120
+def _verify_ffmpeg_srt(
+    srt_file
 ):
 
     _log(
-        "FFmpeg起動【1回だけ】"
+        "FFmpeg実行直前SRT確認 START"
+    )
+
+    srt_file = Path(
+        srt_file
+    ).resolve()
+
+    _log(
+        f"FFmpeg実行直前SRT: {srt_file}"
+    )
+
+    exists = (
+        srt_file.exists()
     )
 
     _log(
-        "subprocess.run BEFORE"
+        f"FFmpeg実行直前SRT存在: {exists}"
     )
 
-    try:
+    if not exists:
 
-        result = subprocess.run(
-
-            command,
-
-            stdout=subprocess.PIPE,
-
-            stderr=subprocess.PIPE,
-
-            text=True,
-
-            encoding="utf-8",
-
-            errors="replace",
-
-            timeout=timeout,
-
-            shell=False
-
+        raise FileNotFoundError(
+            "FFmpeg用SRTが存在しません: "
+            f"{srt_file}"
         )
 
-    except subprocess.TimeoutExpired as error:
+    if not srt_file.is_file():
 
-        _log(
-            "FFmpeg TIMEOUT"
+        raise FileNotFoundError(
+            "FFmpeg用SRTがファイルではありません: "
+            f"{srt_file}"
         )
+
+    size = (
+        srt_file.stat().st_size
+    )
+
+    _log(
+        f"FFmpeg実行直前SRTサイズ: {size} bytes"
+    )
+
+    if size <= 0:
 
         raise RuntimeError(
-            f"FFmpegが{timeout}秒以内に終了しませんでした"
-        ) from error
-
-    except Exception as error:
-
-        _log(
-            "subprocess.run ERROR"
+            "FFmpeg用SRTが空です: "
+            f"{srt_file}"
         )
-
-        _log(
-            f"{type(error).__name__}: {error}"
-        )
-
-        raise
-
-    _log(
-        "FFmpeg終了"
-    )
-
-    _log(
-        f"returncode: {result.returncode}"
-    )
-
-    return result
 
 
 # ==========================================================
@@ -679,36 +842,72 @@ def run_font_test(
     # パス
     # ======================================================
 
-    input_file = (
-        _absolute_path(
+    if input_path is None:
+
+        input_file = (
+            DEFAULT_INPUT_MP4
+        )
+
+    else:
+
+        input_file = Path(
             input_path
         )
-        if input_path is not None
-        else DEFAULT_INPUT_MP4
+
+    if output_path is None:
+
+        output_file = (
+            DEFAULT_OUTPUT_MP4
+        )
+
+    else:
+
+        output_file = Path(
+            output_path
+        )
+
+    if srt_path is None:
+
+        srt_file = (
+            DEFAULT_INPUT_SRT
+        )
+
+    else:
+
+        srt_file = Path(
+            srt_path
+        )
+
+    if fonts_dir is None:
+
+        fonts_directory = (
+            DEFAULT_FONTS_DIR
+        )
+
+    else:
+
+        fonts_directory = Path(
+            fonts_dir
+        )
+
+    # ======================================================
+    # 絶対パス化
+    # ======================================================
+
+    input_file = (
+        input_file.resolve()
     )
 
     output_file = (
-        _absolute_path(
-            output_path
-        )
-        if output_path is not None
-        else DEFAULT_OUTPUT_MP4
+        output_file.resolve()
     )
 
     srt_file = (
-        _absolute_path(
-            srt_path
-        )
-        if srt_path is not None
-        else DEFAULT_INPUT_SRT
+        srt_file.resolve()
     )
 
     fonts_directory = (
-        _absolute_path(
-            fonts_dir
-        )
-        if fonts_dir is not None
-        else DEFAULT_FONTS_DIR
+        fonts_directory.resolve()
     )
 
     # ======================================================
@@ -761,6 +960,13 @@ def run_font_test(
         input_file.stat().st_size
     )
 
+    if input_size <= 0:
+
+        raise RuntimeError(
+            "入力MP4が空です: "
+            f"{input_file}"
+        )
+
     _log(
         "MP4確認 OK"
     )
@@ -799,6 +1005,13 @@ def run_font_test(
         srt_file.stat().st_size
     )
 
+    if srt_size <= 0:
+
+        raise RuntimeError(
+            "SRTが空です: "
+            f"{srt_file}"
+        )
+
     _log(
         "SRT確認 OK"
     )
@@ -811,7 +1024,7 @@ def run_font_test(
     # SRT UTF-8確認
     # ======================================================
 
-    _verify_srt_utf8(
+    _check_srt_utf8(
         srt_file
     )
 
@@ -825,23 +1038,26 @@ def run_font_test(
     )
 
     # ======================================================
-    # 出力先が入力と同じ場合は拒否
+    # 出力ディレクトリ書き込み確認
     # ======================================================
 
-    try:
+    _log(
+        "出力ディレクトリ確認 START"
+    )
 
-        if input_file.samefile(
-            output_file
-        ):
+    if not os.access(
+        output_file.parent,
+        os.W_OK
+    ):
 
-            raise RuntimeError(
-                "入力MP4と出力MP4が同じファイルです"
-            )
+        raise PermissionError(
+            "出力ディレクトリに書き込み権限がありません: "
+            f"{output_file.parent}"
+        )
 
-    except FileNotFoundError:
-
-        # outputがまだ存在しない場合は問題なし
-        pass
+    _log(
+        "出力ディレクトリ確認 OK"
+    )
 
     # ======================================================
     # 既存出力削除
@@ -893,7 +1109,8 @@ def run_font_test(
     else:
 
         _log(
-            "WARNING: フォントディレクトリが存在しません"
+            "WARNING: フォントディレクトリが"
+            "存在しません"
         )
 
         _log(
@@ -909,7 +1126,7 @@ def run_font_test(
         )
 
     # ======================================================
-    # subtitle_font.py設定
+    # 字幕フォント設定
     # ======================================================
 
     settings = _get_font_settings(
@@ -925,7 +1142,7 @@ def run_font_test(
     )
 
     # ======================================================
-    # fallback mode
+    # フォントフォールバックログ
     # ======================================================
 
     if not use_fonts_dir:
@@ -961,252 +1178,360 @@ def run_font_test(
     ffmpeg_path = _find_ffmpeg()
 
     # ======================================================
-    # FFmpeg実行直前SRT確認
+    # FFmpeg用SRT準備
     #
-    # ★一時SRTは使用しない
-    # ★元の test.srt を直接使用
+    # ここが重要。
+    #
+    # /app/downloads/test.srt
+    #
+    # を直接libassに渡さない。
+    #
+    # /tmp/subtitle_test_xxx/subtitle.srt
+    #
+    # を使用する。
     # ======================================================
 
-    _log(
-        "FFmpeg実行直前SRT確認 START"
-    )
+    temp_dir = None
+    ffmpeg_srt = None
 
-    _log(
-        f"FFmpeg実行直前SRT: {srt_file}"
-    )
+    try:
 
-    _log(
-        f"FFmpeg実行直前SRT存在: {srt_file.exists()}"
-    )
-
-    if not srt_file.exists():
-
-        raise FileNotFoundError(
-            "FFmpeg実行直前にSRTが存在しません: "
-            f"{srt_file}"
+        temp_dir, ffmpeg_srt = (
+            _prepare_ffmpeg_srt(
+                srt_file
+            )
         )
 
-    _log(
-        f"FFmpeg実行直前SRTサイズ: "
-        f"{srt_file.stat().st_size} bytes"
-    )
+        # ==================================================
+        # 実行直前確認
+        # ==================================================
 
-    # ======================================================
-    # subtitles filter
-    # ======================================================
-
-    subtitles_filter = (
-        _build_subtitles_filter(
-
-            srt_path=srt_file,
-
-            fonts_dir=(
-                fonts_directory
-                if use_fonts_dir
-                else None
-            ),
-
-            settings=settings
-
+        _verify_ffmpeg_srt(
+            ffmpeg_srt
         )
-    )
 
-    # ======================================================
-    # filter表示
-    # ======================================================
+        # ==================================================
+        # 字幕filter
+        # ==================================================
 
-    _log(
-        "字幕filter:"
-    )
+        subtitles_filter = (
+            _build_subtitles_filter(
 
-    _log(
-        subtitles_filter
-    )
+                srt_path=ffmpeg_srt,
 
-    # ======================================================
-    # FFmpeg command
-    # ======================================================
+                fonts_dir=(
+                    fonts_directory
+                    if use_fonts_dir
+                    else None
+                ),
 
-    command = [
+                settings=settings
 
-        ffmpeg_path,
+            )
+        )
 
-        "-y",
-
-        "-nostdin",
-
-        "-hide_banner",
-
-        "-loglevel",
-        "error",
-
-        "-i",
-        str(input_file),
-
-        "-map",
-        "0:v:0",
-
-        "-map",
-        "0:a:0?",
-
-        "-vf",
-        subtitles_filter,
-
-        "-c:v",
-        "libx264",
-
-        "-threads",
-        "1",
-
-        "-preset",
-        "ultrafast",
-
-        "-crf",
-        "28",
-
-        "-c:a",
-        "aac",
-
-        "-b:a",
-        "128k",
-
-        "-movflags",
-        "+faststart",
-
-        str(output_file)
-
-    ]
-
-    # ======================================================
-    # コマンド表示
-    # ======================================================
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    _log(
-        "FFmpeg command"
-    )
-
-    print(
-        " ".join(command),
-        flush=True
-    )
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    _log(
-        "FFmpeg cwd: 使用しません"
-    )
-
-    # ======================================================
-    # FFmpeg実行
-    # ======================================================
-
-    result = _run_ffmpeg(
-        command,
-        timeout=120
-    )
-
-    # ======================================================
-    # stderr
-    # ======================================================
-
-    if result.stderr:
+        # ==================================================
+        # filter表示
+        # ==================================================
 
         _log(
-            "FFmpeg stderr:"
+            "字幕filter:"
         )
 
+        _log(
+            subtitles_filter
+        )
+
+        # ==================================================
+        # FFmpeg command
+        # ==================================================
+
+        command = [
+
+            ffmpeg_path,
+
+            "-y",
+
+            "-nostdin",
+
+            "-hide_banner",
+
+            "-loglevel",
+            "error",
+
+            "-i",
+            str(input_file),
+
+            "-map",
+            "0:v:0",
+
+            "-map",
+            "0:a:0?",
+
+            "-vf",
+            subtitles_filter,
+
+            "-c:v",
+            "libx264",
+
+            "-threads",
+            "1",
+
+            "-preset",
+            "ultrafast",
+
+            "-crf",
+            "28",
+
+            "-c:a",
+            "aac",
+
+            "-b:a",
+            "128k",
+
+            "-movflags",
+            "+faststart",
+
+            str(output_file)
+
+        ]
+
+        # ==================================================
+        # コマンド表示
+        # ==================================================
+
         print(
-            result.stderr,
+            "==========================================",
             flush=True
         )
 
-    # ======================================================
-    # FFmpeg失敗
-    # ======================================================
-
-    if result.returncode != 0:
-
-        error_detail = (
-            result.stderr.strip()
-            if result.stderr
-            else
-            "stderrなし"
+        _log(
+            "FFmpeg command"
         )
 
-        raise RuntimeError(
-            "FFmpeg処理失敗 "
-            f"(returncode={result.returncode})\n"
-            f"{error_detail}"
+        print(
+            " ".join(command),
+            flush=True
         )
 
-    # ======================================================
-    # 出力確認
-    # ======================================================
-
-    _log(
-        "出力ファイル確認 START"
-    )
-
-    if not output_file.exists():
-
-        raise FileNotFoundError(
-            "FFmpeg終了後も出力ファイルがありません: "
-            f"{output_file}"
+        print(
+            "==========================================",
+            flush=True
         )
 
-    if not output_file.is_file():
-
-        raise FileNotFoundError(
-            "FFmpeg出力がファイルではありません: "
-            f"{output_file}"
+        _log(
+            f"FFmpeg cwd: {temp_dir}"
         )
 
-    output_size = (
-        output_file.stat().st_size
-    )
+        # ==================================================
+        # FFmpeg起動
+        # ==================================================
 
-    if output_size <= 0:
-
-        raise RuntimeError(
-            "FFmpeg出力ファイルが空です: "
-            f"{output_file}"
+        _log(
+            "FFmpeg起動【1回だけ】"
         )
 
-    _log(
-        "出力ファイル確認 OK"
-    )
+        _log(
+            "subprocess.run BEFORE"
+        )
 
-    _log(
-        f"出力サイズ: {output_size} bytes"
-    )
+        try:
 
-    # ======================================================
-    # 完了
-    # ======================================================
+            result = subprocess.run(
 
-    print(
-        "==========================================",
-        flush=True
-    )
+                command,
 
-    _log(
-        "COMPLETE"
-    )
+                stdout=subprocess.PIPE,
 
-    print(
-        "==========================================",
-        flush=True
-    )
+                stderr=subprocess.PIPE,
 
-    return output_file
+                text=True,
+
+                encoding="utf-8",
+
+                errors="replace",
+
+                timeout=120,
+
+                cwd=str(
+                    temp_dir
+                )
+
+            )
+
+        except subprocess.TimeoutExpired:
+
+            _log(
+                "FFmpeg TIMEOUT"
+            )
+
+            raise RuntimeError(
+                "FFmpegが120秒以内に終了しませんでした"
+            )
+
+        except Exception as error:
+
+            _log(
+                "subprocess.run ERROR"
+            )
+
+            _log(
+                f"{type(error).__name__}: {error}"
+            )
+
+            raise
+
+        # ==================================================
+        # FFmpeg終了
+        # ==================================================
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+        _log(
+            "FFmpeg終了"
+        )
+
+        _log(
+            f"returncode: {result.returncode}"
+        )
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+        # ==================================================
+        # stderr
+        # ==================================================
+
+        if result.stderr:
+
+            _log(
+                "FFmpeg stderr:"
+            )
+
+            print(
+                result.stderr,
+                flush=True
+            )
+
+        # ==================================================
+        # FFmpeg失敗
+        # ==================================================
+
+        if result.returncode != 0:
+
+            error_message = (
+                "FFmpeg処理失敗 "
+                f"(returncode={result.returncode})"
+            )
+
+            if result.stderr:
+
+                error_message += (
+                    "\n"
+                    +
+                    result.stderr.strip()
+                )
+
+            raise RuntimeError(
+                error_message
+            )
+
+        # ==================================================
+        # 出力確認
+        # ==================================================
+
+        _log(
+            "出力ファイル確認 START"
+        )
+
+        if not output_file.exists():
+
+            raise FileNotFoundError(
+                "FFmpeg終了後も出力ファイルがありません: "
+                f"{output_file}"
+            )
+
+        if not output_file.is_file():
+
+            raise FileNotFoundError(
+                "FFmpeg出力がファイルではありません: "
+                f"{output_file}"
+            )
+
+        output_size = (
+            output_file.stat().st_size
+        )
+
+        if output_size <= 0:
+
+            raise RuntimeError(
+                "FFmpeg出力ファイルが空です: "
+                f"{output_file}"
+            )
+
+        _log(
+            "出力ファイル確認 OK"
+        )
+
+        _log(
+            f"出力サイズ: {output_size} bytes"
+        )
+
+        # ==================================================
+        # 完了
+        # ==================================================
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+        _log(
+            "COMPLETE"
+        )
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+        return output_file
+
+    finally:
+
+        # ==================================================
+        # 一時SRTディレクトリ削除
+        # ==================================================
+
+        if temp_dir is not None:
+
+            try:
+
+                if temp_dir.exists():
+
+                    shutil.rmtree(
+                        temp_dir,
+                        ignore_errors=True
+                    )
+
+                    _log(
+                        f"一時ファイル削除: {temp_dir}"
+                    )
+
+            except Exception as error:
+
+                _log(
+                    "WARNING: 一時ファイル削除失敗"
+                )
+
+                _log(
+                    f"{type(error).__name__}: {error}"
+                )
 
 
 # ==========================================================
