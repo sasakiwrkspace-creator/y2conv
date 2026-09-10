@@ -518,6 +518,58 @@
     font-size: 14px;
 }
 
+/* =========================================
+   字幕フォント プレビュー文字
+========================================= */
+
+.subtitle-font-preview-text {
+    display: block;
+
+    width: 100%;
+
+    min-height: 80px;
+
+    margin-bottom: 14px;
+
+    padding: 18px 14px;
+
+    border: 1px solid #ddd;
+
+    border-radius: 4px;
+
+    background: #222;
+
+    font-size: 28px;
+
+    font-weight: normal;
+
+    line-height: 1.4;
+
+    text-align: center;
+
+    white-space: nowrap;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+}
+
+
+/* =========================================
+   現在の設定
+========================================= */
+
+.subtitle-font-preview {
+    margin-top: 20px;
+
+    padding: 12px 14px;
+
+    border: 1px solid #ddd;
+
+    border-radius: 4px;
+
+    background: #fafafa;
+}
 
 /* =========================================
    現在の設定
