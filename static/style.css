@@ -1,4 +1,724 @@
 /* =========================================
+   YouTube Converter
+   index.html 共通スタイル
+========================================= */
+
+
+/* =========================================
+   基本設定
+========================================= */
+
+* {
+    box-sizing: border-box;
+}
+
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+
+    width: 100%;
+    min-height: 100%;
+
+    font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        "Noto Sans JP",
+        sans-serif;
+
+    background: #f5f5f5;
+
+    color: #222;
+}
+
+
+body {
+    min-height: 100vh;
+}
+
+
+/* =========================================
+   メインコンテナ
+========================================= */
+
+.container {
+    width: 100%;
+    max-width: 900px;
+
+    margin: 0 auto;
+
+    padding: 30px 20px 50px;
+}
+
+
+/* =========================================
+   ヘッダー
+========================================= */
+
+.converter-header {
+    position: relative;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    min-height: 60px;
+
+    margin-bottom: 20px;
+}
+
+
+.converter-header h1 {
+    margin: 0;
+
+    font-size: 28px;
+
+    font-weight: 700;
+
+    text-align: center;
+
+    color: #222;
+}
+
+
+/* =========================================
+   保存ファイルリンク
+========================================= */
+
+.converter-link {
+    position: absolute;
+
+    right: 0;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    width: 42px;
+    height: 42px;
+
+    border-radius: 6px;
+
+    text-decoration: none;
+
+    font-size: 24px;
+
+    background: #fff;
+
+    color: #333;
+
+    border: 1px solid #ddd;
+
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease;
+}
+
+
+.converter-link:hover {
+    background: #f0f0f0;
+
+    border-color: #bbb;
+}
+
+
+/* =========================================
+   タブ
+========================================= */
+
+.converter-tabs {
+    display: flex;
+
+    width: 100%;
+
+    margin-bottom: 0;
+
+    border-bottom: 1px solid #ccc;
+}
+
+
+.converter-tab-button {
+    flex: 1;
+
+    min-height: 46px;
+
+    padding: 10px 16px;
+
+    border: 1px solid #ccc;
+
+    border-bottom: none;
+
+    border-radius: 6px 6px 0 0;
+
+    background: #e9e9e9;
+
+    color: #555;
+
+    cursor: pointer;
+
+    font-size: 15px;
+
+    font-weight: 600;
+
+    transition:
+        background-color 0.15s ease,
+        color 0.15s ease;
+}
+
+
+.converter-tab-button + .converter-tab-button {
+    margin-left: 4px;
+}
+
+
+.converter-tab-button:hover {
+    background: #ddd;
+}
+
+
+.converter-tab-button.active {
+    position: relative;
+
+    z-index: 2;
+
+    background: #fff;
+
+    color: #222;
+
+    border-bottom: 1px solid #fff;
+}
+
+
+/* =========================================
+   タブコンテンツ
+========================================= */
+
+.tab-content {
+    width: 100%;
+
+    padding: 25px;
+
+    border: 1px solid #ccc;
+
+    border-top: none;
+
+    border-radius: 0 0 6px 6px;
+
+    background: #fff;
+}
+
+
+.tab-content[hidden] {
+    display: none;
+}
+
+
+/* =========================================
+   タブタイトル
+========================================= */
+
+.tab-title {
+    margin-bottom: 18px;
+
+    font-size: 17px;
+
+    font-weight: bold;
+
+    color: #222;
+}
+
+
+/* =========================================
+   URL入力
+========================================= */
+
+.url-row {
+    display: flex;
+
+    align-items: center;
+
+    width: 100%;
+
+    gap: 10px;
+}
+
+
+.url-input {
+    flex: 1;
+
+    min-width: 0;
+
+    height: 44px;
+
+    padding: 8px 12px;
+
+    border: 1px solid #bbb;
+
+    border-radius: 5px;
+
+    background: #fff;
+
+    color: #222;
+
+    font-size: 14px;
+
+    outline: none;
+}
+
+
+.url-input:focus {
+    border-color: #007bff;
+
+    box-shadow:
+        0 0 0 2px rgba(0, 123, 255, 0.12);
+}
+
+
+.url-input::placeholder {
+    color: #999;
+}
+
+
+/* =========================================
+   実行ボタン
+========================================= */
+
+.execute-button {
+    flex: 0 0 auto;
+
+    min-width: 100px;
+
+    height: 44px;
+
+    padding: 0 18px;
+
+    border: 1px solid #0069d9;
+
+    border-radius: 5px;
+
+    background: #007bff;
+
+    color: #fff;
+
+    cursor: pointer;
+
+    font-size: 14px;
+
+    font-weight: 600;
+
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease,
+        opacity 0.15s ease;
+}
+
+
+.execute-button:hover:not(:disabled) {
+    background: #0069d9;
+
+    border-color: #0062cc;
+}
+
+
+.execute-button:disabled {
+    opacity: 0.5;
+
+    cursor: not-allowed;
+}
+
+
+/* =========================================
+   時間指定
+========================================= */
+
+.time-area {
+    margin-top: 24px;
+
+    padding: 16px;
+
+    border: 1px solid #ddd;
+
+    border-radius: 5px;
+
+    background: #fafafa;
+}
+
+
+.time-label-row {
+    margin-bottom: 12px;
+}
+
+
+.time-title {
+    font-size: 14px;
+
+    font-weight: bold;
+
+    color: #333;
+}
+
+
+.time-input-row {
+    display: flex;
+
+    align-items: center;
+
+    justify-content: flex-start;
+
+    gap: 12px;
+
+    flex-wrap: wrap;
+}
+
+
+.time-group {
+    display: flex;
+
+    align-items: center;
+
+    gap: 5px;
+}
+
+
+.time-input {
+    width: 48px;
+
+    height: 38px;
+
+    padding: 5px;
+
+    border: 1px solid #bbb;
+
+    border-radius: 4px;
+
+    background: #fff;
+
+    color: #222;
+
+    font-size: 14px;
+
+    text-align: center;
+
+    outline: none;
+}
+
+
+.time-input:focus {
+    border-color: #007bff;
+
+    box-shadow:
+        0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+
+.time-unit {
+    margin-right: 3px;
+
+    font-size: 13px;
+
+    color: #555;
+}
+
+
+.time-separator {
+    font-size: 18px;
+
+    color: #555;
+
+    font-weight: bold;
+}
+
+
+/* =========================================
+   出力形式
+========================================= */
+
+.output-format-group {
+    display: flex;
+
+    align-items: center;
+
+    flex-wrap: wrap;
+
+    gap: 10px;
+
+    margin-top: 20px;
+}
+
+
+.output-format-option {
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 6px;
+
+    min-height: 36px;
+
+    padding: 5px 12px;
+
+    border: 1px solid #ccc;
+
+    border-radius: 5px;
+
+    background: #fff;
+
+    color: #222;
+
+    cursor: pointer;
+
+    font-size: 14px;
+}
+
+
+.output-format-option:hover {
+    background: #f5f5f5;
+}
+
+
+.output-format-option input {
+    margin: 0;
+
+    cursor: pointer;
+}
+
+
+/* =========================================
+   ファイル変換セクション
+========================================= */
+
+.file-conversion-section {
+    margin-top: 20px;
+
+    padding: 18px;
+
+    border: 1px solid #ddd;
+
+    border-radius: 5px;
+
+    background: #fafafa;
+}
+
+
+.file-conversion-section:first-of-type {
+    margin-top: 0;
+}
+
+
+.file-conversion-title {
+    margin-bottom: 14px;
+
+    font-size: 15px;
+
+    font-weight: bold;
+
+    color: #222;
+}
+
+
+/* =========================================
+   タイトル + フォントボタン
+========================================= */
+
+.subtitle-title-row {
+    display: flex;
+
+    align-items: center;
+
+    flex-wrap: wrap;
+
+    gap: 10px;
+}
+
+
+.subtitle-font-button {
+    min-height: 34px;
+
+    padding: 5px 10px;
+
+    border: 1px solid #bbb;
+
+    border-radius: 4px;
+
+    background: #eee;
+
+    color: #222;
+
+    cursor: pointer;
+
+    font-size: 13px;
+
+    white-space: nowrap;
+}
+
+
+.subtitle-font-button:hover {
+    background: #ddd;
+}
+
+
+/* =========================================
+   ファイル選択行
+========================================= */
+
+.file-select-row {
+    display: flex;
+
+    align-items: center;
+
+    width: 100%;
+
+    gap: 10px;
+
+    margin-top: 10px;
+}
+
+
+.file-select-row:first-child {
+    margin-top: 0;
+}
+
+
+/* =========================================
+   本物のfile inputは非表示
+========================================= */
+
+.hidden-file-input {
+    display: none;
+}
+
+
+/* =========================================
+   ファイル選択表示ボタン
+========================================= */
+
+.file-select-display {
+    flex: 1;
+
+    min-width: 0;
+
+    min-height: 44px;
+
+    padding: 8px 12px;
+
+    border: 1px solid #bbb;
+
+    border-radius: 5px;
+
+    background: #fff;
+
+    color: #555;
+
+    cursor: pointer;
+
+    font-size: 13px;
+
+    text-align: left;
+
+    overflow: hidden;
+
+    white-space: nowrap;
+
+    text-overflow: ellipsis;
+}
+
+
+.file-select-display:hover {
+    background: #f5f5f5;
+
+    border-color: #999;
+}
+
+
+/* =========================================
+   字幕MP4作成
+========================================= */
+
+.subtitle-create-row {
+    display: flex;
+
+    justify-content: flex-end;
+
+    margin-top: 14px;
+}
+
+
+/* =========================================
+   共通処理エリア
+========================================= */
+
+.common-result-area {
+    width: 100%;
+
+    margin-top: 20px;
+}
+
+
+/* =========================================
+   処理状況
+========================================= */
+
+.conversion-status-area {
+    width: 100%;
+
+    min-height: 20px;
+
+    padding: 10px 0;
+
+    color: #333;
+
+    font-size: 14px;
+
+    line-height: 1.6;
+}
+
+
+/* =========================================
+   ダウンロードエリア
+========================================= */
+
+.download-area {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 8px;
+
+    width: 100%;
+}
+
+
+.download-area a {
+    display: inline-block;
+
+    padding: 10px 14px;
+
+    border: 1px solid #007bff;
+
+    border-radius: 5px;
+
+    background: #007bff;
+
+    color: #fff;
+
+    text-decoration: none;
+
+    font-size: 14px;
+}
+
+
+.download-area a:hover {
+    background: #0069d9;
+
+    border-color: #0062cc;
+}
+
+
+/* =========================================
    字幕フォント設定ダイアログ
 ========================================= */
 
@@ -70,18 +790,6 @@
    共通行
 ========================================= */
 
-/*
-    すべての
-
-    プリセット：
-    フォント：
-    文字色：
-    縁取り色：
-    縁の太さ：
-
-    を同じ位置から開始する。
-*/
-
 .subtitle-font-dialog-row,
 .subtitle-font-dialog-label {
     display: flex;
@@ -133,14 +841,6 @@
 }
 
 
-/*
-    プリセットのボタン
-
-    「プリセット： 登録セットを表示 ▼」
-
-    のように、ラベルの右側に配置する。
-*/
-
 .subtitle-font-preset-toggle {
     display: inline-flex;
 
@@ -168,6 +868,7 @@
 
     white-space: nowrap;
 }
+
 
 .subtitle-font-preset-toggle:hover {
     background: #ddd;
@@ -198,6 +899,7 @@
     box-shadow:
         0 4px 12px rgba(0, 0, 0, 0.12);
 }
+
 
 .subtitle-font-preset-container[hidden] {
     display: none;
@@ -518,6 +1220,7 @@
     font-size: 14px;
 }
 
+
 /* =========================================
    字幕フォント プレビュー文字
 ========================================= */
@@ -554,22 +1257,6 @@
     text-overflow: ellipsis;
 }
 
-
-/* =========================================
-   現在の設定
-========================================= */
-
-.subtitle-font-preview {
-    margin-top: 20px;
-
-    padding: 12px 14px;
-
-    border: 1px solid #ddd;
-
-    border-radius: 4px;
-
-    background: #fafafa;
-}
 
 /* =========================================
    現在の設定
@@ -698,6 +1385,160 @@
 
 @media (max-width: 600px) {
 
+    .container {
+        padding: 20px 12px 40px;
+    }
+
+
+    .converter-header {
+        min-height: 50px;
+
+        margin-bottom: 15px;
+    }
+
+
+    .converter-header h1 {
+        font-size: 22px;
+
+        padding: 0 45px;
+    }
+
+
+    .converter-link {
+        right: 0;
+
+        width: 38px;
+        height: 38px;
+
+        font-size: 21px;
+    }
+
+
+    .converter-tab-button {
+        min-height: 44px;
+
+        padding: 8px 8px;
+
+        font-size: 13px;
+    }
+
+
+    .tab-content {
+        padding: 18px 14px;
+    }
+
+
+    .url-row {
+        flex-direction: column;
+
+        align-items: stretch;
+    }
+
+
+    .url-input {
+        width: 100%;
+
+        flex: none;
+    }
+
+
+    .url-row .execute-button {
+        width: 100%;
+    }
+
+
+    .time-area {
+        padding: 13px;
+    }
+
+
+    .time-input-row {
+        gap: 8px;
+    }
+
+
+    .time-group {
+        gap: 3px;
+    }
+
+
+    .time-input {
+        width: 42px;
+
+        height: 36px;
+    }
+
+
+    .time-unit {
+        font-size: 12px;
+
+        margin-right: 1px;
+    }
+
+
+    .time-separator {
+        font-size: 16px;
+    }
+
+
+    .output-format-group {
+        gap: 6px;
+    }
+
+
+    .output-format-option {
+        padding: 5px 8px;
+
+        font-size: 13px;
+    }
+
+
+    .file-conversion-section {
+        padding: 14px;
+    }
+
+
+    .file-select-row {
+        flex-direction: column;
+
+        align-items: stretch;
+    }
+
+
+    .file-select-display {
+        width: 100%;
+    }
+
+
+    .file-select-row .execute-button {
+        width: 100%;
+    }
+
+
+    .subtitle-create-row {
+        justify-content: stretch;
+    }
+
+
+    .subtitle-create-row .execute-button {
+        width: 100%;
+    }
+
+
+    .subtitle-title-row {
+        align-items: flex-start;
+
+        flex-direction: column;
+
+        gap: 8px;
+    }
+
+
+    .subtitle-font-button {
+        max-width: 100%;
+    }
+
+
     .subtitle-font-dialog-overlay {
         align-items: flex-start;
 
@@ -711,10 +1552,6 @@
         padding: 18px;
     }
 
-
-    /*
-        スマホではラベル幅を少し狭くする
-    */
 
     .subtitle-font-dialog-row-label,
     .subtitle-font-dialog-label-title {
@@ -756,6 +1593,7 @@
         margin-top: 16px;
     }
 
+
     .subtitle-font-preview-text {
         min-height: 70px;
 
@@ -772,6 +1610,33 @@
 ========================================= */
 
 @media (max-width: 380px) {
+
+    .converter-header h1 {
+        font-size: 20px;
+    }
+
+
+    .tab-content {
+        padding: 15px 10px;
+    }
+
+
+    .time-input {
+        width: 38px;
+    }
+
+
+    .time-unit {
+        font-size: 11px;
+    }
+
+
+    .output-format-option {
+        padding: 4px 6px;
+
+        font-size: 12px;
+    }
+
 
     .subtitle-font-dialog-row-label,
     .subtitle-font-dialog-label-title {
