@@ -251,6 +251,518 @@ def format_elapsed_time(seconds):
         f"{secs:02d}"
     )
 
+# ==========================================================
+# ローカルファイルをDownloadsへアップロード
+# ==========================================================
+
+def upload_file_to_downloads(
+    source_file,
+    destination_filename=None,
+    overwrite=True
+):
+    """
+    ローカルファイルをDOWNLOADS_DIRへコピーする。
+
+    SRT作成時:
+        MP3をDownloadsへコピー
+
+    字幕MP4作成時:
+        MP4とSRTをDownloadsへコピー
+
+    Parameters
+    ----------
+    source_file:
+        ローカルに存在する元ファイル
+
+    destination_filename:
+        Downloads内で使用するファイル名。
+        Noneの場合は元ファイル名を使用。
+
+    overwrite:
+        Trueの場合、同名ファイルを上書きする。
+
+    Returns
+    -------
+    Path
+        Downloadsへコピーされたファイル
+    """
+
+    log_start(
+        "ローカルファイルをDownloadsへアップロード開始"
+    )
+
+    log(
+        f"source_file: {source_file!r}"
+    )
+
+    log(
+        f"destination_filename: "
+        f"{destination_filename!r}"
+    )
+
+    log(
+        f"overwrite: {overwrite}"
+    )
+
+    # ======================================================
+    # 元ファイル確認
+    # ======================================================
+
+    try:
+
+        source_path = (
+            Path(
+                source_file
+            )
+            .expanduser()
+            .resolve()
+        )
+
+    except Exception as error:
+
+        log_exception(
+            "元ファイルのPath生成に失敗しました。",
+            error
+        )
+
+        raise
+
+    log(
+        f"source_path: {source_path}"
+    )
+
+    if not source_path.exists():
+
+        raise FileNotFoundError(
+            f"アップロード元ファイルが存在しません: "
+            f"{source_path}"
+        )
+
+    if not source_path.is_file():
+
+        raise ValueError(
+            f"アップロード元がファイルではありません: "
+            f"{source_path}"
+        )
+
+    try:
+
+        source_size = (
+            source_path.stat().st_size
+        )
+
+    except OSError as error:
+
+        raise RuntimeError(
+            f"元ファイルのサイズを取得できません: "
+            f"{error}"
+        ) from error
+
+    log(
+        f"アップロード元サイズ: "
+        f"{source_size} bytes"
+    )
+
+    if source_size <= 0:
+
+        raise ValueError(
+            f"アップロード元ファイルが0 bytesです: "
+            f"{source_path}"
+        )
+
+    # ======================================================
+    # Downloadsフォルダ作成
+    # ======================================================
+
+    try:
+
+        DOWNLOADS_DIR.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+    except OSError as error:
+
+        log_exception(
+            "DOWNLOADS_DIR作成に失敗しました。",
+            error
+        )
+
+        raise RuntimeError(
+            "Downloadsフォルダを作成できません: "
+            +
+            str(error)
+        ) from error
+
+    log(
+        f"DOWNLOADS_DIR確認OK: {DOWNLOADS_DIR}"
+    )
+
+    # ======================================================
+    # 保存ファイル名決定
+    # ======================================================
+
+    if destination_filename:
+
+        destination_name = (
+            Path(
+                destination_filename
+            ).name
+        )
+
+    else:
+
+        destination_name = (
+            source_path.name
+        )
+
+    if not destination_name:
+
+        raise ValueError(
+            "Downloadsへ保存するファイル名を"
+            "決定できません。"
+        )
+
+    destination_path = (
+        DOWNLOADS_DIR
+        /
+        destination_name
+    ).resolve()
+
+    log(
+        f"destination_path: {destination_path}"
+    )
+
+    # ======================================================
+    # Downloads外への保存防止
+    # ======================================================
+
+    try:
+
+        destination_path.relative_to(
+            DOWNLOADS_DIR.resolve()
+        )
+
+    except ValueError as error:
+
+        raise RuntimeError(
+            "Downloadsフォルダ外へファイルを"
+            "保存しようとしています。"
+        ) from error
+
+    # ======================================================
+    # 元ファイルと保存先が同じ場合
+    # ======================================================
+
+    if source_path == destination_path:
+
+        log(
+            "元ファイルは既にDownloads内にあります。"
+        )
+
+        log(
+            "コピーを行わず、そのまま使用します。"
+        )
+
+        return destination_path
+
+    # ======================================================
+    # 既存ファイル確認
+    # ======================================================
+
+    if destination_path.exists():
+
+        log(
+            f"既存ファイルあり: {destination_path}"
+        )
+
+        if not overwrite:
+
+            raise FileExistsError(
+                "Downloadsに同名ファイルが"
+                "既に存在します: "
+                +
+                str(destination_path)
+            )
+
+        if not destination_path.is_file():
+
+            raise RuntimeError(
+                "Downloadsの保存先が"
+                "通常ファイルではありません: "
+                +
+                str(destination_path)
+            )
+
+        try:
+
+            destination_path.unlink()
+
+        except OSError as error:
+
+            raise RuntimeError(
+                "既存ファイルを削除できません: "
+                +
+                str(error)
+            ) from error
+
+        log(
+            "既存ファイル削除完了"
+        )
+
+    # ======================================================
+    # ファイルコピー
+    # ======================================================
+
+    log(
+        "ファイルコピー開始"
+    )
+
+    try:
+
+        shutil.copy2(
+            str(source_path),
+            str(destination_path)
+        )
+
+    except OSError as error:
+
+        log_exception(
+            "Downloadsへのファイルコピーに失敗しました。",
+            error
+        )
+
+        raise RuntimeError(
+            "ファイルをDownloadsへコピーできません: "
+            +
+            str(error)
+        ) from error
+
+    log(
+        "ファイルコピー完了"
+    )
+
+    # ======================================================
+    # コピー後確認
+    # ======================================================
+
+    if not destination_path.exists():
+
+        raise RuntimeError(
+            "ファイルをDownloadsへコピーしましたが、"
+            "保存先に存在しません。"
+        )
+
+    if not destination_path.is_file():
+
+        raise RuntimeError(
+            "Downloadsへのコピー先が"
+            "通常ファイルではありません。"
+        )
+
+    try:
+
+        destination_size = (
+            destination_path.stat().st_size
+        )
+
+    except OSError as error:
+
+        raise RuntimeError(
+            "コピー後のファイルサイズを"
+            "確認できません: "
+            +
+            str(error)
+        ) from error
+
+    log(
+        f"コピー後サイズ: "
+        f"{destination_size} bytes"
+    )
+
+    if destination_size <= 0:
+
+        raise RuntimeError(
+            "Downloadsへコピーされたファイルの"
+            "サイズが0 bytesです。"
+        )
+
+    if destination_size != source_size:
+
+        raise RuntimeError(
+            "ファイルコピー後のサイズが一致しません。"
+            f" source={source_size}"
+            f" destination={destination_size}"
+        )
+
+    log(
+        "ローカルファイルをDownloadsへ"
+        "アップロード完了"
+    )
+
+    log(
+        f"source: {source_path}"
+    )
+
+    log(
+        f"destination: {destination_path}"
+    )
+
+    log(
+        f"size: {destination_size} bytes"
+    )
+
+    log_separator()
+
+    return destination_path
+
+
+# ==========================================================
+# SRT作成用MP3アップロード
+# ==========================================================
+
+def upload_mp3_to_downloads(
+    mp3_file,
+    overwrite=True
+):
+    """
+    SRT作成時に使用するMP3をDownloadsへコピーする。
+    """
+
+    log_start(
+        "SRT作成用MP3アップロード開始"
+    )
+
+    log(
+        f"mp3_file: {mp3_file!r}"
+    )
+
+    mp3_path = upload_file_to_downloads(
+        mp3_file,
+        destination_filename=Path(
+            mp3_file
+        ).name,
+        overwrite=overwrite
+    )
+
+    if mp3_path.suffix.lower() != ".mp3":
+
+        raise ValueError(
+            "SRT作成用ファイルはMP3である必要があります: "
+            +
+            str(mp3_path)
+        )
+
+    log(
+        f"SRT作成用MP3: {mp3_path}"
+    )
+
+    log(
+        "SRT作成用MP3アップロード完了"
+    )
+
+    return mp3_path
+
+
+# ==========================================================
+# 字幕MP4作成用 MP4 + SRT アップロード
+# ==========================================================
+
+def upload_subtitle_inputs_to_downloads(
+    mp4_file,
+    srt_file,
+    overwrite=True
+):
+    """
+    字幕MP4作成時に使用するMP4とSRTを
+    Downloadsへコピーする。
+
+    Returns
+    -------
+    tuple
+        (mp4_path, srt_path)
+    """
+
+    log_start(
+        "字幕MP4作成用ファイルアップロード開始"
+    )
+
+    log(
+        f"mp4_file: {mp4_file!r}"
+    )
+
+    log(
+        f"srt_file: {srt_file!r}"
+    )
+
+    # ======================================================
+    # MP4
+    # ======================================================
+
+    mp4_path = upload_file_to_downloads(
+        mp4_file,
+        destination_filename=Path(
+            mp4_file
+        ).name,
+        overwrite=overwrite
+    )
+
+    if mp4_path.suffix.lower() != ".mp4":
+
+        raise ValueError(
+            "字幕MP4作成用動画はMP4である必要があります: "
+            +
+            str(mp4_path)
+        )
+
+    log(
+        f"字幕MP4作成用MP4: {mp4_path}"
+    )
+
+    # ======================================================
+    # SRT
+    # ======================================================
+
+    srt_path = upload_file_to_downloads(
+        srt_file,
+        destination_filename=Path(
+            srt_file
+        ).name,
+        overwrite=overwrite
+    )
+
+    if srt_path.suffix.lower() != ".srt":
+
+        raise ValueError(
+            "字幕MP4作成用字幕はSRTである必要があります: "
+            +
+            str(srt_path)
+        )
+
+    log(
+        f"字幕MP4作成用SRT: {srt_path}"
+    )
+
+    # ======================================================
+    # 完了
+    # ======================================================
+
+    log(
+        "字幕MP4作成用"
+        "MP4 + SRTアップロード完了"
+    )
+
+    log(
+        f"MP4: {mp4_path}"
+    )
+
+    log(
+        f"SRT: {srt_path}"
+    )
+
+    log_separator()
+
+    return mp4_path, srt_path
 
 # ==========================================================
 # 入力ファイル確認
