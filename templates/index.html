@@ -1,352 +1,326 @@
 <!DOCTYPE html>
-from flask import Flask, jsonify, render_template_string
-import subprocess
-import os
-
-app = Flask(__name__)
-
-
-# ==========================================
-# ブラウザ画面
-# ==========================================
-
-HTML = """
-<!DOCTYPE html>
 <html lang="ja">
 
 <head>
+
     <meta charset="UTF-8">
-    <title>FFmpeg Test</title>
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>YouTube Converter</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+
+            font-family:
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                "Noto Sans JP",
+                sans-serif;
+
+            background: #f5f5f5;
+            color: #222;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        h1 {
+            margin: 0 0 30px;
+
+            text-align: center;
+
+            font-size: 32px;
+        }
+
+        .card {
+            background: #ffffff;
+
+            border-radius: 12px;
+
+            padding: 30px;
+
+            box-shadow:
+                0 2px 10px rgba(0, 0, 0, 0.08);
+        }
+
+        .section {
+            margin-bottom: 25px;
+        }
+
+        .section:last-child {
+            margin-bottom: 0;
+        }
+
+        .section-title {
+            margin-bottom: 10px;
+
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        input[type="text"] {
+            width: 100%;
+
+            padding: 12px 14px;
+
+            border: 1px solid #ccc;
+            border-radius: 6px;
+
+            font-size: 16px;
+        }
+
+        button {
+            padding: 12px 20px;
+
+            border: none;
+            border-radius: 6px;
+
+            background: #1976d2;
+            color: #ffffff;
+
+            font-size: 16px;
+
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1565c0;
+        }
+
+        button:disabled {
+            background: #999;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 15px;
+
+            padding: 12px;
+
+            background: #f0f0f0;
+
+            border-radius: 6px;
+
+            white-space: pre-wrap;
+        }
+
+        .test-link {
+            display: inline-block;
+
+            margin-top: 20px;
+
+            color: #1976d2;
+
+            text-decoration: none;
+        }
+
+        .test-link:hover {
+            text-decoration: underline;
+        }
+
+        footer {
+            margin-top: 30px;
+
+            text-align: center;
+
+            color: #777;
+
+            font-size: 14px;
+        }
+
+    </style>
+
 </head>
+
 
 <body>
 
-<h1>FFmpegテスト</h1>
 
-<button id="ffmpegButton" onclick="runFFmpeg()">
-    FFmpegを実行
-</button>
+<div class="container">
 
-<p id="status">
-    待機中
-</p>
+    <h1>
+        YouTube Converter
+    </h1>
+
+
+    <div class="card">
+
+
+        <!-- =====================================
+             YouTube URL
+        ====================================== -->
+
+        <div class="section">
+
+            <div class="section-title">
+                YouTube URL
+            </div>
+
+            <input
+                type="text"
+                id="youtubeUrl"
+                placeholder="YouTubeのURLを入力してください"
+            >
+
+        </div>
+
+
+        <!-- =====================================
+             変換ボタン
+        ====================================== -->
+
+        <div class="section">
+
+            <button
+                id="convertButton"
+                type="button"
+            >
+                変換
+            </button>
+
+        </div>
+
+
+        <!-- =====================================
+             ステータス
+        ====================================== -->
+
+        <div class="section">
+
+            <div class="section-title">
+                ステータス
+            </div>
+
+            <div
+                id="status"
+                class="status"
+            >
+                待機中
+            </div>
+
+        </div>
+
+
+        <!-- =====================================
+             テスト画面
+        ====================================== -->
+
+        <div class="section">
+
+            <a
+                class="test-link"
+                href="/test"
+            >
+                テスト画面を開く
+            </a>
+
+        </div>
+
+
+    </div>
+
+
+    <footer>
+
+        YouTube Converter
+
+    </footer>
+
+
+</div>
+
 
 <script>
 
-async function runFFmpeg() {
+document
+    .getElementById("convertButton")
+    .addEventListener(
+        "click",
+        async function () {
 
-    const button =
-        document.getElementById("ffmpegButton");
+            const url =
+                document
+                    .getElementById("youtubeUrl")
+                    .value
+                    .trim();
 
-    const status =
-        document.getElementById("status");
+            const status =
+                document
+                    .getElementById("status");
 
-    button.disabled = true;
 
-    status.textContent =
-        "FFmpeg実行中...";
+            if (!url) {
 
-    console.log(
-        "[BROWSER] FFmpeg実行開始"
+                status.textContent =
+                    "YouTube URLを入力してください。";
+
+                return;
+            }
+
+
+            status.textContent =
+                "処理を開始しています...";
+
+
+            const button =
+                document
+                    .getElementById("convertButton");
+
+
+            button.disabled = true;
+
+
+            try {
+
+                /*
+                 * 現在の変換処理用APIが
+                 * まだ確定していないため、
+                 * ここでは画面表示だけ行います。
+                 */
+
+                status.textContent =
+                    "URLを受け付けました。\n" +
+                    url;
+
+            }
+            catch (error) {
+
+                console.error(error);
+
+                status.textContent =
+                    "エラーが発生しました。\n" +
+                    error;
+
+            }
+            finally {
+
+                button.disabled = false;
+
+            }
+
+        }
     );
 
-    try {
-
-        const response = await fetch(
-            "/run-ffmpeg",
-            {
-                method: "POST"
-            }
-        );
-
-        console.log(
-            "[BROWSER] Pythonからレスポンス受信"
-        );
-
-        const data =
-            await response.json();
-
-        console.log(
-            "[BROWSER] response:",
-            data
-        );
-
-        if (data.success) {
-
-            status.textContent =
-                "FFmpeg終了";
-
-        } else {
-
-            status.textContent =
-                "FFmpegエラー: " +
-                data.error;
-        }
-
-    } catch (error) {
-
-        console.error(
-            "[BROWSER] 通信エラー:",
-            error
-        );
-
-        status.textContent =
-            "通信エラー: " +
-            error;
-
-    } finally {
-
-        button.disabled = false;
-    }
-}
-
 </script>
+
 
 </body>
 
 </html>
-"""
-
-
-# ==========================================
-# 起動確認
-# ==========================================
-
-print(
-    "==========================================",
-    flush=True
-)
-
-print(
-    "[SUBTITLE TEST] subtitle_test_ffmpeg.py START",
-    flush=True
-)
-
-print(
-    f"[SUBTITLE TEST] Python PID: {os.getpid()}",
-    flush=True
-)
-
-print(
-    f"[SUBTITLE TEST] __file__: {__file__}",
-    flush=True
-)
-
-print(
-    "==========================================",
-    flush=True
-)
-
-
-# ==========================================
-# トップページ
-# ==========================================
-
-@app.route("/")
-def index():
-
-    print(
-        "[SUBTITLE TEST] ブラウザからページ要求",
-        flush=True
-    )
-
-    return render_template_string(
-        HTML
-    )
-
-
-# ==========================================
-# FFmpeg実行
-# ==========================================
-
-@app.route(
-    "/run-ffmpeg",
-    methods=["POST"]
-)
-def run_ffmpeg():
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    print(
-        "[SUBTITLE TEST] /run-ffmpeg 開始",
-        flush=True
-    )
-
-    print(
-        "[SUBTITLE TEST] FFmpegを起動します",
-        flush=True
-    )
-
-    try:
-
-        # --------------------------------------
-        # FFmpegを実行
-        #
-        # 動画処理は一切しない。
-        # バージョン確認だけ。
-        # --------------------------------------
-
-        result = subprocess.run(
-            [
-                "/usr/bin/ffmpeg",
-                "-version"
-            ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=30,
-        )
-
-        print(
-            "[SUBTITLE TEST] FFmpegプロセス終了",
-            flush=True
-        )
-
-        print(
-            f"[SUBTITLE TEST] returncode: "
-            f"{result.returncode}",
-            flush=True
-        )
-
-        # --------------------------------------
-        # FFmpegバージョン
-        # --------------------------------------
-
-        if result.stdout:
-
-            lines = (
-                result.stdout
-                .splitlines()
-            )
-
-            if lines:
-
-                print(
-                    f"[FFMPEG] {lines[0]}",
-                    flush=True
-                )
-
-        # --------------------------------------
-        # 成功
-        # --------------------------------------
-
-        if result.returncode == 0:
-
-            print(
-                "[SUBTITLE TEST] "
-                "FFmpeg終了 → ブラウザへ返します",
-                flush=True
-            )
-
-            print(
-                "==========================================",
-                flush=True
-            )
-
-            return jsonify(
-                {
-                    "success": True,
-                    "message": "FFmpeg終了"
-                }
-            )
-
-        # --------------------------------------
-        # FFmpegエラー
-        # --------------------------------------
-
-        error_message = (
-            result.stderr.strip()
-            if result.stderr
-            else
-            f"returncode={result.returncode}"
-        )
-
-        print(
-            "[SUBTITLE TEST] "
-            f"FFmpeg ERROR: {error_message}",
-            flush=True
-        )
-
-        print(
-            "==========================================",
-            flush=True
-        )
-
-        return jsonify(
-            {
-                "success": False,
-                "error": error_message
-            }
-        ), 500
-
-    # ------------------------------------------
-    # timeout
-    # ------------------------------------------
-
-    except subprocess.TimeoutExpired:
-
-        print(
-            "[SUBTITLE TEST] "
-            "FFmpeg TIMEOUT",
-            flush=True
-        )
-
-        return jsonify(
-            {
-                "success": False,
-                "error": "FFmpeg TIMEOUT"
-            }
-        ), 500
-
-    # ------------------------------------------
-    # その他のエラー
-    # ------------------------------------------
-
-    except Exception as e:
-
-        print(
-            "[SUBTITLE TEST] "
-            "FFmpeg実行例外",
-            flush=True
-        )
-
-        print(
-            f"[SUBTITLE TEST] "
-            f"ERROR TYPE: {type(e).__name__}",
-            flush=True
-        )
-
-        print(
-            f"[SUBTITLE TEST] "
-            f"ERROR: {e}",
-            flush=True
-        )
-
-        return jsonify(
-            {
-                "success": False,
-                "error": str(e)
-            }
-        ), 500
-
-
-# ==========================================
-# 直接実行
-# ==========================================
-
-if __name__ == "__main__":
-
-    print(
-        "[SUBTITLE TEST] "
-        "直接実行モード",
-        flush=True
-    )
-
-    app.run(
-        host="0.0.0.0",
-        port=10000,
-        debug=False,
-    )
