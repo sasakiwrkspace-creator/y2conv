@@ -810,115 +810,105 @@
             <!-- =================================
                  MP4
             ================================== -->
-
+            
             <div class="subtitle-file-row">
-
-
+            
                 <!-- 実際のファイルinput -->
-
+            
                 <input
                     id="subtitle-mp4-input"
                     class="hidden-file-input"
                     type="file"
                     accept=".mp4,video/mp4"
                 >
-
-
-                <!-- 参照 -->
-
+            
+            
+                <!-- MP4ファイル選択 -->
+            
                 <button
                     id="subtitle-mp4-select"
                     class="subtitle-file-browse-button"
                     type="button"
+                    aria-label="MP4ファイルを選択"
                 >
-                    参照
+                    mp4ファイルを選択してください
                 </button>
-
-
-                <!-- ファイル名 -->
-
-                <div
-                    id="subtitle-mp4-filename"
-                    class="subtitle-file-name"
-                >
-                    ファイルが選択されていません
-                </div>
-
-
+            
+            
                 <!-- MP4転送 -->
-
+            
                 <button
                     id="subtitle-mp4-upload-button"
                     class="subtitle-file-upload-button"
                     type="button"
                 >
-                    MP4転送
+                    転送
                 </button>
-
-
+            
+            
                 <!-- MP4行の右側空白 -->
-
+            
                 <div
                     class="subtitle-file-spacer"
                     aria-hidden="true"
                 ></div>
-
-
+            
             </div>
-
-
-
+            
+            
+            
             <!-- =================================
                  SRT
             ================================== -->
-
+            
             <div class="subtitle-file-row">
-
-
+            
                 <!-- 実際のファイルinput -->
-
+            
                 <input
                     id="subtitle-srt-input"
                     class="hidden-file-input"
                     type="file"
                     accept=".srt"
                 >
-
-
-                <!-- 参照 -->
-
+            
+            
+                <!-- SRTファイル選択 -->
+            
                 <button
                     id="subtitle-srt-select"
                     class="subtitle-file-browse-button"
                     type="button"
+                    aria-label="SRTファイルを選択"
                 >
-                    参照
+                    srtファイルを選択してください
                 </button>
-
-
-                <!-- ファイル名 -->
-
-                <div
-                    id="subtitle-srt-filename"
-                    class="subtitle-file-name"
-                >
-                    ファイルが選択されていません
-                </div>
-
-
+            
+            
                 <!-- SRT転送 -->
-
+            
                 <button
                     id="subtitle-srt-upload-button"
                     class="subtitle-file-upload-button"
                     type="button"
                 >
-                    SRT転送
+                    転送
                 </button>
-
-
+            
+            
                 <!-- 字幕MP4作成 -->
-
+            
+                <button
+                    id="subtitle-mp4-create-button"
+                    class="subtitle-file-create-button"
+                    type="button"
+                    disabled
+                >
+                    字幕mp4を作成
+                </button>
+            
+            </div>
+            
                 <button
                     id="subtitle-mp4-create-button"
                     class="subtitle-file-create-button"
