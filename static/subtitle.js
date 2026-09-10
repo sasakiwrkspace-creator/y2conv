@@ -1793,14 +1793,26 @@
                 // 古い転送済みファイルを無効化
                 subtitleState.uploadedMp4Filename =
                     "";
-
-
-                updateFileDisplay(
-                    mp4SelectButton,
-                    file,
-                    "MP4ファイルを選択してください"
-                );
-
+                
+                // ---------------------------------
+                // ファイル名表示
+                // 「参照」ボタンは変更しない
+                // ---------------------------------
+                
+                const mp4FilenameDisplay =
+                    document.getElementById(
+                        "subtitle-mp4-filename"
+                    );
+                
+                
+                if (mp4FilenameDisplay) {
+                
+                    mp4FilenameDisplay.textContent =
+                        file
+                            ? file.name
+                            : "ファイルが選択されていません";
+                
+                }
 
                 updateSubtitleMp4Button();
 
