@@ -402,9 +402,9 @@
         <div class="file-conversion-section">
 
 
-            <!-- ---------------------------------
+            <!-- =================================
                  タイトル
-            ---------------------------------- -->
+            ================================== -->
 
             <div class="file-conversion-title">
 
@@ -414,11 +414,13 @@
 
 
 
-            <!-- ---------------------------------
-                 MP3選択 + Gemini
-            ---------------------------------- -->
+            <!-- =================================
+                 ファイル選択 → 転送 → Gemini
+                 
+                 3つを横並び
+            ================================== -->
 
-            <div class="file-select-row">
+            <div class="file-select-row subtitle-action-row">
 
 
                 <!-- =================================
@@ -433,28 +435,35 @@
                 >
 
 
-                <!--
-                    MP3ファイル選択
-                    表示部分をクリックして
-                    ファイル選択画面を開く。
-                -->
-
                 <button
                     id="subtitle-mp3-select"
                     class="file-select-display"
                     type="button"
                     aria-label="MP3ファイルを選択"
                 >
-
                     ファイルが選択されていません
                     → mp3ファイルを選択してください
-
                 </button>
 
 
 
                 <!-- =================================
-                     Gemini送信
+                     MP3転送
+                ================================== -->
+
+                <button
+                    id="subtitle-mp3-upload"
+                    class="upload-button"
+                    type="button"
+                    disabled
+                >
+                    転送
+                </button>
+
+
+
+                <!-- =================================
+                     Gemini
                 ================================== -->
 
                 <button
@@ -463,13 +472,25 @@
                     type="button"
                     disabled
                 >
-
                     Geminiへ
-
                 </button>
 
 
             </div>
+
+
+
+            <!-- =================================
+                 SRTダウンロード
+                 
+                 処理完了後、
+                 Geminiボタンの次の行に表示
+            ================================== -->
+
+            <div
+                id="subtitle-srt-download-area"
+                class="subtitle-download-area"
+            ></div>
 
 
         </div>
@@ -483,9 +504,9 @@
         <div class="file-conversion-section">
 
 
-            <!-- ---------------------------------
+            <!-- =================================
                  タイトル + フォント
-            ---------------------------------- -->
+            ================================== -->
 
             <div class="file-conversion-title subtitle-title-row">
 
@@ -495,8 +516,8 @@
 
 
                 <!--
-                    フォントボタンは
-                    ラベルの右側に約1文字分空けて配置
+                    フォント設定UIは
+                    subtitle_font.jsが担当
                 -->
 
                 <button
@@ -513,9 +534,11 @@
 
             <!-- =================================
                  MP4
+                 
+                 ファイル選択 + 転送
             ================================== -->
 
-            <div class="file-select-row">
+            <div class="file-select-row subtitle-action-row">
 
 
                 <input
@@ -526,21 +549,29 @@
                 >
 
 
-                <!--
-                    表示部分をクリックして
-                    MP4ファイルを選択する。
-                -->
-
                 <button
                     id="subtitle-mp4-select"
                     class="file-select-display"
                     type="button"
                     aria-label="MP4ファイルを選択"
                 >
-
                     ファイルが選択されていません
                     → mp4ファイルを選択してください
+                </button>
 
+
+
+                <!-- =================================
+                     MP4転送
+                ================================== -->
+
+                <button
+                    id="subtitle-mp4-upload"
+                    class="upload-button"
+                    type="button"
+                    disabled
+                >
+                    転送
                 </button>
 
 
@@ -550,9 +581,11 @@
 
             <!-- =================================
                  SRT
+                 
+                 ファイル選択 + 転送 + 実行
             ================================== -->
 
-            <div class="file-select-row">
+            <div class="file-select-row subtitle-action-row">
 
 
                 <input
@@ -563,21 +596,44 @@
                 >
 
 
-                <!--
-                    表示部分をクリックして
-                    SRTファイルを選択する。
-                -->
-
                 <button
                     id="subtitle-srt-select"
                     class="file-select-display"
                     type="button"
                     aria-label="SRTファイルを選択"
                 >
-
                     ファイルが選択されていません
                     → srtファイルを選択してください
+                </button>
 
+
+
+                <!-- =================================
+                     SRT転送
+                ================================== -->
+
+                <button
+                    id="subtitle-srt-upload"
+                    class="upload-button"
+                    type="button"
+                    disabled
+                >
+                    転送
+                </button>
+
+
+
+                <!-- =================================
+                     字幕MP4作成
+                ================================== -->
+
+                <button
+                    id="subtitle-mp4-create-button"
+                    class="execute-button"
+                    type="button"
+                    disabled
+                >
+                    字幕mp4を作成
                 </button>
 
 
@@ -586,25 +642,16 @@
 
 
             <!-- =================================
-                 字幕MP4作成
+                 字幕MP4ダウンロード
+                 
+                 処理完了後、
+                 実行ボタンの次の行に表示
             ================================== -->
 
-            <div class="subtitle-create-row">
-
-
-                <button
-                    id="subtitle-mp4-create-button"
-                    class="execute-button"
-                    type="button"
-                    disabled
-                >
-
-                    字幕mp4を作成
-
-                </button>
-
-
-            </div>
+            <div
+                id="subtitle-mp4-download-area"
+                class="subtitle-download-area"
+            ></div>
 
 
         </div>
@@ -616,6 +663,11 @@
 
     <!-- =========================================
          共通処理エリア
+         
+         タブ1の処理表示にも使用する。
+         
+         タブ2のダウンロード結果は、
+         各処理セクション内に表示する。
     ========================================== -->
 
     <section
@@ -626,7 +678,7 @@
 
         <!-- =====================================
              処理状況
-
+             
              ステータス表示はここ1か所だけ。
              #status は作らない。
         ====================================== -->
@@ -640,7 +692,12 @@
 
 
         <!-- =====================================
-             ダウンロードエリア
+             共通ダウンロードエリア
+             
+             タブ1など既存処理用。
+             
+             タブ2のSRT/字幕MP4は、
+             上記の専用エリアへ表示する。
         ====================================== -->
 
         <div
