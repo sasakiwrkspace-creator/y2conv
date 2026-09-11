@@ -4512,1302 +4512,2441 @@ def main():
             )
         
         
-                // =====================================
-                // ダウンロードボタン
-                // =====================================
-        
-                function createDownloadButton(
-                    label,
-                    filename,
-                    downloadUrl
-                ) {
-        
-                    if (!downloadArea) {
-        
-                        return;
-        
+        // =====================================
+        // ダウンロードボタン
+        // =====================================
+
+        function createDownloadButton(
+            label,
+            filename,
+            downloadUrl
+        ) {
+
+            if (!downloadArea) {
+
+                return;
+
+            }
+
+
+            downloadArea.innerHTML =
+                "";
+
+
+            if (!filename) {
+
+                return;
+
+            }
+
+
+            const button =
+                document.createElement(
+                    "button"
+                );
+
+
+            button.type =
+                "button";
+
+
+            button.textContent =
+                label ||
+                "ダウンロード";
+
+
+            button.className =
+                "test-button";
+
+
+            button.addEventListener(
+                "click",
+                function () {
+
+                    let url =
+                        downloadUrl;
+
+
+                    if (!url) {
+
+                        url =
+                            "/downloads/" +
+                            encodeURIComponent(
+                                filename
+                            );
+
                     }
-        
-        
-                    downloadArea.innerHTML =
-                        "";
-        
-        
-                    if (!filename) {
-        
-                        return;
-        
-                    }
-        
-        
-                    const button =
+
+
+                    const link =
                         document.createElement(
-                            "button"
+                            "a"
                         );
-        
-        
-                    button.type =
-                        "button";
-        
-        
-                    button.textContent =
-                        label ||
-                        "ダウンロード";
-        
-        
-                    button.className =
-                        "test-button";
-        
-        
-                    button.addEventListener(
-                        "click",
-                        function () {
-        
-                            let url =
-                                downloadUrl;
-        
-        
-                            if (!url) {
-        
-                                url =
-                                    "/downloads/" +
-                                    encodeURIComponent(
-                                        filename
-                                    );
-        
-                            }
-        
-        
-                            const link =
-                                document.createElement(
-                                    "a"
-                                );
-        
-        
-                            link.href =
-                                url;
-        
-        
-                            link.download =
-                                filename;
-        
-        
-                            document.body.appendChild(
-                                link
-                            );
-        
-        
-                            link.click();
-        
-        
-                            link.remove();
-        
-                        }
+
+
+                    link.href =
+                        url;
+
+
+                    link.download =
+                        filename;
+
+
+                    document.body.appendChild(
+                        link
                     );
-        
-        
-                    downloadArea.appendChild(
-                        button
-                    );
-        
+
+
+                    link.click();
+
+
+                    link.remove();
+
                 }
-        
-        
-                // =====================================
-                // MP4転送
-                // =====================================
-        
-                async function transferMp4() {
-        
-                    if (
-                        subtitleState.isProcessing
-                    ) {
-        
-                        return;
-        
-                    }
-        
-        
-                    const file =
-                        mp4Input.files &&
-                        mp4Input.files.length
-                            ? mp4Input.files[0]
-                            : null;
-        
-        
-                    if (!file) {
-        
-                        setStatus(
-                            "MP4ファイルを選択してください。",
-                            "error"
-                        );
-        
-                        return;
-        
-                    }
-        
-        
-                    if (
-                        !file.name
-                            .toLowerCase()
-                            .endsWith(".mp4")
-                    ) {
-        
-                        setStatus(
-                            "MP4ファイルを選択してください。",
-                            "error"
-                        );
-        
-                        return;
-        
-                    }
-        
-        
-                    subtitleState.isProcessing =
-                        true;
-        
-        
-                    if (mp4UploadButton) {
-        
-                        mp4UploadButton.disabled =
-                            true;
-        
-                    }
-        
-        
-                    if (srtUploadButton) {
-        
-                        srtUploadButton.disabled =
-                            true;
-        
-                    }
-        
-        
-                    setFontDisabled(
-                        true
-                    );
-        
-        
-                    startProcessing();
-        
-        
-                    try {
-        
-                        startElapsedTimer(
-                            "MP4を転送しています..."
-                        );
-        
-        
-                        const result =
-                            await uploadMp4(
-                                file
-                            );
-        
-        
-                        subtitleState.mp4File =
-                            file;
-        
-        
-                        subtitleState.mp4Filename =
-                            result.mp4_file ||
-                            result.filename ||
-                            file.name;
-        
-        
-                        subtitleState.uploadedMp4Filename =
-                            subtitleState.mp4Filename;
-        
-        
-                        stopElapsedTimer();
-        
-        
-                        setStatus(
-        
-                            "MP4の転送が完了しました。\n\n" +
-                            "MP4: " +
-                            subtitleState.uploadedMp4Filename +
-                            "\n\n" +
-                            getElapsedText(),
-        
-                            "success"
-        
-                        );
-        
-                    }
-                    catch (error) {
-        
-                        stopElapsedTimer();
-        
-        
-                        console.error(
-                            "[SUBTITLE] MP4転送エラー:",
-                            error
-                        );
-        
-        
-                        setStatus(
-        
-                            "MP4転送中にエラーが発生しました。\n" +
-                            (
-                                error &&
-                                error.message
-                                    ? error.message
-                                    : "不明なエラー"
-                            ) +
-                            "\n\n" +
-                            getElapsedText(),
-        
-                            "error"
-        
-                        );
-        
-                    }
-                    finally {
-        
-                        stopElapsedTimer();
-        
-        
-                        subtitleState.isProcessing =
-                            false;
-        
-        
-                        processingStartTime =
-                            null;
-        
-        
-                        setFontDisabled(
-                            false
-                        );
-        
-        
-                        if (mp4UploadButton) {
-        
-                            mp4UploadButton.disabled =
-                                false;
-        
-                        }
-        
-        
-                        if (srtUploadButton) {
-        
-                            srtUploadButton.disabled =
-                                false;
-        
-                        }
-        
-        
-                        updateSubtitleMp4Button();
-        
-                    }
-        
-                }
-        
-        
-                // =====================================
-                // SRT転送
-                // =====================================
-        
-                async function transferSrt() {
-        
-                    if (
-                        subtitleState.isProcessing
-                    ) {
-        
-                        return;
-        
-                    }
-        
-        
-                    const file =
-                        srtInput.files &&
-                        srtInput.files.length
-                            ? srtInput.files[0]
-                            : null;
-        
-        
-                    if (!file) {
-        
-                        setStatus(
-                            "SRTファイルを選択してください。",
-                            "error"
-                        );
-        
-                        return;
-        
-                    }
-        
-        
-                    if (
-                        !file.name
-                            .toLowerCase()
-                            .endsWith(".srt")
-                    ) {
-        
-                        setStatus(
-                            "SRTファイルを選択してください。",
-                            "error"
-                        );
-        
-                        return;
-        
-                    }
-        
-        
-                    subtitleState.isProcessing =
-                        true;
-        
-        
-                    if (mp4UploadButton) {
-        
-                        mp4UploadButton.disabled =
-                            true;
-        
-                    }
-        
-        
-                    if (srtUploadButton) {
-        
-                        srtUploadButton.disabled =
-                            true;
-        
-                    }
-        
-        
-                    setFontDisabled(
-                        true
-                    );
-        
-        
-                    startProcessing();
-        
-        
-                    try {
-        
-                        startElapsedTimer(
-                            "SRTを転送しています..."
-                        );
-        
-        
-                        const result =
-                            await uploadSrt(
-                                file
-                            );
-        
-        
-                        subtitleState.srtFile =
-                            file;
-        
-        
-                        subtitleState.srtFilename =
-                            result.srt_file ||
-                            result.filename ||
-                            file.name;
-        
-        
-                        subtitleState.uploadedSrtFilename =
-                            subtitleState.srtFilename;
-        
-        
-                        stopElapsedTimer();
-        
-        
-                        setStatus(
-        
-                            "SRTの転送が完了しました。\n\n" +
-                            "SRT: " +
-                            subtitleState.uploadedSrtFilename +
-                            "\n\n" +
-                            getElapsedText(),
-        
-                            "success"
-        
-                        );
-        
-                    }
-                    catch (error) {
-        
-                        stopElapsedTimer();
-        
-        
-                        console.error(
-                            "[SUBTITLE] SRT転送エラー:",
-                            error
-                        );
-        
-        
-                        setStatus(
-        
-                            "SRT転送中にエラーが発生しました。\n" +
-                            (
-                                error &&
-                                error.message
-                                    ? error.message
-                                    : "不明なエラー"
-                            ) +
-                            "\n\n" +
-                            getElapsedText(),
-        
-                            "error"
-        
-                        );
-        
-                    }
-                    finally {
-        
-                        stopElapsedTimer();
-        
-        
-                        subtitleState.isProcessing =
-                            false;
-        
-        
-                        processingStartTime =
-                            null;
-        
-        
-                        setFontDisabled(
-                            false
-                        );
-        
-        
-                        if (mp4UploadButton) {
-        
-                            mp4UploadButton.disabled =
-                                false;
-        
-                        }
-        
-        
-                        if (srtUploadButton) {
-        
-                            srtUploadButton.disabled =
-                                false;
-        
-                        }
-        
-        
-                        updateSubtitleMp4Button();
-        
-                    }
-        
-                }
-        
-        
-                // =====================================
-                // 字幕MP4ボタン状態
-                //
-                // MP4 + SRTの両方が転送済みなら有効
-                // =====================================
-        
-                function updateSubtitleMp4Button() {
-        
-                    const hasMp4 =
-                        !!subtitleState.uploadedMp4Filename;
-        
-        
-                    const hasSrt =
-                        !!subtitleState.uploadedSrtFilename;
-        
-        
-                    subtitleMp4Button.disabled =
-                        !hasMp4 ||
-                        !hasSrt ||
-                        subtitleState.isProcessing;
-        
-                }
-        
-        
-                // =====================================
-                // MP3選択
-                // =====================================
-        
-                mp3SelectButton.addEventListener(
-                    "click",
-                    function (event) {
-        
-                        event.preventDefault();
-        
-        
-                        if (
-                            subtitleState.isProcessing
-                        ) {
-        
-                            return;
-        
-                        }
-        
-        
-                        mp3Input.click();
-        
-                    }
+            );
+
+
+            downloadArea.appendChild(
+                button
+            );
+
+        }
+
+
+        // =====================================
+        // MP4転送
+        // =====================================
+
+        async function transferMp4() {
+
+            if (
+                subtitleState.isProcessing
+            ) {
+
+                return;
+
+            }
+
+
+            const file =
+                mp4Input.files &&
+                mp4Input.files.length
+                    ? mp4Input.files[0]
+                    : null;
+
+
+            if (!file) {
+
+                setStatus(
+                    "MP4ファイルを選択してください。",
+                    "error"
                 );
-        
-        
-                mp3Input.addEventListener(
-                    "change",
-                    function () {
-        
-                        const file =
-                            this.files &&
-                            this.files.length
-                                ? this.files[0]
-                                : null;
-        
-        
-                        subtitleState.mp3File =
-                            file;
-        
-        
-                        subtitleState.mp3Filename =
-                            file
-                                ? file.name
-                                : "";
-        
-        
-                        updateFileDisplay(
-                            mp3SelectButton,
-                            file,
-                            "ファイルが選択されていません → mp3ファイルを選択してください"
-                        );
-        
-        
-                        geminiButton.disabled =
-                            !file ||
-                            subtitleState.isProcessing;
-        
-                    }
+
+                return;
+
+            }
+
+
+            if (
+                !file.name
+                    .toLowerCase()
+                    .endsWith(".mp4")
+            ) {
+
+                setStatus(
+                    "MP4ファイルを選択してください。",
+                    "error"
                 );
-        
-        
-                // =====================================
-                // MP4選択
-                //
-                // 新しいMP4を選択したら
-                // 古い転送済みMP4を無効化
-                // =====================================
-        
-                mp4SelectButton.addEventListener(
-                    "click",
-                    function (event) {
-        
-                        event.preventDefault();
-        
-        
-                        if (
-                            subtitleState.isProcessing
-                        ) {
-        
-                            return;
-        
-                        }
-        
-        
-                        mp4Input.click();
-        
-                    }
-                );
-        
-        
-                mp4Input.addEventListener(
-                    "change",
-                    function () {
-        
-                        const file =
-                            this.files &&
-                            this.files.length
-                                ? this.files[0]
-                                : null;
-        
-        
-                        subtitleState.mp4File =
-                            file;
-        
-        
-                        subtitleState.mp4Filename =
-                            file
-                                ? file.name
-                                : "";
-        
-        
-                        // ---------------------------------
-                        // 新しいMP4を選択したので、
-                        // 以前の転送済みMP4を無効化
-                        // ---------------------------------
-        
-                        subtitleState.uploadedMp4Filename =
-                            "";
-        
-        
-                        // ---------------------------------
-                        // ボタン表示
-                        // ---------------------------------
-        
-                        updateFileDisplay(
-                            mp4SelectButton,
-                            file,
-                            "ファイルが選択されていません → mp4ファイルを選択してください"
-                        );
-        
-        
-                        updateSubtitleMp4Button();
-        
-                    }
-                );
-        
-        
-                // =====================================
-                // SRT選択
-                //
-                // 新しいSRTを選択したら
-                // 古い転送済みSRTを無効化
-                // =====================================
-        
-                srtSelectButton.addEventListener(
-                    "click",
-                    function (event) {
-        
-                        event.preventDefault();
-        
-        
-                        if (
-                            subtitleState.isProcessing
-                        ) {
-        
-                            return;
-        
-                        }
-        
-        
-                        srtInput.click();
-        
-                    }
-                );
-        
-        
-                srtInput.addEventListener(
-                    "change",
-                    function () {
-        
-                        const file =
-                            this.files &&
-                            this.files.length
-                                ? this.files[0]
-                                : null;
-        
-        
-                        subtitleState.srtFile =
-                            file;
-        
-        
-                        subtitleState.srtFilename =
-                            file
-                                ? file.name
-                                : "";
-        
-        
-                        // ---------------------------------
-                        // 新しいSRTを選択したので、
-                        // 以前の転送済みSRTを無効化
-                        // ---------------------------------
-        
-                        subtitleState.uploadedSrtFilename =
-                            "";
-        
-        
-                        // ---------------------------------
-                        // ボタン表示
-                        // ---------------------------------
-        
-                        updateFileDisplay(
-                            srtSelectButton,
-                            file,
-                            "ファイルが選択されていません → srtファイルを選択してください"
-                        );
-        
-        
-                        updateSubtitleMp4Button();
-        
-                    }
-                );
-        
-        
-                // =====================================
-                // MP4転送ボタン
-                // =====================================
-        
-                if (mp4UploadButton) {
-        
-                    mp4UploadButton.addEventListener(
-                        "click",
-                        function (event) {
-        
-                            event.preventDefault();
-        
-                            transferMp4();
-        
-                        }
-                    );
-        
-                }
-        
-        
-                // =====================================
-                // SRT転送ボタン
-                // =====================================
-        
-                if (srtUploadButton) {
-        
-                    srtUploadButton.addEventListener(
-                        "click",
-                        function (event) {
-        
-                            event.preventDefault();
-        
-                            transferSrt();
-        
-                        }
-                    );
-        
-                }
-        
-        
-                // =====================================
-                // Gemini
-                // =====================================
-        
-                geminiButton.addEventListener(
-                    "click",
-                    async function (event) {
-        
-                        event.preventDefault();
-        
-        
-                        if (
-                            subtitleState.isProcessing
-                        ) {
-        
-                            return;
-        
-                        }
-        
-        
-                        const file =
-                            mp3Input.files &&
-                            mp3Input.files.length
-                                ? mp3Input.files[0]
-                                : null;
-        
-        
-                        if (!file) {
-        
-                            setStatus(
-                                "MP3ファイルを選択してください。",
-                                "error"
-                            );
-        
-                            return;
-        
-                        }
-        
-        
-                        if (
-                            !file.name
-                                .toLowerCase()
-                                .endsWith(".mp3")
-                        ) {
-        
-                            setStatus(
-                                "MP3ファイルを選択してください。",
-                                "error"
-                            );
-        
-                            return;
-        
-                        }
-        
-        
-                        subtitleState.isProcessing =
-                            true;
-        
-        
-                        geminiButton.disabled =
-                            true;
-        
-        
-                        setFontDisabled(
-                            true
-                        );
-        
-        
-                        startProcessing();
-        
-        
-                        try {
-        
-                            startElapsedTimer(
-                                "MP3をアップロードしています..."
-                            );
-        
-        
-                            const result =
-                                await createSrtWithGemini(
-                                    file
-                                );
-        
-        
-                            subtitleState.mp3Filename =
-                                result.mp3_file ||
-                                result.filename ||
-                                file.name;
-        
-        
-                            subtitleState.generatedSrtFilename =
-                                result.srt_file ||
-                                "";
-        
-        
-                            stopElapsedTimer();
-        
-        
-                            if (!result.srt_file) {
-        
-                                throw new Error(
-                                    "作成されたSRTファイル名を取得できませんでした。"
-                                );
-        
-                            }
-        
-        
-                            setStatus(
-        
-                                "SRTファイルの作成が完了しました。\n\n" +
-                                "SRT: " +
-                                result.srt_file +
-                                "\n\n" +
-                                getElapsedText(),
-        
-                                "success"
-        
-                            );
-        
-        
-                            createDownloadButton(
-                                "SRTをダウンロード",
-                                result.srt_file,
-                                result.download_url
-                            );
-        
-                        }
-                        catch (error) {
-        
-                            stopElapsedTimer();
-        
-        
-                            console.error(
-                                "[SUBTITLE] SRT作成エラー:",
-                                error
-                            );
-        
-        
-                            setStatus(
-        
-                                "SRT作成中にエラーが発生しました。\n" +
-                                (
-                                    error &&
-                                    error.message
-                                        ? error.message
-                                        : "不明なエラー"
-                                ) +
-                                "\n\n" +
-                                getElapsedText(),
-        
-                                "error"
-        
-                            );
-        
-                        }
-                        finally {
-        
-                            stopElapsedTimer();
-        
-        
-                            subtitleState.isProcessing =
-                                false;
-        
-        
-                            processingStartTime =
-                                null;
-        
-        
-                            setFontDisabled(
-                                false
-                            );
-        
-        
-                            geminiButton.disabled =
-                                !(
-                                    mp3Input.files &&
-                                    mp3Input.files.length
-                                );
-        
-                        }
-        
-                    }
-                );
-        
-        
-                // =====================================
-                // 字幕MP4作成
-                //
-                // ・ここではアップロードしない
-                // ・転送済みMP4/SRTだけを使用
-                // ・/subtitle-create-mp4 を呼び出す
-                // =====================================
-        
-                subtitleMp4Button.addEventListener(
-                    "click",
-                    async function (event) {
-        
-                        event.preventDefault();
-        
-        
-                        if (
-                            subtitleState.isProcessing
-                        ) {
-        
-                            return;
-        
-                        }
-        
-        
-                        const mp4Filename =
-                            subtitleState.uploadedMp4Filename;
-        
-        
-                        const srtFilename =
-                            subtitleState.uploadedSrtFilename;
-        
-        
-                        if (!mp4Filename) {
-        
-                            setStatus(
-                                "先にMP4ファイルを転送してください。",
-                                "error"
-                            );
-        
-                            return;
-        
-                        }
-        
-        
-                        if (!srtFilename) {
-        
-                            setStatus(
-                                "先にSRTファイルを転送してください。",
-                                "error"
-                            );
-        
-                            return;
-        
-                        }
-        
-        
-                        subtitleState.isProcessing =
-                            true;
-        
-        
-                        subtitleMp4Button.disabled =
-                            true;
-        
-        
-                        if (mp4UploadButton) {
-        
-                            mp4UploadButton.disabled =
-                                true;
-        
-                        }
-        
-        
-                        if (srtUploadButton) {
-        
-                            srtUploadButton.disabled =
-                                true;
-        
-                        }
-        
-        
-                        setFontDisabled(
-                            true
-                        );
-        
-        
-                        startProcessing();
-        
-        
-                        try {
-        
-                            startElapsedTimer(
-        
-                                "字幕を動画に付けています...\n" +
-                                "しばらくお待ちください。"
-        
-                            );
-        
-        
-                            const embedResult =
-                                await embedSubtitle(
-                                    mp4Filename,
-                                    srtFilename
-                                );
-        
-        
-                            subtitleState.generatedSubtitleMp4Filename =
-                                embedResult.filename;
-        
-        
-                            stopElapsedTimer();
-        
-        
-                            setStatus(
-        
-                                "字幕mp4の作成が完了しました。\n\n" +
-                                "ファイル: " +
-                                embedResult.filename +
-                                "\n\n" +
-                                getElapsedText(),
-        
-                                "success"
-        
-                            );
-        
-        
-                            createDownloadButton(
-        
-                                "字幕付きMP4をダウンロード",
-        
-                                embedResult.filename,
-        
-                                embedResult.download_url
-        
-                            );
-        
-                        }
-                        catch (error) {
-        
-                            stopElapsedTimer();
-        
-        
-                            console.error(
-                                "[SUBTITLE] 字幕MP4作成エラー:",
-                                error
-                            );
-        
-        
-                            setStatus(
-        
-                                "字幕mp4作成中にエラーが発生しました。\n" +
-                                (
-                                    error &&
-                                    error.message
-                                        ? error.message
-                                        : "不明なエラー"
-                            ) +
-                                "\n\n" +
-                                getElapsedText(),
-        
-                                "error"
-        
-                            );
-        
-                        }
-                        finally {
-        
-                            stopElapsedTimer();
-        
-        
-                            subtitleState.isProcessing =
-                                false;
-        
-        
-                            processingStartTime =
-                                null;
-        
-        
-                            setFontDisabled(
-                                false
-                            );
-        
-        
-                            if (mp4UploadButton) {
-        
-                                mp4UploadButton.disabled =
-                                    false;
-        
-                            }
-        
-        
-                            if (srtUploadButton) {
-        
-                                srtUploadButton.disabled =
-                                    false;
-        
-                            }
-        
-        
-                            updateSubtitleMp4Button();
-        
-                        }
-        
-                    }
-                );
-        
-        
-                // =====================================
-                // 外部公開
-                // =====================================
-        
-                mainObject.createSrtWithGemini =
-                    createSrtWithGemini;
-        
-        
-                mainObject.uploadMp4 =
-                    uploadMp4;
-        
-        
-                mainObject.uploadSrt =
-                    uploadSrt;
-        
-        
-                mainObject.transferMp4 =
-                    transferMp4;
-        
-        
-                mainObject.transferSrt =
-                    transferSrt;
-        
-        
-                mainObject.embedSubtitle =
-                    embedSubtitle;
-        
-        
-                mainObject.createDownloadButton =
-                    createDownloadButton;
-        
-        
-                mainObject.getState =
-                    function () {
-        
-                        return subtitleState;
-        
-                    };
-        
-        
-                mainObject.getFontPreset =
-                    function () {
-        
-                        return getFontPreset();
-        
-                    };
-        
-        
-                mainObject.getFontSettings =
-                    function () {
-        
-                        return getFontSettings();
-        
-                    };
-        
-        
-                mainObject.clearResult =
-                    clearStatus;
-        
-        
-                // =====================================
-                // 初期表示
-                // =====================================
-        
-                updateFileDisplay(
-                    mp3SelectButton,
-                    null,
-                    "mp3ファイルを選択してください"
-                );
-        
-        
-                // -------------------------------------
-                // MP4
-                // -------------------------------------
-        
-                updateFileDisplay(
-                    mp4SelectButton,
-                    null,
-                    "mp4ファイルを選択してください"
-                );
-        
-        
-                // -------------------------------------
-                // SRT
-                // -------------------------------------
-        
-                updateFileDisplay(
-                    srtSelectButton,
-                    null,
-                    "srtファイルを選択してください"
-                );
-        
-        
-                geminiButton.disabled =
+
+                return;
+
+            }
+
+
+            subtitleState.isProcessing =
+                true;
+
+
+            if (mp4UploadButton) {
+
+                mp4UploadButton.disabled =
                     true;
-        
-        
+
+            }
+
+
+            if (srtUploadButton) {
+
+                srtUploadButton.disabled =
+                    true;
+
+            }
+
+
+            setFontDisabled(
+                true
+            );
+
+
+            startProcessing();
+
+
+            try {
+
+                startElapsedTimer(
+                    "MP4を転送しています..."
+                );
+
+
+                const result =
+                    await uploadMp4(
+                        file
+                    );
+
+
+                subtitleState.mp4File =
+                    file;
+
+
+                subtitleState.mp4Filename =
+                    result.mp4_file ||
+                    result.filename ||
+                    file.name;
+
+
+                subtitleState.uploadedMp4Filename =
+                    subtitleState.mp4Filename;
+
+
+                stopElapsedTimer();
+
+
+                setStatus(
+
+                    "MP4の転送が完了しました。\n\n" +
+                    "MP4: " +
+                    subtitleState.uploadedMp4Filename +
+                    "\n\n" +
+                    getElapsedText(),
+
+                    "success"
+
+                );
+
+            }
+            catch (error) {
+
+                stopElapsedTimer();
+
+
+                console.error(
+                    "[SUBTITLE] MP4転送エラー:",
+                    error
+                );
+
+
+                setStatus(
+
+                    "MP4転送中にエラーが発生しました。\n" +
+                    (
+                        error &&
+                        error.message
+                            ? error.message
+                            : "不明なエラー"
+                    ) +
+                    "\n\n" +
+                    getElapsedText(),
+
+                    "error"
+
+                );
+
+            }
+            finally {
+
+                stopElapsedTimer();
+
+
+                subtitleState.isProcessing =
+                    false;
+
+
+                processingStartTime =
+                    null;
+
+
+                setFontDisabled(
+                    false
+                );
+
+
                 if (mp4UploadButton) {
-        
+
                     mp4UploadButton.disabled =
                         false;
-        
+
                 }
-        
-        
+
+
                 if (srtUploadButton) {
-        
+
                     srtUploadButton.disabled =
                         false;
-        
+
                 }
-        
-        
+
+
                 updateSubtitleMp4Button();
-        
-        
-                console.log(
-                    "[SUBTITLE] initializeSubtitle() complete"
-                );
-        
+
             }
-        
-        
-            // =====================================
-            // DOMContentLoaded
-            // =====================================
-        
+
+        }
+
+
+        // =====================================
+        // SRT転送
+        // =====================================
+
+        async function transferSrt() {
+
             if (
-                document.readyState ===
-                "loading"
+                subtitleState.isProcessing
             ) {
-        
-                document.addEventListener(
-                    "DOMContentLoaded",
-                    initializeSubtitle,
-                    {
-                        once:
-                            true
-                    }
+
+                return;
+
+            }
+
+
+            const file =
+                srtInput.files &&
+                srtInput.files.length
+                    ? srtInput.files[0]
+                    : null;
+
+
+            if (!file) {
+
+                setStatus(
+                    "SRTファイルを選択してください。",
+                    "error"
                 );
-        
+
+                return;
+
             }
-            else {
-        
-                initializeSubtitle();
-        
+
+
+            if (
+                !file.name
+                    .toLowerCase()
+                    .endsWith(".srt")
+            ) {
+
+                setStatus(
+                    "SRTファイルを選択してください。",
+                    "error"
+                );
+
+                return;
+
             }
-        
-        })();
+
+
+            subtitleState.isProcessing =
+                true;
+
+
+            if (mp4UploadButton) {
+
+                mp4UploadButton.disabled =
+                    true;
+
+            }
+
+
+            if (srtUploadButton) {
+
+                srtUploadButton.disabled =
+                    true;
+
+            }
+
+
+            setFontDisabled(
+                true
+            );
+
+
+            startProcessing();
+
+
+            try {
+
+                startElapsedTimer(
+                    "SRTを転送しています..."
+                );
+
+
+                const result =
+                    await uploadSrt(
+                        file
+                    );
+
+
+                subtitleState.srtFile =
+                    file;
+
+
+                subtitleState.srtFilename =
+                    result.srt_file ||
+                    result.filename ||
+                    file.name;
+
+
+                subtitleState.uploadedSrtFilename =
+                    subtitleState.srtFilename;
+
+
+                stopElapsedTimer();
+
+
+                setStatus(
+
+                    "SRTの転送が完了しました。\n\n" +
+                    "SRT: " +
+                    subtitleState.uploadedSrtFilename +
+                    "\n\n" +
+                    getElapsedText(),
+
+                    "success"
+
+                );
+
+            }
+            catch (error) {
+
+                stopElapsedTimer();
+
+
+                console.error(
+                    "[SUBTITLE] SRT転送エラー:",
+                    error
+                );
+
+
+                setStatus(
+
+                    "SRT転送中にエラーが発生しました。\n" +
+                    (
+                        error &&
+                        error.message
+                            ? error.message
+                            : "不明なエラー"
+                    ) +
+                    "\n\n" +
+                    getElapsedText(),
+
+                    "error"
+
+                );
+
+            }
+            finally {
+
+                stopElapsedTimer();
+
+
+                subtitleState.isProcessing =
+                    false;
+
+
+                processingStartTime =
+                    null;
+
+
+                setFontDisabled(
+                    false
+                );
+
+
+                if (mp4UploadButton) {
+
+                    mp4UploadButton.disabled =
+                        false;
+
+                }
+
+
+                if (srtUploadButton) {
+
+                    srtUploadButton.disabled =
+                        false;
+
+                }
+
+
+                updateSubtitleMp4Button();
+
+            }
+
+        }
+
+
+        // =====================================
+        // 字幕MP4ボタン状態
+        //
+        // MP4 + SRTの両方が転送済みなら有効
+        // =====================================
+
+        function updateSubtitleMp4Button() {
+
+            const hasMp4 =
+                !!subtitleState.uploadedMp4Filename;
+
+
+            const hasSrt =
+                !!subtitleState.uploadedSrtFilename;
+
+
+            subtitleMp4Button.disabled =
+                !hasMp4 ||
+                !hasSrt ||
+                subtitleState.isProcessing;
+
+        }
+
+
+        // =====================================
+        // MP3選択
+        // =====================================
+
+        mp3SelectButton.addEventListener(
+            "click",
+            function (event) {
+
+                event.preventDefault();
+
+
+                if (
+                    subtitleState.isProcessing
+                ) {
+
+                    return;
+
+                }
+
+
+                mp3Input.click();
+
+            }
+        );
+
+
+        mp3Input.addEventListener(
+            "change",
+            function () {
+
+                const file =
+                    this.files &&
+                    this.files.length
+                        ? this.files[0]
+                        : null;
+
+
+                subtitleState.mp3File =
+                    file;
+
+
+                subtitleState.mp3Filename =
+                    file
+                        ? file.name
+                        : "";
+
+
+                updateFileDisplay(
+                    mp3SelectButton,
+                    file,
+                    "ファイルが選択されていません → mp3ファイルを選択してください"
+                );
+
+
+                geminiButton.disabled =
+                    !file ||
+                    subtitleState.isProcessing;
+
+            }
+        );
+
+
+        // =====================================
+        // MP4選択
+        //
+        // 新しいMP4を選択したら
+        // 古い転送済みMP4を無効化
+        // =====================================
+
+        mp4SelectButton.addEventListener(
+            "click",
+            function (event) {
+
+                event.preventDefault();
+
+
+                if (
+                    subtitleState.isProcessing
+                ) {
+
+                    return;
+
+                }
+
+
+                mp4Input.click();
+
+            }
+        );
+
+
+        mp4Input.addEventListener(
+            "change",
+            function () {
+
+                const file =
+                    this.files &&
+                    this.files.length
+                        ? this.files[0]
+                        : null;
+
+
+                subtitleState.mp4File =
+                    file;
+
+
+                subtitleState.mp4Filename =
+                    file
+                        ? file.name
+                        : "";
+
+
+                // ---------------------------------
+                // 新しいMP4を選択したので、
+                // 以前の転送済みMP4を無効化
+                // ---------------------------------
+
+                subtitleState.uploadedMp4Filename =
+                    "";
+
+
+                // ---------------------------------
+                // ボタン表示
+                // ---------------------------------
+
+                updateFileDisplay(
+                    mp4SelectButton,
+                    file,
+                    "ファイルが選択されていません → mp4ファイルを選択してください"
+                );
+
+
+                updateSubtitleMp4Button();
+
+            }
+        );
+
+
+        // =====================================
+        // SRT選択
+        //
+        // 新しいSRTを選択したら
+        // 古い転送済みSRTを無効化
+        // =====================================
+
+        srtSelectButton.addEventListener(
+            "click",
+            function (event) {
+
+                event.preventDefault();
+
+
+                if (
+                    subtitleState.isProcessing
+                ) {
+
+                    return;
+
+                }
+
+
+                srtInput.click();
+
+            }
+        );
+
+
+        srtInput.addEventListener(
+            "change",
+            function () {
+
+                const file =
+                    this.files &&
+                    this.files.length
+                        ? this.files[0]
+                        : null;
+
+
+                subtitleState.srtFile =
+                    file;
+
+
+                subtitleState.srtFilename =
+                    file
+                        ? file.name
+                        : "";
+
+
+                // ---------------------------------
+                // 新しいSRTを選択したので、
+                // 以前の転送済みSRTを無効化
+                // ---------------------------------
+
+                subtitleState.uploadedSrtFilename =
+                    "";
+
+
+                // ---------------------------------
+                // ボタン表示
+                // ---------------------------------
+
+                updateFileDisplay(
+                    srtSelectButton,
+                    file,
+                    "ファイルが選択されていません → srtファイルを選択してください"
+                );
+
+
+                updateSubtitleMp4Button();
+
+            }
+        );
+
+
+        // =====================================
+        // MP4転送ボタン
+        // =====================================
+
+        if (mp4UploadButton) {
+
+            mp4UploadButton.addEventListener(
+                "click",
+                function (event) {
+
+                    event.preventDefault();
+
+                    transferMp4();
+
+                }
+            );
+
+        }
+
+
+        // =====================================
+        // SRT転送ボタン
+        // =====================================
+
+        if (srtUploadButton) {
+
+            srtUploadButton.addEventListener(
+                "click",
+                function (event) {
+
+                    event.preventDefault();
+
+                    transferSrt();
+
+                }
+            );
+
+        }
+
+
+        // =====================================
+        // Gemini
+        // =====================================
+
+        geminiButton.addEventListener(
+            "click",
+            async function (event) {
+
+                event.preventDefault();
+
+
+                if (
+                    subtitleState.isProcessing
+                ) {
+
+                    return;
+
+                }
+
+
+                const file =
+                    mp3Input.files &&
+                    mp3Input.files.length
+                        ? mp3Input.files[0]
+                        : null;
+
+
+                if (!file) {
+
+                    setStatus(
+                        "MP3ファイルを選択してください。",
+                        "error"
+                    );
+
+                    return;
+
+                }
+
+
+                if (
+                    !file.name
+                        .toLowerCase()
+                        .endsWith(".mp3")
+                ) {
+
+                    setStatus(
+                        "MP3ファイルを選択してください。",
+                        "error"
+                    );
+
+                    return;
+
+                }
+
+
+                subtitleState.isProcessing =
+                    true;
+
+
+                geminiButton.disabled =
+                    true;
+
+
+                setFontDisabled(
+                    true
+                );
+
+
+                startProcessing();
+
+
+                try {
+
+                    startElapsedTimer(
+                        "MP3をアップロードしています..."
+                    );
+
+
+                    const result =
+                        await createSrtWithGemini(
+                            file
+                        );
+
+
+                    subtitleState.mp3Filename =
+                        result.mp3_file ||
+                        result.filename ||
+                        file.name;
+
+
+                    subtitleState.generatedSrtFilename =
+                        result.srt_file ||
+                        "";
+
+
+                    stopElapsedTimer();
+
+
+                    if (!result.srt_file) {
+
+                        throw new Error(
+                            "作成されたSRTファイル名を取得できませんでした。"
+                        );
+
+                    }
+
+
+                    setStatus(
+
+                        "SRTファイルの作成が完了しました。\n\n" +
+                        "SRT: " +
+                        result.srt_file +
+                        "\n\n" +
+                        getElapsedText(),
+
+                        "success"
+
+                    );
+
+
+                    createDownloadButton(
+                        "SRTをダウンロード",
+                        result.srt_file,
+                        result.download_url
+                    );
+
+                }
+                catch (error) {
+
+                    stopElapsedTimer();
+
+
+                    console.error(
+                        "[SUBTITLE] SRT作成エラー:",
+                        error
+                    );
+
+
+                    setStatus(
+
+                        "SRT作成中にエラーが発生しました。\n" +
+                        (
+                            error &&
+                            error.message
+                                ? error.message
+                                : "不明なエラー"
+                        ) +
+                        "\n\n" +
+                        getElapsedText(),
+
+                        "error"
+
+                    );
+
+                }
+                finally {
+
+                    stopElapsedTimer();
+
+
+                    subtitleState.isProcessing =
+                        false;
+
+
+                    processingStartTime =
+                        null;
+
+
+                    setFontDisabled(
+                        false
+                    );
+
+
+                    geminiButton.disabled =
+                        !(
+                            mp3Input.files &&
+                            mp3Input.files.length
+                        );
+
+                }
+
+            }
+        );
+
+
+        // =====================================
+        // 字幕MP4作成
+        //
+        // ・ここではアップロードしない
+        // ・転送済みMP4/SRTだけを使用
+        // ・/subtitle-create-mp4 を呼び出す
+        // =====================================
+
+        subtitleMp4Button.addEventListener(
+            "click",
+            async function (event) {
+
+                event.preventDefault();
+
+
+                if (
+                    subtitleState.isProcessing
+                ) {
+
+                    return;
+
+                }
+
+
+                const mp4Filename =
+                    subtitleState.uploadedMp4Filename;
+
+
+                const srtFilename =
+                    subtitleState.uploadedSrtFilename;
+
+
+                if (!mp4Filename) {
+
+                    setStatus(
+                        "先にMP4ファイルを転送してください。",
+                        "error"
+                    );
+
+                    return;
+
+                }
+
+
+                if (!srtFilename) {
+
+                    setStatus(
+                        "先にSRTファイルを転送してください。",
+                        "error"
+                    );
+
+                    return;
+
+                }
+
+
+                subtitleState.isProcessing =
+                    true;
+
+
+                subtitleMp4Button.disabled =
+                    true;
+
+
+                if (mp4UploadButton) {
+
+                    mp4UploadButton.disabled =
+                        true;
+
+                }
+
+
+                if (srtUploadButton) {
+
+                    srtUploadButton.disabled =
+                        true;
+
+                }
+
+
+                setFontDisabled(
+                    true
+                );
+
+
+                startProcessing();
+
+
+                try {
+
+                    startElapsedTimer(
+
+                        "字幕を動画に付けています...\n" +
+                        "しばらくお待ちください。"
+
+                    );
+
+
+                    const embedResult =
+                        await embedSubtitle(
+                            mp4Filename,
+                            srtFilename
+                        );
+
+
+                    subtitleState.generatedSubtitleMp4Filename =
+                        embedResult.filename;
+
+
+                    stopElapsedTimer();
+
+
+                    setStatus(
+
+                        "字幕mp4の作成が完了しました。\n\n" +
+                        "ファイル: " +
+                        embedResult.filename +
+                        "\n\n" +
+                        getElapsedText(),
+
+                        "success"
+
+                    );
+
+
+                    createDownloadButton(
+
+                        "字幕付きMP4をダウンロード",
+
+                        embedResult.filename,
+
+                        embedResult.download_url
+
+                    );
+
+                }
+                catch (error) {
+
+                    stopElapsedTimer();
+
+
+                    console.error(
+                        "[SUBTITLE] 字幕MP4作成エラー:",
+                        error
+                    );
+
+
+                    setStatus(
+
+                        "字幕mp4作成中にエラーが発生しました。\n" +
+                        (
+                            error &&
+                            error.message
+                                ? error.message
+                                : "不明なエラー"
+                    ) +
+                        "\n\n" +
+                        getElapsedText(),
+
+                        "error"
+
+                    );
+
+                }
+                finally {
+
+                    stopElapsedTimer();
+
+
+                    subtitleState.isProcessing =
+                        false;
+
+
+                    processingStartTime =
+                        null;
+
+
+                    setFontDisabled(
+                        false
+                    );
+
+
+                    if (mp4UploadButton) {
+
+                        mp4UploadButton.disabled =
+                            false;
+
+                    }
+
+
+                    if (srtUploadButton) {
+
+                        srtUploadButton.disabled =
+                            false;
+
+                    }
+
+
+                    updateSubtitleMp4Button();
+
+                }
+
+            }
+        );
+
+
+        // =====================================
+        // 外部公開
+        // =====================================
+
+        mainObject.createSrtWithGemini =
+            createSrtWithGemini;
+
+
+        mainObject.uploadMp4 =
+            uploadMp4;
+
+
+        mainObject.uploadSrt =
+            uploadSrt;
+
+
+        mainObject.transferMp4 =
+            transferMp4;
+
+
+        mainObject.transferSrt =
+            transferSrt;
+
+
+        mainObject.embedSubtitle =
+            embedSubtitle;
+
+
+        mainObject.createDownloadButton =
+            createDownloadButton;
+
+
+        mainObject.getState =
+            function () {
+
+                return subtitleState;
+
+            };
+
+
+        mainObject.getFontPreset =
+            function () {
+
+                return getFontPreset();
+
+            };
+
+
+        mainObject.getFontSettings =
+            function () {
+
+                return getFontSettings();
+
+            };
+
+
+        mainObject.clearResult =
+            clearStatus;
+
+
+        // =====================================
+        // 初期表示
+        // =====================================
+
+        updateFileDisplay(
+            mp3SelectButton,
+            null,
+            "mp3ファイルを選択してください"
+        );
+
+
+        // -------------------------------------
+        // MP4
+        // -------------------------------------
+
+        updateFileDisplay(
+            mp4SelectButton,
+            null,
+            "mp4ファイルを選択してください"
+        );
+
+
+        // -------------------------------------
+        // SRT
+        // -------------------------------------
+
+        updateFileDisplay(
+            srtSelectButton,
+            null,
+            "srtファイルを選択してください"
+        );
+
+
+        geminiButton.disabled =
+            true;
+
+
+        if (mp4UploadButton) {
+
+            mp4UploadButton.disabled =
+                false;
+
+        }
+
+
+        if (srtUploadButton) {
+
+            srtUploadButton.disabled =
+                false;
+
+        }
+
+
+        updateSubtitleMp4Button();
+
+
+        console.log(
+            "[SUBTITLE] initializeSubtitle() complete"
+        );
+
+    }
+
+
+    // =====================================
+    // DOMContentLoaded
+    // =====================================
+
+    if (
+        document.readyState ===
+        "loading"
+    ) {
+
+        document.addEventListener(
+            "DOMContentLoaded",
+            initializeSubtitle,
+            {
+                once:
+                    true
+            }
+        );
+
+    }
+    else {
+
+        initializeSubtitle();
+
+    }
+
+})();# ==========================================================
+# subtitle_test_fonts.py
+#
+# 字幕フォントFFmpegテスト
+#
+# 目的:
+#
+#   test.mp4
+#       +
+#   test.srt
+#       ↓
+#   subtitle_font.py
+#       ↓
+#   フォント・文字色・縁色・縁太さ
+#       ↓
+#   FFmpeg subtitles filter
+#       ↓
+#   test_embed_fonts.mp4
+#
+#
+# 重要:
+#
+#   /app/downloads/fonts
+#   が存在しない場合でもエラーにしない。
+#
+#   fontsdirが存在:
+#       ↓
+#       fontsdirをFFmpegへ渡す
+#
+#   fontsdirが存在しない:
+#       ↓
+#       警告を表示
+#       ↓
+#       規定フォントを使用
+#       ↓
+#       FFmpeg処理を継続
+#
+# ==========================================================
+
+
+from pathlib import Path
+import subprocess
+
+
+# ==========================================================
+# パス
+# ==========================================================
+
+DOWNLOAD_DIR = Path(
+"/app/downloads"
+)
+
+
+DEFAULT_INPUT_MP4 = (
+DOWNLOAD_DIR /
+"test.mp4"
+)
+
+
+DEFAULT_INPUT_SRT = (
+DOWNLOAD_DIR /
+"test.srt"
+)
+
+
+DEFAULT_OUTPUT_MP4 = (
+DOWNLOAD_DIR /
+"test_embed_fonts.mp4"
+)
+
+
+DEFAULT_FONTS_DIR = (
+DOWNLOAD_DIR /
+"fonts"
+)
+
+
+# ==========================================================
+# デフォルト値
+#
+# subtitle_font.pyと合わせる。
+# ==========================================================
+
+DEFAULT_FONT = (
+"Noto Sans CJK JP"
+)
+
+
+DEFAULT_TEXT_COLOR = (
+"白"
+)
+
+
+DEFAULT_OUTLINE_COLOR = (
+"青"
+)
+
+
+DEFAULT_OUTLINE_WIDTH = 5
+
+
+# ==========================================================
+# ログ
+# ==========================================================
+
+def _log(
+message
+):
+
+print(
+"[SUBTITLE_TEST_FONTS]",
+message,
+flush=True
+)
+
+
+# ==========================================================
+# subtitle_font.pyから設定取得
+# ==========================================================
+
+def _get_font_settings(
+font=None,
+text_color=None,
+outline_color=None,
+outline_width=None
+):
+
+_log(
+"subtitle_font.py import START"
+)
+
+
+try:
+
+from subtitle_font import (
+    select_subtitle_font
+)
+
+except Exception as error:
+
+_log(
+    "subtitle_font.py import FAILED"
+)
+
+_log(
+    f"{type(error).__name__}: {error}"
+)
+
+raise
+
+
+_log(
+"subtitle_font.py import OK"
+)
+
+
+# ======================================================
+# 明示指定が無い場合は標準設定
+# ======================================================
+
+settings = select_subtitle_font(
+
+preset_name="標準",
+
+font=(
+    font
+    if font is not None
+    else DEFAULT_FONT
+),
+
+text_color=(
+    text_color
+    if text_color is not None
+    else DEFAULT_TEXT_COLOR
+),
+
+outline_color=(
+    outline_color
+    if outline_color is not None
+    else DEFAULT_OUTLINE_COLOR
+),
+
+outline_width=(
+    outline_width
+    if outline_width is not None
+    else DEFAULT_OUTLINE_WIDTH
+)
+
+)
+
+
+_log(
+f"subtitle settings: {settings}"
+)
+
+
+return settings
+
+
+# ==========================================================
+# SRTパスをFFmpeg filter用にエスケープ
+# ==========================================================
+
+def _escape_filter_path(
+path
+):
+
+value = str(
+Path(path)
+)
+
+
+# ======================================================
+# FFmpeg filterで問題になりやすい文字を処理
+# ======================================================
+
+value = value.replace(
+"\\",
+"\\\\"
+)
+
+
+value = value.replace(
+":",
+"\\:"
+)
+
+
+value = value.replace(
+"'",
+"\\'"
+)
+
+
+value = value.replace(
+"[",
+"\\["
+)
+
+
+value = value.replace(
+"]",
+"\\]"
+)
+
+
+return value
+
+
+# ==========================================================
+# FFmpeg字幕filter生成
+# ==========================================================
+
+def _build_subtitles_filter(
+srt_path,
+fonts_dir,
+settings
+):
+
+# ======================================================
+# SRT
+# ======================================================
+
+escaped_srt = _escape_filter_path(
+srt_path
+)
+
+
+# ======================================================
+# フォント
+# ======================================================
+
+font_name = (
+settings.get(
+    "font"
+)
+or
+DEFAULT_FONT
+)
+
+
+# ======================================================
+# 文字色
+#
+# ASSカラーへ変換
+# ======================================================
+
+from subtitle_font import (
+get_subtitle_color
+)
+
+
+text_color_info = (
+get_subtitle_color(
+    settings.get(
+        "text_color",
+        DEFAULT_TEXT_COLOR
+    )
+)
+)
+
+
+outline_color_info = (
+get_subtitle_color(
+    settings.get(
+        "outline_color",
+        DEFAULT_OUTLINE_COLOR
+    )
+)
+)
+
+
+text_color_ass = (
+text_color_info[
+    "ass"
+]
+)
+
+
+outline_color_ass = (
+outline_color_info[
+    "ass"
+]
+)
+
+
+# ======================================================
+# 縁太さ
+# ======================================================
+
+try:
+
+outline_width = int(
+    settings.get(
+        "outline_width",
+        DEFAULT_OUTLINE_WIDTH
+    )
+)
+
+except (
+ValueError,
+TypeError
+):
+
+outline_width = (
+    DEFAULT_OUTLINE_WIDTH
+)
+
+
+outline_width = max(
+0,
+min(
+    outline_width,
+    10
+)
+)
+
+
+# ======================================================
+# force_style
+#
+# FontName:
+#   subtitle_font.pyのfont
+#
+# PrimaryColour:
+#   文字色
+#
+# OutlineColour:
+#   縁色
+#
+# Outline:
+#   縁太さ
+#
+# ======================================================
+
+force_style = (
+f"FontName={font_name},"
+f"PrimaryColour={text_color_ass},"
+f"OutlineColour={outline_color_ass},"
+f"Outline={outline_width}"
+)
+
+
+# ======================================================
+# subtitles filter
+# ======================================================
+
+filter_value = (
+"subtitles="
+f"'{escaped_srt}'"
+)
+
+
+# ======================================================
+# fontsdir
+#
+# 存在する場合のみ追加。
+# ======================================================
+
+if fonts_dir is not None:
+
+escaped_fonts_dir = (
+    _escape_filter_path(
+        fonts_dir
+    )
+)
+
+
+filter_value += (
+    f":fontsdir='{escaped_fonts_dir}'"
+)
+
+
+# ======================================================
+# force_style追加
+# ======================================================
+
+filter_value += (
+f":force_style='{force_style}'"
+)
+
+
+return filter_value
+
+
+# ==========================================================
+# メイン
+# ==========================================================
+
+def run_font_test(
+input_path=None,
+output_path=None,
+srt_path=None,
+fonts_dir=None,
+font=None,
+text_color=None,
+outline_color=None,
+outline_width=None
+):
+
+print(
+"==========================================",
+flush=True
+)
+
+
+print(
+"[SUBTITLE_TEST_FONTS] START",
+flush=True
+)
+
+
+print(
+"==========================================",
+flush=True
+)
+
+
+# ======================================================
+# パス
+# ======================================================
+
+if input_path is None:
+
+input_file = (
+    DEFAULT_INPUT_MP4
+)
+
+else:
+
+input_file = Path(
+    input_path
+)
+
+
+if output_path is None:
+
+output_file = (
+    DEFAULT_OUTPUT_MP4
+)
+
+else:
+
+output_file = Path(
+    output_path
+)
+
+
+if srt_path is None:
+
+srt_file = (
+    DEFAULT_INPUT_SRT
+)
+
+else:
+
+srt_file = Path(
+    srt_path
+)
+
+
+if fonts_dir is None:
+
+fonts_directory = (
+    DEFAULT_FONTS_DIR
+)
+
+else:
+
+fonts_directory = Path(
+    fonts_dir
+)
+
+
+# ======================================================
+# パス表示
+# ======================================================
+
+_log(
+f"input: {input_file}"
+)
+
+
+_log(
+f"srt: {srt_file}"
+)
+
+
+_log(
+f"output: {output_file}"
+)
+
+
+_log(
+f"fonts: {fonts_directory}"
+)
+
+
+# ======================================================
+# MP4確認
+# ======================================================
+
+_log(
+"MP4存在確認 START"
+)
+
+
+if not input_file.exists():
+
+raise FileNotFoundError(
+    "入力ファイルが存在しません: "
+    f"{input_file}"
+)
+
+
+if not input_file.is_file():
+
+raise FileNotFoundError(
+    "入力パスがファイルではありません: "
+    f"{input_file}"
+)
+
+
+input_size = (
+input_file.stat().st_size
+)
+
+
+_log(
+"MP4存在確認 OK"
+)
+
+
+_log(
+f"入力サイズ: {input_size} bytes"
+)
+
+
+# ======================================================
+# SRT確認
+# ======================================================
+
+_log(
+"SRT存在確認 START"
+)
+
+
+if not srt_file.exists():
+
+raise FileNotFoundError(
+    "字幕ファイルが存在しません: "
+    f"{srt_file}"
+)
+
+
+if not srt_file.is_file():
+
+raise FileNotFoundError(
+    "字幕パスがファイルではありません: "
+    f"{srt_file}"
+)
+
+
+srt_size = (
+srt_file.stat().st_size
+)
+
+
+_log(
+"SRT存在確認 OK"
+)
+
+
+_log(
+f"SRTサイズ: {srt_size} bytes"
+)
+
+
+# ======================================================
+# 出力ディレクトリ
+# ======================================================
+
+output_file.parent.mkdir(
+parents=True,
+exist_ok=True
+)
+
+
+# ======================================================
+# 既存出力削除
+# ======================================================
+
+if output_file.exists():
+
+_log(
+    "既存出力削除"
+)
+
+
+output_file.unlink()
+
+
+# ======================================================
+# fontsdir確認
+#
+# ★ここが今回の重要ポイント
+#
+# fontsが無くてもエラーにしない。
+# ======================================================
+
+_log(
+"フォントディレクトリ確認 START"
+)
+
+
+use_fonts_dir = False
+
+
+if fonts_directory.exists():
+
+if fonts_directory.is_dir():
+
+    use_fonts_dir = True
+
+
+    _log(
+        "フォントディレクトリ確認 OK"
+    )
+
+
+    _log(
+        f"fontsdir使用: {fonts_directory}"
+    )
+
+else:
+
+    _log(
+        "WARNING: fontsパスは存在しますが"
+        "ディレクトリではありません"
+    )
+
+
+    _log(
+        "WARNING: fontsdirを使用しません"
+    )
+
+
+else:
+
+_log(
+    "WARNING: フォントディレクトリが"
+    "存在しません"
+)
+
+
+_log(
+    f"WARNING: {fonts_directory}"
+)
+
+
+_log(
+    "WARNING: fontsdirなしで処理を継続します"
+)
+
+
+_log(
+    f"WARNING: 規定フォントを使用します: "
+    f"{DEFAULT_FONT}"
+)
+
+
+# ======================================================
+# 字幕フォント設定
+# ======================================================
+
+settings = _get_font_settings(
+
+font=font,
+
+text_color=text_color,
+
+outline_color=outline_color,
+
+outline_width=outline_width
+
+)
+
+
+# ======================================================
+# fontsdirなしの場合
+#
+# 指定フォントが無い可能性があるため、
+# ログに明示する。
+#
+# 実際のフォント解決はFFmpeg/libassに任せる。
+# ======================================================
+
+if not use_fonts_dir:
+
+_log(
+    "=========================================="
+)
+
+
+_log(
+    "FONT FALLBACK MODE"
+)
+
+
+_log(
+    "fontsdir: 使用しません"
+)
+
+
+_log(
+    "FFmpeg/libassのシステムフォント検索を使用"
+)
+
+
+_log(
+    f"font: {settings['font']}"
+)
+
+
+_log(
+    "=========================================="
+)
+
+
+# ======================================================
+# subtitles filter
+# ======================================================
+
+subtitles_filter = (
+_build_subtitles_filter(
+
+    srt_path=srt_file,
+
+    fonts_dir=(
+        fonts_directory
+        if use_fonts_dir
+        else None
+    ),
+
+    settings=settings
+
+)
+)
+
+
+# ======================================================
+# filter表示
+# ======================================================
+
+_log(
+"字幕filter:"
+)
+
+
+_log(
+subtitles_filter
+)
+
+
+# ======================================================
+# FFmpegコマンド
+# ======================================================
+
+command = [
+
+"/usr/bin/ffmpeg",
+
+"-y",
+
+"-nostdin",
+
+"-hide_banner",
+
+"-loglevel",
+"error",
+
+"-i",
+str(input_file),
+
+"-map",
+"0:v:0",
+
+"-map",
+"0:a:0?",
+
+"-vf",
+subtitles_filter,
+
+"-c:v",
+"libx264",
+
+"-threads",
+"1",
+
+"-preset",
+"ultrafast",
+
+"-crf",
+"28",
+
+"-c:a",
+"aac",
+
+"-b:a",
+"128k",
+
+"-movflags",
+"+faststart",
+
+str(output_file)
+
+]
+
+
+# ======================================================
+# コマンド表示
+# ======================================================
+
+print(
+"==========================================",
+flush=True
+)
+
+
+_log(
+"FFmpeg command"
+)
+
+
+print(
+" ".join(command),
+flush=True
+)
+
+
+print(
+"==========================================",
+flush=True
+)
+
+
+# ======================================================
+# FFmpeg開始
+# ======================================================
+
+_log(
+"FFmpeg起動【1回だけ】"
+)
+
+
+_log(
+"subprocess.run BEFORE"
+)
+
+
+try:
+
+result = subprocess.run(
+
+    command,
+
+    stdout=subprocess.PIPE,
+
+    stderr=subprocess.PIPE,
+
+    text=True,
+
+    timeout=120
+
+)
+
+
+except subprocess.TimeoutExpired:
+
+_log(
+    "FFmpeg TIMEOUT"
+)
+
+
+raise RuntimeError(
+    "FFmpegが120秒以内に終了しませんでした"
+)
+
+
+except Exception as error:
+
+_log(
+    "subprocess.run ERROR"
+)
+
+
+_log(
+    f"{type(error).__name__}: {error}"
+)
+
+
+raise
+
+
+# ======================================================
+# FFmpeg終了
+# ======================================================
+
+print(
+"==========================================",
+flush=True
+)
+
+
+_log(
+"FFmpeg終了"
+)
+
+
+_log(
+f"returncode: {result.returncode}"
+)
+
+
+print(
+"==========================================",
+flush=True
+)
+
+
+# ======================================================
+# stderr
+# ======================================================
+
+if result.stderr:
+
+_log(
+    "FFmpeg stderr:"
+)
+
+
+print(
+    result.stderr,
+    flush=True
+)
+
+
+# ======================================================
+# FFmpeg失敗
+# ======================================================
+
+if result.returncode != 0:
+
+raise RuntimeError(
+    "FFmpeg処理失敗 "
+    f"(returncode={result.returncode})"
+)
+
+
+# ======================================================
+# 出力確認
+# ======================================================
+
+_log(
+"出力ファイル確認 START"
+)
+
+
+if not output_file.exists():
+
+raise FileNotFoundError(
+    "FFmpeg終了後も出力ファイルがありません: "
+    f"{output_file}"
+)
+
+
+if not output_file.is_file():
+
+raise FileNotFoundError(
+    "FFmpeg出力がファイルではありません: "
+    f"{output_file}"
+)
+
+
+output_size = (
+output_file.stat().st_size
+)
+
+
+_log(
+"出力ファイル確認 OK"
+)
+
+
+_log(
+f"出力サイズ: {output_size} bytes"
+)
+
+
+# ======================================================
+# 完了ログ
+# ======================================================
+
+print(
+"==========================================",
+flush=True
+)
+
+
+_log(
+"COMPLETE"
+)
+
+
+print(
+"==========================================",
+flush=True
+)
+
+
+return output_file
+
+
+# ==========================================================
+# 単体テスト
+#
+# python subtitle_test_fonts.py
+#
+# ==========================================================
+
+if __name__ == "__main__":
+
+print(
+"=========================================="
+)
+
+
+print(
+"subtitle_test_fonts.py test"
+)
+
+
+print(
+"=========================================="
+)
+
+
+try:
+
+result = run_font_test()
+
+
+print(
+    "=========================================="
+)
+
+
+print(
+    "TEST SUCCESS"
+)
+
+
+print(
+    f"output: {result}"
+)
+
+
+print(
+    "=========================================="
+)
+
+
+except Exception as error:
+
+print(
+    "=========================================="
+)
+
+
+print(
+    "TEST FAILED"
+)
+
+
+print(
+    f"ERROR TYPE: {type(error).__name__}"
+)
+
+
+print(
+    f"ERROR: {error}"
+)
+
+
+print(
+    "=========================================="
+)
+
+
+raise
