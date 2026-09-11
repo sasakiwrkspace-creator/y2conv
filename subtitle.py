@@ -2244,6 +2244,10 @@ def normalize_subtitle_settings(
 # force_style等は現段階では使用しない。
 # ==========================================================
 
+# ==========================================================
+# 字幕フィルター作成
+# ==========================================================
+
 def make_subtitle_filter(
     srt_path,
     font_info=None,
@@ -2255,35 +2259,7 @@ def make_subtitle_filter(
     )
 
     # ======================================================
-    # SRTパス確認
-    # ======================================================
-
-    srt_path = Path(
-        srt_path
-    ).resolve()
-
-    log(
-        f"SRT absolute path: {srt_path}"
-    )
-
-    if not srt_path.exists():
-
-        raise FileNotFoundError(
-            f"SRTファイルが存在しません: {srt_path}"
-        )
-
-    if not srt_path.is_file():
-
-        raise RuntimeError(
-            f"SRTパスがファイルではありません: {srt_path}"
-        )
-
-    # ======================================================
-    # 字幕設定
-    #
-    # 設定自体はログ確認のため取得する。
-    # ただし、現段階ではFFmpegのforce_styleには
-    # 使用しない。
+    # STEP 1: 字幕設定正規化
     # ======================================================
 
     subtitle_settings = (
@@ -2293,155 +2269,358 @@ def make_subtitle_filter(
     )
 
     log(
-        "subtitle_settings:"
-    )
-
-    log(
+        f"make_subtitle_filter normalized settings: "
         f"{subtitle_settings!r}"
     )
 
     # ======================================================
-    # フォント情報確認
+    # STEP 2: SRTパス
     # ======================================================
 
-    if not font_info:
-
-        raise RuntimeError(
-            "字幕フォント情報がありません。"
-        )
-
-    log(
-        f"font_info: {font_info!r}"
-    )
-
-    # ======================================================
-    # フォントファイル取得
-    # ======================================================
-
-    font_path = font_info.get(
-        "path"
-    )
-
-    if not font_path:
-
-        raise RuntimeError(
-            "字幕フォントのパスがありません。"
-        )
-
-    font_path = Path(
-        font_path
-    ).resolve()
-
-    log(
-        f"font_path: {font_path}"
-    )
-
-    if not font_path.exists():
-
-        raise FileNotFoundError(
-            f"字幕フォントが存在しません: {font_path}"
-        )
-
-    if not font_path.is_file():
-
-        raise RuntimeError(
-            f"字幕フォントがファイルではありません: "
-            f"{font_path}"
-        )
-
-    # ======================================================
-    # フォントディレクトリ
-    #
-    # テスト版と同じく、
-    # フォントファイルの親ディレクトリを
-    # fontsdirとしてFFmpegへ渡す。
-    # ======================================================
-
-    font_directory = (
-        font_path.parent
-    )
-
-    log(
-        f"font directory: {font_directory}"
-    )
-
-    if not font_directory.exists():
-
-        raise FileNotFoundError(
-            "字幕フォントディレクトリが存在しません: "
-            f"{font_directory}"
-        )
-
-    if not font_directory.is_dir():
-
-        raise RuntimeError(
-            "字幕フォントディレクトリではありません: "
-            f"{font_directory}"
-        )
-
-    # ======================================================
-    # FFmpeg filter pathへ変換
-    # ======================================================
-
-    subtitle_path_escaped = (
+    subtitle_path = (
         escape_ffmpeg_filter_path(
             srt_path
         )
     )
 
-    font_directory_escaped = (
-        escape_ffmpeg_filter_path(
-            font_directory
+    log(
+        f"字幕SRTパス: {subtitle_path}"
+    )
+
+    # ======================================================
+    # STEP 3: 設定取得
+    # ======================================================
+
+    preset_name = (
+        subtitle_settings.get(
+            "preset_name"
+        )
+    )
+
+    font = (
+        subtitle_settings.get(
+            "font"
+        )
+    )
+
+    text_color_name = (
+        subtitle_settings.get(
+            "text_color"
+        )
+    )
+
+    outline_color_name = (
+        subtitle_settings.get(
+            "outline_color"
+        )
+    )
+
+    outline_width = (
+        subtitle_settings.get(
+            "outline_width"
         )
     )
 
     log(
-        f"escaped SRT path: "
-        f"{subtitle_path_escaped}"
+        f"preset_name: {preset_name!r}"
     )
 
     log(
-        f"escaped font directory: "
-        f"{font_directory_escaped}"
+        f"font: {font!r}"
+    )
+
+    log(
+        f"text_color: {text_color_name!r}"
+    )
+
+    log(
+        f"outline_color: {outline_color_name!r}"
+    )
+
+    log(
+        f"outline_width: {outline_width!r}"
     )
 
     # ======================================================
-    # 字幕フィルター
-    #
-    # ★ テスト版と同じ考え方
-    #
-    # subtitles=
-    # filename=SRT:
-    # fontsdir=FONT_DIRECTORY
-    #
-    # force_styleはまだ使用しない。
+    # STEP 4: 必須設定確認
+    # ======================================================
+
+    if font is None:
+
+        raise RuntimeError(
+            "字幕フォントが設定されていません。"
+        )
+
+    if text_color_name is None:
+
+        raise RuntimeError(
+            "字幕文字色が設定されていません。"
+        )
+
+    if outline_color_name is None:
+
+        raise RuntimeError(
+            "字幕縁色が設定されていません。"
+        )
+
+    # ======================================================
+    # STEP 5: outline_width
+    # ======================================================
+
+    try:
+
+        outline_width = int(
+            outline_width
+        )
+
+    except (
+        ValueError,
+        TypeError
+    ) as error:
+
+        raise RuntimeError(
+            "字幕縁太さが不正です。"
+        ) from error
+
+    if outline_width < 0:
+
+        raise RuntimeError(
+            "字幕縁太さが0未満です。"
+        )
+
+    if outline_width > 10:
+
+        raise RuntimeError(
+            "字幕縁太さが10を超えています。"
+        )
+
+    # ======================================================
+    # STEP 6: ASSカラー変換
+    # ======================================================
+
+    text_color = get_ass_color(
+        text_color_name
+    )
+
+    outline_color = get_ass_color(
+        outline_color_name
+    )
+
+    log(
+        f"text_color ASS: {text_color}"
+    )
+
+    log(
+        f"outline_color ASS: {outline_color}"
+    )
+
+    # ======================================================
+    # STEP 7: FontName決定
+    # ======================================================
+
+    font_name = None
+
+    if font_info:
+
+        detected_family = (
+            font_info.get(
+                "family"
+            )
+        )
+
+        if detected_family:
+
+            detected_family = str(
+                detected_family
+            ).strip()
+
+            if detected_family:
+
+                font_name = (
+                    detected_family
+                )
+
+    if not font_name:
+
+        font_name = str(
+            font
+        ).strip()
+
+    if not font_name:
+
+        raise RuntimeError(
+            "字幕フォント名を決定できませんでした。"
+        )
+
+    log(
+        f"最終FontName: {font_name}"
+    )
+
+    # ======================================================
+    # STEP 8: subtitles filter本体
     # ======================================================
 
     video_filter = (
-        "subtitles="
-        "filename="
+        "subtitles='"
         +
-        subtitle_path_escaped
+        subtitle_path
         +
-        ":fontsdir="
-        +
-        font_directory_escaped
+        "'"
     )
 
     # ======================================================
-    # 最終ログ
+    # STEP 9: fontsdir
     # ======================================================
 
-    log(
-        "字幕フィルター:"
+    if font_info:
+
+        font_path = font_info.get(
+            "path"
+        )
+
+        if font_path:
+
+            font_path = Path(
+                font_path
+            ).resolve()
+
+            log(
+                f"font_info.path: {font_path}"
+            )
+
+            log(
+                f"font_info.path exists: "
+                f"{font_path.exists()}"
+            )
+
+            log(
+                f"font_info.path is_file: "
+                f"{font_path.is_file()}"
+            )
+
+            if font_path.is_file():
+
+                font_directory = (
+                    font_path.parent
+                )
+
+                font_directory_escaped = (
+                    escape_ffmpeg_filter_path(
+                        font_directory
+                    )
+                )
+
+                video_filter += (
+                    ":fontsdir='"
+                    +
+                    font_directory_escaped
+                    +
+                    "'"
+                )
+
+                log(
+                    f"字幕フォントディレクトリ: "
+                    f"{font_directory}"
+                )
+
+    # ======================================================
+    # STEP 10: ASS style
+    # ======================================================
+
+    style_parts = [
+
+        "FontName="
+        +
+        escape_ffmpeg_value(
+            font_name
+        ),
+
+        "PrimaryColour="
+        +
+        text_color,
+
+        "OutlineColour="
+        +
+        outline_color,
+
+        "Outline="
+        +
+        str(
+            outline_width
+        ),
+
+    ]
+
+    force_style = ",".join(
+        style_parts
     )
 
     log(
-        video_filter
+        f"force_style: {force_style}"
+    )
+
+    # ======================================================
+    # STEP 11: force_styleを必ず追加
+    # ======================================================
+
+    video_filter += (
+        ":force_style='"
+        +
+        force_style
+        +
+        "'"
+    )
+
+    # ======================================================
+    # STEP 12: 最終診断
+    # ======================================================
+
+    log(
+        "------------------------------------------"
+    )
+
+    log(
+        "字幕フィルター最終確認"
+    )
+
+    log(
+        f"preset_name: {preset_name!r}"
+    )
+
+    log(
+        f"font: {font_name!r}"
+    )
+
+    log(
+        f"text_color: {text_color_name!r}"
+    )
+
+    log(
+        f"text_color ASS: {text_color}"
+    )
+
+    log(
+        f"outline_color: {outline_color_name!r}"
+    )
+
+    log(
+        f"outline_color ASS: {outline_color}"
+    )
+
+    log(
+        f"outline_width: {outline_width}"
+    )
+
+    log(
+        f"完成video_filter: {video_filter}"
     )
 
     log(
         "字幕フィルター作成完了"
+    )
+
+    log(
+        "------------------------------------------"
     )
 
     return video_filter
