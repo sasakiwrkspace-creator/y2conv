@@ -32,7 +32,6 @@
 
     "use strict";
 
-
     console.log(
         "[SUBTITLE] subtitle.js loaded"
     );
@@ -76,54 +75,45 @@
                 "subtitle-mp3-input"
             );
 
-
         const mp3SelectButton =
             document.getElementById(
                 "subtitle-mp3-select"
             );
-
 
         const geminiButton =
             document.getElementById(
                 "gemini-send-button"
             );
 
-
         const mp4Input =
             document.getElementById(
                 "subtitle-mp4-input"
             );
-
 
         const mp4SelectButton =
             document.getElementById(
                 "subtitle-mp4-select"
             );
 
-
         const srtInput =
             document.getElementById(
                 "subtitle-srt-input"
             );
-
 
         const srtSelectButton =
             document.getElementById(
                 "subtitle-srt-select"
             );
 
-
         const subtitleMp4Button =
             document.getElementById(
                 "subtitle-mp4-create-button"
             );
 
-
         const conversionStatusArea =
             document.getElementById(
                 "conversion-status-area"
             );
-
 
         const downloadArea =
             document.getElementById(
@@ -139,7 +129,6 @@
             document.getElementById(
                 "subtitle-mp4-upload-button"
             );
-
 
         const srtUploadButton =
             document.getElementById(
@@ -300,60 +289,93 @@
                         );
 
 
+                    const resolvedPresetName =
+                        settings.preset_name ||
+                        "標準";
+
+
+                    const resolvedFont =
+                        settings.font ||
+                        "Noto Sans CJK JP";
+
+
+                    const resolvedTextColor =
+                        settings.text_color ||
+                        "白";
+
+
+                    const resolvedTextColorHex =
+                        settings.text_color_hex ||
+                        "#FFFFFF";
+
+
+                    const resolvedOutlineColor =
+                        settings.outline_color ||
+                        "黒";
+
+
                     const resolvedOutlineColorHex =
                         settings.outline_color_hex ||
                         "#000000";
 
 
+                    const resolvedOutlineWidth =
+                        Number.isFinite(
+                            outlineWidth
+                        )
+                            ? outlineWidth
+                            : 2;
+
+
                     console.log(
                         "[SUBTITLE] font settings:",
-                        settings
-                    );
+                        {
+                            preset_name:
+                                resolvedPresetName,
 
+                            font:
+                                resolvedFont,
 
-                    console.log(
-                        "[SUBTITLE] outline_color:",
-                        settings.outline_color
-                    );
+                            text_color:
+                                resolvedTextColor,
 
+                            text_color_hex:
+                                resolvedTextColorHex,
 
-                    console.log(
-                        "[SUBTITLE] outline_color_hex:",
-                        resolvedOutlineColorHex
+                            outline_color:
+                                resolvedOutlineColor,
+
+                            outline_color_hex:
+                                resolvedOutlineColorHex,
+
+                            outline_width:
+                                resolvedOutlineWidth
+                        }
                     );
 
 
                     return {
 
                         preset_name:
-                            settings.preset_name ||
-                            "標準",
+                            resolvedPresetName,
 
                         font:
-                            settings.font ||
-                            "IPAGothic",
+                            resolvedFont,
 
                         text_color:
-                            settings.text_color ||
-                            "白",
+                            resolvedTextColor,
 
                         text_color_hex:
-                            settings.text_color_hex ||
-                            "#FFFFFF",
+                            resolvedTextColorHex,
 
                         outline_color:
-                            settings.outline_color ||
-                            "黒",
+                            resolvedOutlineColor,
 
                         outline_color_hex:
                             resolvedOutlineColorHex,
 
                         outline_width:
-                            Number.isFinite(
-                                outlineWidth
-                            )
-                                ? outlineWidth
-                                : 2
+                            resolvedOutlineWidth
 
                     };
 
@@ -368,7 +390,7 @@
                     "標準",
 
                 font:
-                    "IPAGothic",
+                    "Noto Sans CJK JP",
 
                 text_color:
                     "白",
@@ -1695,7 +1717,7 @@
                         : "";
 
 
-                // 新しいMP4を選択したので
+                // 新しいMP4を選択したら
                 // 古い転送済みMP4を無効化
 
                 subtitleState.uploadedMp4Filename =
@@ -1762,7 +1784,7 @@
                         : "";
 
 
-                // 新しいSRTを選択したので
+                // 新しいSRTを選択したら
                 // 古い転送済みSRTを無効化
 
                 subtitleState.uploadedSrtFilename =
@@ -2009,6 +2031,10 @@
 
         // =====================================
         // 字幕MP4作成
+        //
+        // ・ここではアップロードしない
+        // ・転送済みMP4/SRTだけを使用
+        // ・/subtitle-create-mp4 を呼び出す
         // =====================================
 
         subtitleMp4Button.addEventListener(
