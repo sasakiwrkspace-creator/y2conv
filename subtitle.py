@@ -2534,6 +2534,383 @@ def make_subtitle_filter(
 
     return video_filter
 
+# ==========================================================
+# FFmpeg実行直前パラメータ診断
+# ==========================================================
+
+def log_ffmpeg_parameters(
+    command,
+    video_filter,
+    mp4_path,
+    srt_path,
+    output_path,
+    temp_output_path,
+    font_info,
+    subtitle_settings
+):
+    """
+    FFmpeg subprocess.Popen()直前に、
+    実際に渡すパラメータをRenderログへ詳細表示する。
+
+    特に以下を重点的に確認する:
+        - FFmpeg executable
+        - MP4入力パス
+        - SRT入力パス
+        - output path
+        - temp output path
+        - font path
+        - font family
+        - fontsdir
+        - video_filter
+        - subtitle settings
+        - FFmpeg command各要素
+    """
+
+    log_separator()
+
+    log(
+        "######## FFmpeg実行直前パラメータ診断 ########"
+    )
+
+    # ======================================================
+    # 基本情報
+    # ======================================================
+
+    log(
+        "----- BASIC PARAMETERS -----"
+    )
+
+    log(
+        f"mp4_path       = {str(mp4_path)!r}"
+    )
+
+    log(
+        f"srt_path       = {str(srt_path)!r}"
+    )
+
+    log(
+        f"output_path    = {str(output_path)!r}"
+    )
+
+    log(
+        f"temp_output    = {str(temp_output_path)!r}"
+    )
+
+    # ======================================================
+    # フォント情報
+    # ======================================================
+
+    log(
+        "----- FONT INFORMATION -----"
+    )
+
+    if font_info is None:
+
+        log(
+            "font_info = None"
+        )
+
+    else:
+
+        log(
+            f"font_info type = {type(font_info).__name__}"
+        )
+
+        log(
+            f"font_info raw = {font_info!r}"
+        )
+
+        font_path = font_info.get(
+            "path"
+        )
+
+        font_family = font_info.get(
+            "family"
+        )
+
+        log(
+            f"font_info.path   = {font_path!r}"
+        )
+
+        log(
+            f"font_info.family = {font_family!r}"
+        )
+
+        if font_path:
+
+            try:
+
+                font_path_obj = Path(
+                    font_path
+                ).resolve()
+
+                log(
+                    f"font_path resolved = "
+                    f"{font_path_obj!s}"
+                )
+
+                log(
+                    f"font_path exists = "
+                    f"{font_path_obj.exists()}"
+                )
+
+                log(
+                    f"font_path is_file = "
+                    f"{font_path_obj.is_file()}"
+                )
+
+                log(
+                    f"font_path parent = "
+                    f"{font_path_obj.parent!s}"
+                )
+
+                log(
+                    f"font_path parent exists = "
+                    f"{font_path_obj.parent.exists()}"
+                )
+
+            except Exception as error:
+
+                log(
+                    f"font_path確認失敗: {error}"
+                )
+
+    # ======================================================
+    # subtitle_settings
+    # ======================================================
+
+    log(
+        "----- SUBTITLE SETTINGS -----"
+    )
+
+    if subtitle_settings is None:
+
+        log(
+            "subtitle_settings = None"
+        )
+
+    else:
+
+        log(
+            f"subtitle_settings type = "
+            f"{type(subtitle_settings).__name__}"
+        )
+
+        for key in SUBTITLE_SETTING_KEYS:
+
+            value = subtitle_settings.get(
+                key
+            )
+
+            log(
+                f"subtitle_settings[{key!r}] = "
+                f"{value!r}"
+            )
+
+    # ======================================================
+    # video_filter
+    # ======================================================
+
+    log(
+        "----- VIDEO FILTER -----"
+    )
+
+    log(
+        f"video_filter type = "
+        f"{type(video_filter).__name__}"
+    )
+
+    log(
+        f"video_filter length = "
+        f"{len(video_filter)}"
+    )
+
+    log(
+        f"video_filter repr = "
+        f"{video_filter!r}"
+    )
+
+    log(
+        "video_filter raw:"
+    )
+
+    log(
+        video_filter
+    )
+
+    # ======================================================
+    # fontsdirをvideo_filterから確認
+    # ======================================================
+
+    log(
+        "----- FONTDIR DIAGNOSTIC -----"
+    )
+
+    fontsdir_marker = ":fontsdir='"
+
+    if fontsdir_marker in video_filter:
+
+        fontsdir_start = (
+            video_filter.find(
+                fontsdir_marker
+            )
+            +
+            len(fontsdir_marker)
+        )
+
+        fontsdir_end = (
+            video_filter.find(
+                "'",
+                fontsdir_start
+            )
+        )
+
+        if fontsdir_end >= 0:
+
+            fontsdir_value = (
+                video_filter[
+                    fontsdir_start:
+                    fontsdir_end
+                ]
+            )
+
+            log(
+                f"fontsdir extracted = "
+                f"{fontsdir_value!r}"
+            )
+
+            log(
+                f"fontsdir length = "
+                f"{len(fontsdir_value)}"
+            )
+
+        else:
+
+            log(
+                "WARNING: fontsdirの終了'が"
+                "見つかりません。"
+            )
+
+    else:
+
+        log(
+            "fontsdirはvideo_filterに"
+            "含まれていません。"
+        )
+
+    # ======================================================
+    # FFmpeg command
+    # ======================================================
+
+    log(
+        "----- FFMPEG COMMAND -----"
+    )
+
+    log(
+        f"command type = "
+        f"{type(command).__name__}"
+    )
+
+    log(
+        f"command length = "
+        f"{len(command)}"
+    )
+
+    for index, item in enumerate(command):
+
+        log(
+            f"command[{index}] = {item!r}"
+        )
+
+    log(
+        "----- FFMPEG COMMAND STRING -----"
+    )
+
+    log(
+        command_to_string(
+            command
+        )
+    )
+
+    # ======================================================
+    # subprocessに渡す値の型確認
+    # ======================================================
+
+    log(
+        "----- COMMAND TYPE CHECK -----"
+    )
+
+    for index, item in enumerate(command):
+
+        log(
+            f"command[{index}] "
+            f"type={type(item).__name__} "
+            f"value={item!r}"
+        )
+
+    # ======================================================
+    # 重要な引数を個別表示
+    # ======================================================
+
+    log(
+        "----- IMPORTANT ARGUMENTS -----"
+    )
+
+    try:
+
+        vf_index = command.index(
+            "-vf"
+        )
+
+        vf_value = command[
+            vf_index + 1
+        ]
+
+        log(
+            f"-vf value = {vf_value!r}"
+        )
+
+    except (
+        ValueError,
+        IndexError
+    ):
+
+        log(
+            "WARNING: -vf引数を取得できません。"
+        )
+
+    try:
+
+        input_index = command.index(
+            "-i"
+        )
+
+        input_value = command[
+            input_index + 1
+        ]
+
+        log(
+            f"-i value = {input_value!r}"
+        )
+
+    except (
+        ValueError,
+        IndexError
+    ):
+
+        log(
+            "WARNING: -i引数を取得できません。"
+        )
+
+    # ======================================================
+    # 最終診断
+    # ======================================================
+
+    log(
+        "######## FFmpeg実行直前パラメータ診断 END ########"
+    )
+
+    log_separator()
 
 # ==========================================================
 # FFmpegコマンド表示
