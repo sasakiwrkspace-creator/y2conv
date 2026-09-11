@@ -3074,170 +3074,143 @@ def remove_file_safely(
             f"ファイル削除失敗: {error}"
         )
 
-
-# ==========================================================
-# FFmpeg stderr取得
-#
-# 重要:
-#   stdoutはDEVNULL。
-#   stderrだけを逐次処理する。
-#
-#   deque(maxlen=100)なので、最後の100行だけを
-#   メモリに保持する。
-# ==========================================================
-
-def collect_ffmpeg_output(
-    process,
-    output_lines
-):
-
-    log(
-        "FFmpeg stderr読み取り開始"
-    )
-
-    if process.stderr is None:
-
-        log(
-            "FFmpeg stderrがNoneです。"
-        )
-
-        return
-
-    try:
-
-        for raw_line in process.stderr:
-
-            line = raw_line.rstrip()
-
-            if not line:
-                continue
-
-            output_lines.append(
-                line
-            )
-
-            print(
-                "[FFMPEG]",
-                line,
-                flush=True
-            )
-
-    except Exception as error:
-
-        log_exception(
-            "FFmpeg stderr読み取り中に例外",
-            error
-        )
-
-        raise
-
-    finally:
-
-        try:
-
-            process.stderr.close()
-
-        except Exception as error:
-
+        # ==========================================================
+        # FFmpeg stderr取得
+        #
+        # FFmpeg実行中のstderrを逐次取得する。
+        #
+        # 重要:
+        #   - stdoutはDEVNULL
+        #   - stderrだけを読み取る
+        #   - 最後のMAX_FFMPEG_LOG_LINES行だけ保持
+        #   - stderr読み取り終了後にcloseする
+        # ==========================================================
+        
+        def collect_ffmpeg_output(
+            process,
+            output_lines
+        ):
+        
             log(
-                f"stderr.close()失敗: {error}"
+                "FFmpeg stderr読み取り開始"
             )
-
-    log(
-        "FFmpeg stderr読み取り終了"
-    )
-
-
-# ==========================================================
-# FFmpegプロセス終了処理
-# ==========================================================
-
-def terminate_process_safely(
-    process
-):
-
-    if process is None:
-        return
-
-    try:
-
-        if process.poll() is None:
-
-            log(
-                "FFmpeg process terminate()"
-            )
-
-            process.terminate()
-
+        
+            if process is None:
+        
+                raise RuntimeError(
+                    "FFmpeg processがNoneです。"
+                )
+        
+            if process.stderr is None:
+        
+                raise RuntimeError(
+                    "FFmpeg stderrがNoneです。"
+                )
+        
             try:
-
-                process.wait(
-                    timeout=5
+        
+                while True:
+        
+                    raw_line = (
+                        process.stderr.readline()
+                    )
+        
+                    if raw_line == "":
+        
+                        log(
+                            "FFmpeg stderr EOF"
+                        )
+        
+                        break
+        
+                    line = raw_line.rstrip()
+        
+                    if not line:
+        
+                        continue
+        
+                    output_lines.append(
+                        line
+                    )
+        
+                    print(
+                        "[FFMPEG]",
+                        line,
+                        flush=True
+                    )
+        
+                    # --------------------------------------------------
+                    # FFmpeg終了確認
+                    # --------------------------------------------------
+        
+                    return_code = process.poll()
+        
+                    if return_code is not None:
+        
+                        log(
+                            "FFmpeg process終了を検知: "
+                            f"return_code={return_code}"
+                        )
+        
+                        # --------------------------------------------------
+                        # 終了直前に残っているstderrを読む
+                        # --------------------------------------------------
+        
+                        while True:
+        
+                            remaining_line = (
+                                process.stderr.readline()
+                            )
+        
+                            if remaining_line == "":
+        
+                                break
+        
+                            remaining_line = (
+                                remaining_line.rstrip()
+                            )
+        
+                            if not remaining_line:
+        
+                                continue
+        
+                            output_lines.append(
+                                remaining_line
+                            )
+        
+                            print(
+                                "[FFMPEG]",
+                                remaining_line,
+                                flush=True
+                            )
+        
+                        break
+        
+            except Exception as error:
+        
+                log_exception(
+                    "FFmpeg stderr読み取り中に例外",
+                    error
                 )
+        
+                raise
+        
+            finally:
+        
+                try:
+        
+                    process.stderr.close()
+        
+                except Exception as error:
+        
+                    log(
+                        f"stderr.close()失敗: {error}"
+                    )
+        
+            log(
+                "FFmpeg stderr読み取り終了"
+            )
 
-            except subprocess.TimeoutExpired:
-
-                log(
-                    "terminate()後も終了しないため "
-                    "kill()します。"
-                )
-
-                process.kill()
-
-                process.wait(
-                    timeout=5
-                )
-
-    except Exception as error:
-
-        log(
-            f"FFmpegプロセス終了処理失敗: {error}"
-        )
-
-
-# ==========================================================
-# 字幕焼き込み本体
-# ==========================================================
-
-def embed_subtitle(
-    mp4_path,
-    srt_path,
-    output_path=None,
-    subtitle_settings=None
-):
-
-    start_time = time.monotonic()
-
-    log_start(
-        "embed_subtitle() START"
-    )
-
-    log(
-        f"mp4_path argument: {mp4_path!r}"
-    )
-
-    log(
-        f"srt_path argument: {srt_path!r}"
-    )
-
-    log(
-        f"output_path argument: {output_path!r}"
-    )
-
-    log(
-        f"subtitle_settings argument: "
-        f"{subtitle_settings!r}"
-    )
-
-    temp_output_path = None
-
-    process = None
-
-    ffmpeg_output_lines = deque(
-        maxlen=MAX_FFMPEG_LOG_LINES
-    )
-
-    try:
 
         # ==================================================
         # STEP 1
