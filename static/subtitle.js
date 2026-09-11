@@ -235,12 +235,6 @@
 
         // =====================================
         // ファイル表示
-        //
-        // ファイル未選択:
-        // 「○○ファイルを選択してください」
-        //
-        // ファイル選択後:
-        // ファイル名のみ表示
         // =====================================
 
         function updateFileDisplay(
@@ -306,6 +300,29 @@
                         );
 
 
+                    const resolvedOutlineColorHex =
+                        settings.outline_color_hex ||
+                        "#000000";
+
+
+                    console.log(
+                        "[SUBTITLE] font settings:",
+                        settings
+                    );
+
+
+                    console.log(
+                        "[SUBTITLE] outline_color:",
+                        settings.outline_color
+                    );
+
+
+                    console.log(
+                        "[SUBTITLE] outline_color_hex:",
+                        resolvedOutlineColorHex
+                    );
+
+
                     return {
 
                         preset_name:
@@ -328,31 +345,8 @@
                             settings.outline_color ||
                             "黒",
 
-                        console.log(
-                            "[SUBTITLE] outline_color_hex BEFORE fallback:",
-                            settings.outline_color_hex
-                        );
-                        
-                        console.log(
-                            "[SUBTITLE] outline_color BEFORE fallback:",
-                            settings.outline_color
-                        );
-                        
-                        
-                        const resolvedOutlineColorHex =
-                            settings.outline_color_hex ||
-                            "#000000";
-                        
-                        
-                        console.log(
-                            "[SUBTITLE] outline_color_hex AFTER fallback:",
-                            resolvedOutlineColorHex
-                        );
-                        
-                        console.log(
-                            "[SUBTITLE] outline_color AFTER fallback:",
-                            settings.outline_color
-                        );
+                        outline_color_hex:
+                            resolvedOutlineColorHex,
 
                         outline_width:
                             Number.isFinite(
@@ -1572,8 +1566,6 @@
 
         // =====================================
         // 字幕MP4ボタン状態
-        //
-        // MP4 + SRTの両方が転送済みなら有効
         // =====================================
 
         function updateSubtitleMp4Button() {
@@ -1658,9 +1650,6 @@
 
         // =====================================
         // MP4選択
-        //
-        // 新しいMP4を選択したら
-        // 古い転送済みMP4を無効化
         // =====================================
 
         mp4SelectButton.addEventListener(
@@ -1706,18 +1695,12 @@
                         : "";
 
 
-                // ---------------------------------
-                // 新しいMP4を選択したので、
-                // 以前の転送済みMP4を無効化
-                // ---------------------------------
+                // 新しいMP4を選択したので
+                // 古い転送済みMP4を無効化
 
                 subtitleState.uploadedMp4Filename =
                     "";
 
-
-                // ---------------------------------
-                // ボタン表示
-                // ---------------------------------
 
                 updateFileDisplay(
                     mp4SelectButton,
@@ -1734,9 +1717,6 @@
 
         // =====================================
         // SRT選択
-        //
-        // 新しいSRTを選択したら
-        // 古い転送済みSRTを無効化
         // =====================================
 
         srtSelectButton.addEventListener(
@@ -1782,18 +1762,12 @@
                         : "";
 
 
-                // ---------------------------------
-                // 新しいSRTを選択したので、
-                // 以前の転送済みSRTを無効化
-                // ---------------------------------
+                // 新しいSRTを選択したので
+                // 古い転送済みSRTを無効化
 
                 subtitleState.uploadedSrtFilename =
                     "";
 
-
-                // ---------------------------------
-                // ボタン表示
-                // ---------------------------------
 
                 updateFileDisplay(
                     srtSelectButton,
@@ -2035,10 +2009,6 @@
 
         // =====================================
         // 字幕MP4作成
-        //
-        // ・ここではアップロードしない
-        // ・転送済みMP4/SRTだけを使用
-        // ・/subtitle-create-mp4 を呼び出す
         // =====================================
 
         subtitleMp4Button.addEventListener(
@@ -2188,7 +2158,7 @@
                             error.message
                                 ? error.message
                                 : "不明なエラー"
-                    ) +
+                        ) +
                         "\n\n" +
                         getElapsedText(),
 
@@ -2310,20 +2280,12 @@
         );
 
 
-        // -------------------------------------
-        // MP4
-        // -------------------------------------
-
         updateFileDisplay(
             mp4SelectButton,
             null,
             "mp4ファイルを選択してください"
         );
 
-
-        // -------------------------------------
-        // SRT
-        // -------------------------------------
 
         updateFileDisplay(
             srtSelectButton,
