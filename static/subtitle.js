@@ -1016,24 +1016,10 @@
 
             const response =
                 await fetch(
-                    "/subtitle-create-mp4",
+                    "/subtitle-test/ffmpeg",
                     {
-
                         method:
-                            "POST",
-
-                        headers: {
-
-                            "Content-Type":
-                                "application/json"
-
-                        },
-
-                        body:
-                            JSON.stringify(
-                                requestBody
-                            )
-
+                            "POST"
                     }
                 );
 
