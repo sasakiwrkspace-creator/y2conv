@@ -10,17 +10,16 @@
 #   outline_color
 #   outline_width
 #
-# 動作:
+# 動作仕様:
 #
-#   初期値
-#      ↓
-#   subtitle_font.py で任意値をセット
-#      ↓
-#   値が未指定なら初期値
-#      ↓
-#   どれか1つでも不正値なら設定全体を初期値へ戻す
-#      ↓
-#   正常な設定だけFFmpegへ渡す
+#   1. 値が未指定(None)の場合
+#      → 標準設定を使用
+#
+#   2. 1項目でも不正な値がある場合
+#      → 設定全体を標準設定へ戻す
+#
+#   3. 正常な値だけの場合
+#      → 指定された設定を使用
 #
 # 標準設定:
 #   フォント     : Noto Sans CJK JP
@@ -114,11 +113,17 @@ SUBTITLE_PRESETS = {
 
 
 # ==========================================================
-# 標準設定
+# 標準プリセット名
 # ==========================================================
 
 DEFAULT_PRESET_NAME = "標準"
 
+
+# ==========================================================
+# 標準設定生成
+#
+# SUBTITLE_PRESETS["標準"] から生成する。
+# ==========================================================
 
 def _build_default_subtitle_font_settings():
 
@@ -147,6 +152,10 @@ def _build_default_subtitle_font_settings():
     return settings
 
 
+# ==========================================================
+# 標準設定
+# ==========================================================
+
 DEFAULT_SUBTITLE_FONT_SETTINGS = (
     _build_default_subtitle_font_settings()
 )
@@ -168,7 +177,10 @@ def _log(
 
 
 # ==========================================================
-# 設定全体を初期値へ戻す
+# 標準設定を新しいdictとして取得
+#
+# 元のDEFAULT_SUBTITLE_FONT_SETTINGSを
+# 外部から変更されないようにする。
 # ==========================================================
 
 def _get_default_settings():
@@ -179,103 +191,180 @@ def _get_default_settings():
 
 
 # ==========================================================
-# フォント値の検証
+# preset_name 正規化・検証
 #
-# 未指定:
-#   初期値として扱う
+# 戻り値:
+#   (正常, 正規化後の値)
+#
+# None:
+#   未指定として標準値を使用
 #
 # 空文字:
-#   初期値として扱う
+#   不正
 #
-# その他:
-#   文字列として有効なら使用
+# 存在しないプリセット:
+#   不正
 # ==========================================================
 
-def _normalize_font(
+def _validate_preset_name(
     value
 ):
 
     if value is None:
 
         return (
-            DEFAULT_SUBTITLE_FONT_SETTINGS[
-                "font"
-            ]
+            True,
+            DEFAULT_PRESET_NAME
         )
 
-    value = str(
-        value
-    ).strip()
+    if not isinstance(
+        value,
+        str
+    ):
+
+        return (
+            False,
+            None
+        )
+
+    value = value.strip()
 
     if not value:
 
         return (
-            DEFAULT_SUBTITLE_FONT_SETTINGS[
-                "font"
-            ]
+            False,
+            None
         )
 
-    return value
+    if value not in SUBTITLE_PRESETS:
+
+        return (
+            False,
+            None
+        )
+
+    return (
+        True,
+        value
+    )
 
 
 # ==========================================================
-# カラー値の検証
+# フォント検証
 #
-# None / 空文字:
-#   初期値
+# None:
+#   未指定として標準フォント
 #
-# 定義済みカラー:
-#   OK
-#
-# 未定義カラー:
-#   エラー
+# 空文字:
+#   不正
 # ==========================================================
 
-def _validate_color(
-    value,
-    field_name
+def _validate_font(
+    value
 ):
 
     if value is None:
 
         return (
+            True,
             DEFAULT_SUBTITLE_FONT_SETTINGS[
-                field_name
+                "font"
             ]
         )
 
-    value = str(
-        value
-    ).strip()
+    if not isinstance(
+        value,
+        str
+    ):
+
+        return (
+            False,
+            None
+        )
+
+    value = value.strip()
 
     if not value:
 
         return (
-            DEFAULT_SUBTITLE_FONT_SETTINGS[
-                field_name
-            ]
+            False,
+            None
+        )
+
+    return (
+        True,
+        value
+    )
+
+
+# ==========================================================
+# カラー検証
+#
+# None:
+#   未指定として標準カラー
+#
+# 存在しないカラー:
+#   不正
+# ==========================================================
+
+def _validate_color(
+    value,
+    default
+):
+
+    if value is None:
+
+        return (
+            True,
+            default
+        )
+
+    if not isinstance(
+        value,
+        str
+    ):
+
+        return (
+            False,
+            None
+        )
+
+    value = value.strip()
+
+    if not value:
+
+        return (
+            False,
+            None
         )
 
     if value not in SUBTITLE_COLORS:
 
-        raise ValueError(
-            f"{field_name} が不正です: {value}"
+        return (
+            False,
+            None
         )
 
-    return value
+    return (
+        True,
+        value
+    )
 
 
 # ==========================================================
-# 縁太さの検証
+# 縁太さ検証
 #
-# None / 空文字:
-#   初期値
+# None:
+#   未指定として標準値
+#
+# 整数以外:
+#   不正
 #
 # 0～10:
-#   OK
+#   正常
 #
-# それ以外:
-#   エラー
+# 0未満 / 10超:
+#   不正
 # ==========================================================
 
 def _validate_outline_width(
@@ -284,36 +373,25 @@ def _validate_outline_width(
 
     if value is None:
 
-        return int(
+        return (
+            True,
             DEFAULT_SUBTITLE_FONT_SETTINGS[
                 "outline_width"
             ]
         )
 
+    # boolはintのサブクラスなので明示的に除外
     if isinstance(
         value,
-        str
+        bool
     ):
 
-        value = value.strip()
-
-        if not value:
-
-            return int(
-                DEFAULT_SUBTITLE_FONT_SETTINGS[
-                    "outline_width"
-                ]
-            )
+        return (
+            False,
+            None
+        )
 
     try:
-
-        # boolはintとして扱わない
-        if isinstance(
-            value,
-            bool
-        ):
-
-            raise ValueError
 
         normalized = int(
             value
@@ -324,23 +402,63 @@ def _validate_outline_width(
         TypeError
     ):
 
-        raise ValueError(
-            f"outline_width が不正です: {value}"
+        return (
+            False,
+            None
         )
 
-    if normalized < 0 or normalized > 10:
+    # "3.5" のような値をint()で
+    # 通してしまわないための確認
+    if isinstance(
+        value,
+        float
+    ):
 
-        raise ValueError(
-            f"outline_width が範囲外です: {normalized}"
+        if value != normalized:
+
+            return (
+                False,
+                None
+            )
+
+    if isinstance(
+        value,
+        str
+    ):
+
+        if value.strip() != str(
+            normalized
+        ):
+
+            return (
+                False,
+                None
+            )
+
+    if normalized < 0:
+
+        return (
+            False,
+            None
         )
 
-    return normalized
+    if normalized > 10:
+
+        return (
+            False,
+            None
+        )
+
+    return (
+        True,
+        normalized
+    )
 
 
 # ==========================================================
 # デフォルト設定取得
 #
-# 戻り値:
+# 戻り値の正式キー:
 #   preset_name
 #   font
 #   text_color
@@ -368,18 +486,13 @@ def get_default_subtitle_font_settings():
 #
 # ★重要
 #
-# どれか1つでも明示指定値が不正だった場合、
-# 設定全体を初期値へ戻す。
+# 1項目でも不正な値が入った場合、
+# 個別フォールバックではなく、
+# 設定全体を標準設定へ戻す。
 #
-# 例:
+# None / 未指定は不正ではない。
+# その項目だけ標準値を使用する。
 #
-# font       = 正常
-# text_color = 紫 ← 不正
-# outline    = 正常
-#
-# ↓
-#
-# 全体を標準設定へ戻す。
 # ==========================================================
 
 def select_subtitle_font(
@@ -409,16 +522,30 @@ def select_subtitle_font(
             settings
         )
 
-    else:
+    elif settings is None:
 
         source = {}
 
+    else:
+
+        _log(
+            "settings is invalid. "
+            "fallback to default."
+        )
+
+        return _get_default_settings()
+
 
     # ======================================================
-    # 入力値を取得
+    # settings側の値
     #
-    # settingsを優先。
-    # 関数引数はsettingsに存在しない場合に使用。
+    # 正式キー:
+    #   preset_name
+    #
+    # 旧キー:
+    #   preset
+    #
+    # settings側を優先。
     # ======================================================
 
     source_preset_name = (
@@ -436,251 +563,264 @@ def select_subtitle_font(
         )
 
 
-    if source_preset_name is not None:
+    source_font = source.get(
+        "font"
+    )
 
-        selected_preset_name = (
-            source_preset_name
-        )
+    source_text_color = source.get(
+        "text_color"
+    )
 
-    else:
+    source_outline_color = source.get(
+        "outline_color"
+    )
 
-        selected_preset_name = (
-            preset_name
-        )
-
-
-    # ======================================================
-    # preset_name
-    #
-    # 未指定 / 空文字:
-    #   標準
-    #
-    # 不正:
-    #   設定全体を標準へ
-    # ======================================================
-
-    if selected_preset_name is None:
-
-        selected_preset_name = (
-            DEFAULT_PRESET_NAME
-        )
-
-    else:
-
-        selected_preset_name = str(
-            selected_preset_name
-        ).strip()
-
-        if not selected_preset_name:
-
-            selected_preset_name = (
-                DEFAULT_PRESET_NAME
-            )
-
-
-    preset_settings = (
-        SUBTITLE_PRESETS.get(
-            selected_preset_name
-        )
+    source_outline_width = source.get(
+        "outline_width"
     )
 
 
     # ======================================================
-    # 不正プリセット
+    # 最終入力値
     #
-    # ★設定全体を初期値へ戻す
+    # settings側を優先し、
+    # settingsに値がなければ関数引数を使用。
     # ======================================================
 
-    if preset_settings is None:
+    final_preset_name = (
+
+        source_preset_name
+        if source_preset_name is not None
+        else preset_name
+
+    )
+
+    final_font = (
+
+        source_font
+        if source_font is not None
+        else font
+
+    )
+
+    final_text_color = (
+
+        source_text_color
+        if source_text_color is not None
+        else text_color
+
+    )
+
+    final_outline_color = (
+
+        source_outline_color
+        if source_outline_color is not None
+        else outline_color
+
+    )
+
+    final_outline_width = (
+
+        source_outline_width
+        if source_outline_width is not None
+        else outline_width
+
+    )
+
+
+    # ======================================================
+    # preset_name 検証
+    # ======================================================
+
+    preset_valid, normalized_preset_name = (
+        _validate_preset_name(
+            final_preset_name
+        )
+    )
+
+    if not preset_valid:
 
         _log(
-            "invalid preset_name detected: "
-            f"{selected_preset_name}"
+            "INVALID preset_name: "
+            f"{final_preset_name!r}"
         )
 
         _log(
-            "fallback to DEFAULT_SUBTITLE_FONT_SETTINGS"
+            "設定全体を標準設定へ戻します。"
         )
 
         return _get_default_settings()
 
 
     # ======================================================
-    # プリセットをベースにする
+    # プリセット取得
     # ======================================================
 
-    result_font = preset_settings.get(
+    preset_settings = (
+        SUBTITLE_PRESETS[
+            normalized_preset_name
+        ]
+    )
+
+
+    # ======================================================
+    # プリセットをベースにする
+    #
+    # preset_nameが指定されている場合、
+    # まずプリセット値を使用。
+    #
+    # 個別指定がある場合のみ上書き。
+    # ======================================================
+
+    base_font = preset_settings.get(
         "font"
     )
 
-    result_text_color = preset_settings.get(
+    base_text_color = preset_settings.get(
         "text_color"
     )
 
-    result_outline_color = preset_settings.get(
+    base_outline_color = preset_settings.get(
         "outline_color"
     )
 
-    result_outline_width = preset_settings.get(
+    base_outline_width = preset_settings.get(
         "outline_width"
     )
 
 
-    # ======================================================
-    # settingsから上書き
-    #
-    # Noneの場合は上書きしない。
-    #
-    # 空文字は「未指定」として初期値側を使用。
-    # ======================================================
+    if final_font is None:
 
-    if (
-        "font" in source
-        and
-        source.get("font") is not None
-    ):
-
-        result_font = source.get(
-            "font"
-        )
+        final_font = base_font
 
 
-    if (
-        "text_color" in source
-        and
-        source.get("text_color") is not None
-    ):
+    if final_text_color is None:
 
-        result_text_color = source.get(
-            "text_color"
-        )
+        final_text_color = base_text_color
 
 
-    if (
-        "outline_color" in source
-        and
-        source.get("outline_color") is not None
-    ):
+    if final_outline_color is None:
 
-        result_outline_color = source.get(
-            "outline_color"
-        )
+        final_outline_color = base_outline_color
 
 
-    if (
-        "outline_width" in source
-        and
-        source.get("outline_width") is not None
-    ):
+    if final_outline_width is None:
 
-        result_outline_width = source.get(
-            "outline_width"
-        )
+        final_outline_width = base_outline_width
 
 
     # ======================================================
-    # 関数引数から上書き
-    #
-    # settingsより関数引数を優先。
+    # 各項目を検証
     # ======================================================
 
-    if font is not None:
-
-        result_font = font
-
-
-    if text_color is not None:
-
-        result_text_color = text_color
-
-
-    if outline_color is not None:
-
-        result_outline_color = outline_color
-
-
-    if outline_width is not None:
-
-        result_outline_width = outline_width
-
-
-    # ======================================================
-    # 正規化・検証
-    #
-    # ★1つでもエラーになったら全体を初期値へ戻す
-    # ======================================================
-
-    try:
-
-        result_font = _normalize_font(
-            result_font
+    font_valid, normalized_font = (
+        _validate_font(
+            final_font
         )
+    )
 
-        result_text_color = _validate_color(
-            result_text_color,
-            "text_color"
-        )
-
-        result_outline_color = _validate_color(
-            result_outline_color,
-            "outline_color"
-        )
-
-        result_outline_width = _validate_outline_width(
-            result_outline_width
-        )
-
-    except (
-        ValueError,
-        TypeError
-    ) as error:
+    if not font_valid:
 
         _log(
-            "INVALID subtitle setting detected"
+            "INVALID font: "
+            f"{final_font!r}"
         )
 
         _log(
-            f"error: {error}"
+            "設定全体を標準設定へ戻します。"
+        )
+
+        return _get_default_settings()
+
+
+    text_color_valid, normalized_text_color = (
+        _validate_color(
+            final_text_color,
+            DEFAULT_SUBTITLE_FONT_SETTINGS[
+                "text_color"
+            ]
+        )
+    )
+
+    if not text_color_valid:
+
+        _log(
+            "INVALID text_color: "
+            f"{final_text_color!r}"
         )
 
         _log(
-            "ALL subtitle settings will fallback "
-            "to default"
+            "設定全体を標準設定へ戻します。"
         )
 
-        normalized = _get_default_settings()
+        return _get_default_settings()
+
+
+    outline_color_valid, normalized_outline_color = (
+        _validate_color(
+            final_outline_color,
+            DEFAULT_SUBTITLE_FONT_SETTINGS[
+                "outline_color"
+            ]
+        )
+    )
+
+    if not outline_color_valid:
 
         _log(
-            f"normalized: {normalized}"
+            "INVALID outline_color: "
+            f"{final_outline_color!r}"
         )
 
         _log(
-            "select_subtitle_font() COMPLETE"
+            "設定全体を標準設定へ戻します。"
         )
 
-        return normalized
+        return _get_default_settings()
+
+
+    outline_width_valid, normalized_outline_width = (
+        _validate_outline_width(
+            final_outline_width
+        )
+    )
+
+    if not outline_width_valid:
+
+        _log(
+            "INVALID outline_width: "
+            f"{final_outline_width!r}"
+        )
+
+        _log(
+            "設定全体を標準設定へ戻します。"
+        )
+
+        return _get_default_settings()
 
 
     # ======================================================
     # 最終設定
+    #
+    # ★正式な5キーだけを返す
     # ======================================================
 
     normalized = {
 
         "preset_name":
-            selected_preset_name,
+            normalized_preset_name,
 
         "font":
-            result_font,
+            normalized_font,
 
         "text_color":
-            result_text_color,
+            normalized_text_color,
 
         "outline_color":
-            result_outline_color,
+            normalized_outline_color,
 
         "outline_width":
-            result_outline_width,
+            normalized_outline_width,
 
     }
 
@@ -703,8 +843,7 @@ def select_subtitle_font(
 # ==========================================================
 # カラー情報取得
 #
-# ここでは不正カラーをフォールバックしない。
-# 明示的にRuntimeErrorを発生させる。
+# 不正カラーはフォールバックしない。
 # ==========================================================
 
 def get_subtitle_color(
@@ -835,11 +974,11 @@ if __name__ == "__main__":
 
 
     # ======================================================
-    # 1. 初期値
+    # 1. 標準設定
     # ======================================================
 
     print()
-    print("[TEST 1] default")
+    print("=== 1. default ===")
 
     settings = (
         get_default_subtitle_font_settings()
@@ -851,11 +990,11 @@ if __name__ == "__main__":
 
 
     # ======================================================
-    # 2. 明示指定
+    # 2. 正常な明示指定
     # ======================================================
 
     print()
-    print("[TEST 2] explicit")
+    print("=== 2. valid ===")
 
     settings = select_subtitle_font(
 
@@ -877,55 +1016,17 @@ if __name__ == "__main__":
 
 
     # ======================================================
-    # 3. 値を何も指定しない
-    # ======================================================
-
-    print()
-    print("[TEST 3] empty")
-
-    settings = select_subtitle_font()
-
-    print(
-        settings
-    )
-
-
-    # ======================================================
-    # 4. 不正な文字色
+    # 3. 1項目だけ不正
     #
-    # ★全体が初期値になる
+    # → 全体が標準へ戻る
     # ======================================================
 
     print()
-    print("[TEST 4] invalid text_color")
+    print("=== 3. invalid color ===")
 
     settings = select_subtitle_font(
 
-        font="Noto Sans CJK JP",
-
-        text_color="紫",
-
-        outline_color="青",
-
-        outline_width=3
-
-    )
-
-    print(
-        settings
-    )
-
-
-    # ======================================================
-    # 5. 不正な縁色
-    #
-    # ★全体が初期値になる
-    # ======================================================
-
-    print()
-    print("[TEST 5] invalid outline_color")
-
-    settings = select_subtitle_font(
+        preset_name="標準",
 
         font="Noto Sans CJK JP",
 
@@ -943,21 +1044,51 @@ if __name__ == "__main__":
 
 
     # ======================================================
-    # 6. 不正な縁太さ
+    # 4. フォントが不正
     #
-    # ★全体が初期値になる
+    # → 全体が標準へ戻る
     # ======================================================
 
     print()
-    print("[TEST 6] invalid outline_width")
+    print("=== 4. invalid font ===")
 
     settings = select_subtitle_font(
 
+        preset_name="標準",
+
+        font="存在しないフォント",
+
+        text_color="赤",
+
+        outline_color="緑",
+
+        outline_width=7
+
+    )
+
+    print(
+        settings
+    )
+
+
+    # ======================================================
+    # 5. 縁太さが不正
+    #
+    # → 全体が標準へ戻る
+    # ======================================================
+
+    print()
+    print("=== 5. invalid outline width ===")
+
+    settings = select_subtitle_font(
+
+        preset_name="標準",
+
         font="Noto Sans CJK JP",
 
-        text_color="白",
+        text_color="赤",
 
-        outline_color="青",
+        outline_color="緑",
 
         outline_width="abc"
 
@@ -969,23 +1100,17 @@ if __name__ == "__main__":
 
 
     # ======================================================
-    # 7. 範囲外の縁太さ
+    # 6. 縁太さが範囲外
     #
-    # ★全体が初期値になる
+    # → 全体が標準へ戻る
     # ======================================================
 
     print()
-    print("[TEST 7] outline_width out of range")
+    print("=== 6. outline width over 10 ===")
 
     settings = select_subtitle_font(
 
-        font="Noto Sans CJK JP",
-
-        text_color="白",
-
-        outline_color="青",
-
-        outline_width=99
+        outline_width=11
 
     )
 
@@ -995,25 +1120,33 @@ if __name__ == "__main__":
 
 
     # ======================================================
-    # 8. 不正プリセット
+    # 7. 未指定
     #
-    # ★全体が初期値になる
+    # → 標準設定
     # ======================================================
 
     print()
-    print("[TEST 8] invalid preset")
+    print("=== 7. none ===")
+
+    settings = select_subtitle_font()
+
+    print(
+        settings
+    )
+
+
+    # ======================================================
+    # 8. 空文字
+    #
+    # → 不正なので全体を標準へ戻す
+    # ======================================================
+
+    print()
+    print("=== 8. empty string ===")
 
     settings = select_subtitle_font(
 
-        preset_name="存在しないプリセット",
-
-        font="Noto Sans CJK JP",
-
-        text_color="白",
-
-        outline_color="青",
-
-        outline_width=3
+        font=""
 
     )
 
@@ -1023,11 +1156,14 @@ if __name__ == "__main__":
 
 
     # ======================================================
-    # 9. 旧キー互換
+    # 9. 旧キー preset
+    #
+    # → 入力互換
+    # → 内部ではpreset_nameへ統一
     # ======================================================
 
     print()
-    print("[TEST 9] old key compatibility")
+    print("=== 9. legacy preset ===")
 
     settings = select_subtitle_font(
 
@@ -1062,7 +1198,7 @@ if __name__ == "__main__":
     # ======================================================
 
     print()
-    print("[TEST 10] is_default")
+    print("=== 10. is_default ===")
 
     print(
         is_default_subtitle_setting(
@@ -1071,27 +1207,7 @@ if __name__ == "__main__":
     )
 
 
-    # ======================================================
-    # 11. 不正カラー直接取得
-    # ======================================================
-
-    print()
-    print("[TEST 11] invalid color test")
-
-    try:
-
-        get_subtitle_color(
-            "紫"
-        )
-
-    except RuntimeError as error:
-
-        print(
-            error
-        )
-
-
     print()
     print("==========================================")
-    print("test complete")
+    print("TEST COMPLETE")
     print("==========================================")
