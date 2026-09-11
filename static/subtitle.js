@@ -328,9 +328,31 @@
                             settings.outline_color ||
                             "黒",
 
-                        outline_color_hex:
+                        console.log(
+                            "[SUBTITLE] outline_color_hex BEFORE fallback:",
+                            settings.outline_color_hex
+                        );
+                        
+                        console.log(
+                            "[SUBTITLE] outline_color BEFORE fallback:",
+                            settings.outline_color
+                        );
+                        
+                        
+                        const resolvedOutlineColorHex =
                             settings.outline_color_hex ||
-                            "#000000",
+                            "#000000";
+                        
+                        
+                        console.log(
+                            "[SUBTITLE] outline_color_hex AFTER fallback:",
+                            resolvedOutlineColorHex
+                        );
+                        
+                        console.log(
+                            "[SUBTITLE] outline_color AFTER fallback:",
+                            settings.outline_color
+                        );
 
                         outline_width:
                             Number.isFinite(
