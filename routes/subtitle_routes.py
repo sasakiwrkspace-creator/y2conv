@@ -1377,7 +1377,7 @@ def subtitle_create_srt():
 # ==========================================================
 # MP4 + SRT → 字幕MP4
 #
-# POST /subtitle-create-mp4
+# POST /subtitle-test/ffmpeg
 #
 # 1. 既にdownloadsへ保存されたMP4を取得
 # 2. 既にdownloadsへ保存されたSRTを取得
@@ -1387,7 +1387,7 @@ def subtitle_create_srt():
 # ==========================================================
 
 @subtitle_bp.route(
-    "/subtitle-create-mp4",
+    "/subtitle-test/ffmpeg",
     methods=["POST"]
 )
 def subtitle_create_mp4_route():
@@ -1398,7 +1398,7 @@ def subtitle_create_mp4_route():
     )
 
     print(
-        "[SUBTITLE] POST /subtitle-create-mp4",
+        "[SUBTITLE] POST "/subtitle-test/ffmpeg",
         flush=True
     )
 
@@ -1903,11 +1903,11 @@ def subtitle_create_srt_get():
 
 
 # ==========================================================
-# GET /subtitle-create-mp4
+# GET /subtitle-test/ffmpeg
 # ==========================================================
 
 @subtitle_bp.route(
-    "/subtitle-create-mp4",
+    "/subtitle-test/ffmpeg",
     methods=["GET"]
 )
 def subtitle_create_mp4_get():
@@ -1921,7 +1921,7 @@ def subtitle_create_mp4_get():
             "このURLはPOSTで使用してください。",
 
         "endpoint":
-            "/subtitle-create-mp4",
+            "/subtitle-test/ffmpeg",
 
         "method":
             "POST"
@@ -1990,7 +1990,7 @@ def register_subtitle_routes(
     )
 
     print(
-        "[SUBTITLE] POST /subtitle-create-mp4",
+        "[SUBTITLE] POST /subtitle-test/ffmpeg,
         flush=True
     )
 
@@ -2050,6 +2050,6 @@ print(
 
 
 print(
-    "[SUBTITLE] endpoint: /subtitle-create-mp4",
+    "[SUBTITLE] endpoint: /subtitle-test/ffmpeg,
     flush=True
 )
