@@ -253,11 +253,18 @@ def test_page():
 #   ↓
 # subtitle_test.py
 #   ↓
+# run_test()
+#   ↓
+# ① MP4保存
+# ② SRT保存
+# ③ subtitle.py
+#   ↓
 # FFmpeg
 #
-# 「字幕mp4を作成」ボタンから
-# この入口を使用する
-#
+# 重要:
+# ・現在の subtitle_test.py をそのまま使用
+# ・run_subtitle_test() は使用しない
+# ・フォント設定はテスト側へ渡さない
 # =====================================
 
 @app.route(
@@ -281,7 +288,6 @@ def subtitle_test_route():
         flush=True
     )
 
-
     try:
 
         # =====================================
@@ -292,13 +298,11 @@ def subtitle_test_route():
             silent=True
         )
 
-
         if not data:
 
             raise ValueError(
                 "リクエストJSONがありません。"
             )
-
 
         print(
             "[APP] /subtitle-test request:",
@@ -308,14 +312,15 @@ def subtitle_test_route():
 
 
         # =====================================
-        # 必須値
+        # ファイル名取得
+        #
+        # subtitle.jsからはファイル名だけを受け取る
         # =====================================
 
         mp4_filename = (
             data.get("mp4_file")
             or ""
         ).strip()
-
 
         srt_filename = (
             data.get("srt_file")
@@ -338,102 +343,214 @@ def subtitle_test_route():
 
 
         # =====================================
-        # フォント設定
+        # ファイル名安全化
+        #
+        # パスを外部から渡さず、
+        # DOWNLOAD_DIR内のファイルだけを使用
         # =====================================
 
-        font = (
-            data.get("font")
-            or "Noto Sans CJK JP"
-        )
+        mp4_name = Path(
+            mp4_filename
+        ).name
+
+        srt_name = Path(
+            srt_filename
+        ).name
 
 
-        text_color = (
-            data.get("text_color")
-            or "白"
-        )
+        if not mp4_name:
+
+            raise ValueError(
+                "MP4ファイル名が不正です。"
+            )
 
 
-        text_color_hex = (
-            data.get("text_color_hex")
-            or "#FFFFFF"
-        )
+        if not srt_name:
+
+            raise ValueError(
+                "SRTファイル名が不正です。"
+            )
 
 
-        outline_color = (
-            data.get("outline_color")
-            or "黒"
-        )
+        # =====================================
+        # 拡張子確認
+        # =====================================
+
+        if (
+            not mp4_name
+                .lower()
+                .endswith(".mp4")
+        ):
+
+            raise ValueError(
+                "mp4_fileにはMP4ファイルを指定してください。"
+            )
 
 
-        outline_color_hex = (
-            data.get("outline_color_hex")
-            or "#000000"
-        )
+        if (
+            not srt_name
+                .lower()
+                .endswith(".srt")
+        ):
+
+            raise ValueError(
+                "srt_fileにはSRTファイルを指定してください。"
+            )
 
 
-        outline_width = data.get(
-            "outline_width",
-            2
-        )
+        # =====================================
+        # DOWNLOAD_DIR内の実ファイルパス
+        # =====================================
+
+        mp4_path = (
+            Path(DOWNLOAD_DIR)
+            /
+            mp4_name
+        ).resolve()
+
+        srt_path = (
+            Path(DOWNLOAD_DIR)
+            /
+            srt_name
+        ).resolve()
 
 
-        preset_name = (
-            data.get("preset_name")
-            or "標準"
+        download_dir_path = (
+            Path(DOWNLOAD_DIR)
+            .resolve()
         )
 
 
         print(
             "[APP] subtitle test MP4:",
-            mp4_filename,
+            mp4_path,
             flush=True
         )
 
         print(
             "[APP] subtitle test SRT:",
-            srt_filename,
+            srt_path,
+            flush=True
+        )
+
+
+        # =====================================
+        # DOWNLOAD_DIR外へのアクセス防止
+        # =====================================
+
+        try:
+
+            mp4_path.relative_to(
+                download_dir_path
+            )
+
+            srt_path.relative_to(
+                download_dir_path
+            )
+
+        except ValueError:
+
+            raise ValueError(
+                "MP4またはSRTがDOWNLOAD_DIR外を"
+                "参照しています。"
+            )
+
+
+        # =====================================
+        # MP4存在確認
+        # =====================================
+
+        if not mp4_path.exists():
+
+            raise FileNotFoundError(
+                "MP4ファイルが存在しません: "
+                f"{mp4_path}"
+            )
+
+
+        if not mp4_path.is_file():
+
+            raise ValueError(
+                "MP4パスが通常ファイルではありません: "
+                f"{mp4_path}"
+            )
+
+
+        # =====================================
+        # SRT存在確認
+        # =====================================
+
+        if not srt_path.exists():
+
+            raise FileNotFoundError(
+                "SRTファイルが存在しません: "
+                f"{srt_path}"
+            )
+
+
+        if not srt_path.is_file():
+
+            raise ValueError(
+                "SRTパスが通常ファイルではありません: "
+                f"{srt_path}"
+            )
+
+
+        # =====================================
+        # ファイルサイズ確認
+        # =====================================
+
+        mp4_size = (
+            mp4_path.stat().st_size
+        )
+
+        srt_size = (
+            srt_path.stat().st_size
+        )
+
+
+        if mp4_size <= 0:
+
+            raise ValueError(
+                "MP4ファイルのサイズが0 bytesです。"
+            )
+
+
+        if srt_size <= 0:
+
+            raise ValueError(
+                "SRTファイルのサイズが0 bytesです。"
+            )
+
+
+        print(
+            "[APP] MP4 size:",
+            mp4_size,
+            "bytes",
             flush=True
         )
 
         print(
-            "[APP] subtitle test font:",
-            font,
+            "[APP] SRT size:",
+            srt_size,
+            "bytes",
             flush=True
         )
 
-        print(
-            "[APP] subtitle test text_color:",
-            text_color,
-            flush=True
-        )
+
+        # =====================================
+        # フォント設定
+        #
+        # 今回のテストでは使用しない。
+        #
+        # subtitle_test.pyの現在仕様
+        # run_test(mp4_path, srt_path)
+        # をそのまま使用する。
+        # =====================================
 
         print(
-            "[APP] subtitle test text_color_hex:",
-            text_color_hex,
-            flush=True
-        )
-
-        print(
-            "[APP] subtitle test outline_color:",
-            outline_color,
-            flush=True
-        )
-
-        print(
-            "[APP] subtitle test outline_color_hex:",
-            outline_color_hex,
-            flush=True
-        )
-
-        print(
-            "[APP] subtitle test outline_width:",
-            outline_width,
-            flush=True
-        )
-
-        print(
-            "[APP] subtitle test preset_name:",
-            preset_name,
+            "[APP] font settings are ignored "
+            "for this test",
             flush=True
         )
 
@@ -449,7 +566,7 @@ def subtitle_test_route():
 
 
         from subtitle_test import (
-            run_subtitle_test
+            run_test
         )
 
 
@@ -474,30 +591,21 @@ def subtitle_test_route():
         )
 
         print(
+            "[APP] function: run_test()",
+            flush=True
+        )
+
+        print(
             "==========================================",
             flush=True
         )
 
 
-        result = run_subtitle_test(
+        result = run_test(
 
-            mp4_filename=mp4_filename,
+            str(mp4_path),
 
-            srt_filename=srt_filename,
-
-            font=font,
-
-            text_color=text_color,
-
-            text_color_hex=text_color_hex,
-
-            outline_color=outline_color,
-
-            outline_color_hex=outline_color_hex,
-
-            outline_width=outline_width,
-
-            preset_name=preset_name
+            str(srt_path)
 
         )
 
@@ -537,7 +645,7 @@ def subtitle_test_route():
 
 
         # =====================================
-        # resultがdictの場合
+        # dictの場合
         # =====================================
 
         if isinstance(
@@ -560,14 +668,56 @@ def subtitle_test_route():
             )
 
 
+            # ---------------------------------
+            # outputをダウンロード用filenameへ
+            # ---------------------------------
+
+            output_value = (
+                result.get("output")
+                or ""
+            )
+
+
+            if output_value:
+
+                output_path = Path(
+                    output_value
+                )
+
+
+                result.setdefault(
+                    "filename",
+                    output_path.name
+                )
+
+
+                result.setdefault(
+                    "output_file",
+                    output_path.name
+                )
+
+
+                result.setdefault(
+                    "download_url",
+                    "/downloads/"
+                    +
+                    output_path.name
+                )
+
+
             return jsonify(
                 result
             ), 200
 
 
         # =====================================
-        # 文字列の場合
+        # 文字列などの場合
         # =====================================
+
+        result_path = Path(
+            str(result)
+        )
+
 
         return jsonify({
 
@@ -575,7 +725,15 @@ def subtitle_test_route():
                 True,
 
             "filename":
-                str(result)
+                result_path.name,
+
+            "output_file":
+                result_path.name,
+
+            "download_url":
+                "/downloads/"
+                +
+                result_path.name
 
         }), 200
 
