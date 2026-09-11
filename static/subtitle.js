@@ -235,12 +235,6 @@
 
         // =====================================
         // ファイル表示
-        //
-        // ファイル未選択:
-        // 「○○ファイルを選択してください」
-        //
-        // ファイル選択後:
-        // ファイル名のみ表示
         // =====================================
 
         function updateFileDisplay(
@@ -280,96 +274,311 @@
 
 
         // =====================================
-        // フォント設定取得
+        // フォント設定検証
+        //
+        // 重要:
+        // ここではフォールバックによって
+        // 値を勝手に書き換えない。
+        //
+        // subtitle_font.js から返された値を
+        // そのまま確認する。
         // =====================================
 
-        function getFontSettings() {
+        function validateFontSettings(
+            settings
+        ) {
 
             if (
-                window.subtitleFont &&
-                typeof window.subtitleFont.getSettings ===
-                    "function"
+                !settings ||
+                typeof settings !== "object"
             ) {
 
-                const settings =
-                    window.subtitleFont.getSettings();
+                throw new Error(
+                    "subtitle_font.js からフォント設定を取得できませんでした。"
+                );
+
+            }
+
+
+            const requiredKeys = [
+
+                "preset_name",
+                "font",
+                "text_color",
+                "text_color_hex",
+                "outline_color",
+                "outline_color_hex",
+                "outline_width"
+
+            ];
+
+
+            const missingKeys =
+                requiredKeys.filter(
+                    function (key) {
+
+                        return !Object.prototype.hasOwnProperty.call(
+                            settings,
+                            key
+                        );
+
+                    }
+                );
+
+
+            if (
+                missingKeys.length > 0
+            ) {
+
+                throw new Error(
+                    "フォント設定に必要な値がありません: " +
+                    missingKeys.join(", ")
+                );
+
+            }
+
+
+            // ---------------------------------
+            // HEX値を厳密に確認
+            // ---------------------------------
+
+            const textColorHex =
+                settings.text_color_hex;
+
+            const outlineColorHex =
+                settings.outline_color_hex;
+
+
+            if (
+                typeof textColorHex !== "string" ||
+                !/^#[0-9A-Fa-f]{6}$/.test(
+                    textColorHex
+                )
+            ) {
+
+                throw new Error(
+                    "text_color_hex が不正です: " +
+                    JSON.stringify(
+                        textColorHex
+                    )
+                );
+
+            }
+
+
+            if (
+                typeof outlineColorHex !== "string" ||
+                !/^#[0-9A-Fa-f]{6}$/.test(
+                    outlineColorHex
+                )
+            ) {
+
+                throw new Error(
+                    "outline_color_hex が不正です: " +
+                    JSON.stringify(
+                        outlineColorHex
+                    )
+                );
+
+            }
+
+
+            // ---------------------------------
+            // 色名とHEXの組み合わせをログ出力
+            // ---------------------------------
+
+            console.log(
+                "[SUBTITLE] font color pair:",
+                {
+                    text_color:
+                        settings.text_color,
+
+                    text_color_hex:
+                        textColorHex,
+
+                    outline_color:
+                        settings.outline_color,
+
+                    outline_color_hex:
+                        outlineColorHex
+                }
+            );
+
+
+            // ---------------------------------
+            // 青なのに黒HEXなど、
+            // 明らかに疑わしい組み合わせを警告
+            //
+            // ここでは勝手に修正しない。
+            // 原因追跡のため、そのまま検出する。
+            // ---------------------------------
+
+            const knownColorPairs = {
+
+                "白":
+                    "#FFFFFF",
+
+                "黒":
+                    "#000000",
+
+                "赤":
+                    "#FF0000",
+
+                "青":
+                    "#0000FF",
+
+                "緑":
+                    "#00FF00",
+
+                "黄":
+                    "#FFFF00"
+
+            };
+
+
+            if (
+                Object.prototype.hasOwnProperty.call(
+                    knownColorPairs,
+                    settings.outline_color
+                )
+            ) {
+
+                const expectedHex =
+                    knownColorPairs[
+                        settings.outline_color
+                    ];
 
 
                 if (
-                    settings &&
-                    typeof settings === "object"
+                    String(
+                        outlineColorHex
+                    ).toUpperCase() !==
+                    expectedHex
                 ) {
 
-                    const outlineWidth =
-                        Number(
-                            settings.outline_width
-                        );
+                    console.error(
+                        "[SUBTITLE] WARNING: outline_color と outline_color_hex が不一致です。",
+                        {
+                            outline_color:
+                                settings.outline_color,
 
+                            outline_color_hex:
+                                outlineColorHex,
 
-                    return {
-
-                        preset_name:
-                            settings.preset_name ||
-                            "標準",
-
-                        font:
-                            settings.font ||
-                            "IPAGothic",
-
-                        text_color:
-                            settings.text_color ||
-                            "白",
-
-                        text_color_hex:
-                            settings.text_color_hex ||
-                            "#FFFFFF",
-
-                        outline_color:
-                            settings.outline_color ||
-                            "黒",
-
-                        outline_color_hex:
-                            settings.outline_color_hex ||
-                            "#000000",
-
-                        outline_width:
-                            Number.isFinite(
-                                outlineWidth
-                            )
-                                ? outlineWidth
-                                : 2
-
-                    };
+                            expected:
+                                expectedHex
+                        }
+                    );
 
                 }
 
             }
 
 
-            return {
+            return settings;
+
+        }
+
+
+        // =====================================
+        // フォント設定取得
+        // =====================================
+
+        function getFontSettings() {
+
+            if (
+                !window.subtitleFont ||
+                typeof window.subtitleFont.getSettings !==
+                    "function"
+            ) {
+
+                throw new Error(
+                    "subtitle_font.js の getSettings() が利用できません。"
+                );
+
+            }
+
+
+            const rawSettings =
+                window.subtitleFont.getSettings();
+
+
+            console.log(
+                "[SUBTITLE] raw font settings from subtitle_font.js:",
+                rawSettings
+            );
+
+
+            const settings =
+                validateFontSettings(
+                    rawSettings
+                );
+
+
+            const outlineWidth =
+                Number(
+                    settings.outline_width
+                );
+
+
+            if (
+                !Number.isFinite(
+                    outlineWidth
+                )
+            ) {
+
+                throw new Error(
+                    "outline_width が不正です: " +
+                    JSON.stringify(
+                        settings.outline_width
+                    )
+                );
+
+            }
+
+
+            // =================================
+            // 重要:
+            // || による暗黙のフォールバックを
+            // ここでは使用しない。
+            //
+            // subtitle_font.js が返した値を
+            // そのままFFmpeg用設定として保持。
+            // =================================
+
+            const normalizedSettings = {
 
                 preset_name:
-                    "標準",
+                    settings.preset_name,
 
                 font:
-                    "IPAGothic",
+                    settings.font,
 
                 text_color:
-                    "白",
+                    settings.text_color,
 
                 text_color_hex:
-                    "#FFFFFF",
+                    settings.text_color_hex,
 
                 outline_color:
-                    "黒",
+                    settings.outline_color,
 
                 outline_color_hex:
-                    "#000000",
+                    settings.outline_color_hex,
 
                 outline_width:
-                    2
+                    outlineWidth
 
             };
+
+
+            console.log(
+                "[SUBTITLE] normalized font settings:",
+                normalizedSettings
+            );
+
+
+            return normalizedSettings;
 
         }
 
@@ -934,9 +1143,17 @@
             }
 
 
+            // ---------------------------------
+            // FFmpegへ渡す直前に取得
+            // ---------------------------------
+
             const fontSettings =
                 getFontSettings();
 
+
+            // ---------------------------------
+            // APIへ送る値を明示的に構築
+            // ---------------------------------
 
             const requestBody = {
 
@@ -970,8 +1187,84 @@
             };
 
 
+            // =================================
+            // 最重要ログ
+            //
+            // subtitle.js がAPIへ送信する
+            // 最終的な値。
+            //
+            // ここで
+            //
+            // outline_color: "青"
+            // outline_color_hex: "#000000"
+            //
+            // になっていた場合、
+            // subtitle.jsより前、
+            // つまり subtitle_font.js 側で
+            // 既に不整合が発生している。
+            // =================================
+
             console.log(
-                "[SUBTITLE] embed request:",
+                "[SUBTITLE] FINAL REQUEST BODY:",
+                JSON.stringify(
+                    requestBody,
+                    null,
+                    2
+                )
+            );
+
+
+            console.log(
+                "[SUBTITLE] FINAL COLOR VALUES:",
+                {
+                    outline_color:
+                        requestBody.outline_color,
+
+                    outline_color_hex:
+                        requestBody.outline_color_hex,
+
+                    text_color:
+                        requestBody.text_color,
+
+                    text_color_hex:
+                        requestBody.text_color_hex
+                }
+            );
+
+
+            // ---------------------------------
+            // 不整合を送信前に明示検出
+            // ---------------------------------
+
+            if (
+                requestBody.outline_color ===
+                    "青" &&
+                String(
+                    requestBody.outline_color_hex
+                ).toUpperCase() !==
+                    "#0000FF"
+            ) {
+
+                console.error(
+                    "[SUBTITLE] BLOCKED: 青なのに outline_color_hex が #0000FF ではありません。",
+                    {
+                        outline_color:
+                            requestBody.outline_color,
+
+                        outline_color_hex:
+                            requestBody.outline_color_hex
+                    }
+                );
+
+                throw new Error(
+                    "フォント設定が不正です。outline_color が「青」ですが、outline_color_hex が「#0000FF」ではありません。"
+                );
+
+            }
+
+
+            console.log(
+                "[SUBTITLE] sending /subtitle-create-mp4:",
                 requestBody
             );
 
@@ -1550,8 +1843,6 @@
 
         // =====================================
         // 字幕MP4ボタン状態
-        //
-        // MP4 + SRTの両方が転送済みなら有効
         // =====================================
 
         function updateSubtitleMp4Button() {
@@ -1636,9 +1927,6 @@
 
         // =====================================
         // MP4選択
-        //
-        // 新しいMP4を選択したら
-        // 古い転送済みMP4を無効化
         // =====================================
 
         mp4SelectButton.addEventListener(
@@ -1684,18 +1972,9 @@
                         : "";
 
 
-                // ---------------------------------
-                // 新しいMP4を選択したので、
-                // 以前の転送済みMP4を無効化
-                // ---------------------------------
-
                 subtitleState.uploadedMp4Filename =
                     "";
 
-
-                // ---------------------------------
-                // ボタン表示
-                // ---------------------------------
 
                 updateFileDisplay(
                     mp4SelectButton,
@@ -1712,9 +1991,6 @@
 
         // =====================================
         // SRT選択
-        //
-        // 新しいSRTを選択したら
-        // 古い転送済みSRTを無効化
         // =====================================
 
         srtSelectButton.addEventListener(
@@ -1760,18 +2036,9 @@
                         : "";
 
 
-                // ---------------------------------
-                // 新しいSRTを選択したので、
-                // 以前の転送済みSRTを無効化
-                // ---------------------------------
-
                 subtitleState.uploadedSrtFilename =
                     "";
 
-
-                // ---------------------------------
-                // ボタン表示
-                // ---------------------------------
 
                 updateFileDisplay(
                     srtSelectButton,
@@ -1972,7 +2239,7 @@
                             error.message
                                 ? error.message
                                 : "不明なエラー"
-                        ) +
+                    ) +
                         "\n\n" +
                         getElapsedText(),
 
@@ -2013,10 +2280,6 @@
 
         // =====================================
         // 字幕MP4作成
-        //
-        // ・ここではアップロードしない
-        // ・転送済みMP4/SRTだけを使用
-        // ・/subtitle-create-mp4 を呼び出す
         // =====================================
 
         subtitleMp4Button.addEventListener(
@@ -2166,7 +2429,7 @@
                             error.message
                                 ? error.message
                                 : "不明なエラー"
-                    ) +
+                        ) +
                         "\n\n" +
                         getElapsedText(),
 
@@ -2288,20 +2551,12 @@
         );
 
 
-        // -------------------------------------
-        // MP4
-        // -------------------------------------
-
         updateFileDisplay(
             mp4SelectButton,
             null,
             "mp4ファイルを選択してください"
         );
 
-
-        // -------------------------------------
-        // SRT
-        // -------------------------------------
 
         updateFileDisplay(
             srtSelectButton,
