@@ -6,6 +6,10 @@
 #
 # テスト:
 #
+# /subtitle-test
+#   ↓
+# subtitle_test.py
+#
 # /subtitle-test/ffmpeg
 #   ↓
 # subtitle_test_ffmpeg.py
@@ -20,7 +24,7 @@ import os
 import traceback
 from pathlib import Path
 
-from flask import Flask, render_template
+from flask import Flask, render_template, request, jsonify
 
 import config
 
@@ -238,6 +242,400 @@ def test_page():
     return render_template(
         "test.html"
     )
+
+
+# =====================================
+# 字幕MP4テスト本体
+#
+# /subtitle-test
+#
+# app.py
+#   ↓
+# subtitle_test.py
+#   ↓
+# FFmpeg
+#
+# 「字幕mp4を作成」ボタンから
+# この入口を使用する
+#
+# =====================================
+
+@app.route(
+    "/subtitle-test",
+    methods=["POST"]
+)
+def subtitle_test_route():
+
+    print(
+        "==========================================",
+        flush=True
+    )
+
+    print(
+        "[APP] /subtitle-test START",
+        flush=True
+    )
+
+    print(
+        "==========================================",
+        flush=True
+    )
+
+
+    try:
+
+        # =====================================
+        # JSON取得
+        # =====================================
+
+        data = request.get_json(
+            silent=True
+        )
+
+
+        if not data:
+
+            raise ValueError(
+                "リクエストJSONがありません。"
+            )
+
+
+        print(
+            "[APP] /subtitle-test request:",
+            data,
+            flush=True
+        )
+
+
+        # =====================================
+        # 必須値
+        # =====================================
+
+        mp4_filename = (
+            data.get("mp4_file")
+            or ""
+        ).strip()
+
+
+        srt_filename = (
+            data.get("srt_file")
+            or ""
+        ).strip()
+
+
+        if not mp4_filename:
+
+            raise ValueError(
+                "mp4_fileが指定されていません。"
+            )
+
+
+        if not srt_filename:
+
+            raise ValueError(
+                "srt_fileが指定されていません。"
+            )
+
+
+        # =====================================
+        # フォント設定
+        # =====================================
+
+        font = (
+            data.get("font")
+            or "Noto Sans CJK JP"
+        )
+
+
+        text_color = (
+            data.get("text_color")
+            or "白"
+        )
+
+
+        text_color_hex = (
+            data.get("text_color_hex")
+            or "#FFFFFF"
+        )
+
+
+        outline_color = (
+            data.get("outline_color")
+            or "黒"
+        )
+
+
+        outline_color_hex = (
+            data.get("outline_color_hex")
+            or "#000000"
+        )
+
+
+        outline_width = data.get(
+            "outline_width",
+            2
+        )
+
+
+        preset_name = (
+            data.get("preset_name")
+            or "標準"
+        )
+
+
+        print(
+            "[APP] subtitle test MP4:",
+            mp4_filename,
+            flush=True
+        )
+
+        print(
+            "[APP] subtitle test SRT:",
+            srt_filename,
+            flush=True
+        )
+
+        print(
+            "[APP] subtitle test font:",
+            font,
+            flush=True
+        )
+
+        print(
+            "[APP] subtitle test text_color:",
+            text_color,
+            flush=True
+        )
+
+        print(
+            "[APP] subtitle test text_color_hex:",
+            text_color_hex,
+            flush=True
+        )
+
+        print(
+            "[APP] subtitle test outline_color:",
+            outline_color,
+            flush=True
+        )
+
+        print(
+            "[APP] subtitle test outline_color_hex:",
+            outline_color_hex,
+            flush=True
+        )
+
+        print(
+            "[APP] subtitle test outline_width:",
+            outline_width,
+            flush=True
+        )
+
+        print(
+            "[APP] subtitle test preset_name:",
+            preset_name,
+            flush=True
+        )
+
+
+        # =====================================
+        # subtitle_test.py import
+        # =====================================
+
+        print(
+            "[APP] subtitle_test import START",
+            flush=True
+        )
+
+
+        from subtitle_test import (
+            run_subtitle_test
+        )
+
+
+        print(
+            "[APP] subtitle_test import OK",
+            flush=True
+        )
+
+
+        # =====================================
+        # subtitle_test.py 実行
+        # =====================================
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+        print(
+            "[APP] subtitle_test.py START",
+            flush=True
+        )
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+
+        result = run_subtitle_test(
+
+            mp4_filename=mp4_filename,
+
+            srt_filename=srt_filename,
+
+            font=font,
+
+            text_color=text_color,
+
+            text_color_hex=text_color_hex,
+
+            outline_color=outline_color,
+
+            outline_color_hex=outline_color_hex,
+
+            outline_width=outline_width,
+
+            preset_name=preset_name
+
+        )
+
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+        print(
+            "[APP] subtitle_test.py RETURN",
+            flush=True
+        )
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+
+        print(
+            "[APP] subtitle_test result:",
+            result,
+            flush=True
+        )
+
+
+        # =====================================
+        # 戻り値確認
+        # =====================================
+
+        if result is None:
+
+            raise RuntimeError(
+                "subtitle_test.pyから結果が返されませんでした。"
+            )
+
+
+        # =====================================
+        # resultがdictの場合
+        # =====================================
+
+        if isinstance(
+            result,
+            dict
+        ):
+
+            if result.get(
+                "success"
+            ) is False:
+
+                return jsonify(
+                    result
+                ), 500
+
+
+            result.setdefault(
+                "success",
+                True
+            )
+
+
+            return jsonify(
+                result
+            ), 200
+
+
+        # =====================================
+        # 文字列の場合
+        # =====================================
+
+        return jsonify({
+
+            "success":
+                True,
+
+            "filename":
+                str(result)
+
+        }), 200
+
+
+    except Exception as error:
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+        print(
+            "[APP] /subtitle-test FAILED",
+            flush=True
+        )
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+
+        print(
+            "[APP] ERROR TYPE:",
+            type(error).__name__,
+            flush=True
+        )
+
+        print(
+            "[APP] ERROR:",
+            str(error),
+            flush=True
+        )
+
+
+        print(
+            "[APP] TRACEBACK START",
+            flush=True
+        )
+
+        traceback.print_exc()
+
+        print(
+            "[APP] TRACEBACK END",
+            flush=True
+        )
+
+
+        return jsonify({
+
+            "success":
+                False,
+
+            "message":
+                str(error),
+
+            "error_type":
+                type(error).__name__
+
+        }), 500
 
 
 # =====================================
@@ -625,10 +1023,6 @@ def subtitle_test_fonts_route():
 
     try:
 
-        # =====================================
-        # パス
-        # =====================================
-
         input_path = (
             Path(DOWNLOAD_DIR)
             / "test.mp4"
@@ -649,17 +1043,6 @@ def subtitle_test_fonts_route():
         print(
             "[APP] FONT TEST output:",
             output_path,
-            flush=True
-        )
-
-
-        # =====================================
-        # 入力確認
-        # =====================================
-
-        print(
-            "[APP] FONT TEST "
-            "入力ファイル確認 START",
             flush=True
         )
 
@@ -685,23 +1068,6 @@ def subtitle_test_fonts_route():
         )
 
 
-        print(
-            "[APP] FONT TEST "
-            "入力ファイル確認 OK",
-            flush=True
-        )
-
-        print(
-            f"[APP] FONT TEST "
-            f"入力サイズ: {input_size} bytes",
-            flush=True
-        )
-
-
-        # =====================================
-        # 前回出力削除
-        # =====================================
-
         if output_path.exists():
 
             print(
@@ -712,11 +1078,6 @@ def subtitle_test_fonts_route():
 
             output_path.unlink()
 
-
-        # =====================================
-        # subtitle_test_fonts.py
-        # import
-        # =====================================
 
         print(
             "[APP] subtitle_test_fonts "
@@ -736,10 +1097,6 @@ def subtitle_test_fonts_route():
             flush=True
         )
 
-
-        # =====================================
-        # フォントテスト開始
-        # =====================================
 
         print(
             "==========================================",
@@ -786,17 +1143,6 @@ def subtitle_test_fonts_route():
         )
 
 
-        # =====================================
-        # 出力確認
-        # =====================================
-
-        print(
-            "[APP] FONT TEST "
-            "出力ファイル確認 START",
-            flush=True
-        )
-
-
         if not output_path.exists():
 
             raise FileNotFoundError(
@@ -820,23 +1166,6 @@ def subtitle_test_fonts_route():
         )
 
 
-        print(
-            "[APP] FONT TEST "
-            "出力ファイル確認 OK",
-            flush=True
-        )
-
-        print(
-            f"[APP] FONT TEST "
-            f"出力サイズ: {output_size} bytes",
-            flush=True
-        )
-
-
-        # =====================================
-        # 成功
-        # =====================================
-
         message = (
             "【字幕フォントFFmpegテスト完了】\n\n"
             "フォントを指定した字幕FFmpeg処理が"
@@ -853,17 +1182,7 @@ def subtitle_test_fonts_route():
 
 
         print(
-            "==========================================",
-            flush=True
-        )
-
-        print(
             "[APP] /subtitle-test/fonts SUCCESS",
-            flush=True
-        )
-
-        print(
-            "==========================================",
             flush=True
         )
 
@@ -881,20 +1200,9 @@ def subtitle_test_fonts_route():
     except Exception as error:
 
         print(
-            "==========================================",
-            flush=True
-        )
-
-        print(
             "[APP] /subtitle-test/fonts FAILED",
             flush=True
         )
-
-        print(
-            "==========================================",
-            flush=True
-        )
-
 
         print(
             "[APP] FONT TEST ERROR TYPE:",
@@ -908,18 +1216,7 @@ def subtitle_test_fonts_route():
             flush=True
         )
 
-
-        print(
-            "[APP] FONT TEST TRACEBACK START",
-            flush=True
-        )
-
         traceback.print_exc()
-
-        print(
-            "[APP] FONT TEST TRACEBACK END",
-            flush=True
-        )
 
 
         message = (
