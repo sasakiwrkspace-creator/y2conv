@@ -1593,7 +1593,7 @@ def embed_subtitle(
             output_path = (
                 mp4_path.parent
                 /
-                f"{mp4_path.stem}_sub_embed.mp4"
+                "test_sub_embed.mp4"
             ).resolve()
 
         log(
@@ -1601,7 +1601,7 @@ def embed_subtitle(
         )
 
         # ==================================================
-        # STEP 6
+        # STEP 6 f"{mp4_path.stem}_sub_embed.mp4"
         # ==================================================
 
         log_start(
