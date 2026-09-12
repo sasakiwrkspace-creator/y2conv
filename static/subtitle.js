@@ -714,51 +714,51 @@
         async function parseResponse(
             response
         ) {
-        
+
             const text =
                 await response.text();
-        
-        
+
+
             if (!text) {
-        
+
                 return null;
-        
+
             }
-        
-        
+
+
             try {
-        
+
                 return JSON.parse(
                     text
                 );
-        
+
             }
             catch (error) {
-        
+
                 console.error(
                     "[SUBTITLE] JSON解析エラー:",
                     error
                 );
-        
-        
+
+
                 console.error(
                     "[SUBTITLE] response:",
                     text
                 );
-        
-        
+
+
                 return {
-        
+
                     success:
                         false,
-        
+
                     message:
                         text
-        
+
                 };
-        
+
             }
-        
+
         }
 
 
@@ -1246,17 +1246,11 @@
                 true;
 
 
+            // MP4転送中はMP4転送ボタンだけ無効化
+
             if (mp4UploadButton) {
 
                 mp4UploadButton.disabled =
-                    true;
-
-            }
-
-
-            if (srtUploadButton) {
-
-                srtUploadButton.disabled =
                     true;
 
             }
@@ -1359,17 +1353,11 @@
                 );
 
 
+                // MP4転送ボタンだけ解除
+
                 if (mp4UploadButton) {
 
                     mp4UploadButton.disabled =
-                        false;
-
-                }
-
-
-                if (srtUploadButton) {
-
-                    srtUploadButton.disabled =
                         false;
 
                 }
@@ -1436,13 +1424,7 @@
                 true;
 
 
-            if (mp4UploadButton) {
-
-                mp4UploadButton.disabled =
-                    true;
-
-            }
-
+            // SRT転送中はSRT転送ボタンだけ無効化
 
             if (srtUploadButton) {
 
@@ -1549,13 +1531,7 @@
                 );
 
 
-                if (mp4UploadButton) {
-
-                    mp4UploadButton.disabled =
-                        false;
-
-                }
-
+                // SRT転送ボタンだけ解除
 
                 if (srtUploadButton) {
 
