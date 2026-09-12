@@ -62,6 +62,11 @@
             document.getElementById(
                 "subtitle-font-button"
             );
+        
+        const youtubeFontButton =
+            document.getElementById(
+                "subtitle-font-button-youtube"
+            );
 
 
         if (!fontButton) {
