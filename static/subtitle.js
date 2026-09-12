@@ -1014,6 +1014,13 @@
             );
 
 
+            // =====================================
+            // FFmpegテストAPI
+            //
+            // このAPIはJSONではなく
+            // プレーンテキストを返す
+            // =====================================
+
             const response =
                 await fetch(
                     "/subtitle-test/ffmpeg",
@@ -1024,53 +1031,43 @@
                 );
 
 
-            const data =
-                await parseResponse(
-                    response
-                );
+            // =====================================
+            // レスポンスはJSON解析しない
+            // =====================================
 
+            const text =
+                await response.text();
+
+
+            console.log(
+                "[SUBTITLE] response:",
+                text
+            );
+
+
+            // =====================================
+            // HTTPエラー
+            // =====================================
 
             if (!response.ok) {
 
                 throw new Error(
-                    getResponseErrorMessage(
-                        data,
-                        "字幕MP4の作成に失敗しました。"
-                    )
+                    text ||
+                    "字幕MP4の作成に失敗しました。"
                 );
 
             }
 
 
-            if (
-                !data ||
-                data.success !== true
-            ) {
-
-                throw new Error(
-                    getResponseErrorMessage(
-                        data,
-                        "字幕MP4の作成に失敗しました。"
-                    )
-                );
-
-            }
-
+            // =====================================
+            // 成功
+            //
+            // /subtitle-test/ffmpeg は
+            // test_embed.mp4 を作成する
+            // =====================================
 
             const filename =
-                data.filename ||
-                data.output_file ||
-                data.subtitle_mp4_file ||
-                data.mp4_file;
-
-
-            if (!filename) {
-
-                throw new Error(
-                    "作成された字幕MP4のファイル名を取得できませんでした。"
-                );
-
-            }
+                "test_embed.mp4";
 
 
             console.log(
@@ -1081,9 +1078,16 @@
 
             return {
 
-                ...data,
+                success:
+                    true,
+
+                message:
+                    text,
 
                 filename:
+                    filename,
+
+                output_file:
                     filename
 
             };
