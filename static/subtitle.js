@@ -972,72 +972,72 @@
         // ・レスポンスはプレーンテキスト
         // ・JSON.parse()しない
         // =====================================
-        
+
         async function embedSubtitle(
             mp4Filename,
             srtFilename
         ) {
-        
+
             if (!mp4Filename) {
-        
+
                 throw new Error(
                     "転送済みMP4ファイルがありません。"
                 );
-        
+
             }
-        
-        
+
+
             if (!srtFilename) {
-        
+
                 throw new Error(
                     "転送済みSRTファイルがありません。"
                 );
-        
+
             }
-        
-        
+
+
             const fontSettings =
                 getFontSettings();
-        
-        
+
+
             const requestBody = {
-        
+
                 mp4_file:
                     mp4Filename,
-        
+
                 srt_file:
                     srtFilename,
-        
+
                 font:
                     fontSettings.font,
-        
+
                 text_color:
                     fontSettings.text_color,
-        
+
                 text_color_hex:
                     fontSettings.text_color_hex,
-        
+
                 outline_color:
                     fontSettings.outline_color,
-        
+
                 outline_color_hex:
                     fontSettings.outline_color_hex,
-        
+
                 outline_width:
                     fontSettings.outline_width,
-        
+
                 preset_name:
                     fontSettings.preset_name
-        
+
             };
-        
-        
+
+
             console.log(
                 "[SUBTITLE] /subtitle-test/ffmpeg request:",
                 requestBody
             );
-        
-        
+
+
             // =====================================
             // FFmpeg実行
             //
@@ -1046,58 +1046,58 @@
             // レスポンスはプレーンテキスト。
             // JSON.parse()は禁止。
             // =====================================
-        
+
             const response =
                 await fetch(
                     "/subtitle-test/ffmpeg",
                     {
-        
+
                         method:
                             "POST",
-        
+
                         headers:
                             {
                                 "Content-Type":
                                     "application/json"
                             },
-        
+
                         body:
                             JSON.stringify(
                                 requestBody
                             )
-        
+
                     }
                 );
-        
-        
+
+
             // =====================================
             // プレーンテキストとして取得
             // =====================================
-        
+
             const text =
                 await response.text();
-        
-        
+
+
             console.log(
                 "[SUBTITLE] /subtitle-test/ffmpeg response:",
                 text
             );
-        
-        
+
+
             // =====================================
             // HTTPエラー
             // =====================================
-        
+
             if (!response.ok) {
-        
+
                 throw new Error(
                     text ||
                     "字幕MP4の作成に失敗しました。"
                 );
-        
+
             }
-        
-        
+
+
             // =====================================
             // 成功
             //
@@ -1109,24 +1109,25 @@
             //
             // が作成される。
             // =====================================
-        
+
             return {
-        
+
                 success:
                     true,
-        
+
                 message:
                     text,
-        
+
                 filename:
                     `${mp4Filename.replace(
                         /\.mp4$/i,
                         ""
                     )}_字幕.mp4`
-        
+
             };
-        
+
         }
+
 
         // =====================================
         // ダウンロードボタン
@@ -1283,8 +1284,6 @@
                 true;
 
 
-            // MP4転送中はMP4転送ボタンだけ無効化
-
             if (mp4UploadButton) {
 
                 mp4UploadButton.disabled =
@@ -1390,8 +1389,6 @@
                 );
 
 
-                // MP4転送ボタンだけ解除
-
                 if (mp4UploadButton) {
 
                     mp4UploadButton.disabled =
@@ -1460,8 +1457,6 @@
             subtitleState.isProcessing =
                 true;
 
-
-            // SRT転送中はSRT転送ボタンだけ無効化
 
             if (srtUploadButton) {
 
@@ -1567,8 +1562,6 @@
                     false
                 );
 
-
-                // SRT転送ボタンだけ解除
 
                 if (srtUploadButton) {
 
