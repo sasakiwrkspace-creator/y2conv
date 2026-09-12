@@ -6,7 +6,19 @@ DOWNLOAD_DIR = Path("/app/downloads")
 
 DEFAULT_INPUT_MP4 = DOWNLOAD_DIR / "test.mp4"
 DEFAULT_INPUT_SRT = DOWNLOAD_DIR / "test.srt"
-DEFAULT_OUTPUT_MP4 = DOWNLOAD_DIR / "test_embed.mp4"
+
+# ==========================================================
+# デフォルト字幕MP4
+#
+# 入力:
+#   test.mp4
+#
+# 出力:
+#   test_字幕.mp4
+# ==========================================================
+
+DEFAULT_OUTPUT_MP4 = DOWNLOAD_DIR / "test_字幕.mp4"
+
 
 # フォントディレクトリ
 DEFAULT_FONT_DIR = DOWNLOAD_DIR / "fonts"
@@ -83,19 +95,25 @@ FONT_LIST = {
 def hex_to_ass_color(color_hex):
 
     if not isinstance(color_hex, str):
+
         return "&H00FFFFFF"
 
     value = color_hex.strip().upper()
 
     if value.startswith("#"):
+
         value = value[1:]
 
     if len(value) != 6:
+
         return "&H00FFFFFF"
 
     try:
+
         int(value, 16)
+
     except ValueError:
+
         return "&H00FFFFFF"
 
     rr = value[0:2]
@@ -130,6 +148,7 @@ def normalize_subtitle_settings(
 ):
 
     if not isinstance(settings, dict):
+
         settings = {}
 
 
@@ -389,6 +408,34 @@ def build_subtitle_filter(
 
 
 # =====================================
+# 字幕MP4出力ファイル名生成
+#
+# 入力:
+#
+#   /app/downloads/タイトル.mp4
+#
+# 出力:
+#
+#   /app/downloads/タイトル_字幕.mp4
+#
+# =====================================
+
+def build_subtitle_output_path(
+    input_file
+):
+
+    input_file = Path(
+        input_file
+    )
+
+    return (
+        input_file.parent
+        /
+        f"{input_file.stem}_字幕.mp4"
+    )
+
+
+# =====================================
 # FFmpeg字幕テスト
 # =====================================
 
@@ -417,7 +464,7 @@ def run_ffmpeg_subtitle_test(
 
 
     # =====================================
-    # パス
+    # 入力MP4
     # =====================================
 
     if input_path is None:
@@ -431,6 +478,10 @@ def run_ffmpeg_subtitle_test(
         )
 
 
+    # =====================================
+    # SRT
+    # =====================================
+
     if srt_path is None:
 
         srt_file = DEFAULT_INPUT_SRT
@@ -442,9 +493,24 @@ def run_ffmpeg_subtitle_test(
         )
 
 
+    # =====================================
+    # 出力MP4
+    #
+    # output_pathが指定されていない場合、
+    # 入力MP4の名前を基準に
+    #
+    #   タイトル.mp4
+    #       ↓
+    #   タイトル_字幕.mp4
+    #
+    # とする。
+    # =====================================
+
     if output_path is None:
 
-        output_file = DEFAULT_OUTPUT_MP4
+        output_file = build_subtitle_output_path(
+            input_file
+        )
 
     else:
 
@@ -452,6 +518,10 @@ def run_ffmpeg_subtitle_test(
             output_path
         )
 
+
+    # =====================================
+    # フォントディレクトリ
+    # =====================================
 
     if font_dir is None:
 
@@ -956,6 +1026,14 @@ def run_ffmpeg_subtitle_test(
     )
 
 
+    if output_size <= 0:
+
+        raise RuntimeError(
+            "FFmpeg出力ファイルのサイズが0 bytesです: "
+            f"{output_file}"
+        )
+
+
     print(
         "[SUBTITLE TEST] 出力ファイル確認 OK",
         flush=True
@@ -984,6 +1062,12 @@ def run_ffmpeg_subtitle_test(
 
     print(
         "==========================================",
+        flush=True
+    )
+
+    print(
+        f"[SUBTITLE TEST] output: "
+        f"{output_file}",
         flush=True
     )
 
