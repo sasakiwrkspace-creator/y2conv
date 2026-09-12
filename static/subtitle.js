@@ -714,51 +714,19 @@
         async function parseResponse(
             response
         ) {
-
+        
             const text =
                 await response.text();
-
-
-            if (!text) {
-
-                return null;
-
-            }
-
-
-            try {
-
-                return JSON.parse(
-                    text
-                );
-
-            }
-            catch (error) {
-
-                console.error(
-                    "[SUBTITLE] JSON解析エラー:",
-                    error
-                );
-
-
-                console.error(
-                    "[SUBTITLE] response:",
-                    text
-                );
-
-
-                return {
-
-                    success:
-                        false,
-
-                    message:
-                        text
-
-                };
-
-            }
-
+        
+        
+            console.log(
+                "[SUBTITLE] response:",
+                text
+            );
+        
+        
+            return text;
+        
         }
 
 
