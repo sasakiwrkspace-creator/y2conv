@@ -1,305 +1,49 @@
 # =====================================
-# YouTube Converter
-# app.py
-#
-# FFmpeg字幕テスト切り分け版
-#
-# テスト:
-#
-# /subtitle-test
-#   ↓
-# subtitle_test.py
+# FFmpeg字幕テスト
 #
 # /subtitle-test/ffmpeg
+#
+# 画面
 #   ↓
-# subtitle_test_ffmpeg.py
-#
-# /subtitle-test/fonts
+# mp4_file
+# srt_file
 #   ↓
-# subtitle_test_fonts.py
-#
-# =====================================
-
-import os
-import shutil
-import tempfile
-import traceback
-from pathlib import Path
-
-from flask import Flask, render_template, request, jsonify
-
-import config
-
-from routes.index import register_index
-from routes.files import register_files
-from routes.convert import register_convert
-from routes.check import register_video_info, register_check
-from routes.gemini import register_gemini
-from routes.completed_files import register_completed_files
-
-from routes.subtitle_routes import subtitle_bp
-
-
-# =====================================
-# Flask
-# =====================================
-
-app = Flask(__name__)
-
-
-# =====================================
-# 設定
-# =====================================
-
-BASE_DIR = config.BASE_DIR
-DOWNLOAD_DIR = config.DOWNLOAD_DIR
-
-
-print("==========================================", flush=True)
-print("[APP] app.py START", flush=True)
-print("==========================================", flush=True)
-
-print(
-    "[APP] BASE_DIR:",
-    BASE_DIR,
-    flush=True
-)
-
-print(
-    "[APP] DOWNLOAD_DIR:",
-    DOWNLOAD_DIR,
-    flush=True
-)
-
-
-# =====================================
-# Routes登録
-# =====================================
-
-print("==========================================", flush=True)
-print("[APP] Registering routes", flush=True)
-print("==========================================", flush=True)
-
-
-# -------------------------------------
-# index
-# -------------------------------------
-
-print(
-    "[APP] register_index START",
-    flush=True
-)
-
-register_index(app)
-
-print(
-    "[APP] register_index OK",
-    flush=True
-)
-
-
-# -------------------------------------
-# files
-# -------------------------------------
-
-print(
-    "[APP] register_files START",
-    flush=True
-)
-
-register_files(app)
-
-print(
-    "[APP] register_files OK",
-    flush=True
-)
-
-
-# -------------------------------------
-# convert
-# -------------------------------------
-
-print(
-    "[APP] register_convert START",
-    flush=True
-)
-
-register_convert(app)
-
-print(
-    "[APP] register_convert OK",
-    flush=True
-)
-
-
-# -------------------------------------
-# video-info
-# -------------------------------------
-
-print(
-    "[APP] register_video_info START",
-    flush=True
-)
-
-register_video_info(app)
-
-print(
-    "[APP] register_video_info OK",
-    flush=True
-)
-
-
-# -------------------------------------
-# check
-# -------------------------------------
-
-print(
-    "[APP] register_check START",
-    flush=True
-)
-
-register_check(app)
-
-print(
-    "[APP] register_check OK",
-    flush=True
-)
-
-
-# -------------------------------------
-# Gemini
-# -------------------------------------
-
-print(
-    "[APP] register_gemini START",
-    flush=True
-)
-
-register_gemini(app)
-
-print(
-    "[APP] register_gemini OK",
-    flush=True
-)
-
-
-# -------------------------------------
-# subtitle blueprint
-# -------------------------------------
-
-print(
-    "[APP] subtitle_bp register START",
-    flush=True
-)
-
-app.register_blueprint(
-    subtitle_bp
-)
-
-print(
-    "[APP] subtitle_bp register OK",
-    flush=True
-)
-
-
-# -------------------------------------
-# completed files
-# -------------------------------------
-
-print(
-    "[APP] register_completed_files START",
-    flush=True
-)
-
-register_completed_files(app)
-
-print(
-    "[APP] register_completed_files OK",
-    flush=True
-)
-
-
-# =====================================
-# /test
-# =====================================
-
-@app.route("/test")
-def test_page():
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    print(
-        "[APP] /test START",
-        flush=True
-    )
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    return render_template(
-        "test.html"
-    )
-
-
-# =====================================
-# 字幕MP4テスト本体
-#
-# /subtitle-test
-#
 # app.py
 #   ↓
-# subtitle_test.py
-#   ↓
-# subtitle.py
+# subtitle_test_ffmpeg.py
 #   ↓
 # FFmpeg
 #
+# 入力:
+#
+#   画面から指定されたMP4
+#   画面から指定されたSRT
+#
 # 出力:
-# /app/downloads/test_sub_embed.mp4
 #
-# 重要:
+#   入力MP4が
 #
-# このrouteではsubtitle.pyを直接呼ばない。
+#       タイトル.mp4
 #
-# subtitle_test.pyのrun_test()を使用する。
+#   の場合、
 #
-# ただしrun_test()内部では、
+#       タイトル_字幕.mp4
 #
-# save_file()
-#   ↓
-# downloadsへコピー
+#   とする。
 #
-# を行うため、
+# test.mp4
+# test.srt
+# test_embed.mp4
 #
-# /app/downloads/test.mp4
-# ↓
-# /app/downloads/test.mp4
-#
-# とするとSameFileErrorになる。
-#
-# そのため入力ファイルだけを一時ディレクトリへ
-# コピーしてからrun_test()へ渡す。
-#
-# これによりsubtitle_test.pyの
-#
-# STEP 1
-# STEP 2
-# STEP 3
-#
-# をそのまま実行する。
+# は使用しない。
 #
 # =====================================
 
 @app.route(
-    "/subtitle-test",
+    "/subtitle-test/ffmpeg",
     methods=["POST"]
 )
-def subtitle_test_route():
+def subtitle_test_ffmpeg_route():
 
     print(
         "==========================================",
@@ -307,7 +51,7 @@ def subtitle_test_route():
     )
 
     print(
-        "[APP] /subtitle-test START",
+        "[APP] /subtitle-test/ffmpeg START",
         flush=True
     )
 
@@ -316,7 +60,6 @@ def subtitle_test_route():
         flush=True
     )
 
-    temporary_directory = None
 
     try:
 
@@ -328,57 +71,97 @@ def subtitle_test_route():
             silent=True
         )
 
+
         if not data:
 
             raise ValueError(
                 "リクエストJSONがありません。"
             )
 
+
         print(
-            "[APP] /subtitle-test request:",
+            "[APP] /subtitle-test/ffmpeg request:",
             data,
             flush=True
         )
 
 
         # =====================================
-        # ファイル名取得
+        # MP4ファイル名取得
+        #
+        # ★test.mp4をデフォルトにしない
+        #
+        # 必ず画面から受け取る。
         # =====================================
 
-        mp4_filename = (
-            data.get("mp4_file")
-            or "test.mp4"
-        ).strip()
-
-        srt_filename = (
-            data.get("srt_file")
-            or "test.srt"
-        ).strip()
+        mp4_filename = data.get(
+            "mp4_file"
+        )
 
 
-        if not mp4_filename:
+        if not isinstance(
+            mp4_filename,
+            str
+        ):
 
             raise ValueError(
                 "mp4_fileが指定されていません。"
             )
 
-        if not srt_filename:
+
+        mp4_filename = mp4_filename.strip()
+
+
+        if not mp4_filename:
+
+            raise ValueError(
+                "mp4_fileが空です。"
+            )
+
+
+        # =====================================
+        # SRTファイル名取得
+        #
+        # ★test.srtをデフォルトにしない
+        #
+        # 必ず画面から受け取る。
+        # =====================================
+
+        srt_filename = data.get(
+            "srt_file"
+        )
+
+
+        if not isinstance(
+            srt_filename,
+            str
+        ):
 
             raise ValueError(
                 "srt_fileが指定されていません。"
             )
 
 
+        srt_filename = srt_filename.strip()
+
+
+        if not srt_filename:
+
+            raise ValueError(
+                "srt_fileが空です。"
+            )
+
+
         # =====================================
         # ファイル名安全化
         #
-        # パスは受け付けず、
-        # downloads直下のファイルだけを使用する。
+        # downloads直下だけを使用する。
         # =====================================
 
         mp4_name = Path(
             mp4_filename
         ).name
+
 
         srt_name = Path(
             srt_filename
@@ -391,6 +174,7 @@ def subtitle_test_route():
                 "MP4ファイル名を取得できません。"
             )
 
+
         if not srt_name:
 
             raise ValueError(
@@ -399,13 +183,40 @@ def subtitle_test_route():
 
 
         # =====================================
+        # 拡張子確認
+        # =====================================
+
+        if Path(
+            mp4_name
+        ).suffix.lower() != ".mp4":
+
+            raise ValueError(
+                "指定されたMP4ファイルの拡張子が"
+                ".mp4ではありません: "
+                f"{mp4_name}"
+            )
+
+
+        if Path(
+            srt_name
+        ).suffix.lower() != ".srt":
+
+            raise ValueError(
+                "指定されたSRTファイルの拡張子が"
+                ".srtではありません: "
+                f"{srt_name}"
+            )
+
+
+        # =====================================
         # downloads内の入力ファイル
         # =====================================
 
-        mp4_path = (
+        input_path = (
             Path(DOWNLOAD_DIR)
             / mp4_name
         )
+
 
         srt_path = (
             Path(DOWNLOAD_DIR)
@@ -413,15 +224,38 @@ def subtitle_test_route():
         )
 
 
+        # =====================================
+        # 出力ファイル名
+        #
+        # タイトル.mp4
+        #      ↓
+        # タイトル_字幕.mp4
+        # =====================================
+
+        output_path = (
+            input_path.parent
+            /
+            f"{input_path.stem}_字幕.mp4"
+        )
+
+
         print(
-            "[APP] subtitle test MP4:",
-            mp4_path,
+            "[APP] 入力MP4:",
+            input_path,
             flush=True
         )
 
+
         print(
-            "[APP] subtitle test SRT:",
+            "[APP] 入力SRT:",
             srt_path,
+            flush=True
+        )
+
+
+        print(
+            "[APP] 出力字幕MP4:",
+            output_path,
             flush=True
         )
 
@@ -431,47 +265,49 @@ def subtitle_test_route():
         # =====================================
 
         print(
-            "[APP] MP4入力確認 START",
+            "[APP] MP4存在確認 START",
             flush=True
         )
 
 
-        if not mp4_path.exists():
+        if not input_path.exists():
 
             raise FileNotFoundError(
-                "MP4ファイルが存在しません: "
-                f"{mp4_path}"
-            )
-
-        if not mp4_path.is_file():
-
-            raise ValueError(
-                "MP4パスが通常ファイルではありません: "
-                f"{mp4_path}"
+                "入力MP4が存在しません: "
+                f"{input_path}"
             )
 
 
-        mp4_size = (
-            mp4_path.stat().st_size
+        if not input_path.is_file():
+
+            raise FileNotFoundError(
+                "入力MP4が通常ファイルではありません: "
+                f"{input_path}"
+            )
+
+
+        input_size = (
+            input_path.stat().st_size
         )
 
 
-        if mp4_size <= 0:
+        if input_size <= 0:
 
-            raise ValueError(
-                "MP4ファイルのサイズが0 bytesです: "
-                f"{mp4_path}"
+            raise RuntimeError(
+                "入力MP4のサイズが0 bytesです: "
+                f"{input_path}"
             )
 
 
         print(
-            "[APP] MP4入力確認 OK",
+            "[APP] MP4存在確認 OK",
             flush=True
         )
 
+
         print(
-            "[APP] MP4 size:",
-            mp4_size,
+            "[APP] 入力MP4サイズ:",
+            input_size,
             "bytes",
             flush=True
         )
@@ -482,7 +318,7 @@ def subtitle_test_route():
         # =====================================
 
         print(
-            "[APP] SRT入力確認 START",
+            "[APP] SRT存在確認 START",
             flush=True
         )
 
@@ -490,14 +326,15 @@ def subtitle_test_route():
         if not srt_path.exists():
 
             raise FileNotFoundError(
-                "SRTファイルが存在しません: "
+                "入力SRTが存在しません: "
                 f"{srt_path}"
             )
 
+
         if not srt_path.is_file():
 
-            raise ValueError(
-                "SRTパスが通常ファイルではありません: "
+            raise FileNotFoundError(
+                "入力SRTが通常ファイルではありません: "
                 f"{srt_path}"
             )
 
@@ -509,19 +346,20 @@ def subtitle_test_route():
 
         if srt_size <= 0:
 
-            raise ValueError(
-                "SRTファイルのサイズが0 bytesです: "
+            raise RuntimeError(
+                "入力SRTのサイズが0 bytesです: "
                 f"{srt_path}"
             )
 
 
         print(
-            "[APP] SRT入力確認 OK",
+            "[APP] SRT存在確認 OK",
             flush=True
         )
 
+
         print(
-            "[APP] SRT size:",
+            "[APP] 入力SRTサイズ:",
             srt_size,
             "bytes",
             flush=True
@@ -529,291 +367,160 @@ def subtitle_test_route():
 
 
         # =====================================
-        # 字幕設定
-        #
-        # subtitle_test.py / subtitle.py側の
-        # 標準設定を使用する。
-        #
-        # requestで渡されたfont等は、
-        # このテストでは使用しない。
+        # 前回の同名字幕MP4を削除
+        # =====================================
+
+        if output_path.exists():
+
+            if output_path.is_file():
+
+                print(
+                    "[APP] 既存字幕MP4を削除:",
+                    output_path,
+                    flush=True
+                )
+
+                output_path.unlink()
+
+            else:
+
+                raise RuntimeError(
+                    "字幕MP4出力先が通常ファイルではありません: "
+                    f"{output_path}"
+                )
+
+
+        # =====================================
+        # subtitle_test_ffmpeg import
         # =====================================
 
         print(
-            "[APP] subtitle settings are ignored "
-            "for this test",
+            "[APP] subtitle_test_ffmpeg "
+            "import START",
+            flush=True
+        )
+
+
+        from subtitle_test_ffmpeg import (
+            run_ffmpeg_subtitle_test
+        )
+
+
+        print(
+            "[APP] subtitle_test_ffmpeg "
+            "import OK",
             flush=True
         )
 
 
         # =====================================
-        # 既存出力確認
-        #
-        # subtitle_test.pyの
-        # create_subtitle_test_mp4()は、
-        # 同名出力があると _2, _3 ... を作る。
-        #
-        # 今回は必ず
-        #
-        # /app/downloads/test_sub_embed.mp4
-        #
-        # にするため、開始前に既存ファイルを削除する。
+        # FFmpeg開始
         # =====================================
 
-        expected_output = (
-            Path(DOWNLOAD_DIR)
-            / "test_sub_embed.mp4"
+        print(
+            "==========================================",
+            flush=True
+        )
+
+
+        print(
+            "[APP] FFmpeg START",
+            flush=True
+        )
+
+
+        print(
+            "[APP] FFmpeg input:",
+            input_path,
+            flush=True
+        )
+
+
+        print(
+            "[APP] FFmpeg SRT:",
+            srt_path,
+            flush=True
+        )
+
+
+        print(
+            "[APP] FFmpeg output:",
+            output_path,
+            flush=True
+        )
+
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+
+        result = run_ffmpeg_subtitle_test(
+            input_path=str(
+                input_path
+            ),
+
+            srt_path=str(
+                srt_path
+            ),
+
+            output_path=str(
+                output_path
+            )
+        )
+
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+
+        print(
+            "[APP] FFmpeg RETURN",
+            flush=True
+        )
+
+
+        print(
+            "==========================================",
+            flush=True
+        )
+
+
+        print(
+            "[APP] result:",
+            result,
+            flush=True
+        )
+
+
+        # =====================================
+        # 戻り値をPath化
+        # =====================================
+
+        actual_output = Path(
+            result
         ).resolve()
+
+
+        expected_output = (
+            output_path
+            .resolve()
+        )
+
+
+        print(
+            "[APP] actual output:",
+            actual_output,
+            flush=True
+        )
 
 
         print(
             "[APP] expected output:",
             expected_output,
-            flush=True
-        )
-
-
-        if expected_output.exists():
-
-            if expected_output.is_file():
-
-                print(
-                    "[APP] 既存test_sub_embed.mp4を削除",
-                    flush=True
-                )
-
-                expected_output.unlink()
-
-            else:
-
-                raise RuntimeError(
-                    "test_sub_embed.mp4が通常ファイルではありません: "
-                    f"{expected_output}"
-                )
-
-
-        # =====================================
-        # 一時ディレクトリ作成
-        #
-        # subtitle_test.pyのrun_test()へ
-        # 入力を渡すために使用する。
-        #
-        # downloads内の同一ファイルを渡すと
-        # SameFileErrorになるため。
-        # =====================================
-
-        temporary_directory = Path(
-            tempfile.mkdtemp(
-                prefix="subtitle_test_"
-            )
-        ).resolve()
-
-
-        temporary_mp4 = (
-            temporary_directory
-            /
-            mp4_name
-        )
-
-        temporary_srt = (
-            temporary_directory
-            /
-            srt_name
-        )
-
-
-        print(
-            "[APP] temporary directory:",
-            temporary_directory,
-            flush=True
-        )
-
-        print(
-            "[APP] temporary MP4:",
-            temporary_mp4,
-            flush=True
-        )
-
-        print(
-            "[APP] temporary SRT:",
-            temporary_srt,
-            flush=True
-        )
-
-
-        # =====================================
-        # テスト入力を一時ディレクトリへコピー
-        #
-        # ここはsubtitle_test.pyの処理を変更する
-        # ためではなく、run_test()のsave_file()
-        # が同一ファイルをコピーすることを防ぐため。
-        # =====================================
-
-        print(
-            "[APP] subtitle_test input preparation START",
-            flush=True
-        )
-
-
-        shutil.copy2(
-            mp4_path,
-            temporary_mp4
-        )
-
-        shutil.copy2(
-            srt_path,
-            temporary_srt
-        )
-
-
-        print(
-            "[APP] subtitle_test input preparation OK",
-            flush=True
-        )
-
-
-        # =====================================
-        # subtitle_test.py import
-        # =====================================
-
-        print(
-            "[APP] subtitle_test import START",
-            flush=True
-        )
-
-
-        from subtitle_test import run_test
-
-
-        print(
-            "[APP] subtitle_test import OK",
-            flush=True
-        )
-
-
-        # =====================================
-        # subtitle_test.py 実行
-        #
-        # ここから先はsubtitle_test.pyの
-        # run_test()を使用する。
-        #
-        # app.py側ではFFmpegを実行しない。
-        # =====================================
-
-        print(
-            "==========================================",
-            flush=True
-        )
-
-        print(
-            "[APP] subtitle_test.py START",
-            flush=True
-        )
-
-        print(
-            "[APP] function: run_test()",
-            flush=True
-        )
-
-        print(
-            "[APP] MP4 argument:",
-            temporary_mp4,
-            flush=True
-        )
-
-        print(
-            "[APP] SRT argument:",
-            temporary_srt,
-            flush=True
-        )
-
-        print(
-            "==========================================",
-            flush=True
-        )
-
-
-        test_result = run_test(
-            str(temporary_mp4),
-            str(temporary_srt)
-        )
-
-
-        print(
-            "==========================================",
-            flush=True
-        )
-
-        print(
-            "[APP] subtitle_test.py RETURN",
-            flush=True
-        )
-
-        print(
-            "==========================================",
-            flush=True
-        )
-
-
-        print(
-            "[APP] subtitle_test result:",
-            test_result,
-            flush=True
-        )
-
-
-        # =====================================
-        # subtitle_test.pyの結果確認
-        # =====================================
-
-        if not isinstance(
-            test_result,
-            dict
-        ):
-
-            raise RuntimeError(
-                "subtitle_test.pyから不正な結果が返されました。"
-            )
-
-
-        if not test_result.get(
-            "success"
-        ):
-
-            raise RuntimeError(
-                "subtitle_test.pyで字幕テストに失敗しました: "
-                + str(
-                    test_result.get(
-                        "error",
-                        "不明なエラー"
-                    )
-                )
-            )
-
-
-        # =====================================
-        # subtitle_test.py出力取得
-        # =====================================
-
-        result_output = test_result.get(
-            "output"
-        )
-
-
-        if not result_output:
-
-            raise RuntimeError(
-                "subtitle_test.pyから出力ファイルパスが返されませんでした。"
-            )
-
-
-        actual_output = Path(
-            result_output
-        ).resolve()
-
-
-        print(
-            "[APP] subtitle_test output:",
-            actual_output,
             flush=True
         )
 
@@ -836,29 +543,29 @@ def subtitle_test_route():
         # =====================================
 
         print(
-            "[APP] output file check START",
+            "[APP] 出力ファイル確認 START",
             flush=True
         )
 
 
-        if not expected_output.exists():
+        if not output_path.exists():
 
             raise FileNotFoundError(
-                "字幕MP4作成後も出力ファイルが存在しません: "
-                f"{expected_output}"
+                "FFmpeg終了後も字幕MP4が存在しません: "
+                f"{output_path}"
             )
 
 
-        if not expected_output.is_file():
+        if not output_path.is_file():
 
-            raise ValueError(
-                "字幕MP4出力先が通常ファイルではありません: "
-                f"{expected_output}"
+            raise FileNotFoundError(
+                "字幕MP4出力が通常ファイルではありません: "
+                f"{output_path}"
             )
 
 
         output_size = (
-            expected_output.stat().st_size
+            output_path.stat().st_size
         )
 
 
@@ -866,17 +573,18 @@ def subtitle_test_route():
 
             raise RuntimeError(
                 "字幕MP4のサイズが0 bytesです: "
-                f"{expected_output}"
+                f"{output_path}"
             )
 
 
         print(
-            "[APP] output file check OK",
+            "[APP] 出力ファイル確認 OK",
             flush=True
         )
 
+
         print(
-            "[APP] output size:",
+            "[APP] 出力サイズ:",
             output_size,
             "bytes",
             flush=True
@@ -884,28 +592,28 @@ def subtitle_test_route():
 
 
         # =====================================
-        # 成功結果
+        # 成功
         # =====================================
 
-        result = {
+        result_json = {
 
             "success":
                 True,
 
             "mp4":
-                str(mp4_path),
+                str(input_path),
 
             "srt":
                 str(srt_path),
 
             "output":
-                str(expected_output),
+                str(output_path),
 
             "filename":
-                expected_output.name,
+                output_path.name,
 
             "mp4_size":
-                mp4_size,
+                input_size,
 
             "srt_size":
                 srt_size,
@@ -921,16 +629,33 @@ def subtitle_test_route():
             flush=True
         )
 
+
         print(
-            "[APP] /subtitle-test SUCCESS",
+            "[APP] /subtitle-test/ffmpeg SUCCESS",
             flush=True
         )
 
+
         print(
-            "[APP] output:",
-            expected_output,
+            "[APP] INPUT MP4:",
+            input_path,
             flush=True
         )
+
+
+        print(
+            "[APP] INPUT SRT:",
+            srt_path,
+            flush=True
+        )
+
+
+        print(
+            "[APP] OUTPUT:",
+            output_path,
+            flush=True
+        )
+
 
         print(
             "==========================================",
@@ -939,7 +664,7 @@ def subtitle_test_route():
 
 
         return jsonify(
-            result
+            result_json
         ), 200
 
 
@@ -950,10 +675,12 @@ def subtitle_test_route():
             flush=True
         )
 
+
         print(
-            "[APP] /subtitle-test FAILED",
+            "[APP] /subtitle-test/ffmpeg FAILED",
             flush=True
         )
+
 
         print(
             "==========================================",
@@ -967,6 +694,7 @@ def subtitle_test_route():
             flush=True
         )
 
+
         print(
             "[APP] ERROR:",
             str(error),
@@ -979,7 +707,9 @@ def subtitle_test_route():
             flush=True
         )
 
+
         traceback.print_exc()
+
 
         print(
             "[APP] TRACEBACK END",
