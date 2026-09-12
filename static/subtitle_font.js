@@ -3302,29 +3302,77 @@
         // =====================================
         // フォントボタン
         // =====================================
-
-        fontButton.addEventListener(
-            "click",
-            function (event) {
-
-                event.preventDefault();
-
-
-                if (
-                    isDisabled ||
-                    fontButton.disabled
-                ) {
-
-                    return;
-
+        
+        // -------------------------------------
+        // タブ2：字幕フォント
+        // -------------------------------------
+        
+        if (fontButton) {
+        
+            fontButton.addEventListener(
+                "click",
+                function (event) {
+        
+                    event.preventDefault();
+        
+        
+                    if (
+                        isDisabled ||
+                        fontButton.disabled
+                    ) {
+        
+                        return;
+        
+                    }
+        
+        
+                    console.log(
+                        "[SUBTITLE_FONT] File font button clicked"
+                    );
+        
+        
+                    selectFontPreset();
+        
                 }
-
-
-                selectFontPreset();
-
-            }
-        );
-
+            );
+        
+        }
+        
+        
+        // -------------------------------------
+        // タブ1：字幕MP4用フォント
+        // -------------------------------------
+        
+        if (youtubeFontButton) {
+        
+            youtubeFontButton.addEventListener(
+                "click",
+                function (event) {
+        
+                    event.preventDefault();
+        
+        
+                    if (
+                        isDisabled ||
+                        youtubeFontButton.disabled
+                    ) {
+        
+                        return;
+        
+                    }
+        
+        
+                    console.log(
+                        "[SUBTITLE_FONT] YouTube font button clicked"
+                    );
+        
+        
+                    selectFontPreset();
+        
+                }
+            );
+        
+        }
 
         // =====================================
         // 外部API
