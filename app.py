@@ -1,5 +1,9 @@
 # =====================================
-# FFmpeg字幕テスト
+# YouTube Converter - app.py
+#
+# Flask
+#
+# 重要:
 #
 # /subtitle-test/ffmpeg
 #
@@ -14,6 +18,9 @@
 #   ↓
 # FFmpeg
 #
+#
+# FFmpeg字幕テスト:
+#
 # 入力:
 #
 #   画面から指定されたMP4
@@ -21,21 +28,121 @@
 #
 # 出力:
 #
-#   入力MP4が
+#   タイトル.mp4
+#       ↓
+#   タイトル_字幕.mp4
 #
-#       タイトル.mp4
-#
-#   の場合、
-#
-#       タイトル_字幕.mp4
-#
-#   とする。
 #
 # test.mp4
 # test.srt
 # test_embed.mp4
 #
 # は使用しない。
+#
+# /subtitle-test/ffmpeg のレスポンスは
+# JSONではなくプレーンテキスト。
+#
+# =====================================
+
+
+# =====================================
+# import
+# =====================================
+
+from flask import (
+    Flask,
+    request,
+    jsonify
+)
+
+from pathlib import Path
+
+import traceback
+import shutil
+
+
+# =====================================
+# Flask
+# =====================================
+
+app = Flask(
+    __name__
+)
+
+
+# =====================================
+# Downloads
+# =====================================
+
+DOWNLOAD_DIR = Path(
+    "/app/downloads"
+)
+
+
+DOWNLOAD_DIR.mkdir(
+    parents=True,
+    exist_ok=True
+)
+
+
+# =====================================
+# 一時ディレクトリ
+#
+# 必要な場合のみ使用。
+# =====================================
+
+temporary_directory = None
+
+
+# =====================================
+# 共通ログ
+# =====================================
+
+print(
+    "==========================================",
+    flush=True
+)
+
+print(
+    "[APP] app.py loading",
+    flush=True
+)
+
+print(
+    "[APP] DOWNLOAD_DIR:",
+    DOWNLOAD_DIR,
+    flush=True
+)
+
+print(
+    "==========================================",
+    flush=True
+)
+
+
+# =====================================
+# /subtitle-test/ffmpeg
+#
+# FFmpeg字幕テスト
+#
+# 入力:
+#
+#   JSON
+#
+#   {
+#       "mp4_file": "タイトル.mp4",
+#       "srt_file": "タイトル.srt"
+#   }
+#
+#
+# 出力:
+#
+#   タイトル_字幕.mp4
+#
+#
+# レスポンス:
+#
+#   プレーンテキスト
 #
 # =====================================
 
@@ -89,7 +196,7 @@ def subtitle_test_ffmpeg_route():
         # =====================================
         # MP4ファイル名取得
         #
-        # ★test.mp4をデフォルトにしない
+        # test.mp4を使用しない。
         #
         # 必ず画面から受け取る。
         # =====================================
@@ -109,7 +216,9 @@ def subtitle_test_ffmpeg_route():
             )
 
 
-        mp4_filename = mp4_filename.strip()
+        mp4_filename = (
+            mp4_filename.strip()
+        )
 
 
         if not mp4_filename:
@@ -122,7 +231,7 @@ def subtitle_test_ffmpeg_route():
         # =====================================
         # SRTファイル名取得
         #
-        # ★test.srtをデフォルトにしない
+        # test.srtを使用しない。
         #
         # 必ず画面から受け取る。
         # =====================================
@@ -142,7 +251,9 @@ def subtitle_test_ffmpeg_route():
             )
 
 
-        srt_filename = srt_filename.strip()
+        srt_filename = (
+            srt_filename.strip()
+        )
 
 
         if not srt_filename:
@@ -156,6 +267,11 @@ def subtitle_test_ffmpeg_route():
         # ファイル名安全化
         #
         # downloads直下だけを使用する。
+        #
+        # /tmp/xxx.mp4
+        # ../xxx.mp4
+        #
+        # のようなパスは使用しない。
         # =====================================
 
         mp4_name = Path(
@@ -186,9 +302,10 @@ def subtitle_test_ffmpeg_route():
         # 拡張子確認
         # =====================================
 
-        if Path(
-            mp4_name
-        ).suffix.lower() != ".mp4":
+        if (
+            Path(mp4_name).suffix.lower()
+            != ".mp4"
+        ):
 
             raise ValueError(
                 "指定されたMP4ファイルの拡張子が"
@@ -197,9 +314,10 @@ def subtitle_test_ffmpeg_route():
             )
 
 
-        if Path(
-            srt_name
-        ).suffix.lower() != ".srt":
+        if (
+            Path(srt_name).suffix.lower()
+            != ".srt"
+        ):
 
             raise ValueError(
                 "指定されたSRTファイルの拡張子が"
@@ -213,13 +331,13 @@ def subtitle_test_ffmpeg_route():
         # =====================================
 
         input_path = (
-            Path(DOWNLOAD_DIR)
+            DOWNLOAD_DIR
             / mp4_name
         )
 
 
         srt_path = (
-            Path(DOWNLOAD_DIR)
+            DOWNLOAD_DIR
             / srt_name
         )
 
@@ -228,7 +346,9 @@ def subtitle_test_ffmpeg_route():
         # 出力ファイル名
         #
         # タイトル.mp4
-        #      ↓
+        #
+        # ↓
+        #
         # タイトル_字幕.mp4
         # =====================================
 
@@ -380,7 +500,9 @@ def subtitle_test_ffmpeg_route():
                     flush=True
                 )
 
+
                 output_path.unlink()
+
 
             else:
 
@@ -457,6 +579,7 @@ def subtitle_test_ffmpeg_route():
 
 
         result = run_ffmpeg_subtitle_test(
+
             input_path=str(
                 input_path
             ),
@@ -468,6 +591,7 @@ def subtitle_test_ffmpeg_route():
             output_path=str(
                 output_path
             )
+
         )
 
 
@@ -497,8 +621,19 @@ def subtitle_test_ffmpeg_route():
 
 
         # =====================================
-        # 戻り値をPath化
+        # FFmpegの戻り値確認
+        #
+        # subtitle_test_ffmpeg.py が
+        # 出力パスを返す前提。
         # =====================================
+
+        if result is None:
+
+            raise RuntimeError(
+                "subtitle_test_ffmpeg.pyから"
+                "出力ファイルパスが返されませんでした。"
+            )
+
 
         actual_output = Path(
             result
@@ -506,8 +641,7 @@ def subtitle_test_ffmpeg_route():
 
 
         expected_output = (
-            output_path
-            .resolve()
+            output_path.resolve()
         )
 
 
@@ -592,36 +726,39 @@ def subtitle_test_ffmpeg_route():
 
 
         # =====================================
-        # 成功
+        # 成功メッセージ
+        #
+        # JSONではなくプレーンテキスト。
         # =====================================
 
-        result_json = {
+        message = (
 
-            "success":
-                True,
+            "【字幕FFmpegテスト完了】\n\n"
 
-            "mp4":
-                str(input_path),
+            "FFmpeg終了\n\n"
 
-            "srt":
-                str(srt_path),
+            "入力MP4:\n"
+            f"{input_path}\n\n"
 
-            "output":
-                str(output_path),
+            "入力SRT:\n"
+            f"{srt_path}\n\n"
 
-            "filename":
-                output_path.name,
+            "入力MP4サイズ:\n"
+            f"{input_size} bytes\n\n"
 
-            "mp4_size":
-                input_size,
+            "入力SRTサイズ:\n"
+            f"{srt_size} bytes\n\n"
 
-            "srt_size":
-                srt_size,
+            "出力ファイル:\n"
+            f"{output_path}\n\n"
 
-            "output_size":
-                output_size
+            "出力ファイル名:\n"
+            f"{output_path.name}\n\n"
 
-        }
+            "出力サイズ:\n"
+            f"{output_size} bytes"
+
+        )
 
 
         print(
@@ -663,376 +800,11 @@ def subtitle_test_ffmpeg_route():
         )
 
 
-        return jsonify(
-            result_json
-        ), 200
-
-
-    except Exception as error:
-
-        print(
-            "==========================================",
-            flush=True
-        )
-
-
-        print(
-            "[APP] /subtitle-test/ffmpeg FAILED",
-            flush=True
-        )
-
-
-        print(
-            "==========================================",
-            flush=True
-        )
-
-
-        print(
-            "[APP] ERROR TYPE:",
-            type(error).__name__,
-            flush=True
-        )
-
-
-        print(
-            "[APP] ERROR:",
-            str(error),
-            flush=True
-        )
-
-
-        print(
-            "[APP] TRACEBACK START",
-            flush=True
-        )
-
-
-        traceback.print_exc()
-
-
-        print(
-            "[APP] TRACEBACK END",
-            flush=True
-        )
-
-
-        return jsonify({
-
-            "success":
-                False,
-
-            "message":
-                str(error),
-
-            "error_type":
-                type(error).__name__
-
-        }), 500
-
-
-    finally:
-
         # =====================================
-        # 一時ディレクトリ削除
+        # プレーンテキスト返却
+        #
+        # JSONではない。
         # =====================================
-
-        if (
-            temporary_directory
-            and temporary_directory.exists()
-        ):
-
-            try:
-
-                shutil.rmtree(
-                    temporary_directory
-                )
-
-                print(
-                    "[APP] temporary directory removed:",
-                    temporary_directory,
-                    flush=True
-                )
-
-            except Exception as cleanup_error:
-
-                print(
-                    "[APP] temporary directory cleanup FAILED:",
-                    cleanup_error,
-                    flush=True
-                )
-
-
-# =====================================
-# FFmpeg字幕テスト
-#
-# /subtitle-test/ffmpeg
-#
-# app.py
-#   ↓
-# subtitle_test_ffmpeg.py
-#   ↓
-# FFmpeg
-#
-# =====================================
-
-@app.route(
-    "/subtitle-test/ffmpeg",
-    methods=["POST"]
-)
-def subtitle_test_ffmpeg_route():
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    print(
-        "[APP] /subtitle-test/ffmpeg START",
-        flush=True
-    )
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    try:
-
-        # =====================================
-        # パス
-        # =====================================
-
-        input_path = (
-            Path(DOWNLOAD_DIR)
-            / "test.mp4"
-        )
-
-        output_path = (
-            Path(DOWNLOAD_DIR)
-            / "test_embed.mp4"
-        )
-
-
-        print(
-            "[APP] 入力ファイル:",
-            input_path,
-            flush=True
-        )
-
-        print(
-            "[APP] 出力ファイル:",
-            output_path,
-            flush=True
-        )
-
-
-        # =====================================
-        # MP4存在確認
-        # =====================================
-
-        print(
-            "[APP] MP4存在確認 START",
-            flush=True
-        )
-
-
-        if not input_path.exists():
-
-            raise FileNotFoundError(
-                "入力ファイルが存在しません: "
-                f"{input_path}"
-            )
-
-
-        if not input_path.is_file():
-
-            raise FileNotFoundError(
-                "入力パスがファイルではありません: "
-                f"{input_path}"
-            )
-
-
-        input_size = (
-            input_path.stat().st_size
-        )
-
-
-        print(
-            "[APP] MP4存在確認 OK",
-            flush=True
-        )
-
-        print(
-            f"[APP] 入力サイズ: "
-            f"{input_size} bytes",
-            flush=True
-        )
-
-
-        # =====================================
-        # 前回出力削除
-        # =====================================
-
-        if output_path.exists():
-
-            print(
-                "[APP] 前回のtest_embed.mp4を削除",
-                flush=True
-            )
-
-            output_path.unlink()
-
-
-        # =====================================
-        # subtitle_test_ffmpeg import
-        # =====================================
-
-        print(
-            "[APP] subtitle_test_ffmpeg "
-            "import START",
-            flush=True
-        )
-
-
-        from subtitle_test_ffmpeg import (
-            run_ffmpeg_subtitle_test
-        )
-
-
-        print(
-            "[APP] subtitle_test_ffmpeg "
-            "import OK",
-            flush=True
-        )
-
-
-        # =====================================
-        # FFmpeg開始
-        # =====================================
-
-        print(
-            "==========================================",
-            flush=True
-        )
-
-        print(
-            "[APP] FFmpeg START",
-            flush=True
-        )
-
-        print(
-            "==========================================",
-            flush=True
-        )
-
-
-        result = run_ffmpeg_subtitle_test(
-            input_path=str(input_path),
-            output_path=str(output_path)
-        )
-
-
-        print(
-            "==========================================",
-            flush=True
-        )
-
-        print(
-            "[APP] FFmpeg RETURN",
-            flush=True
-        )
-
-        print(
-            "==========================================",
-            flush=True
-        )
-
-
-        print(
-            "[APP] result:",
-            result,
-            flush=True
-        )
-
-
-        # =====================================
-        # 出力確認
-        # =====================================
-
-        print(
-            "[APP] 出力ファイル確認 START",
-            flush=True
-        )
-
-
-        if not output_path.exists():
-
-            raise FileNotFoundError(
-                "FFmpegは終了しましたが、"
-                "出力ファイルが存在しません: "
-                f"{output_path}"
-            )
-
-
-        if not output_path.is_file():
-
-            raise FileNotFoundError(
-                "出力パスがファイルではありません: "
-                f"{output_path}"
-            )
-
-
-        output_size = (
-            output_path.stat().st_size
-        )
-
-
-        print(
-            "[APP] 出力ファイル確認 OK",
-            flush=True
-        )
-
-        print(
-            f"[APP] 出力サイズ: "
-            f"{output_size} bytes",
-            flush=True
-        )
-
-
-        # =====================================
-        # 成功
-        # =====================================
-
-        message = (
-            "【字幕FFmpegテスト完了】\n\n"
-            "FFmpeg終了\n\n"
-            f"入力ファイル:\n"
-            f"{input_path}\n\n"
-            f"入力サイズ:\n"
-            f"{input_size} bytes\n\n"
-            f"出力ファイル:\n"
-            f"{output_path}\n\n"
-            f"出力サイズ:\n"
-            f"{output_size} bytes"
-        )
-
-
-        print(
-            "==========================================",
-            flush=True
-        )
-
-        print(
-            "[APP] /subtitle-test/ffmpeg SUCCESS",
-            flush=True
-        )
-
-        print(
-            "==========================================",
-            flush=True
-        )
-
 
         return (
             message,
@@ -1046,15 +818,21 @@ def subtitle_test_ffmpeg_route():
 
     except Exception as error:
 
+        # =====================================
+        # エラー
+        # =====================================
+
         print(
             "==========================================",
             flush=True
         )
 
+
         print(
             "[APP] /subtitle-test/ffmpeg FAILED",
             flush=True
         )
+
 
         print(
             "==========================================",
@@ -1068,6 +846,7 @@ def subtitle_test_ffmpeg_route():
             flush=True
         )
 
+
         print(
             "[APP] ERROR:",
             str(error),
@@ -1080,7 +859,9 @@ def subtitle_test_ffmpeg_route():
             flush=True
         )
 
+
         traceback.print_exc()
+
 
         print(
             "[APP] TRACEBACK END",
@@ -1089,13 +870,19 @@ def subtitle_test_ffmpeg_route():
 
 
         message = (
+
             "【字幕FFmpegテスト失敗】\n\n"
+
             "字幕FFmpegテストに失敗しました。\n\n"
-            f"ERROR TYPE:\n"
+
+            "ERROR TYPE:\n"
             f"{type(error).__name__}\n\n"
-            f"ERROR:\n"
+
+            "ERROR:\n"
             f"{error}\n\n"
+
             "サーバーログにもTracebackを出力しました。"
+
         )
 
 
@@ -1107,6 +894,46 @@ def subtitle_test_ffmpeg_route():
                     "text/plain; charset=utf-8"
             }
         )
+
+
+    finally:
+
+        # =====================================
+        # 一時ディレクトリ削除
+        #
+        # 現在の字幕FFmpeg処理では
+        # temporary_directoryを使用していない。
+        #
+        # 他の処理で設定されていた場合だけ
+        # 安全に削除する。
+        # =====================================
+
+        if (
+            temporary_directory
+            and temporary_directory.exists()
+        ):
+
+            try:
+
+                shutil.rmtree(
+                    temporary_directory
+                )
+
+
+                print(
+                    "[APP] temporary directory removed:",
+                    temporary_directory,
+                    flush=True
+                )
+
+
+            except Exception as cleanup_error:
+
+                print(
+                    "[APP] temporary directory cleanup FAILED:",
+                    cleanup_error,
+                    flush=True
+                )
 
 
 # =====================================
@@ -1122,6 +949,9 @@ def subtitle_test_ffmpeg_route():
 #   ↓
 # FFmpeg
 #
+# ※これは既存のフォントテスト。
+#
+# FFmpeg字幕テストとは別API。
 # =====================================
 
 @app.route(
@@ -1135,10 +965,12 @@ def subtitle_test_fonts_route():
         flush=True
     )
 
+
     print(
         "[APP] /subtitle-test/fonts START",
         flush=True
     )
+
 
     print(
         "==========================================",
@@ -1148,10 +980,21 @@ def subtitle_test_fonts_route():
 
     try:
 
+        # =====================================
+        # フォントテストは既存仕様
+        #
+        # このAPIでは
+        # test.mp4を使用する。
+        #
+        # 注意:
+        # /subtitle-test/ffmpegとは別API。
+        # =====================================
+
         input_path = (
             Path(DOWNLOAD_DIR)
             / "test.mp4"
         )
+
 
         output_path = (
             Path(DOWNLOAD_DIR)
@@ -1165,12 +1008,17 @@ def subtitle_test_fonts_route():
             flush=True
         )
 
+
         print(
             "[APP] FONT TEST output:",
             output_path,
             flush=True
         )
 
+
+        # =====================================
+        # 入力確認
+        # =====================================
 
         if not input_path.exists():
 
@@ -1193,16 +1041,44 @@ def subtitle_test_fonts_route():
         )
 
 
-        if output_path.exists():
+        if input_size <= 0:
 
-            print(
-                "[APP] FONT TEST "
-                "前回出力削除",
-                flush=True
+            raise RuntimeError(
+                "入力ファイルのサイズが0 bytesです: "
+                f"{input_path}"
             )
 
-            output_path.unlink()
 
+        # =====================================
+        # 前回出力削除
+        # =====================================
+
+        if output_path.exists():
+
+            if output_path.is_file():
+
+                print(
+                    "[APP] FONT TEST "
+                    "前回出力削除",
+                    flush=True
+                )
+
+
+                output_path.unlink()
+
+
+            else:
+
+                raise RuntimeError(
+                    "フォントテスト出力先が"
+                    "通常ファイルではありません: "
+                    f"{output_path}"
+                )
+
+
+        # =====================================
+        # import
+        # =====================================
 
         print(
             "[APP] subtitle_test_fonts "
@@ -1223,15 +1099,21 @@ def subtitle_test_fonts_route():
         )
 
 
+        # =====================================
+        # FFmpeg開始
+        # =====================================
+
         print(
             "==========================================",
             flush=True
         )
 
+
         print(
             "[APP] FONT TEST START",
             flush=True
         )
+
 
         print(
             "==========================================",
@@ -1240,8 +1122,13 @@ def subtitle_test_fonts_route():
 
 
         result = run_font_test(
-            input_path=str(input_path),
-            output_path=str(output_path)
+            input_path=str(
+                input_path
+            ),
+
+            output_path=str(
+                output_path
+            )
         )
 
 
@@ -1250,10 +1137,12 @@ def subtitle_test_fonts_route():
             flush=True
         )
 
+
         print(
             "[APP] FONT TEST RETURN",
             flush=True
         )
+
 
         print(
             "==========================================",
@@ -1267,6 +1156,10 @@ def subtitle_test_fonts_route():
             flush=True
         )
 
+
+        # =====================================
+        # 出力確認
+        # =====================================
 
         if not output_path.exists():
 
@@ -1291,18 +1184,38 @@ def subtitle_test_fonts_route():
         )
 
 
+        if output_size <= 0:
+
+            raise RuntimeError(
+                "フォントテスト出力のサイズが"
+                "0 bytesです: "
+                f"{output_path}"
+            )
+
+
+        # =====================================
+        # 成功
+        # =====================================
+
         message = (
+
             "【字幕フォントFFmpegテスト完了】\n\n"
+
             "フォントを指定した字幕FFmpeg処理が"
             "正常終了しました。\n\n"
-            f"入力ファイル:\n"
+
+            "入力ファイル:\n"
             f"{input_path}\n\n"
-            f"入力サイズ:\n"
+
+            "入力サイズ:\n"
             f"{input_size} bytes\n\n"
-            f"出力ファイル:\n"
+
+            "出力ファイル:\n"
             f"{output_path}\n\n"
-            f"出力サイズ:\n"
+
+            "出力サイズ:\n"
             f"{output_size} bytes"
+
         )
 
 
@@ -1329,11 +1242,13 @@ def subtitle_test_fonts_route():
             flush=True
         )
 
+
         print(
             "[APP] FONT TEST ERROR TYPE:",
             type(error).__name__,
             flush=True
         )
+
 
         print(
             "[APP] FONT TEST ERROR:",
@@ -1341,19 +1256,26 @@ def subtitle_test_fonts_route():
             flush=True
         )
 
+
         traceback.print_exc()
 
 
         message = (
+
             "【字幕フォントFFmpegテスト失敗】\n\n"
+
             "字幕フォントFFmpegテストに"
             "失敗しました。\n\n"
-            f"ERROR TYPE:\n"
+
+            "ERROR TYPE:\n"
             f"{type(error).__name__}\n\n"
-            f"ERROR:\n"
+
+            "ERROR:\n"
             f"{error}\n\n"
+
             "サーバーログにもTracebackを"
             "出力しました。"
+
         )
 
 
@@ -1376,10 +1298,12 @@ print(
     flush=True
 )
 
+
 print(
     "[APP] Registered routes",
     flush=True
 )
+
 
 print(
     "==========================================",
@@ -1412,15 +1336,18 @@ print(
     flush=True
 )
 
+
 print(
     "[APP] app.py READY",
     flush=True
 )
 
+
 print(
     "[APP] FFmpegはまだ実行していません",
     flush=True
 )
+
 
 print(
     "==========================================",
