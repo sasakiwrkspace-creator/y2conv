@@ -111,153 +111,201 @@ def get_file_extension(
 
 
 # ==========================================================
-# 安全なファイル名
+# アップロード保存
 # ==========================================================
 
-def make_safe_filename(
-    filename,
-    extension=None
+def save_uploaded_file(
+    uploaded_file,
+    allowed_extensions
 ):
 
-    filename = str(
-        filename or ""
+    if uploaded_file is None:
+
+        raise ValueError(
+            "ファイルが選択されていません"
+        )
+
+    original_filename = (
+        uploaded_file.filename
+        or ""
     ).strip()
 
-    if not filename:
+    if not original_filename:
 
         raise ValueError(
             "ファイル名がありません"
         )
 
-    # パス部分を完全に除去
-    filename = os.path.basename(
-        filename
+    extension = get_file_extension(
+        original_filename
     )
 
-    if not filename:
+    if extension not in allowed_extensions:
 
         raise ValueError(
-            "ファイル名がありません"
-        )
-
-    # 元の拡張子
-    original_extension = (
-        get_file_extension(
-            filename
-        )
-    )
-
-    # 指定された拡張子を優先
-    if extension:
-
-        extension = str(
-            extension
-        ).strip().lower()
-
-        if not extension.startswith("."):
-
-            extension = "." + extension
-
-    else:
-
-        extension = original_extension
-
-    if not extension:
-
-        raise ValueError(
-            "ファイル拡張子がありません"
-        )
-
-    # 元のファイル名
-    original_stem = os.path.splitext(
-        filename
-    )[0]
-
-    # Werkzeugで安全化
-    safe_name = secure_filename(
-        filename
-    )
-
-    # secure_filename()で空になる場合への対応
-    if not safe_name:
-
-        safe_stem = secure_filename(
-            original_stem
-        )
-
-        if not safe_stem:
-
-            raise ValueError(
-                "安全なファイル名を作成できませんでした"
-            )
-
-        safe_name = (
-            safe_stem
+            "対応していないファイル形式です: "
             +
             extension
         )
 
-    # secure_filename()後の拡張子
-    safe_extension = get_file_extension(
-        safe_name
+    # ------------------------------------------------------
+    # 安全なファイル名を作成
+    # ------------------------------------------------------
+
+    safe_filename = make_safe_filename(
+        original_filename,
+        extension
     )
 
-    # 拡張子を必ず指定値へ統一
-    if safe_extension != extension:
-
-        safe_stem = os.path.splitext(
-            safe_name
-        )[0]
-
-        if not safe_stem:
-
-            safe_stem = secure_filename(
-                original_stem
-            )
-
-        if not safe_stem:
-
-            raise ValueError(
-                "安全なファイル名を作成できませんでした"
-            )
-
-        safe_name = (
-            safe_stem
-            +
-            extension
-        )
-
-    # 最終的にbasenameだけを許可
-    safe_name = os.path.basename(
-        safe_name
-    )
-
-    if not safe_name:
+    if not safe_filename:
 
         raise ValueError(
             "安全なファイル名を作成できませんでした"
         )
 
-    # 最終拡張子チェック
-    if get_file_extension(
-        safe_name
-    ) != extension:
+    # ------------------------------------------------------
+    # downloads内の保存先
+    # ------------------------------------------------------
 
-        safe_stem = os.path.splitext(
-            safe_name
-        )[0]
+    save_path = make_download_path(
+        safe_filename
+    )
 
-        if not safe_stem:
+    existed = os.path.exists(
+        save_path
+    )
 
-            safe_stem = original_stem
+    if existed:
 
-        safe_name = (
-            safe_stem
-            +
-            extension
+        print(
+            "[SUBTITLE] 同名ファイルを上書き:",
+            save_path,
+            flush=True
         )
 
-    return safe_name
+    # ------------------------------------------------------
+    # 保存
+    # ------------------------------------------------------
+
+    uploaded_file.save(
+        save_path
+    )
+
+    # ------------------------------------------------------
+    # 保存確認
+    # ------------------------------------------------------
+
+    if not os.path.exists(
+        save_path
+    ):
+
+        raise IOError(
+            "ファイルの保存に失敗しました"
+        )
+
+    if not os.path.isfile(
+        save_path
+    ):
+
+        raise IOError(
+            "保存先がファイルではありません"
+        )
+
+    file_size = os.path.getsize(
+        save_path
+    )
+
+    if file_size <= 0:
+
+        raise ValueError(
+            "保存されたファイルが0 bytesです"
+        )
+
+    # ------------------------------------------------------
+    # 最終ファイル名確認
+    # ------------------------------------------------------
+
+    actual_filename = os.path.basename(
+        save_path
+    )
+
+    actual_extension = get_file_extension(
+        actual_filename
+    )
+
+    if actual_extension not in allowed_extensions:
+
+        raise ValueError(
+            "保存されたファイルの拡張子が不正です: "
+            +
+            actual_extension
+        )
+
+    # ------------------------------------------------------
+    # ログ
+    # ------------------------------------------------------
+
+    print(
+        "==========================================",
+        flush=True
+    )
+
+    print(
+        "[SUBTITLE] ファイル保存完了",
+        flush=True
+    )
+
+    print(
+        "[SUBTITLE] original filename:",
+        original_filename,
+        flush=True
+    )
+
+    print(
+        "[SUBTITLE] safe filename:",
+        actual_filename,
+        flush=True
+    )
+
+    print(
+        "[SUBTITLE] path:",
+        save_path,
+        flush=True
+    )
+
+    print(
+        "[SUBTITLE] size:",
+        file_size,
+        "bytes",
+        flush=True
+    )
+
+    print(
+        "[SUBTITLE] overwritten:",
+        existed,
+        flush=True
+    )
+
+    print(
+        "==========================================",
+        flush=True
+    )
+
+    return {
+
+        "filename":
+            actual_filename,
+
+        "path":
+            save_path,
+
+        "size":
+            file_size,
+
+        "overwritten":
+            existed
+
+    }
 
 
 # ==========================================================
