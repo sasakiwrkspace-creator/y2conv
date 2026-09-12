@@ -862,6 +862,24 @@
 
         }
 
+        // =====================================
+        // タブ1：出力形式変更
+        //
+        // 字幕MP4選択時だけフォントボタン表示
+        // =====================================
+
+        if (subtitleMp4Radio) {
+
+            subtitleMp4Radio.addEventListener(
+                "change",
+                function () {
+
+                    updateYoutubeFontButtonVisibility();
+
+                }
+            );
+
+        }
 
         // =====================================
         // 無効化
