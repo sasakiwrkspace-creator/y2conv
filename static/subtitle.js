@@ -719,13 +719,45 @@
                 await response.text();
         
         
-            console.log(
-                "[SUBTITLE] response:",
-                text
-            );
+            if (!text) {
+        
+                return null;
+        
+            }
         
         
-            return text;
+            try {
+        
+                return JSON.parse(
+                    text
+                );
+        
+            }
+            catch (error) {
+        
+                console.error(
+                    "[SUBTITLE] JSON解析エラー:",
+                    error
+                );
+        
+        
+                console.error(
+                    "[SUBTITLE] response:",
+                    text
+                );
+        
+        
+                return {
+        
+                    success:
+                        false,
+        
+                    message:
+                        text
+        
+                };
+        
+            }
         
         }
 
