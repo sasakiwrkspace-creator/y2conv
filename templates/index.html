@@ -165,28 +165,50 @@
 
             min-width: 130px;
 
-            height: 42px;
+            height: 44px;
 
-            padding: 10px 12px;
+            padding: 0 12px;
 
-            border: none;
+            border: 1px solid #198754;
 
             border-radius: 6px;
 
-            background: #333;
+            background: #198754;
 
             color: #fff;
 
-            font-size: 15px;
+            font-family: inherit;
+
+            font-size: 14px;
+
+            font-weight: 600;
 
             cursor: pointer;
+
+            white-space: nowrap;
+
+            transition:
+                background-color 0.15s ease,
+                border-color 0.15s ease,
+                opacity 0.15s ease;
 
         }
 
 
-        .subtitle-file-create-button:hover {
+        .subtitle-file-create-button:hover:not(:disabled) {
 
-            background: #111;
+            background: #157347;
+
+            border-color: #146c43;
+
+        }
+
+
+        .subtitle-file-create-button:active:not(:disabled) {
+
+            background: #146c43;
+
+            border-color: #13653f;
 
         }
 
@@ -195,7 +217,11 @@
 
             background: #aaa;
 
+            border-color: #aaa;
+
             cursor: not-allowed;
+
+            opacity: 0.7;
 
         }
 
@@ -254,11 +280,15 @@
 
             .subtitle-file-create-button {
 
-                width: 110px;
+                width: 115px;
 
-                min-width: 110px;
+                min-width: 115px;
 
-                font-size: 13px;
+                height: 42px;
+
+                padding: 0 6px;
+
+                font-size: 12px;
 
             }
 
@@ -273,7 +303,7 @@
                     minmax(145px, 1fr)
                     75px
                     0
-                    100px;
+                    105px;
 
                 gap: 6px;
 
@@ -312,15 +342,15 @@
 
             .subtitle-file-create-button {
 
-                width: 100px;
+                width: 105px;
 
-                min-width: 100px;
+                min-width: 105px;
 
                 height: 40px;
 
-                padding: 8px 6px;
+                padding: 0 5px;
 
-                font-size: 12px;
+                font-size: 11px;
 
             }
 
@@ -625,9 +655,6 @@
 
             <!-- =================================
                  タブ1用 字幕フォントボタン
-
-                 初期状態は非表示。
-                 字幕MP4選択時のみ表示。
             ================================== -->
 
             <button
@@ -746,10 +773,6 @@
                     MP4とSRTから字幕MP4を作成
                 </span>
 
-
-                <!--
-                    タブ2では常に表示
-                -->
 
                 <button
                     id="subtitle-font-button"
@@ -1170,12 +1193,6 @@ document.addEventListener(
 
         /* =====================================
            初期状態
-
-           初期値はmp3なので、
-           タブ1のフォントボタンは非表示。
-
-           タブ2のフォントボタンは
-           HTML上で常に表示。
         ====================================== */
 
         showTab(
