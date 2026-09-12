@@ -2,31 +2,52 @@ from pathlib import Path
 import subprocess
 
 
-DOWNLOAD_DIR = Path("/app/downloads")
-
-DEFAULT_INPUT_MP4 = DOWNLOAD_DIR / "test.mp4"
-DEFAULT_INPUT_SRT = DOWNLOAD_DIR / "test.srt"
-
 # ==========================================================
-# デフォルト字幕MP4
+# subtitle_test_ffmpeg.py
 #
-# 入力:
+# 画面の部品から指定された
+#
+#   ・MP4
+#   ・SRT
+#
+# を使用して字幕MP4を作成する。
+#
+# 固定ファイル名
+#
 #   test.mp4
+#   test.srt
+#   test_embed.mp4
 #
-# 出力:
-#   test_字幕.mp4
+# は使用しない。
+#
+# 出力ファイル名:
+#
+#   入力MP4が
+#
+#       タイトル.mp4
+#
+#   の場合、
+#
+#       タイトル_字幕.mp4
+#
+#   とする。
+#
 # ==========================================================
 
-DEFAULT_OUTPUT_MP4 = DOWNLOAD_DIR / "test_字幕.mp4"
+
+# ==========================================================
+# デフォルトフォントディレクトリ
+#
+# 入力MP4 / SRTは画面から渡すため、
+# 固定の入力ファイルは定義しない。
+# ==========================================================
+
+DEFAULT_FONT_DIR = Path("/app/downloads/fonts")
 
 
-# フォントディレクトリ
-DEFAULT_FONT_DIR = DOWNLOAD_DIR / "fonts"
-
-
-# =====================================
+# ==========================================================
 # subtitle_font.js と同じデフォルト設定
-# =====================================
+# ==========================================================
 
 DEFAULT_SUBTITLE_FONT_SETTINGS = {
     "preset_name": "",
@@ -37,9 +58,9 @@ DEFAULT_SUBTITLE_FONT_SETTINGS = {
 }
 
 
-# =====================================
+# ==========================================================
 # subtitle_font.js と同じ色
-# =====================================
+# ==========================================================
 
 COLOR_MAP = {
     "白": "#FFFFFF",
@@ -70,9 +91,9 @@ OUTLINE_COLORS = {
 }
 
 
-# =====================================
+# ==========================================================
 # subtitle_font.js と同じフォント一覧
-# =====================================
+# ==========================================================
 
 FONT_LIST = {
     "Noto Sans CJK JP",
@@ -84,13 +105,13 @@ FONT_LIST = {
 }
 
 
-# =====================================
+# ==========================================================
 # HEX → FFmpeg/libass ASSカラー
 #
 # #RRGGBB
 #       ↓
 # &H00BBGGRR
-# =====================================
+# ==========================================================
 
 def hex_to_ass_color(color_hex):
 
@@ -98,15 +119,23 @@ def hex_to_ass_color(color_hex):
 
         return "&H00FFFFFF"
 
-    value = color_hex.strip().upper()
+
+    value = (
+        color_hex
+        .strip()
+        .upper()
+    )
+
 
     if value.startswith("#"):
 
         value = value[1:]
 
+
     if len(value) != 6:
 
         return "&H00FFFFFF"
+
 
     try:
 
@@ -116,16 +145,20 @@ def hex_to_ass_color(color_hex):
 
         return "&H00FFFFFF"
 
+
     rr = value[0:2]
     gg = value[2:4]
     bb = value[4:6]
 
-    return f"&H00{bb}{gg}{rr}"
+
+    return (
+        f"&H00{bb}{gg}{rr}"
+    )
 
 
-# =====================================
+# ==========================================================
 # 色名 → FFmpeg/libassカラー
-# =====================================
+# ==========================================================
 
 def color_name_to_ass(color_name):
 
@@ -134,27 +167,31 @@ def color_name_to_ass(color_name):
         "#FFFFFF"
     )
 
+
     return hex_to_ass_color(
         color_hex
     )
 
 
-# =====================================
+# ==========================================================
 # 字幕フォント設定を正規化
-# =====================================
+# ==========================================================
 
 def normalize_subtitle_settings(
     settings=None
 ):
 
-    if not isinstance(settings, dict):
+    if not isinstance(
+        settings,
+        dict
+    ):
 
         settings = {}
 
 
-    # =================================
+    # ======================================================
     # プリセット名
-    # =================================
+    # ======================================================
 
     preset_name = settings.get(
         "preset_name",
@@ -166,6 +203,7 @@ def normalize_subtitle_settings(
         )
     )
 
+
     if not isinstance(
         preset_name,
         str
@@ -174,9 +212,9 @@ def normalize_subtitle_settings(
         preset_name = ""
 
 
-    # =================================
+    # ======================================================
     # フォント
-    # =================================
+    # ======================================================
 
     font = settings.get(
         "font",
@@ -184,6 +222,7 @@ def normalize_subtitle_settings(
             "font"
         ]
     )
+
 
     if not isinstance(
         font,
@@ -194,7 +233,9 @@ def normalize_subtitle_settings(
             "font"
         ]
 
+
     font = font.strip()
+
 
     if font not in FONT_LIST:
 
@@ -203,9 +244,9 @@ def normalize_subtitle_settings(
         ]
 
 
-    # =================================
+    # ======================================================
     # 文字色
-    # =================================
+    # ======================================================
 
     text_color = settings.get(
         "text_color",
@@ -217,6 +258,7 @@ def normalize_subtitle_settings(
         )
     )
 
+
     if text_color not in TEXT_COLORS:
 
         text_color = DEFAULT_SUBTITLE_FONT_SETTINGS[
@@ -224,9 +266,9 @@ def normalize_subtitle_settings(
         ]
 
 
-    # =================================
+    # ======================================================
     # 縁取り色
-    # =================================
+    # ======================================================
 
     outline_color = settings.get(
         "outline_color",
@@ -238,6 +280,7 @@ def normalize_subtitle_settings(
         )
     )
 
+
     if outline_color not in OUTLINE_COLORS:
 
         outline_color = DEFAULT_SUBTITLE_FONT_SETTINGS[
@@ -245,9 +288,9 @@ def normalize_subtitle_settings(
         ]
 
 
-    # =================================
+    # ======================================================
     # 縁の太さ
-    # =================================
+    # ======================================================
 
     outline_width = settings.get(
         "outline_width",
@@ -258,6 +301,7 @@ def normalize_subtitle_settings(
             ]
         )
     )
+
 
     try:
 
@@ -288,14 +332,15 @@ def normalize_subtitle_settings(
     )
 
 
-    # =================================
+    # ======================================================
     # HEX
-    # =================================
+    # ======================================================
 
     text_color_hex = COLOR_MAP.get(
         text_color,
         "#FFFFFF"
     )
+
 
     outline_color_hex = COLOR_MAP.get(
         outline_color,
@@ -303,13 +348,14 @@ def normalize_subtitle_settings(
     )
 
 
-    # =================================
+    # ======================================================
     # ASSカラー
-    # =================================
+    # ======================================================
 
     primary_colour = hex_to_ass_color(
         text_color_hex
     )
+
 
     outline_colour = hex_to_ass_color(
         outline_color_hex
@@ -348,9 +394,9 @@ def normalize_subtitle_settings(
     }
 
 
-# =====================================
+# ==========================================================
 # 字幕FFmpeg filter生成
-# =====================================
+# ==========================================================
 
 def build_subtitle_filter(
     srt_file,
@@ -363,9 +409,9 @@ def build_subtitle_filter(
     )
 
 
-    # =================================
-    # パス
-    # =================================
+    # ======================================================
+    # SRTパス
+    # ======================================================
 
     subtitle_filename = (
         str(srt_file)
@@ -374,6 +420,10 @@ def build_subtitle_filter(
     )
 
 
+    # ======================================================
+    # フォントディレクトリ
+    # ======================================================
+
     font_dir_name = (
         str(font_directory)
         .replace("\\", "/")
@@ -381,9 +431,9 @@ def build_subtitle_filter(
     )
 
 
-    # =================================
+    # ======================================================
     # force_style
-    # =================================
+    # ======================================================
 
     force_style = (
         f"FontName={settings['font']},"
@@ -407,41 +457,78 @@ def build_subtitle_filter(
     )
 
 
-# =====================================
+# ==========================================================
 # 字幕MP4出力ファイル名生成
 #
 # 入力:
 #
-#   /app/downloads/タイトル.mp4
+#   タイトル.mp4
 #
 # 出力:
 #
-#   /app/downloads/タイトル_字幕.mp4
+#   タイトル_字幕.mp4
 #
-# =====================================
+# ==========================================================
 
 def build_subtitle_output_path(
-    input_file
+    input_file,
+    output_path=None
 ):
 
     input_file = Path(
         input_file
     )
 
-    return (
+
+    # ======================================================
+    # 明示的なoutput_pathが画面側から渡された場合
+    # ======================================================
+
+    if output_path is not None:
+
+        output_file = Path(
+            output_path
+        )
+
+        # 拡張子がなければ.mp4を付ける
+        if output_file.suffix.lower() != ".mp4":
+
+            output_file = (
+                output_file.with_suffix(
+                    ".mp4"
+                )
+            )
+
+        return output_file
+
+
+    # ======================================================
+    # 画面から出力名が渡されていない場合
+    #
+    # 入力MP4から自動生成
+    #
+    # タイトル.mp4
+    #      ↓
+    # タイトル_字幕.mp4
+    # ======================================================
+
+    output_file = (
         input_file.parent
         /
         f"{input_file.stem}_字幕.mp4"
     )
 
 
-# =====================================
+    return output_file
+
+
+# ==========================================================
 # FFmpeg字幕テスト
-# =====================================
+# ==========================================================
 
 def run_ffmpeg_subtitle_test(
-    input_path=None,
-    srt_path=None,
+    input_path,
+    srt_path,
     output_path=None,
     font_dir=None,
     subtitle_settings=None
@@ -463,65 +550,49 @@ def run_ffmpeg_subtitle_test(
     )
 
 
-    # =====================================
+    # ======================================================
     # 入力MP4
-    # =====================================
-
-    if input_path is None:
-
-        input_file = DEFAULT_INPUT_MP4
-
-    else:
-
-        input_file = Path(
-            input_path
-        )
-
-
-    # =====================================
-    # SRT
-    # =====================================
-
-    if srt_path is None:
-
-        srt_file = DEFAULT_INPUT_SRT
-
-    else:
-
-        srt_file = Path(
-            srt_path
-        )
-
-
-    # =====================================
-    # 出力MP4
     #
-    # output_pathが指定されていない場合、
-    # 入力MP4の名前を基準に
+    # ★固定値を使用しない
     #
-    #   タイトル.mp4
-    #       ↓
-    #   タイトル_字幕.mp4
-    #
-    # とする。
-    # =====================================
+    # 必ず画面から渡されたinput_pathを使用する。
+    # ======================================================
 
-    if output_path is None:
+    if not input_path:
 
-        output_file = build_subtitle_output_path(
-            input_file
-        )
-
-    else:
-
-        output_file = Path(
-            output_path
+        raise ValueError(
+            "入力MP4が指定されていません。"
         )
 
 
-    # =====================================
+    input_file = Path(
+        input_path
+    )
+
+
+    # ======================================================
+    # 入力SRT
+    #
+    # ★固定値を使用しない
+    #
+    # 必ず画面から渡されたsrt_pathを使用する。
+    # ======================================================
+
+    if not srt_path:
+
+        raise ValueError(
+            "SRTファイルが指定されていません。"
+        )
+
+
+    srt_file = Path(
+        srt_path
+    )
+
+
+    # ======================================================
     # フォントディレクトリ
-    # =====================================
+    # ======================================================
 
     if font_dir is None:
 
@@ -534,9 +605,33 @@ def run_ffmpeg_subtitle_test(
         )
 
 
-    # =====================================
+    # ======================================================
+    # 出力ファイル
+    #
+    # output_pathが指定されていなければ
+    #
+    #   入力MP4の名前
+    #
+    # から自動生成する。
+    #
+    # 例:
+    #
+    #   title.mp4
+    #
+    #      ↓
+    #
+    #   title_字幕.mp4
+    # ======================================================
+
+    output_file = build_subtitle_output_path(
+        input_file=input_file,
+        output_path=output_path
+    )
+
+
+    # ======================================================
     # 字幕設定
-    # =====================================
+    # ======================================================
 
     settings = normalize_subtitle_settings(
         subtitle_settings
@@ -548,17 +643,20 @@ def run_ffmpeg_subtitle_test(
         flush=True
     )
 
+
     print(
         f"  preset_name: "
         f"{settings['preset_name']}",
         flush=True
     )
 
+
     print(
         f"  font: "
         f"{settings['font']}",
         flush=True
     )
+
 
     print(
         f"  text_color: "
@@ -567,12 +665,14 @@ def run_ffmpeg_subtitle_test(
         flush=True
     )
 
+
     print(
         f"  outline_color: "
         f"{settings['outline_color']} "
         f"({settings['outline_color_hex']})",
         flush=True
     )
+
 
     print(
         f"  outline_width: "
@@ -581,19 +681,23 @@ def run_ffmpeg_subtitle_test(
     )
 
 
-    # =====================================
+    # ======================================================
     # パス表示
-    # =====================================
+    # ======================================================
 
     print(
-        f"[SUBTITLE TEST] input: {input_file}",
+        f"[SUBTITLE TEST] input: "
+        f"{input_file}",
         flush=True
     )
 
+
     print(
-        f"[SUBTITLE TEST] subtitle: {srt_file}",
+        f"[SUBTITLE TEST] subtitle: "
+        f"{srt_file}",
         flush=True
     )
+
 
     print(
         f"[SUBTITLE TEST] font directory: "
@@ -601,20 +705,23 @@ def run_ffmpeg_subtitle_test(
         flush=True
     )
 
+
     print(
-        f"[SUBTITLE TEST] output: {output_file}",
+        f"[SUBTITLE TEST] output: "
+        f"{output_file}",
         flush=True
     )
 
 
-    # =====================================
+    # ======================================================
     # MP4確認
-    # =====================================
+    # ======================================================
 
     print(
         "[SUBTITLE TEST] MP4存在確認 START",
         flush=True
     )
+
 
     if not input_file.exists():
 
@@ -622,6 +729,7 @@ def run_ffmpeg_subtitle_test(
             f"入力MP4が存在しません: "
             f"{input_file}"
         )
+
 
     if not input_file.is_file():
 
@@ -631,15 +739,32 @@ def run_ffmpeg_subtitle_test(
         )
 
 
+    if input_file.suffix.lower() != ".mp4":
+
+        raise ValueError(
+            f"入力ファイルがMP4ではありません: "
+            f"{input_file}"
+        )
+
+
     input_size = (
         input_file.stat().st_size
     )
+
+
+    if input_size <= 0:
+
+        raise RuntimeError(
+            f"入力MP4のサイズが0 bytesです: "
+            f"{input_file}"
+        )
 
 
     print(
         "[SUBTITLE TEST] MP4存在確認 OK",
         flush=True
     )
+
 
     print(
         f"[SUBTITLE TEST] 入力サイズ: "
@@ -648,14 +773,15 @@ def run_ffmpeg_subtitle_test(
     )
 
 
-    # =====================================
+    # ======================================================
     # SRT確認
-    # =====================================
+    # ======================================================
 
     print(
         "[SUBTITLE TEST] SRT存在確認 START",
         flush=True
     )
+
 
     if not srt_file.exists():
 
@@ -663,6 +789,7 @@ def run_ffmpeg_subtitle_test(
             f"字幕SRTが存在しません: "
             f"{srt_file}"
         )
+
 
     if not srt_file.is_file():
 
@@ -672,15 +799,32 @@ def run_ffmpeg_subtitle_test(
         )
 
 
+    if srt_file.suffix.lower() != ".srt":
+
+        raise ValueError(
+            f"入力ファイルがSRTではありません: "
+            f"{srt_file}"
+        )
+
+
     srt_size = (
         srt_file.stat().st_size
     )
+
+
+    if srt_size <= 0:
+
+        raise RuntimeError(
+            f"SRTのサイズが0 bytesです: "
+            f"{srt_file}"
+        )
 
 
     print(
         "[SUBTITLE TEST] SRT存在確認 OK",
         flush=True
     )
+
 
     print(
         f"[SUBTITLE TEST] SRTサイズ: "
@@ -689,14 +833,15 @@ def run_ffmpeg_subtitle_test(
     )
 
 
-    # =====================================
+    # ======================================================
     # フォントディレクトリ確認
-    # =====================================
+    # ======================================================
 
     print(
         "[SUBTITLE TEST] FONT DIRECTORY確認 START",
         flush=True
     )
+
 
     if not font_directory.exists():
 
@@ -704,6 +849,7 @@ def run_ffmpeg_subtitle_test(
             f"フォントディレクトリが存在しません: "
             f"{font_directory}"
         )
+
 
     if not font_directory.is_dir():
 
@@ -719,9 +865,9 @@ def run_ffmpeg_subtitle_test(
     )
 
 
-    # =====================================
+    # ======================================================
     # フォントファイル確認
-    # =====================================
+    # ======================================================
 
     font_files = []
 
@@ -756,9 +902,9 @@ def run_ffmpeg_subtitle_test(
         )
 
 
-    # =====================================
+    # ======================================================
     # 出力ディレクトリ
-    # =====================================
+    # ======================================================
 
     output_file.parent.mkdir(
         parents=True,
@@ -766,9 +912,37 @@ def run_ffmpeg_subtitle_test(
     )
 
 
-    # =====================================
+    # ======================================================
+    # 入力と出力が同じになっていないか確認
+    # ======================================================
+
+    try:
+
+        same_file = (
+            input_file.resolve()
+            ==
+            output_file.resolve()
+        )
+
+    except Exception:
+
+        same_file = (
+            input_file
+            ==
+            output_file
+        )
+
+
+    if same_file:
+
+        raise RuntimeError(
+            "入力MP4と出力字幕MP4が同じファイルです。"
+        )
+
+
+    # ======================================================
     # 既存出力削除
-    # =====================================
+    # ======================================================
 
     if output_file.exists():
 
@@ -780,9 +954,9 @@ def run_ffmpeg_subtitle_test(
         output_file.unlink()
 
 
-    # =====================================
+    # ======================================================
     # 字幕フィルター
-    # =====================================
+    # ======================================================
 
     subtitle_filter, settings = (
         build_subtitle_filter(
@@ -793,9 +967,9 @@ def run_ffmpeg_subtitle_test(
     )
 
 
-    # =====================================
+    # ======================================================
     # FFmpegコマンド
-    # =====================================
+    # ======================================================
 
     command = [
 
@@ -847,24 +1021,27 @@ def run_ffmpeg_subtitle_test(
     ]
 
 
-    # =====================================
+    # ======================================================
     # コマンド表示
-    # =====================================
+    # ======================================================
 
     print(
         "==========================================",
         flush=True
     )
+
 
     print(
         "[SUBTITLE TEST] FFmpeg command",
         flush=True
     )
 
+
     print(
         "==========================================",
         flush=True
     )
+
 
     print(
         " ".join(command),
@@ -872,24 +1049,27 @@ def run_ffmpeg_subtitle_test(
     )
 
 
-    # =====================================
+    # ======================================================
     # FFmpeg開始
-    # =====================================
+    # ======================================================
 
     print(
         "==========================================",
         flush=True
     )
+
 
     print(
         "[SUBTITLE TEST] FFmpeg起動【1回だけ】",
         flush=True
     )
 
+
     print(
         "==========================================",
         flush=True
     )
+
 
     print(
         "[SUBTITLE TEST] subprocess.run BEFORE",
@@ -897,9 +1077,9 @@ def run_ffmpeg_subtitle_test(
     )
 
 
-    # =====================================
+    # ======================================================
     # FFmpeg実行
-    # =====================================
+    # ======================================================
 
     try:
 
@@ -918,9 +1098,11 @@ def run_ffmpeg_subtitle_test(
             flush=True
         )
 
+
         raise RuntimeError(
             "FFmpegが120秒以内に終了しませんでした"
         )
+
 
     except Exception as error:
 
@@ -930,6 +1112,7 @@ def run_ffmpeg_subtitle_test(
             flush=True
         )
 
+
         print(
             f"[SUBTITLE TEST] "
             f"{type(error).__name__}: "
@@ -937,22 +1120,25 @@ def run_ffmpeg_subtitle_test(
             flush=True
         )
 
+
         raise
 
 
-    # =====================================
+    # ======================================================
     # FFmpeg終了
-    # =====================================
+    # ======================================================
 
     print(
         "==========================================",
         flush=True
     )
 
+
     print(
         "[SUBTITLE TEST] FFmpeg終了",
         flush=True
     )
+
 
     print(
         f"[SUBTITLE TEST] returncode: "
@@ -960,15 +1146,16 @@ def run_ffmpeg_subtitle_test(
         flush=True
     )
 
+
     print(
         "==========================================",
         flush=True
     )
 
 
-    # =====================================
+    # ======================================================
     # stderr
-    # =====================================
+    # ======================================================
 
     if result.stderr:
 
@@ -977,15 +1164,16 @@ def run_ffmpeg_subtitle_test(
             flush=True
         )
 
+
         print(
             result.stderr,
             flush=True
         )
 
 
-    # =====================================
+    # ======================================================
     # FFmpeg失敗
-    # =====================================
+    # ======================================================
 
     if result.returncode != 0:
 
@@ -995,9 +1183,9 @@ def run_ffmpeg_subtitle_test(
         )
 
 
-    # =====================================
+    # ======================================================
     # 出力確認
-    # =====================================
+    # ======================================================
 
     print(
         "[SUBTITLE TEST] 出力ファイル確認 START",
@@ -1039,6 +1227,7 @@ def run_ffmpeg_subtitle_test(
         flush=True
     )
 
+
     print(
         f"[SUBTITLE TEST] 出力サイズ: "
         f"{output_size} bytes",
@@ -1046,28 +1235,51 @@ def run_ffmpeg_subtitle_test(
     )
 
 
-    # =====================================
+    # ======================================================
     # 完了
-    # =====================================
+    # ======================================================
 
     print(
         "==========================================",
         flush=True
     )
+
 
     print(
         "[SUBTITLE TEST] COMPLETE",
         flush=True
     )
 
+
     print(
         "==========================================",
         flush=True
     )
 
+
     print(
-        f"[SUBTITLE TEST] output: "
+        f"[SUBTITLE TEST] INPUT MP4: "
+        f"{input_file}",
+        flush=True
+    )
+
+
+    print(
+        f"[SUBTITLE TEST] INPUT SRT: "
+        f"{srt_file}",
+        flush=True
+    )
+
+
+    print(
+        f"[SUBTITLE TEST] OUTPUT: "
         f"{output_file}",
+        flush=True
+    )
+
+
+    print(
+        "==========================================",
         flush=True
     )
 
