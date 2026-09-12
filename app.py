@@ -1360,7 +1360,8 @@ def subtitle_test_ffmpeg_route():
 
         result = run_ffmpeg_subtitle_test(
             input_path=str(input_path),
-            output_path=str(output_path)
+            output_path=str(output_path),
+            srt_path=str(srt_path)
         )
 
 
