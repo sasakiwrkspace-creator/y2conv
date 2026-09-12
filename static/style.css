@@ -271,10 +271,10 @@ body {
 
 
 .url-input:focus {
-    border-color: #28a745;
+    border-color: #007bff;
 
     box-shadow:
-        0 0 0 2px rgba(40, 167, 69, 0.12);
+        0 0 0 2px rgba(0, 123, 255, 0.12);
 }
 
 
@@ -285,7 +285,7 @@ body {
 
 /* =========================================
    実行ボタン
-   緑
+   黄緑
 ========================================= */
 
 .execute-button {
@@ -297,31 +297,19 @@ body {
 
     padding: 0 18px;
 
-    border: 1px solid #218838;
+    border: 1px solid #7cb518;
 
     border-radius: 5px;
 
-    background: #28a745;
+    background: #8bc34a;
 
     color: #fff;
 
     cursor: pointer;
 
-    font-family: inherit;
-
     font-size: 14px;
 
     font-weight: 600;
-
-    line-height: 42px;
-
-    text-align: center;
-
-    white-space: nowrap;
-
-    appearance: none;
-
-    -webkit-appearance: none;
 
     transition:
         background-color 0.15s ease,
@@ -331,16 +319,16 @@ body {
 
 
 .execute-button:hover:not(:disabled) {
-    background: #218838;
+    background: #7cb342;
 
-    border-color: #1e7e34;
+    border-color: #689f38;
 }
 
 
 .execute-button:active:not(:disabled) {
-    background: #1e7e34;
+    background: #689f38;
 
-    border-color: #1c7430;
+    border-color: #558b2f;
 }
 
 
@@ -428,10 +416,10 @@ body {
 
 
 .time-input:focus {
-    border-color: #28a745;
+    border-color: #007bff;
 
     box-shadow:
-        0 0 0 2px rgba(40, 167, 69, 0.1);
+        0 0 0 2px rgba(0, 123, 255, 0.1);
 }
 
 
@@ -745,10 +733,10 @@ body {
 .file-select-display:focus {
     outline: none;
 
-    border-color: #f0ad4e;
+    border-color: #007bff;
 
     box-shadow:
-        0 0 0 2px rgba(240, 173, 78, 0.15);
+        0 0 0 2px rgba(0, 123, 255, 0.12);
 }
 
 
@@ -770,11 +758,11 @@ body {
 
     padding: 0 10px;
 
-    border: 1px solid #e08b00;
+    border: 1px solid #e67e22;
 
     border-radius: 5px;
 
-    background: #f0ad4e;
+    background: #f39c12;
 
     color: #fff;
 
@@ -804,16 +792,16 @@ body {
 
 
 .upload-button:hover:not(:disabled) {
-    background: #ec971f;
+    background: #e67e22;
 
-    border-color: #d58512;
+    border-color: #d35400;
 }
 
 
 .upload-button:active:not(:disabled) {
-    background: #d58512;
+    background: #d35400;
 
-    border-color: #c77c00;
+    border-color: #ba4a00;
 }
 
 
@@ -826,7 +814,7 @@ body {
 
 /* =========================================
    字幕mp4作成ボタン
-   緑の実行ボタンとして統一
+   実行ボタンと同じ黄緑
 ========================================= */
 
 .subtitle-action-row .execute-button {
@@ -842,45 +830,41 @@ body {
 
     padding: 0 10px;
 
-    border: 1px solid #218838;
+    border: 1px solid #7cb518;
 
     border-radius: 5px;
 
-    background: #28a745;
+    background: #8bc34a;
 
     color: #fff;
-
-    font-family: inherit;
-
-    font-size: 14px;
-
-    font-weight: 600;
-
-    line-height: 42px;
-
-    text-align: center;
 
     white-space: nowrap;
 }
 
 
 .subtitle-action-row .execute-button:hover:not(:disabled) {
-    background: #218838;
+    background: #7cb342;
 
-    border-color: #1e7e34;
+    border-color: #689f38;
+}
+
+
+.subtitle-action-row .execute-button:active:not(:disabled) {
+    background: #689f38;
+
+    border-color: #558b2f;
 }
 
 
 /* =========================================
    字幕ダウンロード
+   青・通常サイズ
 ========================================= */
 
 .subtitle-download-area {
     display: flex;
 
     flex-direction: column;
-
-    align-items: flex-start;
 
     gap: 8px;
 
@@ -891,24 +875,16 @@ body {
 
 
 .subtitle-download-item {
-    width: auto;
+    width: 100%;
 }
 
 
-/* =========================================
-   字幕mp4ダウンロードボタン
-   青・通常サイズの四角いボタン
-========================================= */
-
 .subtitle-download-item .download-button {
-    display: inline-flex;
-
-    align-items: center;
-    justify-content: center;
+    display: inline-block;
 
     width: auto;
 
-    min-width: 130px;
+    min-width: 100px;
 
     height: 44px;
 
@@ -923,8 +899,6 @@ body {
     color: #fff;
 
     text-decoration: none;
-
-    font-family: inherit;
 
     font-size: 14px;
 
@@ -950,9 +924,9 @@ body {
 
 
 .subtitle-download-item .download-button:active {
-    background: #0062cc;
+    background: #005cbf;
 
-    border-color: #005cbf;
+    border-color: #0056b3;
 }
 
 
@@ -995,8 +969,6 @@ body {
 
     flex-direction: column;
 
-    align-items: flex-start;
-
     gap: 8px;
 
     width: 100%;
@@ -1004,14 +976,11 @@ body {
 
 
 .download-area a {
-    display: inline-flex;
-
-    align-items: center;
-    justify-content: center;
+    display: inline-block;
 
     width: auto;
 
-    min-width: 130px;
+    min-width: 100px;
 
     height: 44px;
 
@@ -1026,8 +995,6 @@ body {
     color: #fff;
 
     text-decoration: none;
-
-    font-family: inherit;
 
     font-size: 14px;
 
@@ -1053,9 +1020,9 @@ body {
 
 
 .download-area a:active {
-    background: #0062cc;
+    background: #005cbf;
 
-    border-color: #005cbf;
+    border-color: #0056b3;
 }
 
 
@@ -1858,10 +1825,7 @@ body {
     }
 
 
-    /* =====================================
-       MP4行
-       [ファイル] [転送]
-    ====================================== */
+    /* MP4行 */
 
     .subtitle-action-row:not(:has(.execute-button)) {
         grid-template-columns:
@@ -1870,10 +1834,7 @@ body {
     }
 
 
-    /* =====================================
-       SRT行
-       [ファイル] [転送] [字幕mp4を作成]
-    ====================================== */
+    /* SRT行 */
 
     .subtitle-action-row:has(.execute-button) {
         grid-template-columns:
@@ -1929,12 +1890,11 @@ body {
 
 
     /* =====================================
-       ダウンロードボタン
+       字幕ダウンロード
     ====================================== */
 
-    .download-area a,
     .subtitle-download-item .download-button {
-        min-width: 115px;
+        min-width: 100px;
 
         height: 42px;
 
@@ -2067,9 +2027,10 @@ body {
     }
 
 
-    /* =====================================
-       SRT行
-    ====================================== */
+    /*
+       非常に狭い画面では
+       3列を少し小さくする。
+    */
 
     .subtitle-action-row:has(.execute-button) {
         grid-template-columns:
@@ -2080,10 +2041,6 @@ body {
         gap: 5px;
     }
 
-
-    /* =====================================
-       MP4行
-    ====================================== */
 
     .subtitle-action-row:not(:has(.execute-button)) {
         grid-template-columns:
@@ -2111,6 +2068,8 @@ body {
         min-width: 105px;
 
         font-size: 11px;
+
+        line-height: 40px;
     }
 
 
@@ -2123,27 +2082,16 @@ body {
     }
 
 
-    /* =====================================
-       ダウンロードボタン
-    ====================================== */
-
-    .download-area a,
     .subtitle-download-item .download-button {
-        min-width: 105px;
+        min-width: 95px;
 
         height: 40px;
-
-        padding: 0 10px;
 
         font-size: 12px;
 
         line-height: 38px;
     }
 
-
-    /* =====================================
-       フォントダイアログ
-    ====================================== */
 
     .subtitle-font-dialog-row-label,
     .subtitle-font-dialog-label-title {
