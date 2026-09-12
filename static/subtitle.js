@@ -948,146 +948,166 @@
         // =====================================
         // 字幕焼き込み
         // =====================================
-
+        
         async function embedSubtitle(
             mp4Filename,
             srtFilename
         ) {
-
+        
             if (!mp4Filename) {
-
+        
                 throw new Error(
                     "転送済みMP4ファイルがありません。"
                 );
-
+        
             }
-
-
+        
+        
             if (!srtFilename) {
-
+        
                 throw new Error(
                     "転送済みSRTファイルがありません。"
                 );
-
+        
             }
-
-
+        
+        
             const fontSettings =
                 getFontSettings();
-
-
+        
+        
             const requestBody = {
-
+        
                 mp4_file:
                     mp4Filename,
-
+        
                 srt_file:
                     srtFilename,
-
+        
                 font:
                     fontSettings.font,
-
+        
                 text_color:
                     fontSettings.text_color,
-
+        
                 text_color_hex:
                     fontSettings.text_color_hex,
-
+        
                 outline_color:
                     fontSettings.outline_color,
-
+        
                 outline_color_hex:
                     fontSettings.outline_color_hex,
-
+        
                 outline_width:
                     fontSettings.outline_width,
-
+        
                 preset_name:
                     fontSettings.preset_name
-
+        
             };
-
-
+        
+        
             console.log(
                 "[SUBTITLE] embed request:",
                 requestBody
             );
-
-
+        
+        
+            // =====================================
+            // /subtitle-create-mp4 へJSON送信
+            // =====================================
+        
             const response =
                 await fetch(
-                    "/subtitle-test/ffmpeg",
+                    "/subtitle-create-mp4",
                     {
                         method:
-                            "POST"
+                            "POST",
+        
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+        
+                        body:
+                            JSON.stringify(
+                                requestBody
+                            )
                     }
                 );
-
-
+        
+        
             const data =
                 await parseResponse(
                     response
                 );
-
-
+        
+        
             if (!response.ok) {
-
+        
                 throw new Error(
                     getResponseErrorMessage(
                         data,
                         "字幕MP4の作成に失敗しました。"
                     )
                 );
-
+        
             }
-
-
+        
+        
             if (
                 !data ||
                 data.success !== true
             ) {
-
+        
                 throw new Error(
                     getResponseErrorMessage(
                         data,
                         "字幕MP4の作成に失敗しました。"
                     )
                 );
-
+        
             }
-
-
+        
+        
             const filename =
                 data.filename ||
-                data.output_file ||
                 data.subtitle_mp4_file ||
+                data.output_file ||
                 data.mp4_file;
-
-
+        
+        
             if (!filename) {
-
+        
                 throw new Error(
                     "作成された字幕MP4のファイル名を取得できませんでした。"
                 );
-
+        
             }
-
-
+        
+        
             console.log(
                 "[SUBTITLE] subtitle MP4 created:",
                 filename
             );
-
-
+        
+        
+            console.log(
+                "[SUBTITLE] subtitle MP4 response:",
+                data
+            );
+        
+        
             return {
-
+        
                 ...data,
-
+        
                 filename:
                     filename
-
+        
             };
-
+        
         }
 
 
