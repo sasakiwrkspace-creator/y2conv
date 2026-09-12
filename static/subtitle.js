@@ -1022,6 +1022,7 @@
                 await fetch(
                     "/subtitle-create-mp4",
                     {
+        
                         method:
                             "POST",
         
@@ -1034,6 +1035,7 @@
                             JSON.stringify(
                                 requestBody
                             )
+        
                     }
                 );
         
@@ -1072,8 +1074,8 @@
         
         
             const filename =
-                data.filename ||
                 data.subtitle_mp4_file ||
+                data.filename ||
                 data.output_file ||
                 data.mp4_file;
         
