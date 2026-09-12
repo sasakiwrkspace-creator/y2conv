@@ -976,6 +976,10 @@
                 getFontSettings();
 
 
+            // =================================
+            // JSONリクエストボディ
+            // =================================
+
             const requestBody = {
 
                 mp4_file:
@@ -1014,12 +1018,29 @@
             );
 
 
+            // =================================
+            // JSONとしてAPIへ送信
+            // =================================
+
             const response =
                 await fetch(
                     "/subtitle-test/ffmpeg",
                     {
+
                         method:
-                            "POST"
+                            "POST",
+
+                        headers:
+                            {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                        body:
+                            JSON.stringify(
+                                requestBody
+                            )
+
                     }
                 );
 
@@ -2020,7 +2041,7 @@
         //
         // ・ここではアップロードしない
         // ・転送済みMP4/SRTだけを使用
-        // ・/subtitle-create-mp4 を呼び出す
+        // ・JSONで /subtitle-test/ffmpeg を呼び出す
         // =====================================
 
         subtitleMp4Button.addEventListener(
