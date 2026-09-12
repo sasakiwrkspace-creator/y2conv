@@ -16,7 +16,7 @@ import subprocess
 #
 #   test.mp4
 #   test.srt
-#   test_embed.mp4
+#   test_字幕.mp4
 #
 # は使用しない。
 #
