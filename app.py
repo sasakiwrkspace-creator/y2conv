@@ -562,7 +562,7 @@ def subtitle_test_route():
             if expected_output.is_file():
 
                 print(
-                    "[APP] 既存test_sub_embed.mp4を削除",
+                    "[APP] 既存test_字幕.mp4を削除",
                     flush=True
                 )
 
@@ -571,7 +571,7 @@ def subtitle_test_route():
             else:
 
                 raise RuntimeError(
-                    "test_sub_embed.mp4が通常ファイルではありません: "
+                    "test_字幕.mp4が通常ファイルではありません: "
                     f"{expected_output}"
                 )
 
@@ -1182,17 +1182,17 @@ def subtitle_test_ffmpeg_route():
         #
         # mp4.mp4
         # ↓
-        # mp4_embed.mp4
+        # ～_字幕.mp4
         #
         # movie.mp4
         # ↓
-        # movie_embed.mp4
+        # movie_字幕.mp4
         # =====================================
 
         output_path = (
             Path(DOWNLOAD_DIR)
             /
-            f"{Path(mp4_name).stem}_embed.mp4"
+            f"{Path(mp4_name).stem}_字幕.mp4"
         )
 
 
