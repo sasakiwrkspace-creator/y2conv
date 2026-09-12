@@ -575,54 +575,61 @@
         ====================================== -->
 
         <div class="output-format-group">
-        
+
             <label class="output-format-option">
-        
+
                 <input
                     type="radio"
                     name="output-format"
                     value="mp3"
                     checked
                 >
-        
+
                 <span>
                     mp3
                 </span>
-        
+
             </label>
-        
-        
+
+
             <label class="output-format-option">
-        
+
                 <input
                     type="radio"
                     name="output-format"
                     value="mp4"
                 >
-        
+
                 <span>
                     mp4
                 </span>
-        
+
             </label>
-        
-        
+
+
             <label class="output-format-option">
-        
+
                 <input
                     id="subtitle-mp4-radio"
                     type="radio"
                     name="output-format"
                     value="subtitle_mp4"
                 >
-        
+
                 <span>
                     字幕MP4
                 </span>
-        
+
             </label>
-        
-        
+
+
+            <!-- =================================
+                 タブ1用 字幕フォントボタン
+
+                 初期状態は非表示。
+                 字幕MP4選択時のみ表示。
+            ================================== -->
+
             <button
                 id="subtitle-font-button-youtube"
                 class="subtitle-font-button"
@@ -631,7 +638,7 @@
             >
                 Noto Sans CJK JP
             </button>
-        
+
         </div>
 
     </section>
@@ -739,6 +746,10 @@
                     MP4とSRTから字幕MP4を作成
                 </span>
 
+
+                <!--
+                    タブ2では常に表示
+                -->
 
                 <button
                     id="subtitle-font-button"
@@ -921,7 +932,7 @@
 
 
 <!-- =========================================
-     タブ切り替え
+     タブ切り替え + フォントボタン表示制御
 ========================================== -->
 
 <script>
@@ -931,9 +942,13 @@ document.addEventListener(
     function () {
 
         console.log(
-            "[INDEX] tab initialization"
+            "[INDEX] initialization start"
         );
 
+
+        /* =====================================
+           DOM
+        ====================================== */
 
         const youtubeTabButton =
             document.getElementById(
@@ -958,6 +973,83 @@ document.addEventListener(
                 "file-tab"
             );
 
+
+        const youtubeFontButton =
+            document.getElementById(
+                "subtitle-font-button-youtube"
+            );
+
+
+        /* =====================================
+           タブ1用フォントボタン表示制御
+        ====================================== */
+
+        function updateYoutubeFontButton() {
+
+            if (
+                !youtubeFontButton
+            ) {
+
+                return;
+
+            }
+
+
+            const selectedRadio =
+                document.querySelector(
+                    "input[name='output-format']:checked"
+                );
+
+
+            const shouldShow =
+                Boolean(
+                    selectedRadio &&
+                    selectedRadio.value ===
+                    "subtitle_mp4"
+                );
+
+
+            youtubeFontButton.hidden =
+                !shouldShow;
+
+
+            console.log(
+                "[INDEX] youtube subtitle font button:",
+                shouldShow
+            );
+
+        }
+
+
+        /* =====================================
+           ラジオボタン変更監視
+        ====================================== */
+
+        const outputFormatRadios =
+            document.querySelectorAll(
+                "input[name='output-format']"
+            );
+
+
+        outputFormatRadios.forEach(
+            function (radio) {
+
+                radio.addEventListener(
+                    "change",
+                    function () {
+
+                        updateYoutubeFontButton();
+
+                    }
+                );
+
+            }
+        );
+
+
+        /* =====================================
+           タブ切り替え
+        ====================================== */
 
         function showTab(
             target
@@ -1023,6 +1115,19 @@ document.addEventListener(
             }
 
 
+            /*
+             * タブ1へ戻った場合、
+             * 現在のラジオ選択状態を確認する。
+             */
+            if (
+                isYoutube
+            ) {
+
+                updateYoutubeFontButton();
+
+            }
+
+
             console.log(
                 "[INDEX] tab changed:",
                 target
@@ -1063,9 +1168,22 @@ document.addEventListener(
         }
 
 
+        /* =====================================
+           初期状態
+
+           初期値はmp3なので、
+           タブ1のフォントボタンは非表示。
+
+           タブ2のフォントボタンは
+           HTML上で常に表示。
+        ====================================== */
+
         showTab(
             "youtube"
         );
+
+
+        updateYoutubeFontButton();
 
 
         console.log(
