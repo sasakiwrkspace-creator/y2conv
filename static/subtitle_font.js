@@ -55,6 +55,43 @@
 
 
         // =====================================
+        // 初期出力形式をMP3に固定
+        // =====================================
+
+        const mp3Radio =
+            document.querySelector(
+                'input[name="output-format"][value="mp3"]'
+            );
+
+
+        const subtitleMp4Radio =
+            document.getElementById(
+                "subtitle-mp4-radio"
+            );
+
+
+        if (mp3Radio) {
+
+            mp3Radio.checked =
+                true;
+
+        }
+
+
+        if (subtitleMp4Radio) {
+
+            subtitleMp4Radio.checked =
+                false;
+
+        }
+
+
+        console.log(
+            "[SUBTITLE_FONT] initial output format: mp3"
+        );
+
+
+        // =====================================
         // DOM
         // =====================================
 
@@ -70,20 +107,37 @@
             );
 
 
-        const subtitleMp4Radio =
-            document.getElementById(
-                "subtitle-mp4-radio"
-            );
-
-
         console.log(
             "[SUBTITLE_FONT] DOM:",
             {
-                fontButton: Boolean(fontButton),
-                youtubeFontButton: Boolean(youtubeFontButton),
-                subtitleMp4Radio: Boolean(subtitleMp4Radio)
+                fontButton:
+                    Boolean(fontButton),
+
+                youtubeFontButton:
+                    Boolean(youtubeFontButton),
+
+                subtitleMp4Radio:
+                    Boolean(subtitleMp4Radio),
+
+                mp3Radio:
+                    Boolean(mp3Radio)
             }
         );
+
+
+        // =====================================
+        // 初期状態確認
+        // =====================================
+
+        console.log(
+            "[SUBTITLE_FONT] output format:",
+            mp3Radio && mp3Radio.checked
+                ? "mp3"
+                : subtitleMp4Radio && subtitleMp4Radio.checked
+                    ? "subtitle_mp4"
+                    : "other"
+        );
+
 
 
         // =====================================
