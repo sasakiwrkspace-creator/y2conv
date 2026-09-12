@@ -3175,7 +3175,7 @@
                     );
 
 
-                    updateButton();
+                    updateButtons();
 
 
                     console.log(
@@ -3334,7 +3334,7 @@
                         normalized;
 
 
-                    updateButton();
+                    updateButtons();
 
 
                     console.log(
@@ -3376,7 +3376,7 @@
                         )
                     ) {
 
-                        updateButton();
+                        updateButtons();
 
 
                         return (
@@ -3458,7 +3458,7 @@
                         settings;
 
 
-                    updateButton();
+                    updateButtons();
 
 
                     console.log(
@@ -3530,7 +3530,7 @@
             // ---------------------------------
 
             update:
-                updateButton
+                updateButtons
 
         };
 
@@ -3547,7 +3547,7 @@
         // 初期表示
         // =====================================
 
-        updateButton();
+        updateButtons();
 
 
         // =====================================
