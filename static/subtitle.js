@@ -967,171 +967,166 @@
         // =====================================
         // 字幕焼き込み
         //
-        // 重要:
-        //
-        // /subtitle-test/ffmpeg は
-        // プレーンテキストを返す。
-        //
-        // したがってここでは
-        // parseResponse()
-        // JSON.parse()
-        // を一切使用しない。
+        // ・転送済みMP4/SRTを使用
+        // ・/subtitle-test/ffmpeg にJSONを送信
+        // ・レスポンスはプレーンテキスト
+        // ・JSON.parse()しない
         // =====================================
-
+        
         async function embedSubtitle(
             mp4Filename,
             srtFilename
         ) {
-
+        
             if (!mp4Filename) {
-
+        
                 throw new Error(
                     "転送済みMP4ファイルがありません。"
                 );
-
+        
             }
-
-
+        
+        
             if (!srtFilename) {
-
+        
                 throw new Error(
                     "転送済みSRTファイルがありません。"
                 );
-
+        
             }
-
-
+        
+        
             const fontSettings =
                 getFontSettings();
-
-
+        
+        
             const requestBody = {
-
+        
                 mp4_file:
                     mp4Filename,
-
+        
                 srt_file:
                     srtFilename,
-
+        
                 font:
                     fontSettings.font,
-
+        
                 text_color:
                     fontSettings.text_color,
-
+        
                 text_color_hex:
                     fontSettings.text_color_hex,
-
+        
                 outline_color:
                     fontSettings.outline_color,
-
+        
                 outline_color_hex:
                     fontSettings.outline_color_hex,
-
+        
                 outline_width:
                     fontSettings.outline_width,
-
+        
                 preset_name:
                     fontSettings.preset_name
-
+        
             };
-
-
+        
+        
             console.log(
-                "[SUBTITLE] embed request:",
+                "[SUBTITLE] /subtitle-test/ffmpeg request:",
                 requestBody
             );
-
-
+        
+        
             // =====================================
-            // FFmpegテストAPI
+            // FFmpeg実行
             //
-            // このAPIはプレーンテキストを返す。
+            // JSONを送信する。
             //
-            // requestBodyはまだ送信しない。
-            // サーバー側は固定で
-            //
-            // /app/downloads/test.mp4
-            // /app/downloads/test.srt
-            //
-            // を使用するテストAPI。
+            // レスポンスはプレーンテキスト。
+            // JSON.parse()は禁止。
             // =====================================
-
+        
             const response =
                 await fetch(
                     "/subtitle-test/ffmpeg",
                     {
+        
                         method:
-                            "POST"
+                            "POST",
+        
+                        headers:
+                            {
+                                "Content-Type":
+                                    "application/json"
+                            },
+        
+                        body:
+                            JSON.stringify(
+                                requestBody
+                            )
+        
                     }
                 );
-
-
+        
+        
             // =====================================
-            // テキストとして取得
-            //
-            // JSON.parse禁止
+            // プレーンテキストとして取得
             // =====================================
-
+        
             const text =
                 await response.text();
-
-
+        
+        
             console.log(
-                "[SUBTITLE] response:",
+                "[SUBTITLE] /subtitle-test/ffmpeg response:",
                 text
             );
-
-
+        
+        
             // =====================================
             // HTTPエラー
             // =====================================
-
+        
             if (!response.ok) {
-
+        
                 throw new Error(
                     text ||
                     "字幕MP4の作成に失敗しました。"
                 );
-
+        
             }
-
-
+        
+        
             // =====================================
             // 成功
             //
-            // /subtitle-test/ffmpeg は
-            // test_embed.mp4 を作成する。
+            // サーバー側で
+            //
+            // タイトル.mp4
+            // ↓
+            // タイトル_字幕.mp4
+            //
+            // が作成される。
             // =====================================
-
-            const filename =
-                "test_embed.mp4";
-
-
-            console.log(
-                "[SUBTITLE] subtitle MP4 created:",
-                filename
-            );
-
-
+        
             return {
-
+        
                 success:
                     true,
-
+        
                 message:
                     text,
-
+        
                 filename:
-                    filename,
-
-                output_file:
-                    filename
-
+                    `${mp4Filename.replace(
+                        /\.mp4$/i,
+                        ""
+                    )}_字幕.mp4`
+        
             };
-
+        
         }
-
 
         // =====================================
         // ダウンロードボタン
