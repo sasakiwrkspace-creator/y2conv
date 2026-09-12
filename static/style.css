@@ -271,10 +271,10 @@ body {
 
 
 .url-input:focus {
-    border-color: #007bff;
+    border-color: #28a745;
 
     box-shadow:
-        0 0 0 2px rgba(0, 123, 255, 0.12);
+        0 0 0 2px rgba(40, 167, 69, 0.12);
 }
 
 
@@ -285,6 +285,7 @@ body {
 
 /* =========================================
    実行ボタン
+   緑
 ========================================= */
 
 .execute-button {
@@ -296,19 +297,31 @@ body {
 
     padding: 0 18px;
 
-    border: 1px solid #0069d9;
+    border: 1px solid #218838;
 
     border-radius: 5px;
 
-    background: #007bff;
+    background: #28a745;
 
     color: #fff;
 
     cursor: pointer;
 
+    font-family: inherit;
+
     font-size: 14px;
 
     font-weight: 600;
+
+    line-height: 42px;
+
+    text-align: center;
+
+    white-space: nowrap;
+
+    appearance: none;
+
+    -webkit-appearance: none;
 
     transition:
         background-color 0.15s ease,
@@ -318,9 +331,16 @@ body {
 
 
 .execute-button:hover:not(:disabled) {
-    background: #0069d9;
+    background: #218838;
 
-    border-color: #0062cc;
+    border-color: #1e7e34;
+}
+
+
+.execute-button:active:not(:disabled) {
+    background: #1e7e34;
+
+    border-color: #1c7430;
 }
 
 
@@ -408,10 +428,10 @@ body {
 
 
 .time-input:focus {
-    border-color: #007bff;
+    border-color: #28a745;
 
     box-shadow:
-        0 0 0 2px rgba(0, 123, 255, 0.1);
+        0 0 0 2px rgba(40, 167, 69, 0.1);
 }
 
 
@@ -577,23 +597,6 @@ body {
    ファイル選択行
 ========================================= */
 
-/*
-   重要
-
-   index.htmlでは、
-
-   MP4:
-   [ファイル選択] [転送]
-
-   SRT:
-   [ファイル選択] [転送] [字幕mp4を作成]
-
-   という構造になっている。
-
-   そのため grid を使用して
-   3列を明確に固定する。
-*/
-
 .file-select-row {
     display: grid;
 
@@ -611,10 +614,6 @@ body {
     margin-top: 10px;
 }
 
-
-/*
-   セクション直後の最初の行
-*/
 
 .file-conversion-section > .file-select-row:first-of-type {
     margin-top: 0;
@@ -641,16 +640,6 @@ body {
 }
 
 
-/*
-   MP4行
-
-   子要素が
-
-   input
-   button
-   だけの場合は2列にする。
-*/
-
 .subtitle-action-row:has(
     .upload-button:last-child
 ) {
@@ -659,12 +648,6 @@ body {
         80px;
 }
 
-
-/*
-   ただしSRT行には
-   execute-buttonが存在するため
-   3列へ戻す。
-*/
 
 .subtitle-action-row:has(
     .execute-button
@@ -762,15 +745,16 @@ body {
 .file-select-display:focus {
     outline: none;
 
-    border-color: #007bff;
+    border-color: #f0ad4e;
 
     box-shadow:
-        0 0 0 2px rgba(0, 123, 255, 0.12);
+        0 0 0 2px rgba(240, 173, 78, 0.15);
 }
 
 
 /* =========================================
    転送ボタン
+   オレンジ
 ========================================= */
 
 .upload-button {
@@ -786,11 +770,11 @@ body {
 
     padding: 0 10px;
 
-    border: 1px solid #6c757d;
+    border: 1px solid #e08b00;
 
     border-radius: 5px;
 
-    background: #6c757d;
+    background: #f0ad4e;
 
     color: #fff;
 
@@ -820,16 +804,16 @@ body {
 
 
 .upload-button:hover:not(:disabled) {
-    background: #5a6268;
+    background: #ec971f;
 
-    border-color: #545b62;
+    border-color: #d58512;
 }
 
 
 .upload-button:active:not(:disabled) {
-    background: #495057;
+    background: #d58512;
 
-    border-color: #495057;
+    border-color: #c77c00;
 }
 
 
@@ -842,6 +826,7 @@ body {
 
 /* =========================================
    字幕mp4作成ボタン
+   緑の実行ボタンとして統一
 ========================================= */
 
 .subtitle-action-row .execute-button {
@@ -857,7 +842,32 @@ body {
 
     padding: 0 10px;
 
+    border: 1px solid #218838;
+
+    border-radius: 5px;
+
+    background: #28a745;
+
+    color: #fff;
+
+    font-family: inherit;
+
+    font-size: 14px;
+
+    font-weight: 600;
+
+    line-height: 42px;
+
+    text-align: center;
+
     white-space: nowrap;
+}
+
+
+.subtitle-action-row .execute-button:hover:not(:disabled) {
+    background: #218838;
+
+    border-color: #1e7e34;
 }
 
 
@@ -870,6 +880,8 @@ body {
 
     flex-direction: column;
 
+    align-items: flex-start;
+
     gap: 8px;
 
     width: 100%;
@@ -879,16 +891,30 @@ body {
 
 
 .subtitle-download-item {
-    width: 100%;
+    width: auto;
 }
 
 
+/* =========================================
+   字幕mp4ダウンロードボタン
+   青・通常サイズの四角いボタン
+========================================= */
+
 .subtitle-download-item .download-button {
-    display: inline-block;
+    display: inline-flex;
 
-    padding: 10px 14px;
+    align-items: center;
+    justify-content: center;
 
-    border: 1px solid #007bff;
+    width: auto;
+
+    min-width: 130px;
+
+    height: 44px;
+
+    padding: 0 14px;
+
+    border: 1px solid #0069d9;
 
     border-radius: 5px;
 
@@ -898,7 +924,21 @@ body {
 
     text-decoration: none;
 
+    font-family: inherit;
+
     font-size: 14px;
+
+    font-weight: 600;
+
+    line-height: 42px;
+
+    text-align: center;
+
+    white-space: nowrap;
+
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease;
 }
 
 
@@ -906,6 +946,13 @@ body {
     background: #0069d9;
 
     border-color: #0062cc;
+}
+
+
+.subtitle-download-item .download-button:active {
+    background: #0062cc;
+
+    border-color: #005cbf;
 }
 
 
@@ -948,6 +995,8 @@ body {
 
     flex-direction: column;
 
+    align-items: flex-start;
+
     gap: 8px;
 
     width: 100%;
@@ -955,11 +1004,20 @@ body {
 
 
 .download-area a {
-    display: inline-block;
+    display: inline-flex;
 
-    padding: 10px 14px;
+    align-items: center;
+    justify-content: center;
 
-    border: 1px solid #007bff;
+    width: auto;
+
+    min-width: 130px;
+
+    height: 44px;
+
+    padding: 0 14px;
+
+    border: 1px solid #0069d9;
 
     border-radius: 5px;
 
@@ -969,7 +1027,21 @@ body {
 
     text-decoration: none;
 
+    font-family: inherit;
+
     font-size: 14px;
+
+    font-weight: 600;
+
+    line-height: 42px;
+
+    text-align: center;
+
+    white-space: nowrap;
+
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease;
 }
 
 
@@ -977,6 +1049,13 @@ body {
     background: #0069d9;
 
     border-color: #0062cc;
+}
+
+
+.download-area a:active {
+    background: #0062cc;
+
+    border-color: #005cbf;
 }
 
 
@@ -1764,13 +1843,6 @@ body {
     }
 
 
-    /*
-       スマホでもファイル選択・転送・実行を
-       基本的に横並びで維持する。
-
-       ファイル名部分だけが縮む。
-    */
-
     .file-select-row,
     .subtitle-action-row {
         display: grid;
@@ -1786,10 +1858,10 @@ body {
     }
 
 
-    /*
+    /* =====================================
        MP4行
        [ファイル] [転送]
-    */
+    ====================================== */
 
     .subtitle-action-row:not(:has(.execute-button)) {
         grid-template-columns:
@@ -1798,10 +1870,10 @@ body {
     }
 
 
-    /*
+    /* =====================================
        SRT行
        [ファイル] [転送] [字幕mp4を作成]
-    */
+    ====================================== */
 
     .subtitle-action-row:has(.execute-button) {
         grid-template-columns:
@@ -1836,6 +1908,8 @@ body {
         padding: 0 5px;
 
         font-size: 13px;
+
+        line-height: 40px;
     }
 
 
@@ -1849,12 +1923,32 @@ body {
         padding: 0 5px;
 
         font-size: 12px;
+
+        line-height: 40px;
     }
 
 
-    /*
+    /* =====================================
+       ダウンロードボタン
+    ====================================== */
+
+    .download-area a,
+    .subtitle-download-item .download-button {
+        min-width: 115px;
+
+        height: 42px;
+
+        padding: 0 12px;
+
+        font-size: 13px;
+
+        line-height: 40px;
+    }
+
+
+    /* =====================================
        フォント設定
-    */
+    ====================================== */
 
     .subtitle-title-row {
         align-items: flex-start;
@@ -1973,10 +2067,9 @@ body {
     }
 
 
-    /*
-       非常に狭い画面では
-       3列を少し小さくする。
-    */
+    /* =====================================
+       SRT行
+    ====================================== */
 
     .subtitle-action-row:has(.execute-button) {
         grid-template-columns:
@@ -1987,6 +2080,10 @@ body {
         gap: 5px;
     }
 
+
+    /* =====================================
+       MP4行
+    ====================================== */
 
     .subtitle-action-row:not(:has(.execute-button)) {
         grid-template-columns:
@@ -2003,6 +2100,8 @@ body {
         min-width: 62px;
 
         font-size: 12px;
+
+        line-height: 40px;
     }
 
 
@@ -2023,6 +2122,28 @@ body {
         font-size: 11px;
     }
 
+
+    /* =====================================
+       ダウンロードボタン
+    ====================================== */
+
+    .download-area a,
+    .subtitle-download-item .download-button {
+        min-width: 105px;
+
+        height: 40px;
+
+        padding: 0 10px;
+
+        font-size: 12px;
+
+        line-height: 38px;
+    }
+
+
+    /* =====================================
+       フォントダイアログ
+    ====================================== */
 
     .subtitle-font-dialog-row-label,
     .subtitle-font-dialog-label-title {
