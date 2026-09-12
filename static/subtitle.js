@@ -26,6 +26,11 @@
 // ・SRT転送ボタンで /subtitle-upload-srt
 // ・字幕mp4作成では転送済みファイルを使用
 // ・新しいファイルを選択したら、古い転送済みファイルを無効化
+//
+// レスポンス:
+// ・アップロードAPIはJSON
+// ・/subtitle-test/ffmpeg はプレーンテキスト
+// ・/subtitle-test/ffmpeg ではJSON.parseしない
 // =====================================
 
 (function () {
@@ -709,6 +714,18 @@
 
         // =====================================
         // JSON解析
+        //
+        // 注意:
+        // ここはアップロードAPI専用。
+        //
+        // /subtitle-upload-mp4
+        // /subtitle-upload-srt
+        // /subtitle-upload-mp3
+        //
+        // はJSONを返すため使用する。
+        //
+        // /subtitle-test/ffmpeg では
+        // 絶対に使用しない。
         // =====================================
 
         async function parseResponse(
@@ -802,6 +819,8 @@
 
         // =====================================
         // FormDataアップロード
+        //
+        // アップロードAPIはJSONを返す。
         // =====================================
 
         async function uploadToEndpoint(
@@ -947,6 +966,16 @@
 
         // =====================================
         // 字幕焼き込み
+        //
+        // 重要:
+        //
+        // /subtitle-test/ffmpeg は
+        // プレーンテキストを返す。
+        //
+        // したがってここでは
+        // parseResponse()
+        // JSON.parse()
+        // を一切使用しない。
         // =====================================
 
         async function embedSubtitle(
@@ -1017,8 +1046,15 @@
             // =====================================
             // FFmpegテストAPI
             //
-            // このAPIはJSONではなく
-            // プレーンテキストを返す
+            // このAPIはプレーンテキストを返す。
+            //
+            // requestBodyはまだ送信しない。
+            // サーバー側は固定で
+            //
+            // /app/downloads/test.mp4
+            // /app/downloads/test.srt
+            //
+            // を使用するテストAPI。
             // =====================================
 
             const response =
@@ -1032,7 +1068,9 @@
 
 
             // =====================================
-            // レスポンスはJSON解析しない
+            // テキストとして取得
+            //
+            // JSON.parse禁止
             // =====================================
 
             const text =
@@ -1063,7 +1101,7 @@
             // 成功
             //
             // /subtitle-test/ffmpeg は
-            // test_embed.mp4 を作成する
+            // test_embed.mp4 を作成する。
             // =====================================
 
             const filename =
@@ -2000,7 +2038,7 @@
         //
         // ・ここではアップロードしない
         // ・転送済みMP4/SRTだけを使用
-        // ・/subtitle-create-mp4 を呼び出す
+        // ・/subtitle-test/ffmpeg を呼び出す
         // =====================================
 
         subtitleMp4Button.addEventListener(
@@ -2150,7 +2188,7 @@
                             error.message
                                 ? error.message
                                 : "不明なエラー"
-                        ) +
+                    ) +
                         "\n\n" +
                         getElapsedText(),
 
