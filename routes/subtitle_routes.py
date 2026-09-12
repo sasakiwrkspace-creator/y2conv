@@ -3,6 +3,20 @@
 #
 # 字幕関連Route
 #
+# 日本語ファイル名対応版
+#
+# アップロード時に display_name を指定すると、
+# その名前を実際の保存ファイル名として使用します。
+#
+# 例:
+#
+# display_name = "東京旅行"
+# original file = "IMG_1234.mp4"
+#
+# ↓
+#
+# downloads/東京旅行.mp4
+#
 # ==========================================================
 
 import os
@@ -14,8 +28,6 @@ from flask import (
     jsonify,
     send_from_directory
 )
-
-from werkzeug.utils import secure_filename
 
 from config import DOWNLOAD_DIR
 
@@ -111,15 +123,23 @@ def get_file_extension(
 
 
 # ==========================================================
-# 安全なファイル名作成
+# 日本語対応・安全なファイル名作成
+#
+# 重要:
+#
+# secure_filename() は日本語を削除する場合があるため、
+# 日本語ファイル名を維持するために使用しません。
 #
 # 例:
 #
-# "my video.mp4"
+# "東京旅行.mp4"
 #     ↓
-# "my_video.mp4"
+# "東京旅行.mp4"
 #
-# 日本語ファイル名も基本的に維持します。
+# "字幕動画 01.mp4"
+#     ↓
+# "字幕動画 01.mp4"
+#
 # ==========================================================
 
 def make_safe_filename(
@@ -152,52 +172,91 @@ def make_safe_filename(
         )
 
     # ------------------------------------------------------
-    # Werkzeugで安全化
+    # NULL文字禁止
     # ------------------------------------------------------
 
-    safe_filename = secure_filename(
-        filename
-    )
+    if "\x00" in filename:
+
+        raise ValueError(
+            "不正なファイル名です"
+        )
 
     # ------------------------------------------------------
-    # secure_filename()で空になる場合
-    # 日本語だけのファイル名などに対応
+    # 改行・制御文字を除去
     # ------------------------------------------------------
 
-    if not safe_filename:
+    cleaned_filename = ""
 
-        original_base = os.path.splitext(
-            filename
-        )[0].strip()
+    for char in filename:
 
-        if not original_base:
+        code = ord(
+            char
+        )
 
-            raise ValueError(
-                "安全なファイル名を作成できませんでした"
-            )
+        # 制御文字を除去
+        if code < 32:
 
-        # 危険な文字を最低限除去
-        safe_filename = ""
+            continue
 
-        for char in original_base:
+        cleaned_filename += char
 
-            if char in (
-                "/",
-                "\\",
-                "\x00"
-            ):
+    filename = cleaned_filename.strip()
 
-                continue
+    if not filename:
 
-            safe_filename += char
+        raise ValueError(
+            "安全なファイル名を作成できませんでした"
+        )
 
-        safe_filename = safe_filename.strip()
+    # ------------------------------------------------------
+    # Windows / ファイルシステム上で危険になりやすい
+    # 文字を最低限除去
+    #
+    # 日本語は維持します。
+    # ------------------------------------------------------
 
-        if not safe_filename:
+    dangerous_chars = {
+        "<",
+        ">",
+        ":",
+        '"',
+        "/",
+        "\\",
+        "|",
+        "?",
+        "*"
+    }
 
-            raise ValueError(
-                "安全なファイル名を作成できませんでした"
-            )
+    cleaned_filename = ""
+
+    for char in filename:
+
+        if char in dangerous_chars:
+
+            continue
+
+        cleaned_filename += char
+
+    filename = cleaned_filename.strip()
+
+    if not filename:
+
+        raise ValueError(
+            "安全なファイル名を作成できませんでした"
+        )
+
+    # ------------------------------------------------------
+    # "." と ".." を禁止
+    # ------------------------------------------------------
+
+    if filename in (
+        ".",
+        ".."
+    ):
+
+        raise ValueError(
+            "不正なファイル名です"
+        )
 
     # ------------------------------------------------------
     # 拡張子を確定
@@ -215,42 +274,53 @@ def make_safe_filename(
 
             extension = "." + extension
 
+        # --------------------------------------------------
         # 既存拡張子を削除
+        # --------------------------------------------------
+
         safe_base = os.path.splitext(
-            safe_filename
+            filename
         )[0]
 
-        safe_filename = (
+        safe_base = safe_base.strip()
+
+        if not safe_base:
+
+            raise ValueError(
+                "ファイル名部分がありません"
+            )
+
+        filename = (
             safe_base
             +
             extension
         )
 
     # ------------------------------------------------------
-    # 最終的にbasenameであることを確認
+    # 最終basename確認
     # ------------------------------------------------------
 
-    safe_filename = os.path.basename(
-        safe_filename
+    filename = os.path.basename(
+        filename
     )
 
-    if not safe_filename:
+    if not filename:
 
         raise ValueError(
             "安全なファイル名を作成できませんでした"
         )
 
     # ------------------------------------------------------
-    # NULL文字禁止
+    # NULL文字最終確認
     # ------------------------------------------------------
 
-    if "\x00" in safe_filename:
+    if "\x00" in filename:
 
         raise ValueError(
             "不正なファイル名です"
         )
 
-    return safe_filename
+    return filename
 
 
 # ==========================================================
@@ -322,11 +392,28 @@ def make_download_path(
 
 # ==========================================================
 # アップロード保存
+#
+# display_name:
+#
+# アップロード後に実際に保存するファイル名。
+#
+# 例:
+#
+# display_name = "東京旅行"
+# original = "IMG_1234.mp4"
+#
+# ↓
+#
+# 東京旅行.mp4
+#
+# display_name が空の場合は元ファイル名を使用。
+#
 # ==========================================================
 
 def save_uploaded_file(
     uploaded_file,
-    allowed_extensions
+    allowed_extensions,
+    display_name=None
 ):
 
     if uploaded_file is None:
@@ -347,7 +434,7 @@ def save_uploaded_file(
         )
 
     # ------------------------------------------------------
-    # 拡張子取得
+    # 元ファイルの拡張子取得
     # ------------------------------------------------------
 
     extension = get_file_extension(
@@ -367,11 +454,32 @@ def save_uploaded_file(
         )
 
     # ------------------------------------------------------
+    # 保存名
+    #
+    # display_name が指定されていれば、
+    # 元ファイル名ではなく display_name を使用。
+    # ------------------------------------------------------
+
+    requested_display_name = str(
+        display_name or ""
+    ).strip()
+
+    if requested_display_name:
+
+        save_filename = requested_display_name
+
+    else:
+
+        save_filename = original_filename
+
+    # ------------------------------------------------------
     # 安全なファイル名へ変換
+    #
+    # 日本語は維持する。
     # ------------------------------------------------------
 
     safe_filename = make_safe_filename(
-        original_filename,
+        save_filename,
         extension
     )
 
@@ -488,6 +596,12 @@ def save_uploaded_file(
     )
 
     print(
+        "[SUBTITLE] requested display name:",
+        requested_display_name,
+        flush=True
+    )
+
+    print(
         "[SUBTITLE] safe filename:",
         actual_filename,
         flush=True
@@ -529,7 +643,13 @@ def save_uploaded_file(
             file_size,
 
         "overwritten":
-            existed
+            existed,
+
+        "original_filename":
+            original_filename,
+
+        "display_name":
+            requested_display_name
 
     }
 
@@ -643,7 +763,7 @@ def get_download_file(
 #
 # {
 #     "filename": "old.mp4",
-#     "new_filename": "new_name.mp4"
+#     "new_filename": "東京旅行.mp4"
 # }
 #
 # ==========================================================
@@ -757,6 +877,8 @@ def rename_download_file(
 
     # ------------------------------------------------------
     # 安全な新ファイル名
+    #
+    # 日本語を維持
     # ------------------------------------------------------
 
     safe_new_filename = make_safe_filename(
@@ -804,7 +926,10 @@ def rename_download_file(
         safe_new_filename
     )
 
+    # ------------------------------------------------------
     # 同じ名前の場合
+    # ------------------------------------------------------
+
     if os.path.abspath(
         old_path
     ) == os.path.abspath(
@@ -1504,6 +1629,25 @@ def create_subtitle_mp4(
 
 # ==========================================================
 # MP3アップロード
+#
+# POST /subtitle-upload-mp3
+#
+# multipart/form-data:
+#
+# file:
+#     音声ファイル
+#
+# display_name:
+#     保存したい日本語名
+#
+# 例:
+#
+# display_name = "東京旅行音声"
+#
+# ↓
+#
+# 東京旅行音声.mp3
+#
 # ==========================================================
 
 @subtitle_bp.route(
@@ -1518,11 +1662,24 @@ def subtitle_upload_mp3():
             "file"
         )
 
+        display_name = request.form.get(
+            "display_name",
+            ""
+        ).strip()
+
+        print(
+            "[SUBTITLE] MP3 display_name:",
+            display_name,
+            flush=True
+        )
+
         saved = save_uploaded_file(
 
             uploaded_file,
 
-            ALLOWED_MP3_EXTENSIONS
+            ALLOWED_MP3_EXTENSIONS,
+
+            display_name=display_name
 
         )
 
@@ -1537,6 +1694,12 @@ def subtitle_upload_mp3():
 
             "message":
                 "MP3を保存し、GeminiからSRTを作成しました。",
+
+            "original_filename":
+                saved["original_filename"],
+
+            "display_name":
+                saved["display_name"],
 
             "mp3_file":
                 saved["filename"],
@@ -1583,6 +1746,25 @@ def subtitle_upload_mp3():
 
 # ==========================================================
 # MP4アップロード
+#
+# POST /subtitle-upload-mp4
+#
+# multipart/form-data:
+#
+# file:
+#     MP4ファイル
+#
+# display_name:
+#     保存したい日本語名
+#
+# 例:
+#
+# display_name = "東京旅行"
+#
+# ↓
+#
+# 東京旅行.mp4
+#
 # ==========================================================
 
 @subtitle_bp.route(
@@ -1597,11 +1779,24 @@ def subtitle_upload_mp4():
             "file"
         )
 
+        display_name = request.form.get(
+            "display_name",
+            ""
+        ).strip()
+
+        print(
+            "[SUBTITLE] MP4 display_name:",
+            display_name,
+            flush=True
+        )
+
         saved = save_uploaded_file(
 
             uploaded_file,
 
-            ALLOWED_MP4_EXTENSIONS
+            ALLOWED_MP4_EXTENSIONS,
+
+            display_name=display_name
 
         )
 
@@ -1612,6 +1807,12 @@ def subtitle_upload_mp4():
 
             "message":
                 "MP4を保存しました。",
+
+            "original_filename":
+                saved["original_filename"],
+
+            "display_name":
+                saved["display_name"],
 
             "mp4_file":
                 saved["filename"],
@@ -1645,6 +1846,25 @@ def subtitle_upload_mp4():
 
 # ==========================================================
 # SRTアップロード
+#
+# POST /subtitle-upload-srt
+#
+# multipart/form-data:
+#
+# file:
+#     SRTファイル
+#
+# display_name:
+#     保存したい日本語名
+#
+# 例:
+#
+# display_name = "東京旅行字幕"
+#
+# ↓
+#
+# 東京旅行字幕.srt
+#
 # ==========================================================
 
 @subtitle_bp.route(
@@ -1659,11 +1879,24 @@ def subtitle_upload_srt():
             "file"
         )
 
+        display_name = request.form.get(
+            "display_name",
+            ""
+        ).strip()
+
+        print(
+            "[SUBTITLE] SRT display_name:",
+            display_name,
+            flush=True
+        )
+
         saved = save_uploaded_file(
 
             uploaded_file,
 
-            ALLOWED_SRT_EXTENSIONS
+            ALLOWED_SRT_EXTENSIONS,
+
+            display_name=display_name
 
         )
 
@@ -1674,6 +1907,12 @@ def subtitle_upload_srt():
 
             "message":
                 "SRTを保存しました。",
+
+            "original_filename":
+                saved["original_filename"],
+
+            "display_name":
+                saved["display_name"],
 
             "srt_file":
                 saved["filename"],
@@ -1714,17 +1953,17 @@ def subtitle_upload_srt():
 #
 # {
 #     "filename": "old.mp4",
-#     "new_filename": "new.mp4"
+#     "new_filename": "東京旅行.mp4"
 # }
 #
 # 拡張子を省略した場合:
 #
 # {
 #     "filename": "old.mp4",
-#     "new_filename": "new"
+#     "new_filename": "東京旅行"
 # }
 #
-# → new.mp4
+# → 東京旅行.mp4
 #
 # ==========================================================
 
@@ -2593,7 +2832,7 @@ def subtitle_rename_get():
                 "old.mp4",
 
             "new_filename":
-                "new.mp4"
+                "東京旅行.mp4"
 
         }
 
@@ -2685,6 +2924,16 @@ def register_subtitle_routes(
 
     print(
         "[SUBTITLE] preset_name is supported",
+        flush=True
+    )
+
+    print(
+        "[SUBTITLE] Japanese filename is supported",
+        flush=True
+    )
+
+    print(
+        "[SUBTITLE] display_name upload naming is enabled",
         flush=True
     )
 
