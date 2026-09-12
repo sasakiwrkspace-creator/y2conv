@@ -62,22 +62,28 @@
             document.getElementById(
                 "subtitle-font-button"
             );
-        
+
+
         const youtubeFontButton =
             document.getElementById(
                 "subtitle-font-button-youtube"
             );
 
 
-        if (!fontButton) {
-
-            console.warn(
-                "[SUBTITLE_FONT] #subtitle-font-button がありません"
+        const subtitleMp4Radio =
+            document.getElementById(
+                "subtitle-mp4-radio"
             );
 
-            return;
 
-        }
+        console.log(
+            "[SUBTITLE_FONT] DOM:",
+            {
+                fontButton: Boolean(fontButton),
+                youtubeFontButton: Boolean(youtubeFontButton),
+                subtitleMp4Radio: Boolean(subtitleMp4Radio)
+            }
+        );
 
 
         // =====================================
@@ -180,14 +186,6 @@
 
         // =====================================
         // プレビュー背景色
-        //
-        // 文字サンプルをクリックするたびに
-        //
-        // 白 → 黒 → 赤 → 青 → 黄 → 白...
-        //
-        // とローテーションする。
-        //
-        // 透明は使用しない。
         // =====================================
 
         const PREVIEW_BACKGROUND_COLORS = [
@@ -582,7 +580,7 @@
 
 
         // =====================================
-        // プリセットをfont.jsから適用
+        // font.jsからプリセット適用
         // =====================================
 
         function applyPresetFromFontJS(
@@ -608,7 +606,11 @@
                         typeof result === "object"
                     ) {
 
-                        const settings =
+                        selectedPreset =
+                            presetName;
+
+
+                        selectedSettings =
                             normalizeSettings({
 
                                 ...result,
@@ -617,14 +619,6 @@
                                     presetName
 
                             });
-
-
-                        selectedPreset =
-                            presetName;
-
-
-                        selectedSettings =
-                            settings;
 
 
                         return true;
@@ -689,27 +683,45 @@
         // ボタン色
         // =====================================
 
-        function updateButtonColor() {
+        function updateButtonColor(
+            button
+        ) {
 
-            fontButton.style.setProperty(
+            if (!button) {
+
+                return;
+
+            }
+
+
+            button.style.setProperty(
                 "--subtitle-font-button-color",
                 selectedSettings.text_color_hex
             );
 
 
-            fontButton.style.color =
+            button.style.color =
                 selectedSettings.text_color_hex;
 
         }
 
 
         // =====================================
-        // ボタン表示
+        // 個別ボタン更新
         // =====================================
 
-        function updateButton() {
+        function updateFontButton(
+            button
+        ) {
 
-            fontButton.textContent =
+            if (!button) {
+
+                return;
+
+            }
+
+
+            button.textContent =
                 "字幕フォント";
 
 
@@ -719,7 +731,7 @@
                     : "カスタム";
 
 
-            fontButton.title =
+            button.title =
                 "字幕フォント: " +
                 presetText +
                 " / " +
@@ -732,23 +744,121 @@
                 selectedSettings.outline_width;
 
 
-            fontButton.style.setProperty(
+            button.style.setProperty(
                 "--subtitle-text-color",
                 selectedSettings.text_color_hex
             );
 
 
-            fontButton.style.setProperty(
+            button.style.setProperty(
                 "--subtitle-outline-color",
                 selectedSettings.outline_color_hex
             );
 
 
-            updateButtonColor();
+            updateButtonColor(
+                button
+            );
 
 
-            fontButton.disabled =
+            button.disabled =
                 isDisabled;
+
+        }
+
+
+        // =====================================
+        // タブ1ボタン表示制御
+        //
+        // 字幕MP4選択時だけ表示
+        // =====================================
+
+        function updateYoutubeFontButtonVisibility() {
+
+            if (!youtubeFontButton) {
+
+                return;
+
+            }
+
+
+            const shouldShow =
+                Boolean(
+                    subtitleMp4Radio &&
+                    subtitleMp4Radio.checked
+                );
+
+
+            youtubeFontButton.hidden =
+                !shouldShow;
+
+
+            youtubeFontButton.style.display =
+                shouldShow
+                    ? ""
+                    : "none";
+
+
+            console.log(
+                "[SUBTITLE_FONT] YouTube font button:",
+                shouldShow
+                    ? "SHOW"
+                    : "HIDE"
+            );
+
+        }
+
+
+        // =====================================
+        // タブ2ボタン表示制御
+        //
+        // タブ2では常に表示
+        // =====================================
+
+        function updateFileFontButtonVisibility() {
+
+            if (!fontButton) {
+
+                return;
+
+            }
+
+
+            fontButton.hidden =
+                false;
+
+
+            fontButton.style.display =
+                "";
+
+
+            console.log(
+                "[SUBTITLE_FONT] File font button: SHOW"
+            );
+
+        }
+
+
+        // =====================================
+        // 2つのボタンをまとめて更新
+        // =====================================
+
+        function updateButtons() {
+
+            updateFontButton(
+                fontButton
+            );
+
+
+            updateFontButton(
+                youtubeFontButton
+            );
+
+
+            updateYoutubeFontButtonVisibility();
+
+
+            updateFileFontButtonVisibility();
 
         }
 
@@ -767,7 +877,7 @@
                 );
 
 
-            updateButton();
+            updateButtons();
 
 
             console.log(
@@ -779,14 +889,7 @@
 
 
         // =====================================
-        // 現在の設定プレビュー
-        //
-        // 文字サンプルをクリックすると、
-        // 背景色が
-        //
-        // 白 → 黒 → 赤 → 青 → 黄 → 白...
-        //
-        // と変わる。
+        // プレビュー
         // =====================================
 
         function createSettingsPreview(
@@ -802,28 +905,13 @@
             }
 
 
-            // =================================
-            // 一度すべて削除
-            // =================================
-
             container.innerHTML =
                 "";
 
 
-            // =================================
-            // プレビュー背景インデックス
-            //
-            // 毎回プレビューを作り直したときは
-            // 白から開始。
-            // =================================
-
             let previewBackgroundIndex =
                 0;
 
-
-            // =================================
-            // プレビュー文字
-            // =================================
 
             const previewText =
                 document.createElement(
@@ -839,10 +927,6 @@
                 "あいうえお ABC 123";
 
 
-            // =================================
-            // フォント
-            // =================================
-
             previewText.style.fontFamily =
                 FONT_CSS_MAP[
                     settings.font
@@ -850,22 +934,11 @@
                 "sans-serif";
 
 
-            // =================================
-            // 文字色
-            // =================================
-
             previewText.style.color =
                 getColorHex(
                     settings.textColor
                 );
 
-
-            // =================================
-            // 背景色
-            //
-            // 透明にはしない。
-            // 初期状態は白。
-            // =================================
 
             function updatePreviewBackground() {
 
@@ -875,14 +948,10 @@
                     ];
 
 
-                const backgroundColor =
+                previewText.style.backgroundColor =
                     getColorHex(
                         backgroundColorName
                     );
-
-
-                previewText.style.backgroundColor =
-                    backgroundColor;
 
 
                 previewText.dataset.backgroundColor =
@@ -896,18 +965,8 @@
             }
 
 
-            // =================================
-            // 初期背景
-            // =================================
-
             updatePreviewBackground();
 
-
-            // =================================
-            // 文字サンプルクリック
-            //
-            // 白 → 黒 → 赤 → 青 → 黄 → 白...
-            // =================================
 
             previewText.style.cursor =
                 "pointer";
@@ -931,28 +990,9 @@
 
                     updatePreviewBackground();
 
-
-                    console.log(
-                        "[SUBTITLE_FONT] preview background:",
-                        PREVIEW_BACKGROUND_COLORS[
-                            previewBackgroundIndex
-                        ]
-                    );
-
                 }
             );
 
-
-            // =================================
-            // 背景色に応じた視認性確保
-            //
-            // 背景色そのものは指定された
-            // 5色だけを使用する。
-            //
-            // 白・黄では薄い色の縁取りが
-            // 見えにくくなる場合があるため、
-            // CSSの境界線を追加する。
-            // =================================
 
             previewText.style.boxSizing =
                 "border-box";
@@ -961,10 +1001,6 @@
             previewText.style.border =
                 "1px solid rgba(128, 128, 128, 0.8)";
 
-
-            // =================================
-            // 縁取り
-            // =================================
 
             const outlineColor =
                 getColorHex(
@@ -978,10 +1014,6 @@
                 ) || 0;
 
 
-            // =================================
-            // 縁なし
-            // =================================
-
             if (
                 outlineWidth <= 0
             ) {
@@ -990,12 +1022,6 @@
                     "none";
 
             }
-
-
-            // =================================
-            // 縁あり
-            // =================================
-
             else {
 
                 const shadows = [];
@@ -1013,7 +1039,6 @@
                         y++
                     ) {
 
-                        // 中央の文字そのものは除外
                         if (
                             x === 0 &&
                             y === 0
@@ -1041,20 +1066,10 @@
             }
 
 
-            // =================================
-            // プレビュー文字を追加
-            //
-            // ★「現在の設定」より先
-            // =================================
-
             container.appendChild(
                 previewText
             );
 
-
-            // =================================
-            // 現在の設定ラベル
-            // =================================
 
             const title =
                 document.createElement(
@@ -1074,10 +1089,6 @@
                 title
             );
 
-
-            // =================================
-            // 現在の設定一覧
-            // =================================
 
             const values = [
 
@@ -2093,18 +2104,14 @@
                                 currentValues.preset =
                                     selectedPreset;
 
-
                                 currentValues.font =
                                     selectedSettings.font;
-
 
                                 currentValues.textColor =
                                     selectedSettings.text_color;
 
-
                                 currentValues.outlineColor =
                                     selectedSettings.outline_color;
-
 
                                 currentValues.outlineWidth =
                                     selectedSettings.outline_width;
@@ -2128,18 +2135,14 @@
                                 currentValues.preset =
                                     presetName;
 
-
                                 currentValues.font =
                                     settings.font;
-
 
                                 currentValues.textColor =
                                     settings.text_color;
 
-
                                 currentValues.outlineColor =
                                     settings.outline_color;
-
 
                                 currentValues.outlineWidth =
                                     settings.outline_width;
@@ -2452,10 +2455,7 @@
                 "フォント：";
 
 
-            let fontListBox;
-
-
-            fontListBox =
+            const fontListBox =
                 createFontListBox(
 
                     FONT_LIST,
@@ -2522,10 +2522,7 @@
                 "文字色：";
 
 
-            let textColorRadios;
-
-
-            textColorRadios =
+            const textColorRadios =
                 createColorRadioGroup(
 
                     "subtitle-text-color",
@@ -2594,10 +2591,7 @@
                 "縁取り色：";
 
 
-            let outlineColorRadios;
-
-
-            outlineColorRadios =
+            const outlineColorRadios =
                 createColorRadioGroup(
 
                     "subtitle-outline-color",
