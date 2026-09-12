@@ -111,7 +111,15 @@ def get_file_extension(
 
 
 # ==========================================================
-# 安全なファイル名
+# 安全なファイル名作成
+#
+# 例:
+#
+# "my video.mp4"
+#     ↓
+# "my_video.mp4"
+#
+# 日本語ファイル名も基本的に維持します。
 # ==========================================================
 
 def make_safe_filename(
@@ -129,7 +137,10 @@ def make_safe_filename(
             "ファイル名がありません"
         )
 
-    # パス部分を完全に除去
+    # ------------------------------------------------------
+    # パス部分を除去
+    # ------------------------------------------------------
+
     filename = os.path.basename(
         filename
     )
@@ -140,115 +151,106 @@ def make_safe_filename(
             "ファイル名がありません"
         )
 
-    # 元の拡張子
-    original_extension = get_file_extension(
+    # ------------------------------------------------------
+    # Werkzeugで安全化
+    # ------------------------------------------------------
+
+    safe_filename = secure_filename(
         filename
     )
 
-    # 指定された拡張子を優先
+    # ------------------------------------------------------
+    # secure_filename()で空になる場合
+    # 日本語だけのファイル名などに対応
+    # ------------------------------------------------------
+
+    if not safe_filename:
+
+        original_base = os.path.splitext(
+            filename
+        )[0].strip()
+
+        if not original_base:
+
+            raise ValueError(
+                "安全なファイル名を作成できませんでした"
+            )
+
+        # 危険な文字を最低限除去
+        safe_filename = ""
+
+        for char in original_base:
+
+            if char in (
+                "/",
+                "\\",
+                "\x00"
+            ):
+
+                continue
+
+            safe_filename += char
+
+        safe_filename = safe_filename.strip()
+
+        if not safe_filename:
+
+            raise ValueError(
+                "安全なファイル名を作成できませんでした"
+            )
+
+    # ------------------------------------------------------
+    # 拡張子を確定
+    # ------------------------------------------------------
+
     if extension:
 
         extension = str(
             extension
         ).strip().lower()
 
-        if not extension.startswith("."):
+        if not extension.startswith(
+            "."
+        ):
 
             extension = "." + extension
 
-    else:
-
-        extension = original_extension
-
-    if not extension:
-
-        raise ValueError(
-            "ファイル拡張子がありません"
-        )
-
-    # 元のファイル名
-    original_stem = os.path.splitext(
-        filename
-    )[0]
-
-    # Werkzeugで安全化
-    safe_name = secure_filename(
-        filename
-    )
-
-    # secure_filename()で空になる場合
-    # 日本語ファイル名などが該当する
-    if not safe_name:
-
-        safe_stem = secure_filename(
-            original_stem
-        )
-
-        if not safe_stem:
-
-            # 日本語だけなど、secure_filename()で
-            # 完全に空になる場合は固定名を使用
-            safe_stem = "file"
-
-        safe_name = (
-            safe_stem
-            +
-            extension
-        )
-
-    # secure_filename()後の拡張子を確認
-    safe_extension = get_file_extension(
-        safe_name
-    )
-
-    # 拡張子を必ず指定値へ統一
-    if safe_extension != extension:
-
-        safe_stem = os.path.splitext(
-            safe_name
+        # 既存拡張子を削除
+        safe_base = os.path.splitext(
+            safe_filename
         )[0]
 
-        if not safe_stem:
-
-            safe_stem = "file"
-
-        safe_name = (
-            safe_stem
+        safe_filename = (
+            safe_base
             +
             extension
         )
 
-    # 最終的にbasenameだけを許可
-    safe_name = os.path.basename(
-        safe_name
+    # ------------------------------------------------------
+    # 最終的にbasenameであることを確認
+    # ------------------------------------------------------
+
+    safe_filename = os.path.basename(
+        safe_filename
     )
 
-    if not safe_name:
+    if not safe_filename:
 
         raise ValueError(
             "安全なファイル名を作成できませんでした"
         )
 
-    # 最終拡張子チェック
-    if get_file_extension(
-        safe_name
-    ) != extension:
+    # ------------------------------------------------------
+    # NULL文字禁止
+    # ------------------------------------------------------
 
-        safe_stem = os.path.splitext(
-            safe_name
-        )[0]
+    if "\x00" in safe_filename:
 
-        if not safe_stem:
-
-            safe_stem = "file"
-
-        safe_name = (
-            safe_stem
-            +
-            extension
+        raise ValueError(
+            "不正なファイル名です"
         )
 
-    return safe_name
+    return safe_filename
 
 
 # ==========================================================
@@ -271,7 +273,10 @@ def make_download_path(
             "ファイル名がありません"
         )
 
+    # ------------------------------------------------------
     # パスを許可しない
+    # ------------------------------------------------------
+
     filename = os.path.basename(
         filename
     )
@@ -528,229 +533,6 @@ def save_uploaded_file(
 
     }
 
-# ==========================================================
-# downloads内の保存先
-# ==========================================================
-
-def make_download_path(
-    filename
-):
-
-    ensure_download_dir()
-
-    filename = str(
-        filename or ""
-    ).strip()
-
-    if not filename:
-
-        raise ValueError(
-            "ファイル名がありません"
-        )
-
-    # パスを許可しない
-    filename = os.path.basename(
-        filename
-    )
-
-    if not filename:
-
-        raise ValueError(
-            "ファイル名がありません"
-        )
-
-    path = os.path.abspath(
-        os.path.join(
-            DOWNLOAD_ROOT,
-            filename
-        )
-    )
-
-    download_root = os.path.abspath(
-        DOWNLOAD_ROOT
-    )
-
-    try:
-
-        common_path = os.path.commonpath(
-            [
-                download_root,
-                path
-            ]
-        )
-
-    except ValueError:
-
-        common_path = None
-
-    if common_path != download_root:
-
-        raise ValueError(
-            "不正なファイルパスです"
-        )
-
-    return path
-
-
-# ==========================================================
-# アップロード保存
-# ==========================================================
-
-def save_uploaded_file(
-    uploaded_file,
-    allowed_extensions
-):
-
-    if uploaded_file is None:
-
-        raise ValueError(
-            "ファイルが選択されていません"
-        )
-
-    original_filename = (
-        uploaded_file.filename
-        or ""
-    ).strip()
-
-    if not original_filename:
-
-        raise ValueError(
-            "ファイル名がありません"
-        )
-
-    # 拡張子取得
-    extension = get_file_extension(
-        original_filename
-    )
-
-    # 許可拡張子チェック
-    if extension not in allowed_extensions:
-
-        raise ValueError(
-            "対応していないファイル形式です: "
-            +
-            extension
-        )
-
-    # 安全なファイル名へ変換
-    safe_filename = make_safe_filename(
-        original_filename,
-        extension
-    )
-
-    # downloads配下の絶対パス
-    save_path = make_download_path(
-        safe_filename
-    )
-
-    # 既存ファイル確認
-    existed = os.path.exists(
-        save_path
-    )
-
-    if existed:
-
-        print(
-            "[SUBTITLE] 同名ファイルを上書き:",
-            save_path,
-            flush=True
-        )
-
-    # 保存
-    uploaded_file.save(
-        save_path
-    )
-
-    # 保存確認
-    if not os.path.exists(
-        save_path
-    ):
-
-        raise IOError(
-            "ファイルの保存に失敗しました"
-        )
-
-    if not os.path.isfile(
-        save_path
-    ):
-
-        raise IOError(
-            "保存先がファイルではありません"
-        )
-
-    # サイズ確認
-    file_size = os.path.getsize(
-        save_path
-    )
-
-    if file_size <= 0:
-
-        raise ValueError(
-            "保存されたファイルが0 bytesです"
-        )
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    print(
-        "[SUBTITLE] ファイル保存完了",
-        flush=True
-    )
-
-    print(
-        "[SUBTITLE] original filename:",
-        original_filename,
-        flush=True
-    )
-
-    print(
-        "[SUBTITLE] safe filename:",
-        safe_filename,
-        flush=True
-    )
-
-    print(
-        "[SUBTITLE] path:",
-        save_path,
-        flush=True
-    )
-
-    print(
-        "[SUBTITLE] size:",
-        file_size,
-        "bytes",
-        flush=True
-    )
-
-    print(
-        "[SUBTITLE] overwritten:",
-        existed,
-        flush=True
-    )
-
-    print(
-        "==========================================",
-        flush=True
-    )
-
-    return {
-
-        "filename":
-            safe_filename,
-
-        "path":
-            save_path,
-
-        "size":
-            file_size,
-
-        "overwritten":
-            existed
-
-    }
-
 
 # ==========================================================
 # downloadsから取得
@@ -771,7 +553,10 @@ def get_download_file(
             "ファイル名がありません"
         )
 
+    # ------------------------------------------------------
     # パス指定を禁止
+    # ------------------------------------------------------
+
     filename = os.path.basename(
         filename
     )
@@ -782,7 +567,10 @@ def get_download_file(
             "ファイル名がありません"
         )
 
+    # ------------------------------------------------------
     # 拡張子確認
+    # ------------------------------------------------------
+
     extension = get_file_extension(
         filename
     )
@@ -795,12 +583,18 @@ def get_download_file(
             extension
         )
 
+    # ------------------------------------------------------
     # downloads配下
+    # ------------------------------------------------------
+
     file_path = make_download_path(
         filename
     )
 
+    # ------------------------------------------------------
     # 存在確認
+    # ------------------------------------------------------
+
     if not os.path.exists(
         file_path
     ):
@@ -811,7 +605,10 @@ def get_download_file(
             filename
         )
 
+    # ------------------------------------------------------
     # ファイル確認
+    # ------------------------------------------------------
+
     if not os.path.isfile(
         file_path
     ):
@@ -820,7 +617,10 @@ def get_download_file(
             "指定されたパスはファイルではありません"
         )
 
+    # ------------------------------------------------------
     # サイズ確認
+    # ------------------------------------------------------
+
     file_size = os.path.getsize(
         file_path
     )
@@ -832,6 +632,305 @@ def get_download_file(
         )
 
     return file_path
+
+
+# ==========================================================
+# ファイルリネーム
+#
+# POST /subtitle-rename
+#
+# JSON:
+#
+# {
+#     "filename": "old.mp4",
+#     "new_filename": "new_name.mp4"
+# }
+#
+# ==========================================================
+
+def rename_download_file(
+    old_filename,
+    new_filename,
+    allowed_extensions
+):
+
+    old_filename = str(
+        old_filename or ""
+    ).strip()
+
+    new_filename = str(
+        new_filename or ""
+    ).strip()
+
+    if not old_filename:
+
+        raise ValueError(
+            "変更前のファイル名がありません"
+        )
+
+    if not new_filename:
+
+        raise ValueError(
+            "変更後のファイル名がありません"
+        )
+
+    # ------------------------------------------------------
+    # パス指定禁止
+    # ------------------------------------------------------
+
+    old_filename = os.path.basename(
+        old_filename
+    )
+
+    new_filename = os.path.basename(
+        new_filename
+    )
+
+    if not old_filename:
+
+        raise ValueError(
+            "変更前のファイル名が不正です"
+        )
+
+    if not new_filename:
+
+        raise ValueError(
+            "変更後のファイル名が不正です"
+        )
+
+    # ------------------------------------------------------
+    # 変更前の拡張子確認
+    # ------------------------------------------------------
+
+    old_extension = get_file_extension(
+        old_filename
+    )
+
+    if old_extension not in allowed_extensions:
+
+        raise ValueError(
+            "変更前のファイル形式が対応していません: "
+            +
+            old_extension
+        )
+
+    # ------------------------------------------------------
+    # 新しいファイル名の拡張子
+    #
+    # 拡張子を省略した場合は元の拡張子を維持
+    # ------------------------------------------------------
+
+    new_extension = get_file_extension(
+        new_filename
+    )
+
+    if not new_extension:
+
+        new_filename = (
+            new_filename
+            +
+            old_extension
+        )
+
+        new_extension = old_extension
+
+    # ------------------------------------------------------
+    # 拡張子変更禁止
+    # ------------------------------------------------------
+
+    if new_extension != old_extension:
+
+        raise ValueError(
+            "ファイルの拡張子は変更できません。"
+            "元の拡張子を維持してください: "
+            +
+            old_extension
+        )
+
+    if new_extension not in allowed_extensions:
+
+        raise ValueError(
+            "変更後のファイル形式が対応していません: "
+            +
+            new_extension
+        )
+
+    # ------------------------------------------------------
+    # 安全な新ファイル名
+    # ------------------------------------------------------
+
+    safe_new_filename = make_safe_filename(
+        new_filename,
+        old_extension
+    )
+
+    if not safe_new_filename:
+
+        raise ValueError(
+            "安全なファイル名を作成できませんでした"
+        )
+
+    # ------------------------------------------------------
+    # 元ファイル
+    # ------------------------------------------------------
+
+    old_path = make_download_path(
+        old_filename
+    )
+
+    if not os.path.exists(
+        old_path
+    ):
+
+        raise FileNotFoundError(
+            "変更前のファイルがありません: "
+            +
+            old_filename
+        )
+
+    if not os.path.isfile(
+        old_path
+    ):
+
+        raise ValueError(
+            "変更前のパスがファイルではありません"
+        )
+
+    # ------------------------------------------------------
+    # 新ファイル
+    # ------------------------------------------------------
+
+    new_path = make_download_path(
+        safe_new_filename
+    )
+
+    # 同じ名前の場合
+    if os.path.abspath(
+        old_path
+    ) == os.path.abspath(
+        new_path
+    ):
+
+        raise ValueError(
+            "変更前と変更後のファイル名が同じです"
+        )
+
+    # ------------------------------------------------------
+    # 上書き禁止
+    # ------------------------------------------------------
+
+    if os.path.exists(
+        new_path
+    ):
+
+        raise FileExistsError(
+            "変更後のファイル名は既に存在します: "
+            +
+            safe_new_filename
+        )
+
+    # ------------------------------------------------------
+    # リネーム
+    # ------------------------------------------------------
+
+    os.rename(
+        old_path,
+        new_path
+    )
+
+    # ------------------------------------------------------
+    # リネーム後確認
+    # ------------------------------------------------------
+
+    if not os.path.exists(
+        new_path
+    ):
+
+        raise IOError(
+            "ファイル名の変更に失敗しました"
+        )
+
+    if not os.path.isfile(
+        new_path
+    ):
+
+        raise IOError(
+            "変更後のパスがファイルではありません"
+        )
+
+    file_size = os.path.getsize(
+        new_path
+    )
+
+    if file_size <= 0:
+
+        raise ValueError(
+            "リネーム後のファイルが0 bytesです"
+        )
+
+    # ------------------------------------------------------
+    # ログ
+    # ------------------------------------------------------
+
+    print(
+        "==========================================",
+        flush=True
+    )
+
+    print(
+        "[SUBTITLE] ファイル名変更完了",
+        flush=True
+    )
+
+    print(
+        "[SUBTITLE] old:",
+        old_filename,
+        flush=True
+    )
+
+    print(
+        "[SUBTITLE] new:",
+        safe_new_filename,
+        flush=True
+    )
+
+    print(
+        "[SUBTITLE] path:",
+        new_path,
+        flush=True
+    )
+
+    print(
+        "[SUBTITLE] size:",
+        file_size,
+        "bytes",
+        flush=True
+    )
+
+    print(
+        "==========================================",
+        flush=True
+    )
+
+    return {
+
+        "old_filename":
+            old_filename,
+
+        "filename":
+            safe_new_filename,
+
+        "new_filename":
+            safe_new_filename,
+
+        "path":
+            new_path,
+
+        "size":
+            file_size
+
+    }
+
 
 # ==========================================================
 # 字幕設定正規化
@@ -1607,6 +1706,220 @@ def subtitle_upload_srt():
 
 
 # ==========================================================
+# ファイル名変更
+#
+# POST /subtitle-rename
+#
+# JSON:
+#
+# {
+#     "filename": "old.mp4",
+#     "new_filename": "new.mp4"
+# }
+#
+# 拡張子を省略した場合:
+#
+# {
+#     "filename": "old.mp4",
+#     "new_filename": "new"
+# }
+#
+# → new.mp4
+#
+# ==========================================================
+
+@subtitle_bp.route(
+    "/subtitle-rename",
+    methods=["POST"]
+)
+def subtitle_rename():
+
+    print(
+        "==========================================",
+        flush=True
+    )
+
+    print(
+        "[SUBTITLE] POST /subtitle-rename",
+        flush=True
+    )
+
+    try:
+
+        data = request.get_json(
+            silent=True
+        )
+
+        if not data:
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "message":
+                    "JSONデータがありません"
+
+            }), 400
+
+        old_filename = str(
+            data.get(
+                "filename",
+                ""
+            )
+        ).strip()
+
+        new_filename = str(
+            data.get(
+                "new_filename",
+                ""
+            )
+        ).strip()
+
+        if not old_filename:
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "message":
+                    "変更前のファイル名がありません"
+
+            }), 400
+
+        if not new_filename:
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "message":
+                    "変更後のファイル名がありません"
+
+            }), 400
+
+        # --------------------------------------------------
+        # 全対応拡張子
+        # --------------------------------------------------
+
+        allowed_extensions = (
+            ALLOWED_MP3_EXTENSIONS
+            |
+            ALLOWED_MP4_EXTENSIONS
+            |
+            ALLOWED_SRT_EXTENSIONS
+        )
+
+        print(
+            "[SUBTITLE] rename old:",
+            old_filename,
+            flush=True
+        )
+
+        print(
+            "[SUBTITLE] rename new:",
+            new_filename,
+            flush=True
+        )
+
+        result = rename_download_file(
+
+            old_filename,
+
+            new_filename,
+
+            allowed_extensions
+
+        )
+
+        return jsonify({
+
+            "success":
+                True,
+
+            "message":
+                "ファイル名を変更しました。",
+
+            "old_filename":
+                result["old_filename"],
+
+            "filename":
+                result["filename"],
+
+            "new_filename":
+                result["new_filename"],
+
+            "path":
+                result["path"],
+
+            "size":
+                result["size"],
+
+            "download_url":
+                "/downloads/"
+                +
+                result["filename"]
+
+        })
+
+    except FileNotFoundError as e:
+
+        print(
+            "[SUBTITLE] リネーム対象なし:",
+            str(e),
+            flush=True
+        )
+
+        return jsonify({
+
+            "success":
+                False,
+
+            "message":
+                str(e)
+
+        }), 404
+
+    except FileExistsError as e:
+
+        print(
+            "[SUBTITLE] リネーム先が既に存在:",
+            str(e),
+            flush=True
+        )
+
+        return jsonify({
+
+            "success":
+                False,
+
+            "message":
+                str(e)
+
+        }), 409
+
+    except Exception as e:
+
+        print(
+            "[SUBTITLE] リネームエラー:",
+            traceback.format_exc(),
+            flush=True
+        )
+
+        return jsonify({
+
+            "success":
+                False,
+
+            "message":
+                str(e)
+
+        }), 500
+
+
+# ==========================================================
 # MP3 → SRT
 # ==========================================================
 
@@ -1726,12 +2039,6 @@ def subtitle_create_srt():
 # MP4 + SRT → 字幕MP4
 #
 # POST /subtitle-create-mp4
-#
-# 1. 既にdownloadsへ保存されたMP4を取得
-# 2. 既にdownloadsへ保存されたSRTを取得
-# 3. subtitle.pyへ渡す
-# 4. FFmpegで字幕MP4作成
-# 5. 作成されたファイル名をJSONで返す
 # ==========================================================
 
 @subtitle_bp.route(
@@ -1768,7 +2075,6 @@ def subtitle_create_mp4_route():
 
             }), 400
 
-
         # ==================================================
         # ファイル名
         # ==================================================
@@ -1787,7 +2093,6 @@ def subtitle_create_mp4_route():
             )
         ).strip()
 
-
         if not mp4_filename:
 
             return jsonify({
@@ -1799,7 +2104,6 @@ def subtitle_create_mp4_route():
                     "MP4ファイル名がありません"
 
             }), 400
-
 
         if not srt_filename:
 
@@ -1813,7 +2117,6 @@ def subtitle_create_mp4_route():
 
             }), 400
 
-
         print(
             "[SUBTITLE] requested MP4:",
             mp4_filename,
@@ -1825,7 +2128,6 @@ def subtitle_create_mp4_route():
             srt_filename,
             flush=True
         )
-
 
         # ==================================================
         # 字幕設定
@@ -1843,13 +2145,11 @@ def subtitle_create_mp4_route():
                     )
                 )
 
-
         print(
             "[SUBTITLE] requested settings:",
             requested_settings,
             flush=True
         )
-
 
         # ==================================================
         # downloadsからMP4取得
@@ -1863,13 +2163,11 @@ def subtitle_create_mp4_route():
 
         )
 
-
         print(
             "[SUBTITLE] MP4 found:",
             mp4_path,
             flush=True
         )
-
 
         # ==================================================
         # downloadsからSRT取得
@@ -1883,13 +2181,11 @@ def subtitle_create_mp4_route():
 
         )
 
-
         print(
             "[SUBTITLE] SRT found:",
             srt_path,
             flush=True
         )
-
 
         # ==================================================
         # 字幕MP4作成
@@ -1905,13 +2201,11 @@ def subtitle_create_mp4_route():
 
         )
 
-
         output_filename = (
             result[
                 "subtitle_mp4_file"
             ]
         )
-
 
         output_path = (
             result[
@@ -1919,13 +2213,11 @@ def subtitle_create_mp4_route():
             ]
         )
 
-
         print(
             "[SUBTITLE] subtitle MP4 created:",
             output_path,
             flush=True
         )
-
 
         # ==================================================
         # JSON
@@ -1955,7 +2247,8 @@ def subtitle_create_mp4_route():
                 output_filename,
 
             "download_url":
-                "/downloads/" +
+                "/downloads/"
+                +
                 output_filename,
 
             "subtitle_settings":
@@ -1976,7 +2269,6 @@ def subtitle_create_mp4_route():
 
         })
 
-
     except FileNotFoundError as e:
 
         print(
@@ -1994,7 +2286,6 @@ def subtitle_create_mp4_route():
                 str(e)
 
         }), 404
-
 
     except Exception as e:
 
@@ -2085,7 +2376,6 @@ def subtitle_download_file(
 
             }), 400
 
-
         file_path = get_download_file(
 
             filename,
@@ -2094,11 +2384,9 @@ def subtitle_download_file(
 
         )
 
-
         safe_filename = os.path.basename(
             file_path
         )
-
 
         return send_from_directory(
 
@@ -2112,7 +2400,6 @@ def subtitle_download_file(
 
         )
 
-
     except FileNotFoundError as e:
 
         return jsonify({
@@ -2124,7 +2411,6 @@ def subtitle_download_file(
                 str(e)
 
         }), 404
-
 
     except Exception as e:
 
@@ -2278,6 +2564,43 @@ def subtitle_create_mp4_get():
 
 
 # ==========================================================
+# GET /subtitle-rename
+# ==========================================================
+
+@subtitle_bp.route(
+    "/subtitle-rename",
+    methods=["GET"]
+)
+def subtitle_rename_get():
+
+    return jsonify({
+
+        "success":
+            False,
+
+        "message":
+            "このURLはPOSTで使用してください。",
+
+        "endpoint":
+            "/subtitle-rename",
+
+        "method":
+            "POST",
+
+        "example": {
+
+            "filename":
+                "old.mp4",
+
+            "new_filename":
+                "new.mp4"
+
+        }
+
+    }), 405
+
+
+# ==========================================================
 # 互換用Route登録関数
 # ==========================================================
 
@@ -2299,13 +2622,11 @@ def register_subtitle_routes(
 
             break
 
-
     if not blueprint_registered:
 
         app.register_blueprint(
             subtitle_bp
         )
-
 
     print(
         "==========================================",
@@ -2329,6 +2650,11 @@ def register_subtitle_routes(
 
     print(
         "[SUBTITLE] POST /subtitle-upload-srt",
+        flush=True
+    )
+
+    print(
+        "[SUBTITLE] POST /subtitle-rename",
         flush=True
     )
 
@@ -2359,6 +2685,11 @@ def register_subtitle_routes(
 
     print(
         "[SUBTITLE] preset_name is supported",
+        flush=True
+    )
+
+    print(
+        "[SUBTITLE] file rename is enabled",
         flush=True
     )
 
@@ -2399,5 +2730,11 @@ print(
 
 print(
     "[SUBTITLE] endpoint: /subtitle-create-mp4",
+    flush=True
+)
+
+
+print(
+    "[SUBTITLE] endpoint: /subtitle-rename",
     flush=True
 )
