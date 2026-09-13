@@ -718,7 +718,10 @@ body {
 
 .upload-button,
 .subtitle-file-upload-button {
-    display: block;
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
 
     width: 80px;
     min-width: 80px;
@@ -739,7 +742,7 @@ body {
     font-family: inherit;
     font-size: 14px;
     font-weight: 600;
-    line-height: 42px;
+    line-height: normal;
 
     text-align: center;
     white-space: nowrap;
@@ -888,7 +891,7 @@ body {
 
     padding: 0 10px;
 
-    line-height: 42px;
+    line-height: normal;
 }
 
 .subtitle-file-create-button {
@@ -1914,7 +1917,7 @@ body {
         padding: 0 5px;
 
         font-size: 13px;
-        line-height: 40px;
+        line-height: normal;
     }
 
 
@@ -2130,7 +2133,7 @@ body {
         height: 40px;
 
         font-size: 12px;
-        line-height: 38px;
+        line-height: normal;
     }
 
 
@@ -2173,7 +2176,7 @@ body {
         height: 40px;
 
         font-size: 12px;
-        line-height: 38px;
+        line-height: normal;
     }
 
 
