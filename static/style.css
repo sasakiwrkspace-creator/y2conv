@@ -547,9 +547,16 @@ body {
 
     justify-content: space-between;
 
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
 
-    gap: 10px;
+    gap: 8px;
+}
+
+
+.subtitle-title-row > span {
+    min-width: 0;
+
+    flex: 1;
 }
 
 
@@ -745,7 +752,8 @@ body {
    オレンジ
 ========================================= */
 
-.upload-button {
+.upload-button,
+.subtitle-file-upload-button {
     display: block;
 
     width: 80px;
@@ -791,21 +799,28 @@ body {
 }
 
 
-.upload-button:hover:not(:disabled) {
+.upload-button:hover:not(:disabled),
+.subtitle-file-upload-button:hover:not(:disabled) {
     background: #e67e22;
 
     border-color: #d35400;
 }
 
 
-.upload-button:active:not(:disabled) {
+.upload-button:active:not(:disabled),
+.subtitle-file-upload-button:active:not(:disabled) {
     background: #d35400;
 
     border-color: #ba4a00;
 }
 
 
-.upload-button:disabled {
+.upload-button:disabled,
+.subtitle-file-upload-button:disabled {
+    background: #aaa;
+
+    border-color: #aaa;
+
     opacity: 0.45;
 
     cursor: not-allowed;
@@ -1825,7 +1840,7 @@ body {
     }
 
 
-    /* MP4行 */
+    /* MP3 → SRT */
 
     .subtitle-action-row:not(:has(.execute-button)) {
         grid-template-columns:
@@ -1834,32 +1849,9 @@ body {
     }
 
 
-    /* SRT行 */
+    /* MP3 → SRT の転送ボタン */
 
-    .subtitle-action-row:has(.execute-button) {
-        grid-template-columns:
-            minmax(0, 1fr)
-            70px
-            115px;
-    }
-
-
-    .file-select-display {
-        width: 100%;
-
-        min-width: 0;
-
-        height: 42px;
-
-        padding: 7px 8px;
-
-        font-size: 12px;
-
-        line-height: 26px;
-    }
-
-
-    .upload-button {
+    .subtitle-action-row .upload-button {
         width: 70px;
 
         min-width: 70px;
@@ -1874,18 +1866,65 @@ body {
     }
 
 
-    .subtitle-action-row .execute-button {
-        width: 115px;
+    /* =====================================
+       字幕MP4用 MP4 / SRT 行
+    ====================================== */
 
-        min-width: 115px;
+    .subtitle-file-row {
+        display: grid;
 
-        height: 42px;
+        grid-template-columns:
+            minmax(0, 1fr)
+            70px
+            0
+            105px;
+
+        align-items: center;
+
+        gap: 6px;
+
+        width: 100%;
+    }
+
+
+    .subtitle-file-browse-button {
+        width: 100%;
+
+        min-width: 0;
+
+        height: 40px;
+
+        padding: 8px 6px;
+
+        font-size: 13px;
+    }
+
+
+    .subtitle-file-upload-button {
+        width: 70px;
+
+        min-width: 70px;
+
+        height: 40px;
+
+        padding: 8px 6px;
+
+        font-size: 13px;
+
+        line-height: 24px;
+    }
+
+
+    .subtitle-file-create-button {
+        width: 105px;
+
+        min-width: 105px;
+
+        height: 40px;
 
         padding: 0 5px;
 
-        font-size: 12px;
-
-        line-height: 40px;
+        font-size: 11px;
     }
 
 
@@ -1908,19 +1947,48 @@ body {
 
     /* =====================================
        フォント設定
+       
+       スマホでも
+       「タイトル + フォントボタン」を
+       横並びにする
     ====================================== */
 
     .subtitle-title-row {
-        align-items: flex-start;
+        display: flex;
 
-        flex-direction: column;
+        align-items: center;
 
-        gap: 8px;
+        justify-content: space-between;
+
+        flex-wrap: nowrap;
+
+        gap: 6px;
+    }
+
+
+    .subtitle-title-row > span {
+        min-width: 0;
+
+        flex: 1;
+
+        overflow: hidden;
+
+        white-space: nowrap;
+
+        text-overflow: ellipsis;
     }
 
 
     .subtitle-font-button {
-        max-width: 100%;
+        flex: 0 0 auto;
+
+        max-width: none;
+
+        min-height: 32px;
+
+        padding: 4px 7px;
+
+        font-size: 11px;
     }
 
 
@@ -2027,10 +2095,51 @@ body {
     }
 
 
-    /*
-       非常に狭い画面では
-       3列を少し小さくする。
-    */
+    /* =====================================
+       字幕MP4用 MP4 / SRT 行
+    ====================================== */
+
+    .subtitle-file-row {
+        grid-template-columns:
+            minmax(0, 1fr)
+            62px
+            0
+            105px;
+
+        gap: 5px;
+    }
+
+
+    .subtitle-file-upload-button {
+        width: 62px;
+
+        min-width: 62px;
+
+        font-size: 12px;
+
+        padding: 8px 4px;
+    }
+
+
+    .subtitle-file-create-button {
+        width: 105px;
+
+        min-width: 105px;
+
+        font-size: 11px;
+    }
+
+
+    .subtitle-file-browse-button {
+        min-width: 0;
+
+        font-size: 11px;
+    }
+
+
+    /* =====================================
+       MP3 → SRT
+    ====================================== */
 
     .subtitle-action-row:has(.execute-button) {
         grid-template-columns:
@@ -2092,6 +2201,33 @@ body {
         line-height: 38px;
     }
 
+
+    /* =====================================
+       タイトル + フォントボタン
+    ====================================== */
+
+    .subtitle-title-row {
+        gap: 4px;
+    }
+
+
+    .subtitle-title-row > span {
+        font-size: 13px;
+    }
+
+
+    .subtitle-font-button {
+        min-height: 30px;
+
+        padding: 3px 5px;
+
+        font-size: 10px;
+    }
+
+
+    /* =====================================
+       フォントダイアログ
+    ====================================== */
 
     .subtitle-font-dialog-row-label,
     .subtitle-font-dialog-label-title {
