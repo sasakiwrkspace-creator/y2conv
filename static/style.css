@@ -31,6 +31,8 @@ body {
 
     background: #f5f5f5;
     color: #222;
+
+    overflow-x: hidden;
 }
 
 body {
@@ -48,6 +50,8 @@ body {
 
     margin: 0 auto;
     padding: 30px 20px 50px;
+
+    min-width: 0;
 }
 
 
@@ -63,13 +67,17 @@ body {
     justify-content: center;
 
     width: 100%;
+    min-width: 0;
     min-height: 60px;
 
     margin-bottom: 20px;
 }
 
 .converter-header h1 {
+    min-width: 0;
+
     margin: 0;
+    padding: 0 50px;
 
     font-size: 28px;
     font-weight: 700;
@@ -77,11 +85,6 @@ body {
 
     color: #222;
 }
-
-
-/* =========================================
-   保存ファイルリンク
-========================================= */
 
 .converter-link {
     position: absolute;
@@ -95,14 +98,15 @@ body {
     width: 42px;
     height: 42px;
 
-    border: 1px solid #ddd;
     border-radius: 6px;
+
+    text-decoration: none;
+    font-size: 24px;
 
     background: #fff;
     color: #333;
 
-    text-decoration: none;
-    font-size: 24px;
+    border: 1px solid #ddd;
 
     transition:
         background-color 0.15s ease,
@@ -123,10 +127,9 @@ body {
     display: flex;
 
     width: 100%;
-    max-width: 100%;
+    min-width: 0;
 
-    margin: 0;
-    padding: 0;
+    margin-bottom: 0;
 
     border-bottom: 1px solid #ccc;
 }
@@ -137,7 +140,6 @@ body {
     min-width: 0;
     min-height: 46px;
 
-    margin: 0;
     padding: 10px 16px;
 
     border: 1px solid #ccc;
@@ -184,10 +186,8 @@ body {
 
 .tab-content {
     width: 100%;
-    max-width: 100%;
     min-width: 0;
 
-    margin: 0;
     padding: 25px;
 
     border: 1px solid #ccc;
@@ -195,8 +195,6 @@ body {
     border-radius: 0 0 6px 6px;
 
     background: #fff;
-
-    overflow: hidden;
 }
 
 .tab-content[hidden] {
@@ -209,8 +207,7 @@ body {
 ========================================= */
 
 .tab-title {
-    width: 100%;
-    max-width: 100%;
+    min-width: 0;
 
     margin-bottom: 18px;
 
@@ -227,10 +224,10 @@ body {
 
 .url-row {
     display: flex;
+
     align-items: center;
 
     width: 100%;
-    max-width: 100%;
     min-width: 0;
 
     gap: 10px;
@@ -323,7 +320,7 @@ body {
 
 .time-area {
     width: 100%;
-    max-width: 100%;
+    min-width: 0;
 
     margin-top: 24px;
     padding: 16px;
@@ -332,8 +329,6 @@ body {
     border-radius: 5px;
 
     background: #fafafa;
-
-    overflow: hidden;
 }
 
 .time-label-row {
@@ -349,20 +344,21 @@ body {
 
 .time-input-row {
     display: flex;
+
     align-items: center;
     justify-content: flex-start;
 
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-
     gap: 12px;
+
+    width: 100%;
+    min-width: 0;
 
     flex-wrap: wrap;
 }
 
 .time-group {
     display: flex;
+
     align-items: center;
 
     gap: 5px;
@@ -388,6 +384,7 @@ body {
     font-size: 14px;
 
     text-align: center;
+
     outline: none;
 }
 
@@ -404,16 +401,16 @@ body {
     font-size: 13px;
     color: #555;
 
-    white-space: nowrap;
+    flex: 0 0 auto;
 }
 
 .time-separator {
     flex: 0 0 auto;
 
     font-size: 18px;
-    font-weight: bold;
 
     color: #555;
+    font-weight: bold;
 }
 
 
@@ -423,10 +420,10 @@ body {
 
 .output-format-group {
     display: flex;
+
     align-items: center;
 
     width: 100%;
-    max-width: 100%;
     min-width: 0;
 
     flex-wrap: wrap;
@@ -438,6 +435,7 @@ body {
 
 .output-format-option {
     display: inline-flex;
+
     align-items: center;
 
     min-height: 36px;
@@ -453,8 +451,6 @@ body {
     cursor: pointer;
 
     font-size: 14px;
-
-    white-space: nowrap;
 }
 
 .output-format-option:hover {
@@ -473,7 +469,6 @@ body {
 
 .file-conversion-section {
     width: 100%;
-    max-width: 100%;
     min-width: 0;
 
     margin-top: 20px;
@@ -498,7 +493,6 @@ body {
 
 .file-conversion-title {
     width: 100%;
-    max-width: 100%;
     min-width: 0;
 
     margin-bottom: 14px;
@@ -516,24 +510,38 @@ body {
 
 .subtitle-title-row {
     display: flex;
+
     align-items: center;
-    justify-content: space-between;
+
+    /*
+     * justify-content: space-between を使用しない。
+     * これにより、空きスペースがあっても
+     * フォントボタンが下段へ移動しにくくなる。
+     */
+    justify-content: flex-start;
+
+    flex-wrap: nowrap;
 
     width: 100%;
-    max-width: 100%;
     min-width: 0;
 
-    flex-wrap: wrap;
-    gap: 10px;
+    gap: 12px;
 }
 
 .subtitle-title-row > span {
+    flex: 1 1 auto;
+
     min-width: 0;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .subtitle-font-button {
-    flex: 0 0 auto;
+    flex: 0 1 auto;
 
+    min-width: 0;
     max-width: 100%;
 
     min-height: 34px;
@@ -552,6 +560,9 @@ body {
     font-size: 13px;
 
     white-space: nowrap;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .subtitle-font-button:hover {
@@ -574,7 +585,6 @@ body {
     align-items: center;
 
     width: 100%;
-    max-width: 100%;
     min-width: 0;
 
     gap: 10px;
@@ -602,7 +612,6 @@ body {
     align-items: center;
 
     width: 100%;
-    max-width: 100%;
     min-width: 0;
 
     gap: 10px;
@@ -655,7 +664,6 @@ body {
 
     width: 100%;
     min-width: 0;
-    max-width: 100%;
 
     height: 44px;
 
@@ -677,7 +685,6 @@ body {
     text-align: left;
 
     overflow: hidden;
-
     white-space: nowrap;
     text-overflow: ellipsis;
 
@@ -714,8 +721,7 @@ body {
     display: block;
 
     width: 80px;
-    min-width: 0;
-    max-width: 100%;
+    min-width: 80px;
 
     height: 44px;
 
@@ -733,10 +739,9 @@ body {
     font-family: inherit;
     font-size: 14px;
     font-weight: 600;
-
     line-height: 42px;
-    text-align: center;
 
+    text-align: center;
     white-space: nowrap;
 
     appearance: none;
@@ -763,6 +768,7 @@ body {
 .upload-button:disabled,
 .subtitle-file-upload-button:disabled {
     background: #f39c12;
+
     border-color: #e67e22;
 
     color: #fff;
@@ -782,8 +788,7 @@ body {
     display: block;
 
     width: 130px;
-    min-width: 0;
-    max-width: 100%;
+    min-width: 130px;
 
     height: 44px;
 
@@ -811,54 +816,39 @@ body {
 
 
 /* =========================================
-   字幕MP4用ファイル選択
+   下段 MP4 / SRT ファイル選択
 ========================================= */
 
 .subtitle-file-row {
     display: grid;
 
     grid-template-columns:
-        minmax(0, 220px)
-        100px
+        minmax(0, 1fr)
+        80px
         minmax(0, 1fr)
         130px;
 
     align-items: center;
 
     width: 100%;
-    max-width: 100%;
     min-width: 0;
 
-    gap: 12px;
+    gap: 10px;
 
     margin-bottom: 10px;
 }
 
-.subtitle-file-row > * {
-    min-width: 0;
-    max-width: 100%;
+.subtitle-file-row:last-of-type {
+    margin-bottom: 0;
 }
-
-
-/* =========================================
-   字幕MP4用 file input
-========================================= */
-
-.subtitle-file-row .hidden-file-input {
-    display: none;
-}
-
-
-/* =========================================
-   MP4 / SRT ファイル選択ボタン
-========================================= */
 
 .subtitle-file-browse-button {
+    display: block;
+
     width: 100%;
     min-width: 0;
-    max-width: 100%;
 
-    height: 42px;
+    height: 44px;
 
     padding: 8px 12px;
 
@@ -874,7 +864,6 @@ body {
     cursor: pointer;
 
     text-align: center;
-
     white-space: nowrap;
 
     overflow: hidden;
@@ -888,54 +877,25 @@ body {
 .subtitle-file-browse-button:disabled {
     background: #aaa;
     color: #fff;
-
     cursor: not-allowed;
 }
-
-
-/* =========================================
-   転送ボタン
-========================================= */
 
 .subtitle-file-upload-button {
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
+    width: 80px;
+    min-width: 80px;
 
-    height: 42px;
+    height: 44px;
 
-    padding: 8px 12px;
+    padding: 0 10px;
 
-    border: none;
-    border-radius: 6px;
-
-    background: #f39c12;
-    color: #fff;
-
-    font-family: inherit;
-    font-size: 15px;
-
-    cursor: pointer;
+    line-height: 42px;
 }
-
-.subtitle-file-upload-button:hover:not(:disabled) {
-    background: #e67e22;
-}
-
-.subtitle-file-upload-button:disabled {
-    background: #aaa;
-    cursor: not-allowed;
-}
-
-
-/* =========================================
-   字幕MP4作成ボタン
-========================================= */
 
 .subtitle-file-create-button {
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
+    display: block;
+
+    width: 130px;
+    min-width: 130px;
 
     height: 44px;
 
@@ -976,17 +936,12 @@ body {
     border-color: #aaa;
 
     cursor: not-allowed;
+
     opacity: 0.7;
 }
 
-
-/* =========================================
-   行の右側空白
-========================================= */
-
 .subtitle-file-spacer {
     min-width: 0;
-    width: 100%;
 }
 
 
@@ -996,12 +951,12 @@ body {
 
 .subtitle-download-area {
     display: flex;
+
     flex-direction: column;
 
     gap: 8px;
 
     width: 100%;
-    max-width: 100%;
     min-width: 0;
 
     margin-top: 10px;
@@ -1009,7 +964,6 @@ body {
 
 .subtitle-download-item {
     width: 100%;
-    max-width: 100%;
     min-width: 0;
 }
 
@@ -1034,10 +988,9 @@ body {
 
     font-size: 14px;
     font-weight: 600;
-
     line-height: 42px;
-    text-align: center;
 
+    text-align: center;
     white-space: nowrap;
 
     transition:
@@ -1062,7 +1015,6 @@ body {
 
 .common-result-area {
     width: 100%;
-    max-width: 100%;
     min-width: 0;
 
     margin-top: 20px;
@@ -1075,7 +1027,7 @@ body {
 
 .conversion-status-area {
     width: 100%;
-    max-width: 100%;
+    min-width: 0;
 
     min-height: 20px;
 
@@ -1085,8 +1037,6 @@ body {
 
     font-size: 14px;
     line-height: 1.6;
-
-    overflow-wrap: anywhere;
 }
 
 
@@ -1096,12 +1046,12 @@ body {
 
 .download-area {
     display: flex;
+
     flex-direction: column;
 
     gap: 8px;
 
     width: 100%;
-    max-width: 100%;
     min-width: 0;
 }
 
@@ -1126,10 +1076,9 @@ body {
 
     font-size: 14px;
     font-weight: 600;
-
     line-height: 42px;
-    text-align: center;
 
+    text-align: center;
     white-space: nowrap;
 
     transition:
@@ -1201,7 +1150,7 @@ body {
 
 
 /* =========================================
-   ダイアログタイトル
+   タイトル
 ========================================= */
 
 .subtitle-font-dialog-title {
@@ -1219,10 +1168,10 @@ body {
 .subtitle-font-dialog-row,
 .subtitle-font-dialog-label {
     display: flex;
+
     align-items: center;
 
     width: 100%;
-    max-width: 100%;
     min-width: 0;
 
     min-height: 36px;
@@ -1266,6 +1215,7 @@ body {
 
 .subtitle-font-preset-toggle {
     display: inline-flex;
+
     align-items: center;
     justify-content: center;
 
@@ -1303,8 +1253,6 @@ body {
 
     margin-top: 42px;
     margin-left: 90px;
-
-    max-width: calc(100% - 110px);
 
     padding: 10px;
 
@@ -1381,6 +1329,7 @@ body {
 
 .subtitle-font-listbox-selected {
     display: flex;
+
     align-items: center;
     justify-content: space-between;
 
@@ -1465,6 +1414,7 @@ body {
 
 .subtitle-font-listbox-option.selected {
     background: #eef6ff;
+
     color: #0069d9;
 
     font-weight: bold;
@@ -1477,9 +1427,9 @@ body {
 
 .subtitle-font-radio-group {
     display: flex;
-    align-items: center;
 
     flex-wrap: wrap;
+    align-items: center;
 
     gap: 8px;
 
@@ -1488,13 +1438,9 @@ body {
     margin: 0;
 }
 
-
-/* =========================================
-   ラジオ項目
-========================================= */
-
 .subtitle-font-radio-label {
     display: inline-flex;
+
     align-items: center;
 
     gap: 6px;
@@ -1521,22 +1467,13 @@ body {
         background-color 0.15s ease;
 }
 
-
-/* =========================================
-   ラジオ本体
-========================================= */
-
 .subtitle-font-radio-label input {
     position: absolute;
 
     opacity: 0;
+
     pointer-events: none;
 }
-
-
-/* =========================================
-   色ドット
-========================================= */
 
 .subtitle-font-radio-dot {
     display: inline-block;
@@ -1553,19 +1490,9 @@ body {
         inset 0 0 0 1px rgba(255, 255, 255, 0.25);
 }
 
-
-/* =========================================
-   色名
-========================================= */
-
 .subtitle-font-radio-text {
     white-space: nowrap;
 }
-
-
-/* =========================================
-   選択中
-========================================= */
 
 .subtitle-font-radio-label.selected {
     border-color: #007bff;
@@ -1593,8 +1520,6 @@ body {
     display: block;
 
     width: 100px;
-    max-width: 100%;
-
     height: 36px;
 
     margin: 0;
@@ -1618,7 +1543,7 @@ body {
     display: block;
 
     width: 100%;
-    max-width: 100%;
+    min-width: 0;
 
     min-height: 80px;
 
@@ -1632,7 +1557,6 @@ body {
 
     font-size: 28px;
     font-weight: normal;
-
     line-height: 1.4;
 
     text-align: center;
@@ -1649,9 +1573,6 @@ body {
 ========================================= */
 
 .subtitle-font-preview {
-    width: 100%;
-    max-width: 100%;
-
     margin-top: 20px;
 
     padding: 12px 14px;
@@ -1672,11 +1593,9 @@ body {
 .subtitle-font-preview-row {
     display: flex;
 
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-
     gap: 4px;
+
+    min-width: 0;
 
     margin: 3px 0;
 
@@ -1767,20 +1686,17 @@ body {
 
     .container {
         width: 100%;
-        max-width: 900px;
+        max-width: 100%;
 
         padding: 20px 12px 40px;
     }
 
 
-    /* -----------------------------------------
-       ヘッダー
-    ----------------------------------------- */
-
     .converter-header {
         min-height: 50px;
         margin-bottom: 15px;
     }
+
 
     .converter-header h1 {
         max-width: 100%;
@@ -1789,6 +1705,7 @@ body {
 
         font-size: 22px;
     }
+
 
     .converter-link {
         right: 0;
@@ -1800,10 +1717,6 @@ body {
     }
 
 
-    /* -----------------------------------------
-       タブ
-    ----------------------------------------- */
-
     .converter-tab-button {
         min-width: 0;
         min-height: 44px;
@@ -1814,83 +1727,70 @@ body {
     }
 
 
-    /* -----------------------------------------
-       タブ内容
-    ----------------------------------------- */
-
     .tab-content {
         width: 100%;
-        max-width: 100%;
+        min-width: 0;
 
         padding: 18px 14px;
     }
 
-
-    /* -----------------------------------------
-       URL
-    ----------------------------------------- */
 
     .url-row {
         flex-direction: column;
         align-items: stretch;
     }
 
+
     .url-input {
         width: 100%;
-        max-width: 100%;
-
         flex: none;
     }
 
+
     .url-row .execute-button {
         width: 100%;
-        max-width: 100%;
     }
 
-
-    /* -----------------------------------------
-       時間指定
-    ----------------------------------------- */
 
     .time-area {
         padding: 13px;
     }
 
+
     .time-input-row {
         gap: 8px;
     }
 
+
     .time-group {
         gap: 3px;
     }
+
 
     .time-input {
         width: 42px;
         height: 36px;
     }
 
-    .time-unit {
-        margin-right: 1px;
 
+    .time-unit {
         font-size: 12px;
+        margin-right: 1px;
     }
+
 
     .time-separator {
         font-size: 16px;
     }
 
 
-    /* -----------------------------------------
-       出力形式
-    ----------------------------------------- */
-
     .output-format-group {
         gap: 6px;
     }
 
+
     .output-format-option {
         padding: 5px 8px;
-
         font-size: 13px;
     }
 
@@ -1901,14 +1801,18 @@ body {
 
     .file-conversion-section {
         width: 100%;
-        max-width: 100%;
+        min-width: 0;
 
         padding: 14px;
     }
 
+
     .file-select-row,
     .subtitle-action-row {
         display: grid;
+
+        width: 100%;
+        min-width: 0;
 
         grid-template-columns:
             minmax(0, 1fr)
@@ -1917,17 +1821,13 @@ body {
 
         align-items: center;
 
-        width: 100%;
-        max-width: 100%;
-        min-width: 0;
-
         gap: 7px;
     }
 
 
-    /* -------------------------------------
+    /* =====================================
        MP3 / SRT等の2列
-    ------------------------------------- */
+    ====================================== */
 
     .subtitle-action-row:not(:has(.execute-button)) {
         grid-template-columns:
@@ -1936,9 +1836,9 @@ body {
     }
 
 
-    /* -------------------------------------
+    /* =====================================
        Gemini / 実行ボタン付き3列
-    ------------------------------------- */
+    ====================================== */
 
     .subtitle-action-row:has(.execute-button) {
         grid-template-columns:
@@ -1956,52 +1856,48 @@ body {
         grid-template-columns:
             minmax(0, 1fr)
             70px
-            0
-            115px !important;
+            minmax(0, 1fr)
+            115px;
 
-        gap: 7px !important;
+        gap: 7px;
     }
 
-    .subtitle-file-row > .subtitle-file-spacer {
-        display: none;
-    }
-
-    .subtitle-file-browse-button {
-        width: 100% !important;
-        min-width: 0 !important;
-        max-width: 100%;
-
-        height: 42px !important;
-
-        padding: 7px 8px !important;
-
-        font-size: 12px !important;
-        line-height: 26px;
-    }
 
     .subtitle-file-upload-button {
-        width: 70px !important;
-        min-width: 70px !important;
-        max-width: 70px;
+        width: 70px;
+        min-width: 70px;
 
-        height: 42px !important;
+        height: 42px;
 
-        padding: 0 5px !important;
+        padding: 0 5px;
 
-        font-size: 13px !important;
+        font-size: 13px;
         line-height: 40px;
     }
 
+
+    .subtitle-file-browse-button {
+        width: 100%;
+        min-width: 0;
+
+        height: 42px;
+
+        padding: 7px 8px;
+
+        font-size: 12px;
+        line-height: 26px;
+    }
+
+
     .subtitle-file-create-button {
-        width: 115px !important;
-        min-width: 115px !important;
-        max-width: 115px;
+        width: 115px;
+        min-width: 115px;
 
-        height: 42px !important;
+        height: 42px;
 
-        padding: 0 5px !important;
+        padding: 0 6px;
 
-        font-size: 12px !important;
+        font-size: 12px;
     }
 
 
@@ -2012,29 +1908,74 @@ body {
     .upload-button {
         width: 70px;
         min-width: 70px;
-        max-width: 70px;
 
         height: 42px;
 
         padding: 0 5px;
 
         font-size: 13px;
-
         line-height: 40px;
     }
+
 
     .subtitle-action-row .execute-button {
         width: 115px;
         min-width: 115px;
-        max-width: 115px;
 
         height: 42px;
 
         padding: 0 5px;
 
         font-size: 12px;
-
         line-height: 40px;
+    }
+
+
+    /* =====================================
+       字幕タイトル + フォントボタン
+       
+       ここは「縦並び」にしない。
+       空きスペースがある限り同じ行にする。
+    ====================================== */
+
+    .subtitle-title-row {
+        display: flex;
+
+        align-items: center;
+        justify-content: flex-start;
+
+        flex-wrap: nowrap;
+
+        width: 100%;
+        min-width: 0;
+
+        gap: 8px;
+    }
+
+
+    .subtitle-title-row > span {
+        flex: 1 1 auto;
+
+        min-width: 0;
+
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+
+    .subtitle-title-row .subtitle-font-button {
+        flex: 0 1 auto;
+
+        width: auto;
+        min-width: 0;
+        max-width: 45%;
+
+        flex-shrink: 1;
+
+        padding: 5px 8px;
+
+        font-size: 12px;
     }
 
 
@@ -2050,25 +1991,7 @@ body {
         padding: 0 12px;
 
         font-size: 13px;
-
         line-height: 40px;
-    }
-
-
-    /* =====================================
-       フォント設定
-    ====================================== */
-
-    .subtitle-title-row {
-        align-items: flex-start;
-
-        flex-direction: column;
-
-        gap: 8px;
-    }
-
-    .subtitle-font-button {
-        max-width: 100%;
     }
 
 
@@ -2082,19 +2005,16 @@ body {
         padding: 15px;
     }
 
+
     .subtitle-font-dialog {
         width: 100%;
-        max-width: 520px;
+        max-width: 100%;
 
         max-height: calc(100vh - 30px);
 
         padding: 18px;
     }
 
-    .subtitle-font-dialog-row,
-    .subtitle-font-dialog-label {
-        max-width: 100%;
-    }
 
     .subtitle-font-dialog-row-label,
     .subtitle-font-dialog-label-title {
@@ -2105,16 +2025,17 @@ body {
         font-size: 13px;
     }
 
+
     .subtitle-font-listbox {
         width: 240px;
         max-width: calc(100% - 78px);
     }
 
-    .subtitle-font-preset-container {
-        max-width: calc(100% - 95px);
 
+    .subtitle-font-preset-container {
         margin-left: 78px;
     }
+
 
     .subtitle-font-radio-group {
         flex: 1;
@@ -2122,15 +2043,18 @@ body {
         gap: 6px;
     }
 
+
     .subtitle-font-radio-label {
         padding: 4px 8px;
 
         font-size: 12px;
     }
 
+
     .subtitle-font-dialog-buttons {
         margin-top: 16px;
     }
+
 
     .subtitle-font-preview-text {
         min-height: 70px;
@@ -2148,12 +2072,6 @@ body {
 
 @media (max-width: 380px) {
 
-    .container {
-        padding-left: 8px;
-        padding-right: 8px;
-    }
-
-
     .converter-header h1 {
         font-size: 20px;
     }
@@ -2168,6 +2086,7 @@ body {
         width: 38px;
     }
 
+
     .time-unit {
         font-size: 11px;
     }
@@ -2180,9 +2099,9 @@ body {
     }
 
 
-    /* -------------------------------------
-       MP3 → SRT
-    ------------------------------------- */
+    /* =====================================
+       上段 MP3 → SRT
+    ====================================== */
 
     .subtitle-action-row:has(.execute-button) {
         grid-template-columns:
@@ -2193,6 +2112,7 @@ body {
         gap: 5px;
     }
 
+
     .subtitle-action-row:not(:has(.execute-button)) {
         grid-template-columns:
             minmax(0, 1fr)
@@ -2201,11 +2121,11 @@ body {
         gap: 5px;
     }
 
+
     .upload-button,
     .subtitle-file-upload-button {
         width: 62px;
         min-width: 62px;
-        max-width: 62px;
 
         height: 40px;
 
@@ -2213,49 +2133,15 @@ body {
         line-height: 38px;
     }
 
+
     .subtitle-action-row .execute-button {
         width: 105px;
         min-width: 105px;
-        max-width: 105px;
 
         font-size: 11px;
-
         line-height: 40px;
     }
 
-
-    /* -------------------------------------
-       MP4 / SRT
-    ------------------------------------- */
-
-    .subtitle-file-row {
-        grid-template-columns:
-            minmax(0, 1fr)
-            62px
-            0
-            105px !important;
-
-        gap: 5px !important;
-    }
-
-    .subtitle-file-upload-button {
-        width: 62px !important;
-        min-width: 62px !important;
-        max-width: 62px;
-    }
-
-    .subtitle-file-create-button {
-        width: 105px !important;
-        min-width: 105px !important;
-        max-width: 105px;
-
-        font-size: 11px !important;
-    }
-
-
-    /* -------------------------------------
-       ファイル選択
-    ------------------------------------- */
 
     .file-select-display {
         padding-left: 6px;
@@ -2264,19 +2150,86 @@ body {
         font-size: 11px;
     }
 
-    .subtitle-file-browse-button {
-        min-width: 0 !important;
 
-        padding-left: 6px !important;
-        padding-right: 6px !important;
+    /* =====================================
+       下段 MP4 / SRT
+    ====================================== */
 
-        font-size: 11px !important;
+    .subtitle-file-row {
+        grid-template-columns:
+            minmax(0, 1fr)
+            62px
+            minmax(0, 1fr)
+            105px;
+
+        gap: 5px;
     }
 
 
-    /* -------------------------------------
-       ダウンロード
-    ------------------------------------- */
+    .subtitle-file-upload-button {
+        width: 62px;
+        min-width: 62px;
+
+        height: 40px;
+
+        font-size: 12px;
+        line-height: 38px;
+    }
+
+
+    .subtitle-file-browse-button {
+        min-width: 0;
+
+        padding-left: 6px;
+        padding-right: 6px;
+
+        font-size: 11px;
+    }
+
+
+    .subtitle-file-create-button {
+        width: 105px;
+        min-width: 105px;
+
+        height: 40px;
+
+        padding: 0 5px;
+
+        font-size: 11px;
+    }
+
+
+    /* =====================================
+       字幕タイトル + フォント
+       
+       380px以下でも縦にしない。
+       タイトル側を縮めてボタンを確保する。
+    ====================================== */
+
+    .subtitle-title-row {
+        gap: 5px;
+    }
+
+
+    .subtitle-title-row > span {
+        flex: 1 1 auto;
+
+        min-width: 0;
+
+        font-size: 14px;
+    }
+
+
+    .subtitle-title-row .subtitle-font-button {
+        flex: 0 1 auto;
+
+        max-width: 42%;
+
+        padding: 4px 6px;
+
+        font-size: 11px;
+    }
+
 
     .subtitle-download-item .download-button {
         min-width: 95px;
@@ -2284,14 +2237,13 @@ body {
         height: 40px;
 
         font-size: 12px;
-
         line-height: 38px;
     }
 
 
-    /* -------------------------------------
+    /* =====================================
        フォントダイアログ
-    ------------------------------------- */
+    ====================================== */
 
     .subtitle-font-dialog-row-label,
     .subtitle-font-dialog-label-title {
@@ -2302,14 +2254,15 @@ body {
         font-size: 12px;
     }
 
+
     .subtitle-font-listbox {
         width: 220px;
+
         max-width: calc(100% - 72px);
     }
 
-    .subtitle-font-preset-container {
-        max-width: calc(100% - 85px);
 
+    .subtitle-font-preset-container {
         margin-left: 72px;
     }
 }
