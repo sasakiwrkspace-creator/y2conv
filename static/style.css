@@ -1058,7 +1058,24 @@ body {
     min-width: 0;
 }
 
-.download-area a {
+/* =========================================
+   ダウンロードエリア
+========================================= */
+
+.download-area {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 8px;
+
+    width: 100%;
+    min-width: 0;
+}
+
+
+.download-area a,
+.download-area button {
     display: inline-block;
 
     width: auto;
@@ -1067,6 +1084,7 @@ body {
 
     height: 44px;
 
+    margin: 0;
     padding: 0 14px;
 
     border: 1px solid #0069d9;
@@ -1077,6 +1095,7 @@ body {
 
     text-decoration: none;
 
+    font-family: inherit;
     font-size: 14px;
     font-weight: 600;
     line-height: 42px;
@@ -1084,21 +1103,29 @@ body {
     text-align: center;
     white-space: nowrap;
 
+    cursor: pointer;
+
+    appearance: none;
+    -webkit-appearance: none;
+
     transition:
         background-color 0.15s ease,
         border-color 0.15s ease;
 }
 
-.download-area a:hover {
+
+.download-area a:hover,
+.download-area button:hover {
     background: #0069d9;
     border-color: #0062cc;
 }
 
-.download-area a:active {
+
+.download-area a:active,
+.download-area button:active {
     background: #005cbf;
     border-color: #0056b3;
 }
-
 
 /* =========================================
    字幕フォント設定ダイアログ
