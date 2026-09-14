@@ -650,15 +650,15 @@
 
 
             <div class="file-select-row subtitle-action-row">
-
+            
                 <input
                     id="subtitle-mp3-input"
                     class="hidden-file-input"
                     type="file"
                     accept=".mp3,audio/mpeg"
                 >
-
-
+            
+                <!-- MP3選択 -->
                 <button
                     id="subtitle-mp3-select"
                     class="file-select-display"
@@ -667,7 +667,14 @@
                 >
                     mp3ファイルを選択してください
                 </button>
-
+            
+                <!-- SRTダウンロード -->
+                <div
+                    id="subtitle-srt-download-area"
+                    class="subtitle-download-area"
+                ></div>
+            
+                <!-- Gemini -->
                 <button
                     id="gemini-send-button"
                     class="execute-button"
@@ -676,7 +683,7 @@
                 >
                     Geminiへ
                 </button>
-
+            
             </div>
 
 
