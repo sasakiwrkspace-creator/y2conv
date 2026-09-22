@@ -9,25 +9,28 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
+
 # ==========================================================
 # OS packages
 #
 # FFmpeg
 # fontconfig
 # Japanese fonts
+# Deno installation requirements
 # ==========================================================
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    ffmpeg \
-    curl \
-    unzip \
-    ca-certificates \
-    fontconfig \
-    fonts-noto-cjk \
-    fonts-noto-cjk-extra && \
+        ffmpeg \
+        curl \
+        unzip \
+        ca-certificates \
+        fontconfig \
+        fonts-noto-cjk \
+        fonts-noto-cjk-extra && \
     fc-cache -fv && \
     rm -rf /var/lib/apt/lists/*
+
 
 # ==========================================================
 # Japanese Font verification
@@ -55,15 +58,30 @@ RUN echo "==========================================" && \
     fc-match "Noto Serif JP" && \
     echo "=========================================="
 
+
 # ==========================================================
 # Deno
+#
+# yt-dlp
+#   ↓
+# yt-dlp-ejs
+#   ↓
+# Deno
+#
+# YouTube JavaScript challenge対応
 # ==========================================================
 
 ENV DENO_INSTALL=/app/.deno
 ENV DENO_PATH=/app/.deno/bin/deno
 ENV PATH="/app/.deno/bin:${PATH}"
 
+
+# ==========================================================
+# Deno installation
+# ==========================================================
+
 RUN curl -fsSL https://deno.land/install.sh | sh
+
 
 # ==========================================================
 # Deno verification
@@ -76,11 +94,15 @@ RUN echo "==========================================" && \
     echo "DENO_PATH: ${DENO_PATH}" && \
     echo "PATH: ${PATH}" && \
     echo "------------------------------------------" && \
-    ls -la /app/.deno/bin && \
+    ls -la "${DENO_INSTALL}/bin" && \
+    echo "------------------------------------------" && \
+    test -x "${DENO_PATH}" && \
+    echo "Deno executable: OK" && \
     echo "------------------------------------------" && \
     which deno && \
     deno --version && \
     echo "=========================================="
+
 
 # ==========================================================
 # Python dependencies
@@ -88,14 +110,17 @@ RUN echo "==========================================" && \
 
 COPY requirements.txt .
 
+
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
+
 
 # ==========================================================
 # Application
 # ==========================================================
 
 COPY . .
+
 
 # ==========================================================
 # Final environment verification
@@ -118,12 +143,16 @@ RUN echo "==========================================" && \
     which yt-dlp && \
     yt-dlp --version && \
     echo "------------------------------------------" && \
+    echo "yt-dlp Python package:" && \
+    python -c "import yt_dlp; print(yt_dlp.version.__version__)" && \
+    echo "------------------------------------------" && \
     echo "yt-dlp-ejs:" && \
     python -c "import yt_dlp_ejs; print(yt_dlp_ejs.__file__)" && \
     echo "------------------------------------------" && \
     echo "Deno:" && \
     echo "DENO_INSTALL=${DENO_INSTALL}" && \
     echo "DENO_PATH=${DENO_PATH}" && \
+    test -x "${DENO_PATH}" && \
     which deno && \
     deno --version && \
     echo "------------------------------------------" && \
@@ -142,8 +171,16 @@ RUN echo "==========================================" && \
     \) | sort && \
     echo "=========================================="
 
+
 # ==========================================================
 # Start
 # ==========================================================
 
-CMD ["gunicorn", "--bind", "0.0.0.0:10000", "--timeout", "1800", "app:app"]
+CMD [
+    "gunicorn",
+    "--bind",
+    "0.0.0.0:10000",
+    "--timeout",
+    "1800",
+    "app:app"
+]
