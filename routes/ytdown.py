@@ -81,6 +81,10 @@ def register_ytdown(app):
     )
 
 
+    # =====================================
+    # /ytdown
+    # =====================================
+
     @app.route(
         "/ytdown",
         methods=["POST"]
@@ -101,6 +105,9 @@ def register_ytdown(app):
             "==========================================",
             flush=True
         )
+
+
+        temporary_directory = None
 
 
         try:
@@ -129,7 +136,7 @@ def register_ytdown(app):
 
 
             # =================================
-            # URL
+            # YouTube URL
             # =================================
 
             youtube_url = data.get(
@@ -164,7 +171,7 @@ def register_ytdown(app):
 
 
             # =================================
-            # URL簡易確認
+            # URL確認
             # =================================
 
             if (
@@ -244,7 +251,7 @@ def register_ytdown(app):
 
             if end_time is None:
 
-                end_time = "00:00:00"
+                end_time = ""
 
 
             end_time = str(
@@ -258,20 +265,17 @@ def register_ytdown(app):
                 flush=True
             )
 
-
             print(
                 "[YTDOWN] format:",
                 output_format,
                 flush=True
             )
 
-
             print(
                 "[YTDOWN] start_time:",
                 start_time,
                 flush=True
             )
-
 
             print(
                 "[YTDOWN] end_time:",
@@ -289,9 +293,15 @@ def register_ytdown(app):
             )
 
 
-            end_seconds = parse_time(
-                end_time
-            )
+            if end_time:
+
+                end_seconds = parse_time(
+                    end_time
+                )
+
+            else:
+
+                end_seconds = None
 
 
             # =================================
@@ -305,37 +315,13 @@ def register_ytdown(app):
                 )
 
 
-            if end_seconds < 0:
-
-                raise ValueError(
-                    "終了時間が不正です。"
-                )
-
-
-            # ---------------------------------
-            # 終了時間が00:00:00の場合
-            #
-            # 「終了時間なし」として扱う。
-            # ---------------------------------
-
-            if end_seconds == 0:
-
-                clip_duration = None
-
-            else:
+            if end_seconds is not None:
 
                 if end_seconds <= start_seconds:
 
                     raise ValueError(
                         "終了時間は開始時間より後にしてください。"
                     )
-
-
-                clip_duration = (
-                    end_seconds
-                    -
-                    start_seconds
-                )
 
 
             print(
@@ -352,15 +338,8 @@ def register_ytdown(app):
             )
 
 
-            print(
-                "[YTDOWN] duration:",
-                clip_duration,
-                flush=True
-            )
-
-
             # =================================
-            # downloadsディレクトリ作成
+            # downloadsディレクトリ
             # =================================
 
             DOWNLOAD_DIR.mkdir(
@@ -427,7 +406,7 @@ def register_ytdown(app):
 
 
             # =================================
-            # 前回一時ファイル削除
+            # 古い一時ディレクトリ削除
             # =================================
 
             if temporary_directory.exists():
@@ -457,7 +436,7 @@ def register_ytdown(app):
 
 
             # =================================
-            # 一時ファイル
+            # 出力テンプレート
             # =================================
 
             temporary_template = (
@@ -492,18 +471,21 @@ def register_ytdown(app):
             # =================================
             # 時間指定
             # =================================
-            #
-            # yt-dlpのdownload-sectionsを使用。
-            #
-            # 例:
-            #
-            # *00:01:00-00:02:00
-            #
-            # =================================
 
-            if clip_duration is None:
+            section_start = format_seconds(
+                start_seconds
+            )
 
-                section_end = ""
+
+            if end_seconds is None:
+
+                section = (
+                    "*"
+                    +
+                    section_start
+                    +
+                    "-"
+                )
 
             else:
 
@@ -511,21 +493,15 @@ def register_ytdown(app):
                     end_seconds
                 )
 
-
-            section_start = format_seconds(
-                start_seconds
-            )
-
-
-            section = (
-                "*"
-                +
-                section_start
-                +
-                "-"
-                +
-                section_end
-            )
+                section = (
+                    "*"
+                    +
+                    section_start
+                    +
+                    "-"
+                    +
+                    section_end
+                )
 
 
             command.extend(
@@ -544,11 +520,15 @@ def register_ytdown(app):
 
                 command.extend(
                     [
+
                         "-x",
+
                         "--audio-format",
                         "mp3",
+
                         "--audio-quality",
                         "192K"
+
                     ]
                 )
 
@@ -556,8 +536,13 @@ def register_ytdown(app):
 
                 command.extend(
                     [
+
                         "-f",
-                        "bv*+ba/b"
+                        "bv*+ba/b",
+
+                        "--merge-output-format",
+                        "mp4"
+
                     ]
                 )
 
@@ -582,6 +567,12 @@ def register_ytdown(app):
 
             print(
                 "[YTDOWN] yt-dlp START",
+                flush=True
+            )
+
+            print(
+                "[YTDOWN] section:",
+                section,
                 flush=True
             )
 
@@ -619,7 +610,7 @@ def register_ytdown(app):
 
 
             # =================================
-            # ログ表示
+            # 結果表示
             # =================================
 
             print(
@@ -643,7 +634,7 @@ def register_ytdown(app):
 
 
             # =================================
-            # yt-dlpエラー
+            # エラー
             # =================================
 
             if process.returncode != 0:
@@ -679,13 +670,16 @@ def register_ytdown(app):
 
 
             # =================================
-            # 最も新しいファイル
+            # 最新ファイル取得
             # =================================
 
             files.sort(
+
                 key=lambda path:
                     path.stat().st_mtime,
+
                 reverse=True
+
             )
 
 
@@ -700,7 +694,7 @@ def register_ytdown(app):
 
 
             # =================================
-            # ファイルサイズ確認
+            # サイズ確認
             # =================================
 
             temporary_size = (
@@ -716,7 +710,7 @@ def register_ytdown(app):
 
 
             # =================================
-            # 保存ファイル名
+            # 最終ファイル名
             # =================================
 
             safe_stem = sanitize_filename(
@@ -749,7 +743,7 @@ def register_ytdown(app):
 
 
             # =================================
-            # 同名ファイル対策
+            # 同名ファイル回避
             # =================================
 
             final_path = unique_path(
@@ -769,8 +763,15 @@ def register_ytdown(app):
             # =================================
 
             shutil.move(
-                str(temporary_output),
-                str(final_path)
+
+                str(
+                    temporary_output
+                ),
+
+                str(
+                    final_path
+                )
+
             )
 
 
@@ -814,6 +815,8 @@ def register_ytdown(app):
                     temporary_directory
                 )
 
+                temporary_directory = None
+
             except Exception as cleanup_error:
 
                 print(
@@ -824,7 +827,7 @@ def register_ytdown(app):
 
 
             # =================================
-            # 成功
+            # 成功結果
             # =================================
 
             result = {
@@ -937,6 +940,31 @@ def register_ytdown(app):
             )
 
 
+            # =================================
+            # エラー時の一時ファイル削除
+            # =================================
+
+            if (
+                temporary_directory
+                and
+                temporary_directory.exists()
+            ):
+
+                try:
+
+                    shutil.rmtree(
+                        temporary_directory
+                    )
+
+                except Exception as cleanup_error:
+
+                    print(
+                        "[YTDOWN] cleanup failed:",
+                        cleanup_error,
+                        flush=True
+                    )
+
+
             return jsonify({
 
                 "success":
@@ -977,9 +1005,9 @@ def parse_time(
         return 0
 
 
-    # -------------------------------------
+    # =====================================
     # 数字だけ
-    # -------------------------------------
+    # =====================================
 
     if value.isdigit():
 
@@ -987,6 +1015,10 @@ def parse_time(
             value
         )
 
+
+    # =====================================
+    # : で分割
+    # =====================================
 
     parts = value.split(
         ":"
@@ -1025,9 +1057,14 @@ def parse_time(
 
         raise ValueError(
             "時間はHH:MM:SS形式で指定してください: "
-            + value
+            +
+            value
         )
 
+
+    # =====================================
+    # 分チェック
+    # =====================================
 
     if minutes < 0 or minutes >= 60:
 
@@ -1036,6 +1073,10 @@ def parse_time(
         )
 
 
+    # =====================================
+    # 秒チェック
+    # =====================================
+
     if seconds < 0 or seconds >= 60:
 
         raise ValueError(
@@ -1043,12 +1084,22 @@ def parse_time(
         )
 
 
+    # =====================================
+    # 秒へ変換
+    # =====================================
+
     return (
+
         hours * 3600
+
         +
+
         minutes * 60
+
         +
+
         seconds
+
     )
 
 
@@ -1089,9 +1140,11 @@ def format_seconds(
 
 
     return (
+
         f"{hours:02d}:"
         f"{minutes:02d}:"
         f"{remaining_seconds:02d}"
+
     )
 
 
@@ -1103,9 +1156,9 @@ def find_command(
     command
 ):
 
-    # -------------------------------------
-    # PATH
-    # -------------------------------------
+    # =====================================
+    # PATHから検索
+    # =====================================
 
     path = shutil.which(
         command
@@ -1117,9 +1170,9 @@ def find_command(
         return path
 
 
-    # -------------------------------------
+    # =====================================
     # よくある絶対パス
-    # -------------------------------------
+    # =====================================
 
     candidates = [
 
@@ -1164,42 +1217,54 @@ def sanitize_filename(
     )
 
 
-    # -------------------------------------
-    # Windows / Unixで問題になる文字を除去
-    # -------------------------------------
+    # =====================================
+    # Windows / Unix禁止文字
+    # =====================================
 
     filename = re.sub(
+
         r'[\\/:*?"<>|]',
+
         "_",
+
         filename
+
     )
 
 
-    # -------------------------------------
-    # 制御文字除去
-    # -------------------------------------
+    # =====================================
+    # 制御文字
+    # =====================================
 
     filename = re.sub(
+
         r"[\x00-\x1f]",
+
         "_",
+
         filename
+
     )
 
 
-    # -------------------------------------
-    # 連続空白整理
-    # -------------------------------------
+    # =====================================
+    # 空白整理
+    # =====================================
 
     filename = re.sub(
+
         r"\s+",
+
         " ",
+
         filename
+
     ).strip()
 
 
-    # -------------------------------------
+    # =====================================
     # 空の場合
-    # -------------------------------------
+    # =====================================
 
     if not filename:
 
@@ -1238,9 +1303,11 @@ def unique_path(
     while True:
 
         candidate = (
+
             path.parent
             /
             f"{stem}_{counter}{suffix}"
+
         )
 
 
