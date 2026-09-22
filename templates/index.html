@@ -17,298 +17,6 @@
         href="/static/style.css"
     >
 
-    <style>
-
-        /* =========================================
-           字幕MP4用ファイル選択
-        ========================================== */
-
-        .subtitle-file-row {
-
-            display: grid;
-
-            grid-template-columns:
-                220px
-                100px
-                minmax(0, 1fr)
-                130px;
-
-            align-items: center;
-
-            gap: 12px;
-
-            width: 100%;
-
-            margin-bottom: 10px;
-
-        }
-
-
-        /* =========================================
-           file inputは非表示
-        ========================================== */
-
-        .subtitle-file-row .hidden-file-input {
-
-            display: none;
-
-        }
-
-
-        /* =========================================
-           MP4 / SRT ファイル選択ボタン
-        ========================================== */
-
-        .subtitle-file-browse-button {
-
-            width: 220px;
-
-            min-width: 220px;
-
-            height: 42px;
-
-            padding: 8px 12px;
-
-            border: 1px solid #ccc;
-
-            border-radius: 6px;
-
-            background: #f5f5f5;
-
-            color: #333;
-
-            font-size: 15px;
-
-            cursor: pointer;
-
-            text-align: center;
-
-            white-space: nowrap;
-
-            overflow: hidden;
-
-            text-overflow: ellipsis;
-
-        }
-
-
-        .subtitle-file-browse-button:hover {
-
-            background: #e5e5e5;
-
-        }
-
-
-        .subtitle-file-browse-button:disabled {
-
-            background: #aaa;
-
-            color: #fff;
-
-            cursor: not-allowed;
-
-        }
-
-
-        /* =========================================
-           字幕MP4作成ボタン
-        ========================================== */
-
-        .subtitle-file-create-button {
-
-            width: 130px;
-
-            min-width: 130px;
-
-            height: 44px;
-
-            padding: 0 12px;
-
-            border: 1px solid #198754;
-
-            border-radius: 6px;
-
-            background: #198754;
-
-            color: #fff;
-
-            font-family: inherit;
-
-            font-size: 14px;
-
-            font-weight: 600;
-
-            cursor: pointer;
-
-            white-space: nowrap;
-
-            transition:
-                background-color 0.15s ease,
-                border-color 0.15s ease,
-                opacity 0.15s ease;
-
-        }
-
-
-        .subtitle-file-create-button:hover:not(:disabled) {
-
-            background: #157347;
-
-            border-color: #146c43;
-
-        }
-
-
-        .subtitle-file-create-button:active:not(:disabled) {
-
-            background: #146c43;
-
-            border-color: #13653f;
-
-        }
-
-
-        .subtitle-file-create-button:disabled {
-
-            background: #aaa;
-
-            border-color: #aaa;
-
-            cursor: not-allowed;
-
-            opacity: 0.7;
-
-        }
-
-
-        /* =========================================
-           行の右側空白
-        ========================================== */
-
-        .subtitle-file-spacer {
-
-            min-width: 0;
-
-        }
-
-
-        /* =========================================
-           スマートフォン
-        ========================================== */
-
-        @media (max-width: 700px) {
-
-            .subtitle-file-row {
-
-                grid-template-columns:
-                    minmax(170px, 1fr)
-                    100px
-                    minmax(0, 1fr)
-                    110px;
-
-                gap: 8px;
-
-            }
-
-
-            .subtitle-file-browse-button {
-
-                width: 100%;
-
-                min-width: 170px;
-
-                font-size: 14px;
-
-            }
-
-
-            .subtitle-file-create-button {
-
-                width: 115px;
-
-                min-width: 115px;
-
-                height: 42px;
-
-                padding: 0 6px;
-
-                font-size: 12px;
-
-            }
-
-        }
-
-
-        @media (max-width: 500px) {
-
-            .subtitle-file-row {
-
-                grid-template-columns:
-                    minmax(145px, 1fr)
-                    75px
-                    0
-                    105px;
-
-                gap: 6px;
-
-            }
-
-
-            .subtitle-file-browse-button {
-
-                width: 100%;
-
-                min-width: 145px;
-
-                height: 40px;
-
-                padding: 8px 6px;
-
-                font-size: 13px;
-
-            }
-
-
-            .subtitle-file-row .upload-button {
-
-                width: 75px;
-
-                min-width: 75px;
-
-                height: 40px;
-
-                padding: 8px 6px;
-
-                font-size: 13px;
-
-            }
-
-
-            .subtitle-file-create-button {
-
-                width: 105px;
-
-                min-width: 105px;
-
-                height: 40px;
-
-                padding: 0 5px;
-
-                font-size: 11px;
-
-            }
-
-
-            .subtitle-file-spacer {
-
-                display: none;
-
-            }
-
-        }
-
-    </style>
-
 </head>
 
 
@@ -328,6 +36,8 @@
             YouTube Converter
         </h1>
 
+
+        <!-- 保存ファイル -->
 
         <a
             href="/files"
@@ -351,35 +61,46 @@
         role="tablist"
     >
 
+
+        <!-- =====================================
+             タブ1
+        ====================================== -->
+
         <button
             id="youtube-tab-button"
-            class="converter-tab-button"
+            class="converter-tab-button active"
             type="button"
             role="tab"
-            aria-selected="false"
+            aria-selected="true"
             aria-controls="youtube-tab"
         >
             YouTube変換
         </button>
 
 
+        <!-- =====================================
+             タブ2
+        ====================================== -->
+
         <button
             id="file-tab-button"
-            class="converter-tab-button active"
+            class="converter-tab-button"
             type="button"
             role="tab"
-            aria-selected="true"
+            aria-selected="false"
             aria-controls="file-tab"
         >
             ファイル変換
         </button>
+
 
     </div>
 
 
 
     <!-- =========================================
-         タブ1：YouTube変換
+         タブ1
+         YouTube変換
     ========================================== -->
 
     <section
@@ -389,20 +110,25 @@
         aria-labelledby="youtube-tab-button"
     >
 
+
+        <!-- =====================================
+             説明
+        ====================================== -->
+
         <div class="tab-title">
-            YouTube変換
+
+            YouTube動画のアドレスを入力
+
         </div>
 
 
+
         <!-- =====================================
-             YouTube URL
+             URL + 実行
         ====================================== -->
 
-        <div class="youtube-input-row">
+        <div class="url-row">
 
-            <label for="youtube-url">
-                YouTube URL：
-            </label>
 
             <input
                 id="youtube-url"
@@ -412,59 +138,181 @@
                 autocomplete="off"
             >
 
+
+            <!--
+                タブ1専用実行ボタン
+                converter.jsが使用
+            -->
+
+            <button
+                id="convertBtn"
+                class="execute-button"
+                type="button"
+            >
+                実行
+            </button>
+
+
         </div>
+
 
 
         <!-- =====================================
-             時間
-             
-             開始・終了が両方 00:00:00 の場合
-             → 全時間
+             時間指定
         ====================================== -->
 
-        <div class="youtube-time-row">
+        <div class="time-area">
 
-            <label for="start-time">
-                時間：
-            </label>
 
-            <input
-                id="start-time"
-                class="time-input"
-                type="text"
-                inputmode="numeric"
-                maxlength="8"
-                placeholder="00:00:00"
-                value="00:00:00"
-            >
+            <div class="time-label-row">
 
-            <span class="time-separator">
-                ～
-            </span>
+                <span class="time-title">
+                    時間指定
+                </span>
 
-            <input
-                id="end-time"
-                class="time-input"
-                type="text"
-                inputmode="numeric"
-                maxlength="8"
-                placeholder="00:00:00"
-                value="00:00:00"
-            >
+            </div>
+
+
+
+            <div class="time-input-row">
+
+
+                <!-- =============================
+                     開始
+                ============================== -->
+
+                <div class="time-group">
+
+
+                    <input
+                        id="start-hour"
+                        class="time-input"
+                        type="text"
+                        inputmode="numeric"
+                        maxlength="2"
+                        pattern="[0-9]*"
+                        placeholder="00"
+                    >
+
+                    <span class="time-unit">
+                        時
+                    </span>
+
+
+                    <input
+                        id="start-minute"
+                        class="time-input"
+                        type="text"
+                        inputmode="numeric"
+                        maxlength="2"
+                        pattern="[0-9]*"
+                        placeholder="00"
+                    >
+
+                    <span class="time-unit">
+                        分
+                    </span>
+
+
+                    <input
+                        id="start-second"
+                        class="time-input"
+                        type="text"
+                        inputmode="numeric"
+                        maxlength="2"
+                        pattern="[0-9]*"
+                        placeholder="00"
+                    >
+
+                    <span class="time-unit">
+                        秒
+                    </span>
+
+
+                </div>
+
+
+
+                <!-- =============================
+                     区切り
+                ============================== -->
+
+                <span class="time-separator">
+                    ～
+                </span>
+
+
+
+                <!-- =============================
+                     終了
+                ============================== -->
+
+                <div class="time-group">
+
+
+                    <input
+                        id="end-hour"
+                        class="time-input"
+                        type="text"
+                        inputmode="numeric"
+                        maxlength="2"
+                        pattern="[0-9]*"
+                        placeholder="00"
+                    >
+
+                    <span class="time-unit">
+                        時
+                    </span>
+
+
+                    <input
+                        id="end-minute"
+                        class="time-input"
+                        type="text"
+                        inputmode="numeric"
+                        maxlength="2"
+                        pattern="[0-9]*"
+                        placeholder="00"
+                    >
+
+                    <span class="time-unit">
+                        分
+                    </span>
+
+
+                    <input
+                        id="end-second"
+                        class="time-input"
+                        type="text"
+                        inputmode="numeric"
+                        maxlength="2"
+                        pattern="[0-9]*"
+                        placeholder="00"
+                    >
+
+                    <span class="time-unit">
+                        秒
+                    </span>
+
+
+                </div>
+
+
+            </div>
+
 
         </div>
+
 
 
         <!-- =====================================
              出力形式
         ====================================== -->
 
-        <div class="youtube-format-row">
+        <div class="output-format-group">
 
-            <span class="youtube-format-label">
-                形式：
-            </span>
 
+            <!-- MP3 -->
 
             <label class="output-format-option">
 
@@ -482,6 +330,9 @@
             </label>
 
 
+
+            <!-- MP4 -->
+
             <label class="output-format-option">
 
                 <input
@@ -496,31 +347,35 @@
 
             </label>
 
+
+
+            <!-- 字幕MP4 -->
+
+            <label class="output-format-option">
+
+                <input
+                    type="radio"
+                    name="output-format"
+                    value="subtitle_mp4"
+                >
+
+                <span>
+                    字幕MP4
+                </span>
+
+            </label>
+
+
         </div>
 
-
-        <!-- =====================================
-             ダウンロード
-        ====================================== -->
-
-        <div class="youtube-download-row">
-
-            <button
-                id="convertBtn"
-                class="execute-button"
-                type="button"
-            >
-                ダウンロード
-            </button>
-
-        </div>
 
     </section>
 
 
 
     <!-- =========================================
-         タブ2：ファイル変換
+         タブ2
+         ファイル変換
     ========================================== -->
 
     <section
@@ -531,6 +386,7 @@
         hidden
     >
 
+
         <div class="tab-title">
 
             ファイル変換
@@ -540,10 +396,15 @@
 
 
         <!-- =====================================
-             MP3 → SRT
+             MP3 → Gemini → SRT
         ====================================== -->
 
         <div class="file-conversion-section">
+
+
+            <!-- ---------------------------------
+                 タイトル
+            ---------------------------------- -->
 
             <div class="file-conversion-title">
 
@@ -552,7 +413,17 @@
             </div>
 
 
-            <div class="file-select-row subtitle-action-row">
+
+            <!-- ---------------------------------
+                 MP3選択 + Gemini
+            ---------------------------------- -->
+
+            <div class="file-select-row">
+
+
+                <!-- =================================
+                     MP3ファイル
+                ================================== -->
 
                 <input
                     id="subtitle-mp3-input"
@@ -562,7 +433,11 @@
                 >
 
 
-                <!-- MP3選択 -->
+                <!--
+                    MP3ファイル選択
+                    表示部分をクリックして
+                    ファイル選択画面を開く。
+                -->
 
                 <button
                     id="subtitle-mp3-select"
@@ -570,19 +445,17 @@
                     type="button"
                     aria-label="MP3ファイルを選択"
                 >
-                    mp3ファイルを選択してください
+
+                    ファイルが選択されていません
+                    → mp3ファイルを選択してください
+
                 </button>
 
 
-                <!-- SRTダウンロード -->
 
-                <div
-                    id="subtitle-srt-download-area"
-                    class="subtitle-download-area"
-                ></div>
-
-
-                <!-- Gemini -->
+                <!-- =================================
+                     Gemini送信
+                ================================== -->
 
                 <button
                     id="gemini-send-button"
@@ -590,16 +463,14 @@
                     type="button"
                     disabled
                 >
+
                     Geminiへ
+
                 </button>
+
 
             </div>
 
-
-            <div
-                id="subtitle-srt-download-area"
-                class="subtitle-download-area"
-            ></div>
 
         </div>
 
@@ -612,9 +483,9 @@
         <div class="file-conversion-section">
 
 
-            <!-- =================================
+            <!-- ---------------------------------
                  タイトル + フォント
-            ================================== -->
+            ---------------------------------- -->
 
             <div class="file-conversion-title subtitle-title-row">
 
@@ -622,6 +493,11 @@
                     MP4とSRTから字幕MP4を作成
                 </span>
 
+
+                <!--
+                    フォントボタンは
+                    ラベルの右側に約1文字分空けて配置
+                -->
 
                 <button
                     id="subtitle-font-button"
@@ -639,7 +515,8 @@
                  MP4
             ================================== -->
 
-            <div class="subtitle-file-row">
+            <div class="file-select-row">
+
 
                 <input
                     id="subtitle-mp4-input"
@@ -649,36 +526,23 @@
                 >
 
 
+                <!--
+                    表示部分をクリックして
+                    MP4ファイルを選択する。
+                -->
+
                 <button
                     id="subtitle-mp4-select"
-                    class="subtitle-file-browse-button"
+                    class="file-select-display"
                     type="button"
                     aria-label="MP4ファイルを選択"
                 >
-                    mp4を選択してください
+
+                    ファイルが選択されていません
+                    → mp4ファイルを選択してください
+
                 </button>
 
-
-                <button
-                    id="subtitle-mp4-upload-button"
-                    class="upload-button"
-                    type="button"
-                    disabled
-                >
-                    転送
-                </button>
-
-
-                <div
-                    class="subtitle-file-spacer"
-                    aria-hidden="true"
-                ></div>
-
-
-                <div
-                    class="subtitle-file-spacer"
-                    aria-hidden="true"
-                ></div>
 
             </div>
 
@@ -688,65 +552,63 @@
                  SRT
             ================================== -->
 
-            <div class="subtitle-file-row">
+            <div class="file-select-row">
+
 
                 <input
                     id="subtitle-srt-input"
                     class="hidden-file-input"
                     type="file"
-                    accept=".srt"
+                    accept=".srt,text/plain"
                 >
 
+
+                <!--
+                    表示部分をクリックして
+                    SRTファイルを選択する。
+                -->
 
                 <button
                     id="subtitle-srt-select"
-                    class="subtitle-file-browse-button"
+                    class="file-select-display"
                     type="button"
                     aria-label="SRTファイルを選択"
                 >
-                    srtを選択してください
+
+                    ファイルが選択されていません
+                    → srtファイルを選択してください
+
                 </button>
 
-
-                <button
-                    id="subtitle-srt-upload-button"
-                    class="upload-button"
-                    type="button"
-                    disabled
-                >
-                    転送
-                </button>
-
-
-                <div
-                    class="subtitle-file-spacer"
-                    aria-hidden="true"
-                ></div>
-
-
-                <button
-                    id="subtitle-mp4-create-button"
-                    class="subtitle-file-create-button"
-                    type="button"
-                    disabled
-                >
-                    字幕mp4を作成
-                </button>
 
             </div>
 
 
 
             <!-- =================================
-                 字幕MP4ダウンロード
+                 字幕MP4作成
             ================================== -->
 
-            <div
-                id="subtitle-mp4-download-area"
-                class="subtitle-download-area"
-            ></div>
+            <div class="subtitle-create-row">
+
+
+                <button
+                    id="subtitle-mp4-create-button"
+                    class="execute-button"
+                    type="button"
+                    disabled
+                >
+
+                    字幕mp4を作成
+
+                </button>
+
+
+            </div>
+
 
         </div>
+
 
     </section>
 
@@ -761,6 +623,14 @@
         class="common-result-area"
     >
 
+
+        <!-- =====================================
+             処理状況
+
+             ステータス表示はここ1か所だけ。
+             #status は作らない。
+        ====================================== -->
+
         <div
             id="conversion-status-area"
             class="conversion-status-area"
@@ -768,12 +638,19 @@
         ></div>
 
 
+
+        <!-- =====================================
+             ダウンロードエリア
+        ====================================== -->
+
         <div
             id="downloadArea"
             class="download-area"
         ></div>
 
+
     </section>
+
 
 
 </div>
@@ -782,7 +659,22 @@
 
 <!-- =========================================
      JavaScript
+
+     converter.js
+     -------------------------
+     タブ1のYouTube変換専用
+
+     subtitle_font.js
+     -------------------------
+     タブ2の字幕フォント設定専用
+
+     subtitle.js
+     -------------------------
+     タブ2のファイル変換専用
+
+     両者を混在させない。
 ========================================== -->
+
 
 <script
     src="/static/converter.js"
@@ -813,14 +705,15 @@ document.addEventListener(
     "DOMContentLoaded",
     function () {
 
+
         console.log(
-            "[INDEX] initialization start"
+            "[INDEX] tab initialization"
         );
 
 
-        /* =====================================
-           DOM
-        ====================================== */
+        // =====================================
+        // DOM
+        // =====================================
 
         const youtubeTabButton =
             document.getElementById(
@@ -846,17 +739,52 @@ document.addEventListener(
             );
 
 
-        /* =====================================
-           タブ切り替え
-        ====================================== */
+
+        // =====================================
+        // DOM確認
+        // =====================================
+
+        console.log(
+            "[INDEX] youtubeTabButton:",
+            youtubeTabButton
+        );
+
+
+        console.log(
+            "[INDEX] fileTabButton:",
+            fileTabButton
+        );
+
+
+        console.log(
+            "[INDEX] youtubeTab:",
+            youtubeTab
+        );
+
+
+        console.log(
+            "[INDEX] fileTab:",
+            fileTab
+        );
+
+
+
+        // =====================================
+        // タブ表示
+        // =====================================
 
         function showTab(
             target
         ) {
 
+
             const isYoutube =
                 target === "youtube";
 
+
+            // =================================
+            // タブボタン
+            // =================================
 
             if (youtubeTabButton) {
 
@@ -888,6 +816,11 @@ document.addEventListener(
             }
 
 
+
+            // =================================
+            // タブパネル
+            // =================================
+
             if (youtubeTab) {
 
                 youtubeTab.classList.toggle(
@@ -914,17 +847,20 @@ document.addEventListener(
             }
 
 
+
             console.log(
                 "[INDEX] tab changed:",
                 target
             );
 
+
         }
 
 
-        /* =====================================
-           YouTubeタブ
-        ====================================== */
+
+        // =====================================
+        // タブ1
+        // =====================================
 
         if (youtubeTabButton) {
 
@@ -942,9 +878,10 @@ document.addEventListener(
         }
 
 
-        /* =====================================
-           ファイル変換タブ
-        ====================================== */
+
+        // =====================================
+        // タブ2
+        // =====================================
 
         if (fileTabButton) {
 
@@ -962,20 +899,25 @@ document.addEventListener(
         }
 
 
-        /* =====================================
-           初期状態
-           
-           現在はファイル変換を初期表示
-        ====================================== */
+
+        // =====================================
+        // 初期状態
+        //
+        // 時間入力のイベントは
+        // converter.js側で管理する。
+        //
+        // ここでは登録しない。
+        // =====================================
 
         showTab(
-            "file"
+            "youtube"
         );
 
 
         console.log(
             "[INDEX] initialization complete"
         );
+
 
     }
 );
