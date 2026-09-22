@@ -6,7 +6,7 @@
 #     ↓
 # /static/ytdown.js
 #     ↓
-# /ytdown
+# POST /ytdown
 #     ↓
 # ytdown.py
 #     ↓
@@ -15,22 +15,30 @@
 # FFmpeg
 #
 # 対応:
-#
-# mp3
-# mp4
+#   mp3
+#   mp4
 #
 # 時間指定:
+#   start_time
+#   end_time
 #
-# start_time
-# end_time
+# Cookie:
+#   使用しない
 #
+# Render:
+#   Deno
+#   yt-dlp-ejs
+#   FFmpeg
 # =====================================
+
 
 import os
 import re
 import shutil
 import subprocess
 import traceback
+import uuid
+
 from pathlib import Path
 
 from flask import request, jsonify
@@ -46,6 +54,10 @@ DOWNLOAD_DIR = Path(
     config.DOWNLOAD_DIR
 ).resolve()
 
+
+# =====================================
+# ログ
+# =====================================
 
 print(
     "==========================================",
@@ -81,10 +93,6 @@ def register_ytdown(app):
     )
 
 
-    # =====================================
-    # /ytdown
-    # =====================================
-
     @app.route(
         "/ytdown",
         methods=["POST"]
@@ -113,7 +121,7 @@ def register_ytdown(app):
         try:
 
             # =================================
-            # JSON取得
+            # JSON
             # =================================
 
             data = request.get_json(
@@ -136,7 +144,7 @@ def register_ytdown(app):
 
 
             # =================================
-            # YouTube URL
+            # URL
             # =================================
 
             youtube_url = data.get(
@@ -171,13 +179,11 @@ def register_ytdown(app):
 
 
             # =================================
-            # URL確認
+            # YouTube URL確認
             # =================================
 
-            if (
-                "youtube.com" not in youtube_url
-                and
-                "youtu.be" not in youtube_url
+            if not is_youtube_url(
+                youtube_url
             ):
 
                 raise ValueError(
@@ -251,13 +257,77 @@ def register_ytdown(app):
 
             if end_time is None:
 
-                end_time = ""
+                end_time = "00:00:00"
 
 
             end_time = str(
                 end_time
             ).strip()
 
+
+            # =================================
+            # 時間変換
+            # =================================
+
+            start_seconds = parse_time(
+                start_time
+            )
+
+
+            end_seconds = parse_time(
+                end_time
+            )
+
+
+            # =================================
+            # 時間チェック
+            # =================================
+
+            if start_seconds < 0:
+
+                raise ValueError(
+                    "開始時間が不正です。"
+                )
+
+
+            if end_seconds < 0:
+
+                raise ValueError(
+                    "終了時間が不正です。"
+                )
+
+
+            # =================================
+            # 終了時間
+            #
+            # 00:00:00
+            # ↓
+            # 終了時間なし
+            # =================================
+
+            if end_seconds == 0:
+
+                clip_duration = None
+
+            else:
+
+                if end_seconds <= start_seconds:
+
+                    raise ValueError(
+                        "終了時間は開始時間より後にしてください。"
+                    )
+
+
+                clip_duration = (
+                    end_seconds
+                    -
+                    start_seconds
+                )
+
+
+            # =================================
+            # ログ
+            # =================================
 
             print(
                 "[YTDOWN] URL:",
@@ -283,63 +353,27 @@ def register_ytdown(app):
                 flush=True
             )
 
-
-            # =================================
-            # 時間変換
-            # =================================
-
-            start_seconds = parse_time(
-                start_time
-            )
-
-
-            if end_time:
-
-                end_seconds = parse_time(
-                    end_time
-                )
-
-            else:
-
-                end_seconds = None
-
-
-            # =================================
-            # 時間チェック
-            # =================================
-
-            if start_seconds < 0:
-
-                raise ValueError(
-                    "開始時間が不正です。"
-                )
-
-
-            if end_seconds is not None:
-
-                if end_seconds <= start_seconds:
-
-                    raise ValueError(
-                        "終了時間は開始時間より後にしてください。"
-                    )
-
-
             print(
-                "[YTDOWN] start seconds:",
+                "[YTDOWN] start_seconds:",
                 start_seconds,
                 flush=True
             )
 
+            print(
+                "[YTDOWN] end_seconds:",
+                end_seconds,
+                flush=True
+            )
 
             print(
-                "[YTDOWN] end seconds:",
-                end_seconds,
+                "[YTDOWN] duration:",
+                clip_duration,
                 flush=True
             )
 
 
             # =================================
-            # downloadsディレクトリ
+            # DOWNLOAD_DIR
             # =================================
 
             DOWNLOAD_DIR.mkdir(
@@ -349,7 +383,7 @@ def register_ytdown(app):
 
 
             # =================================
-            # yt-dlp確認
+            # yt-dlp
             # =================================
 
             yt_dlp_command = find_command(
@@ -372,7 +406,7 @@ def register_ytdown(app):
 
 
             # =================================
-            # FFmpeg確認
+            # FFmpeg
             # =================================
 
             ffmpeg_command = find_command(
@@ -395,38 +429,90 @@ def register_ytdown(app):
 
 
             # =================================
-            # 一時ディレクトリ
+            # Deno
             # =================================
 
-            temporary_directory = (
-                DOWNLOAD_DIR
-                /
-                ".ytdown_tmp"
+            deno_command = find_command(
+                "deno"
+            )
+
+
+            if deno_command is None:
+
+                raise RuntimeError(
+                    "Denoが見つかりません。"
+                    "DockerfileでDenoをインストールしてください。"
+                )
+
+
+            print(
+                "[YTDOWN] deno:",
+                deno_command,
+                flush=True
             )
 
 
             # =================================
-            # 古い一時ディレクトリ削除
+            # Deno version
             # =================================
 
-            if temporary_directory.exists():
-
-                print(
-                    "[YTDOWN] removing old temp:",
-                    temporary_directory,
-                    flush=True
-                )
+            deno_version = get_command_version(
+                deno_command,
+                "--version"
+            )
 
 
-                if temporary_directory.is_dir():
+            print(
+                "[YTDOWN] Deno version:",
+                deno_version,
+                flush=True
+            )
 
-                    shutil.rmtree(
-                        temporary_directory
-                    )
 
-                else:
+            # =================================
+            # yt-dlp version
+            # =================================
 
-                    temporary_directory.unlink()
+            yt_dlp_version = get_command_version(
+                yt_dlp_command,
+                "--version"
+            )
+
+
+            print(
+                "[YTDOWN] yt-dlp version:",
+                yt_dlp_version,
+                flush=True
+            )
+
+
+            # =================================
+            # 一時ディレクトリ
+            #
+            # リクエストごとにUUIDを使用。
+            #
+            # 同時アクセスしても
+            # ファイルが混ざらないようにする。
+            # =================================
+
+            job_id = uuid.uuid4().hex
+
+
+            temporary_directory = (
+                DOWNLOAD_DIR
+                /
+                ".ytdown_tmp_"
+                +
+                Path(job_id)
+            )
+
+
+            # Path同士の結合を安全にする
+            temporary_directory = (
+                DOWNLOAD_DIR
+                /
+                f".ytdown_tmp_{job_id}"
+            )
 
 
             temporary_directory.mkdir(
@@ -435,37 +521,22 @@ def register_ytdown(app):
             )
 
 
+            print(
+                "[YTDOWN] temp directory:",
+                temporary_directory,
+                flush=True
+            )
+
+
             # =================================
-            # 出力テンプレート
+            # 一時ファイル
             # =================================
 
             temporary_template = (
                 temporary_directory
                 /
-                "%(title)s.%(ext)s"
+                "download_%(id)s.%(ext)s"
             )
-
-
-            # =================================
-            # yt-dlp基本コマンド
-            # =================================
-
-            command = [
-
-                yt_dlp_command,
-
-                "--no-playlist",
-
-                "--newline",
-
-                "--restrict-filenames",
-
-                "-o",
-                str(
-                    temporary_template
-                )
-
-            ]
 
 
             # =================================
@@ -477,15 +548,9 @@ def register_ytdown(app):
             )
 
 
-            if end_seconds is None:
+            if clip_duration is None:
 
-                section = (
-                    "*"
-                    +
-                    section_start
-                    +
-                    "-"
-                )
+                section_end = ""
 
             else:
 
@@ -493,16 +558,70 @@ def register_ytdown(app):
                     end_seconds
                 )
 
-                section = (
-                    "*"
-                    +
-                    section_start
-                    +
-                    "-"
-                    +
-                    section_end
+
+            section = (
+                "*"
+                +
+                section_start
+                +
+                "-"
+                +
+                section_end
+            )
+
+
+            print(
+                "[YTDOWN] download section:",
+                section,
+                flush=True
+            )
+
+
+            # =================================
+            # 基本コマンド
+            #
+            # ローカル版を参考にする。
+            # =================================
+
+            command = [
+
+                yt_dlp_command,
+
+                "--no-update",
+
+                "--no-playlist",
+
+                "--newline",
+
+                "--restrict-filenames",
+
+                "--ffmpeg-location",
+                ffmpeg_command,
+
+                "--js-runtimes",
+                f"deno:{deno_command}",
+
+                "-o",
+                str(
+                    temporary_template
                 )
 
+            ]
+
+
+            # =================================
+            # EJS
+            #
+            # PyPI版yt-dlp-ejsを使用する。
+            #
+            # GitHub/npmから追加取得するのではなく、
+            # インストール済みのyt-dlp-ejsを使う。
+            # =================================
+
+
+            # =================================
+            # 時間指定
+            # =================================
 
             command.extend(
                 [
@@ -513,7 +632,7 @@ def register_ytdown(app):
 
 
             # =================================
-            # 出力形式
+            # MP3
             # =================================
 
             if output_format == "mp3":
@@ -532,13 +651,30 @@ def register_ytdown(app):
                     ]
                 )
 
+
+            # =================================
+            # MP4
+            #
+            # ローカルで成功している
+            # format selectorを使用。
+            # =================================
+
             else:
 
                 command.extend(
                     [
 
                         "-f",
-                        "bv*+ba/b",
+
+                        (
+                            "bestvideo[ext=mp4]"
+                            "+"
+                            "bestaudio[ext=m4a]"
+                            "/"
+                            "best[ext=mp4]"
+                            "/"
+                            "best"
+                        ),
 
                         "--merge-output-format",
                         "mp4"
@@ -571,12 +707,6 @@ def register_ytdown(app):
             )
 
             print(
-                "[YTDOWN] section:",
-                section,
-                flush=True
-            )
-
-            print(
                 "[YTDOWN] command:",
                 command,
                 flush=True
@@ -596,6 +726,10 @@ def register_ytdown(app):
 
                 command,
 
+                cwd=str(
+                    temporary_directory
+                ),
+
                 stdout=subprocess.PIPE,
 
                 stderr=subprocess.STDOUT,
@@ -604,14 +738,23 @@ def register_ytdown(app):
 
                 encoding="utf-8",
 
-                errors="replace"
+                errors="replace",
+
+                timeout=1800
 
             )
 
 
             # =================================
-            # 結果表示
+            # ログ
             # =================================
+
+            output = (
+                process.stdout
+                or
+                ""
+            )
+
 
             print(
                 "[YTDOWN] yt-dlp RETURN CODE:",
@@ -620,29 +763,33 @@ def register_ytdown(app):
             )
 
 
-            if process.stdout:
+            print(
+                "[YTDOWN] yt-dlp OUTPUT:",
+                flush=True
+            )
 
-                print(
-                    "[YTDOWN] yt-dlp OUTPUT:",
-                    flush=True
-                )
 
-                print(
-                    process.stdout,
-                    flush=True
-                )
+            print(
+                output,
+                flush=True
+            )
 
 
             # =================================
-            # エラー
+            # yt-dlp失敗
             # =================================
 
             if process.returncode != 0:
 
+                error_message = (
+                    build_ytdlp_error_message(
+                        output
+                    )
+                )
+
+
                 raise RuntimeError(
-                    "yt-dlpでダウンロードに失敗しました。\n\n"
-                    +
-                    process.stdout[-5000:]
+                    error_message
                 )
 
 
@@ -659,6 +806,16 @@ def register_ytdown(app):
 
                 if path.is_file()
 
+                and
+                not path.name.endswith(
+                    ".part"
+                )
+
+                and
+                not path.name.endswith(
+                    ".ytdl"
+                )
+
             ]
 
 
@@ -670,16 +827,53 @@ def register_ytdown(app):
 
 
             # =================================
-            # 最新ファイル取得
+            # 目的の拡張子を優先
+            # =================================
+
+            if output_format == "mp3":
+
+                preferred_files = [
+
+                    path
+
+                    for path
+                    in files
+
+                    if path.suffix.lower()
+                    ==
+                    ".mp3"
+
+                ]
+
+            else:
+
+                preferred_files = [
+
+                    path
+
+                    for path
+                    in files
+
+                    if path.suffix.lower()
+                    ==
+                    ".mp4"
+
+                ]
+
+
+            if preferred_files:
+
+                files = preferred_files
+
+
+            # =================================
+            # 最新ファイル
             # =================================
 
             files.sort(
-
                 key=lambda path:
                     path.stat().st_mtime,
-
                 reverse=True
-
             )
 
 
@@ -710,7 +904,7 @@ def register_ytdown(app):
 
 
             # =================================
-            # 最終ファイル名
+            # ファイル名
             # =================================
 
             safe_stem = sanitize_filename(
@@ -718,32 +912,36 @@ def register_ytdown(app):
             )
 
 
+            # =================================
+            # 拡張子
+            # =================================
+
             if output_format == "mp3":
 
-                final_filename = (
-                    safe_stem
-                    +
-                    ".mp3"
-                )
+                final_suffix = ".mp3"
 
             else:
 
-                final_filename = (
-                    safe_stem
-                    +
-                    ".mp4"
-                )
+                final_suffix = ".mp4"
 
+
+            # =================================
+            # 最終パス
+            # =================================
 
             final_path = (
                 DOWNLOAD_DIR
                 /
-                final_filename
+                (
+                    safe_stem
+                    +
+                    final_suffix
+                )
             )
 
 
             # =================================
-            # 同名ファイル回避
+            # 同名対策
             # =================================
 
             final_path = unique_path(
@@ -759,24 +957,21 @@ def register_ytdown(app):
 
 
             # =================================
-            # 保存
+            # 移動
             # =================================
 
             shutil.move(
-
                 str(
                     temporary_output
                 ),
-
                 str(
                     final_path
                 )
-
             )
 
 
             # =================================
-            # 保存確認
+            # 最終確認
             # =================================
 
             if not final_path.exists():
@@ -809,31 +1004,43 @@ def register_ytdown(app):
             # 一時ディレクトリ削除
             # =================================
 
-            try:
+            cleanup_directory(
+                temporary_directory
+            )
 
-                shutil.rmtree(
-                    temporary_directory
-                )
 
-                temporary_directory = None
-
-            except Exception as cleanup_error:
-
-                print(
-                    "[YTDOWN] temp cleanup warning:",
-                    cleanup_error,
-                    flush=True
-                )
+            temporary_directory = None
 
 
             # =================================
-            # 成功結果
+            # ダウンロードURL
+            #
+            # 現在のytdown.jsは
+            # download_url / url
+            # を確認する。
+            #
+            # /downloads/<filename>
+            # がapp.py側で公開されている場合に使用。
+            # =================================
+
+            download_url = (
+                "/downloads/"
+                +
+                final_path.name
+            )
+
+
+            # =================================
+            # 成功
             # =================================
 
             result = {
 
                 "success":
                     True,
+
+                "message":
+                    "ダウンロードが完了しました。",
 
                 "filename":
                     final_path.name,
@@ -843,6 +1050,9 @@ def register_ytdown(app):
 
                 "path":
                     str(final_path),
+
+                "download_url":
+                    download_url,
 
                 "format":
                     output_format,
@@ -898,6 +1108,35 @@ def register_ytdown(app):
             ), 200
 
 
+        except subprocess.TimeoutExpired:
+
+            print(
+                "[YTDOWN] TIMEOUT",
+                flush=True
+            )
+
+
+            if temporary_directory:
+
+                cleanup_directory(
+                    temporary_directory
+                )
+
+
+            return jsonify({
+
+                "success":
+                    False,
+
+                "message":
+                    "yt-dlpの処理がタイムアウトしました。",
+
+                "error_type":
+                    "TimeoutExpired"
+
+            }), 500
+
+
         except Exception as error:
 
             print(
@@ -940,29 +1179,11 @@ def register_ytdown(app):
             )
 
 
-            # =================================
-            # エラー時の一時ファイル削除
-            # =================================
+            if temporary_directory:
 
-            if (
-                temporary_directory
-                and
-                temporary_directory.exists()
-            ):
-
-                try:
-
-                    shutil.rmtree(
-                        temporary_directory
-                    )
-
-                except Exception as cleanup_error:
-
-                    print(
-                        "[YTDOWN] cleanup failed:",
-                        cleanup_error,
-                        flush=True
-                    )
+                cleanup_directory(
+                    temporary_directory
+                )
 
 
             return jsonify({
@@ -980,6 +1201,48 @@ def register_ytdown(app):
 
 
 # =====================================
+# YouTube URL確認
+# =====================================
+
+def is_youtube_url(
+    url
+):
+
+    url = str(
+        url
+    ).lower()
+
+
+    allowed_hosts = [
+
+        "youtube.com",
+
+        "www.youtube.com",
+
+        "m.youtube.com",
+
+        "youtu.be",
+
+        "www.youtu.be"
+
+    ]
+
+
+    for host in allowed_hosts:
+
+        if (
+            host
+            in
+            url
+        ):
+
+            return True
+
+
+    return False
+
+
+# =====================================
 # 時間文字列 → 秒
 #
 # 対応:
@@ -988,7 +1251,6 @@ def register_ytdown(app):
 # H:MM:SS
 # MM:SS
 # SS
-#
 # =====================================
 
 def parse_time(
@@ -1005,9 +1267,9 @@ def parse_time(
         return 0
 
 
-    # =====================================
-    # 数字だけ
-    # =====================================
+    # -------------------------------------
+    # 数字のみ
+    # -------------------------------------
 
     if value.isdigit():
 
@@ -1016,44 +1278,47 @@ def parse_time(
         )
 
 
-    # =====================================
-    # : で分割
-    # =====================================
-
     parts = value.split(
         ":"
     )
 
 
-    if len(parts) == 3:
+    try:
 
-        hours = int(
-            parts[0]
-        )
+        if len(parts) == 3:
 
-        minutes = int(
-            parts[1]
-        )
+            hours = int(
+                parts[0]
+            )
 
-        seconds = int(
-            parts[2]
-        )
+            minutes = int(
+                parts[1]
+            )
 
-
-    elif len(parts) == 2:
-
-        hours = 0
-
-        minutes = int(
-            parts[0]
-        )
-
-        seconds = int(
-            parts[1]
-        )
+            seconds = int(
+                parts[2]
+            )
 
 
-    else:
+        elif len(parts) == 2:
+
+            hours = 0
+
+            minutes = int(
+                parts[0]
+            )
+
+            seconds = int(
+                parts[1]
+            )
+
+
+        else:
+
+            raise ValueError
+
+
+    except ValueError:
 
         raise ValueError(
             "時間はHH:MM:SS形式で指定してください: "
@@ -1062,9 +1327,12 @@ def parse_time(
         )
 
 
-    # =====================================
-    # 分チェック
-    # =====================================
+    if hours < 0:
+
+        raise ValueError(
+            "時間は0以上で指定してください。"
+        )
+
 
     if minutes < 0 or minutes >= 60:
 
@@ -1073,10 +1341,6 @@ def parse_time(
         )
 
 
-    # =====================================
-    # 秒チェック
-    # =====================================
-
     if seconds < 0 or seconds >= 60:
 
         raise ValueError(
@@ -1084,22 +1348,12 @@ def parse_time(
         )
 
 
-    # =====================================
-    # 秒へ変換
-    # =====================================
-
     return (
-
         hours * 3600
-
         +
-
         minutes * 60
-
         +
-
         seconds
-
     )
 
 
@@ -1114,6 +1368,11 @@ def format_seconds(
     seconds = int(
         seconds
     )
+
+
+    if seconds < 0:
+
+        seconds = 0
 
 
     hours = (
@@ -1140,11 +1399,9 @@ def format_seconds(
 
 
     return (
-
         f"{hours:02d}:"
         f"{minutes:02d}:"
         f"{remaining_seconds:02d}"
-
     )
 
 
@@ -1156,9 +1413,9 @@ def find_command(
     command
 ):
 
-    # =====================================
-    # PATHから検索
-    # =====================================
+    # -------------------------------------
+    # PATH
+    # -------------------------------------
 
     path = shutil.which(
         command
@@ -1170,9 +1427,9 @@ def find_command(
         return path
 
 
-    # =====================================
+    # -------------------------------------
     # よくある絶対パス
-    # =====================================
+    # -------------------------------------
 
     candidates = [
 
@@ -1182,7 +1439,9 @@ def find_command(
 
         f"/opt/homebrew/bin/{command}",
 
-        f"/root/.local/bin/{command}"
+        f"/root/.local/bin/{command}",
+
+        f"/app/.deno/bin/{command}"
 
     ]
 
@@ -1205,6 +1464,121 @@ def find_command(
 
 
 # =====================================
+# コマンドバージョン
+# =====================================
+
+def get_command_version(
+    command,
+    argument
+):
+
+    try:
+
+        result = subprocess.run(
+
+            [
+                command,
+                argument
+            ],
+
+            stdout=subprocess.PIPE,
+
+            stderr=subprocess.STDOUT,
+
+            text=True,
+
+            encoding="utf-8",
+
+            errors="replace",
+
+            timeout=30
+
+        )
+
+
+        return (
+            result.stdout
+            or
+            ""
+        ).strip()
+
+
+    except Exception as error:
+
+        return (
+            "version取得失敗: "
+            +
+            str(error)
+        )
+
+
+# =====================================
+# yt-dlpエラーメッセージ
+# =====================================
+
+def build_ytdlp_error_message(
+    output
+):
+
+    output = (
+        output
+        or
+        ""
+    )
+
+
+    # -------------------------------------
+    # Bot / 429
+    # -------------------------------------
+
+    if (
+        "Sign in to confirm you're not a bot"
+        in output
+        or
+        "Sign in to confirm you’re not a bot"
+        in output
+        or
+        "HTTP Error 429"
+        in output
+    ):
+
+        return (
+            "YouTubeからbot判定またはHTTP 429が返されました。\n\n"
+            "yt-dlpの設定処理は完了していますが、"
+            "YouTube側でこのアクセス元からの取得が制限されています。\n\n"
+            +
+            output[-8000:]
+        )
+
+
+    # -------------------------------------
+    # 403
+    # -------------------------------------
+
+    if (
+        "403 Forbidden"
+        in output
+    ):
+
+        return (
+            "YouTubeからHTTP 403 Forbiddenが返されました。\n\n"
+            +
+            output[-8000:]
+        )
+
+
+    # -------------------------------------
+    # 一般エラー
+    # -------------------------------------
+
+    return (
+        "yt-dlpでダウンロードに失敗しました。\n\n"
+        +
+        output[-8000:]
+    )
+
+
+# =====================================
 # ファイル名安全化
 # =====================================
 
@@ -1217,58 +1591,64 @@ def sanitize_filename(
     )
 
 
-    # =====================================
-    # Windows / Unix禁止文字
-    # =====================================
+    # -------------------------------------
+    # Windows / Unix
+    # -------------------------------------
 
     filename = re.sub(
-
         r'[\\/:*?"<>|]',
-
         "_",
-
         filename
-
     )
 
 
-    # =====================================
+    # -------------------------------------
     # 制御文字
-    # =====================================
+    # -------------------------------------
 
     filename = re.sub(
-
         r"[\x00-\x1f]",
-
         "_",
-
         filename
-
     )
 
 
-    # =====================================
-    # 空白整理
-    # =====================================
+    # -------------------------------------
+    # 空白
+    # -------------------------------------
 
     filename = re.sub(
-
         r"\s+",
-
         " ",
-
         filename
-
     ).strip()
 
 
-    # =====================================
+    # -------------------------------------
+    # 末尾
+    # -------------------------------------
+
+    filename = filename.rstrip(
+        ". "
+    )
+
+
+    # -------------------------------------
     # 空の場合
-    # =====================================
+    # -------------------------------------
 
     if not filename:
 
         filename = "youtube"
+
+
+    # -------------------------------------
+    # 長すぎるファイル名
+    # -------------------------------------
+
+    if len(filename) > 180:
+
+        filename = filename[:180].rstrip()
 
 
     return filename
@@ -1317,3 +1697,46 @@ def unique_path(
 
 
         counter += 1
+
+
+# =====================================
+# 一時ディレクトリ削除
+# =====================================
+
+def cleanup_directory(
+    directory
+):
+
+    if directory is None:
+
+        return
+
+
+    try:
+
+        directory = Path(
+            directory
+        )
+
+
+        if directory.exists():
+
+            shutil.rmtree(
+                directory
+            )
+
+
+            print(
+                "[YTDOWN] temp cleanup:",
+                directory,
+                flush=True
+            )
+
+
+    except Exception as error:
+
+        print(
+            "[YTDOWN] temp cleanup warning:",
+            error,
+            flush=True
+        )
