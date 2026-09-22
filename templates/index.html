@@ -376,8 +376,6 @@
 
     </div>
 
-
-
     <!-- =========================================
          タブ1：YouTube変換
     ========================================== -->
@@ -390,13 +388,19 @@
     >
 
         <div class="tab-title">
-
-            YouTube動画のアドレスを入力
-
+            YouTube変換
         </div>
 
 
-        <div class="url-row">
+        <!-- =====================================
+             YouTube URL
+        ====================================== -->
+
+        <div class="youtube-input-row">
+
+            <label for="youtube-url">
+                YouTube URL：
+            </label>
 
             <input
                 id="youtube-url"
@@ -406,149 +410,56 @@
                 autocomplete="off"
             >
 
-
-            <button
-                id="convertBtn"
-                class="execute-button"
-                type="button"
-            >
-                実行
-            </button>
-
         </div>
-
 
 
         <!-- =====================================
-             時間指定
+             時間
         ====================================== -->
 
-        <div class="time-area">
+        <div class="youtube-time-row">
 
-            <div class="time-label-row">
+            <label>
+                時間：
+            </label>
 
-                <span class="time-title">
-                    時間指定
-                </span>
+            <input
+                id="start-time"
+                class="time-input"
+                type="text"
+                inputmode="numeric"
+                maxlength="8"
+                placeholder="00:00:00"
+                value="00:00:00"
+            >
 
-            </div>
+            <span class="time-separator">
+                ～
+            </span>
 
-
-            <div class="time-input-row">
-
-                <div class="time-group">
-
-                    <input
-                        id="start-hour"
-                        class="time-input"
-                        type="text"
-                        inputmode="numeric"
-                        maxlength="2"
-                        pattern="[0-9]*"
-                        placeholder="00"
-                    >
-
-                    <span class="time-unit">
-                        時
-                    </span>
-
-
-                    <input
-                        id="start-minute"
-                        class="time-input"
-                        type="text"
-                        inputmode="numeric"
-                        maxlength="2"
-                        pattern="[0-9]*"
-                        placeholder="00"
-                    >
-
-                    <span class="time-unit">
-                        分
-                    </span>
-
-
-                    <input
-                        id="start-second"
-                        class="time-input"
-                        type="text"
-                        inputmode="numeric"
-                        maxlength="2"
-                        pattern="[0-9]*"
-                        placeholder="00"
-                    >
-
-                    <span class="time-unit">
-                        秒
-                    </span>
-
-                </div>
-
-
-                <span class="time-separator">
-                    ～
-                </span>
-
-
-                <div class="time-group">
-
-                    <input
-                        id="end-hour"
-                        class="time-input"
-                        type="text"
-                        inputmode="numeric"
-                        maxlength="2"
-                        pattern="[0-9]*"
-                        placeholder="00"
-                    >
-
-                    <span class="time-unit">
-                        時
-                    </span>
-
-
-                    <input
-                        id="end-minute"
-                        class="time-input"
-                        type="text"
-                        inputmode="numeric"
-                        maxlength="2"
-                        pattern="[0-9]*"
-                        placeholder="00"
-                    >
-
-                    <span class="time-unit">
-                        分
-                    </span>
-
-
-                    <input
-                        id="end-second"
-                        class="time-input"
-                        type="text"
-                        inputmode="numeric"
-                        maxlength="2"
-                        pattern="[0-9]*"
-                        placeholder="00"
-                    >
-
-                    <span class="time-unit">
-                        秒
-                    </span>
-
-                </div>
-
-            </div>
+            <input
+                id="end-time"
+                class="time-input"
+                type="text"
+                inputmode="numeric"
+                maxlength="8"
+                placeholder="00:00:00"
+                value="00:00:00"
+            >
 
         </div>
-
 
 
         <!-- =====================================
              出力形式
         ====================================== -->
 
-        <div class="output-format-group">
+        <div class="youtube-format-row">
+
+            <span class="youtube-format-label">
+                形式：
+            </span>
+
 
             <label class="output-format-option">
 
@@ -580,34 +491,21 @@
 
             </label>
 
-
-            <label class="output-format-option">
-
-                <input
-                    id="subtitle-mp4-radio"
-                    type="radio"
-                    name="output-format"
-                    value="subtitle_mp4"
-                >
-
-                <span>
-                    字幕MP4
-                </span>
-
-            </label>
+        </div>
 
 
-            <!-- =================================
-                 タブ1用 字幕フォントボタン
-            ================================== -->
+        <!-- =====================================
+             ダウンロード
+        ====================================== -->
+
+        <div class="youtube-download-row">
 
             <button
-                id="subtitle-font-button-youtube"
-                class="subtitle-font-button"
+                id="convertBtn"
+                class="execute-button"
                 type="button"
-                hidden
             >
-                Noto Sans CJK JP
+                ダウンロード
             </button>
 
         </div>
