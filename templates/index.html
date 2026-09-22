@@ -376,6 +376,8 @@
 
     </div>
 
+
+
     <!-- =========================================
          タブ1：YouTube変換
     ========================================== -->
@@ -415,11 +417,14 @@
 
         <!-- =====================================
              時間
+             
+             開始・終了が両方 00:00:00 の場合
+             → 全時間
         ====================================== -->
 
         <div class="youtube-time-row">
 
-            <label>
+            <label for="start-time">
                 時間：
             </label>
 
@@ -548,15 +553,17 @@
 
 
             <div class="file-select-row subtitle-action-row">
-            
+
                 <input
                     id="subtitle-mp3-input"
                     class="hidden-file-input"
                     type="file"
                     accept=".mp3,audio/mpeg"
                 >
-            
+
+
                 <!-- MP3選択 -->
+
                 <button
                     id="subtitle-mp3-select"
                     class="file-select-display"
@@ -565,14 +572,18 @@
                 >
                     mp3ファイルを選択してください
                 </button>
-            
+
+
                 <!-- SRTダウンロード -->
+
                 <div
                     id="subtitle-srt-download-area"
                     class="subtitle-download-area"
                 ></div>
-            
+
+
                 <!-- Gemini -->
+
                 <button
                     id="gemini-send-button"
                     class="execute-button"
@@ -581,7 +592,7 @@
                 >
                     Geminiへ
                 </button>
-            
+
             </div>
 
 
@@ -793,7 +804,7 @@
 
 
 <!-- =========================================
-     タブ切り替え + フォントボタン表示制御
+     タブ切り替え
 ========================================== -->
 
 <script>
@@ -833,79 +844,6 @@ document.addEventListener(
             document.getElementById(
                 "file-tab"
             );
-
-
-        const youtubeFontButton =
-            document.getElementById(
-                "subtitle-font-button-youtube"
-            );
-
-
-        /* =====================================
-           タブ1用フォントボタン表示制御
-        ====================================== */
-
-        function updateYoutubeFontButton() {
-
-            if (
-                !youtubeFontButton
-            ) {
-
-                return;
-
-            }
-
-
-            const selectedRadio =
-                document.querySelector(
-                    "input[name='output-format']:checked"
-                );
-
-
-            const shouldShow =
-                Boolean(
-                    selectedRadio &&
-                    selectedRadio.value ===
-                    "subtitle_mp4"
-                );
-
-
-            youtubeFontButton.hidden =
-                !shouldShow;
-
-
-            console.log(
-                "[INDEX] youtube subtitle font button:",
-                shouldShow
-            );
-
-        }
-
-
-        /* =====================================
-           ラジオボタン変更監視
-        ====================================== */
-
-        const outputFormatRadios =
-            document.querySelectorAll(
-                "input[name='output-format']"
-            );
-
-
-        outputFormatRadios.forEach(
-            function (radio) {
-
-                radio.addEventListener(
-                    "change",
-                    function () {
-
-                        updateYoutubeFontButton();
-
-                    }
-                );
-
-            }
-        );
 
 
         /* =====================================
@@ -976,19 +914,6 @@ document.addEventListener(
             }
 
 
-            /*
-             * タブ1へ戻った場合、
-             * 現在のラジオ選択状態を確認する。
-             */
-            if (
-                isYoutube
-            ) {
-
-                updateYoutubeFontButton();
-
-            }
-
-
             console.log(
                 "[INDEX] tab changed:",
                 target
@@ -996,6 +921,10 @@ document.addEventListener(
 
         }
 
+
+        /* =====================================
+           YouTubeタブ
+        ====================================== */
 
         if (youtubeTabButton) {
 
@@ -1012,6 +941,10 @@ document.addEventListener(
 
         }
 
+
+        /* =====================================
+           ファイル変換タブ
+        ====================================== */
 
         if (fileTabButton) {
 
@@ -1031,14 +964,13 @@ document.addEventListener(
 
         /* =====================================
            初期状態
+           
+           現在はファイル変換を初期表示
         ====================================== */
 
         showTab(
             "file"
         );
-
-
-        updateYoutubeFontButton();
 
 
         console.log(
