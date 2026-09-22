@@ -14,20 +14,22 @@ WORKDIR /app
 # OS packages
 #
 # FFmpeg
+# curl
+# unzip
+# ca-certificates
 # fontconfig
 # Japanese fonts
-# Deno installation requirements
 # ==========================================================
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        ffmpeg \
-        curl \
-        unzip \
-        ca-certificates \
-        fontconfig \
-        fonts-noto-cjk \
-        fonts-noto-cjk-extra && \
+    ffmpeg \
+    curl \
+    unzip \
+    ca-certificates \
+    fontconfig \
+    fonts-noto-cjk \
+    fonts-noto-cjk-extra && \
     fc-cache -fv && \
     rm -rf /var/lib/apt/lists/*
 
@@ -62,23 +64,12 @@ RUN echo "==========================================" && \
 # ==========================================================
 # Deno
 #
-# yt-dlp
-#   ↓
-# yt-dlp-ejs
-#   ↓
-# Deno
+# yt-dlp の YouTube EJS に必要
 #
-# YouTube JavaScript challenge対応
+# Deno >= 2.3
 # ==========================================================
 
-ENV DENO_INSTALL=/app/.deno
-ENV DENO_PATH=/app/.deno/bin/deno
-ENV PATH="/app/.deno/bin:${PATH}"
-
-
-# ==========================================================
-# Deno installation
-# ==========================================================
+ENV DENO_INSTALL=/usr/local
 
 RUN curl -fsSL https://deno.land/install.sh | sh
 
@@ -91,13 +82,8 @@ RUN echo "==========================================" && \
     echo "DENO INSTALL CHECK" && \
     echo "==========================================" && \
     echo "DENO_INSTALL: ${DENO_INSTALL}" && \
-    echo "DENO_PATH: ${DENO_PATH}" && \
-    echo "PATH: ${PATH}" && \
     echo "------------------------------------------" && \
-    ls -la "${DENO_INSTALL}/bin" && \
-    echo "------------------------------------------" && \
-    test -x "${DENO_PATH}" && \
-    echo "Deno executable: OK" && \
+    ls -la /usr/local/bin/deno && \
     echo "------------------------------------------" && \
     which deno && \
     deno --version && \
@@ -119,7 +105,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Application
 # ==========================================================
 
-COPY . .
+COPY .
 
 
 # ==========================================================
@@ -143,16 +129,10 @@ RUN echo "==========================================" && \
     which yt-dlp && \
     yt-dlp --version && \
     echo "------------------------------------------" && \
-    echo "yt-dlp Python package:" && \
-    python -c "import yt_dlp; print(yt_dlp.version.__version__)" && \
-    echo "------------------------------------------" && \
     echo "yt-dlp-ejs:" && \
     python -c "import yt_dlp_ejs; print(yt_dlp_ejs.__file__)" && \
     echo "------------------------------------------" && \
     echo "Deno:" && \
-    echo "DENO_INSTALL=${DENO_INSTALL}" && \
-    echo "DENO_PATH=${DENO_PATH}" && \
-    test -x "${DENO_PATH}" && \
     which deno && \
     deno --version && \
     echo "------------------------------------------" && \
