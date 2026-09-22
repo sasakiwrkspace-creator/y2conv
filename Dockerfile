@@ -4,7 +4,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 # ==========================================================
-# Application directory
+# Application
 # ==========================================================
 
 WORKDIR /app
@@ -12,13 +12,6 @@ WORKDIR /app
 
 # ==========================================================
 # OS packages
-#
-# FFmpeg
-# curl
-# unzip
-# ca-certificates
-# fontconfig
-# Japanese fonts
 # ==========================================================
 
 RUN apt-get update && \
@@ -35,43 +28,30 @@ RUN apt-get update && \
 
 
 # ==========================================================
-# Japanese Font verification
+# Japanese fonts check
 # ==========================================================
 
 RUN echo "==========================================" && \
     echo "JAPANESE FONT CHECK" && \
     echo "==========================================" && \
-    echo "Fontconfig:" && \
     fc-cache -V && \
     echo "------------------------------------------" && \
-    echo "Japanese fonts:" && \
     fc-list :lang=ja family | sort -u | head -n 50 && \
     echo "------------------------------------------" && \
-    echo "Noto Sans CJK JP:" && \
     fc-match "Noto Sans CJK JP" && \
-    echo "------------------------------------------" && \
-    echo "Noto Sans JP:" && \
-    fc-match "Noto Sans JP" && \
-    echo "------------------------------------------" && \
-    echo "Noto Serif CJK JP:" && \
     fc-match "Noto Serif CJK JP" && \
-    echo "------------------------------------------" && \
-    echo "Noto Serif JP:" && \
-    fc-match "Noto Serif JP" && \
     echo "=========================================="
 
 
 # ==========================================================
 # Deno
 #
-# yt-dlp の YouTube EJS に必要
-#
-# Deno >= 2.3
+# Deno official binary
 # ==========================================================
 
-ENV DENO_INSTALL=/usr/local
+COPY --from=denoland/deno:bin-2.6.4 /deno /usr/local/bin/deno
 
-RUN curl -fsSL https://deno.land/install.sh | sh
+RUN chmod +x /usr/local/bin/deno
 
 
 # ==========================================================
@@ -79,12 +59,8 @@ RUN curl -fsSL https://deno.land/install.sh | sh
 # ==========================================================
 
 RUN echo "==========================================" && \
-    echo "DENO INSTALL CHECK" && \
+    echo "DENO CHECK" && \
     echo "==========================================" && \
-    echo "DENO_INSTALL: ${DENO_INSTALL}" && \
-    echo "------------------------------------------" && \
-    ls -la /usr/local/bin/deno && \
-    echo "------------------------------------------" && \
     which deno && \
     deno --version && \
     echo "=========================================="
@@ -96,7 +72,6 @@ RUN echo "==========================================" && \
 
 COPY requirements.txt .
 
-
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
@@ -105,19 +80,16 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Application
 # ==========================================================
 
-COPY .
+COPY . .
 
 
 # ==========================================================
-# Final environment verification
+# Final environment check
 # ==========================================================
 
 RUN echo "==========================================" && \
     echo "FINAL ENVIRONMENT CHECK" && \
     echo "==========================================" && \
-    echo "Working directory:" && \
-    pwd && \
-    echo "------------------------------------------" && \
     echo "Python:" && \
     python --version && \
     echo "------------------------------------------" && \
@@ -143,12 +115,6 @@ RUN echo "==========================================" && \
     echo "FFprobe:" && \
     which ffprobe && \
     ffprobe -version | head -n 1 && \
-    echo "------------------------------------------" && \
-    echo "Japanese Font Files:" && \
-    find /usr/share/fonts -type f \( \
-        -iname "*NotoSansCJK*" -o \
-        -iname "*NotoSerifCJK*" \
-    \) | sort && \
     echo "=========================================="
 
 
@@ -156,11 +122,4 @@ RUN echo "==========================================" && \
 # Start
 # ==========================================================
 
-CMD [
-    "gunicorn",
-    "--bind",
-    "0.0.0.0:10000",
-    "--timeout",
-    "1800",
-    "app:app"
-]
+CMD ["gunicorn", "--bind", "0.0.0.0:10000", "--timeout", "1800", "app:app"]
