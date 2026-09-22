@@ -6,6 +6,7 @@
 //   タブ1のYouTube変換専用
 //
 // 処理:
+//
 //   YouTube URL
 //       ↓
 //   開始時間
@@ -14,7 +15,23 @@
 //       ↓
 //   mp3 / mp4
 //       ↓
-//   /ytdown
+//   POST /ytdown
+//       ↓
+//   ytdown.py
+//       ↓
+//   yt-dlp
+//       ↓
+//   FFmpeg
+//
+// 対応:
+//   mp3
+//   mp4
+//
+// 時間:
+//   HH:MM:SS
+//
+// 終了時間:
+//   00:00:00 = 最後まで
 //
 // convert.jsは使用しない。
 // =====================================
@@ -108,6 +125,20 @@ document.addEventListener(
         );
 
         console.log(
+            "[YTDOWN] start:",
+            startHour,
+            startMinute,
+            startSecond
+        );
+
+        console.log(
+            "[YTDOWN] end:",
+            endHour,
+            endMinute,
+            endSecond
+        );
+
+        console.log(
             "[YTDOWN] statusArea:",
             statusArea
         );
@@ -117,6 +148,10 @@ document.addEventListener(
             downloadArea
         );
 
+
+        // =====================================
+        // 必須DOM確認
+        // =====================================
 
         if (!convertButton) {
 
@@ -162,7 +197,7 @@ document.addEventListener(
 
 
         // =====================================
-        // ダウンロードエリアをクリア
+        // ダウンロードエリア削除
         // =====================================
 
         function clearDownloadArea() {
@@ -180,16 +215,16 @@ document.addEventListener(
 
 
         // =====================================
-        // 数値化
+        // 入力値取得
         // =====================================
 
-        function getNumber(
+        function getInputValue(
             element
         ) {
 
             if (!element) {
 
-                return 0;
+                return "00";
 
             }
 
@@ -200,13 +235,34 @@ document.addEventListener(
 
             if (!value) {
 
-                return 0;
+                return "00";
 
             }
 
 
+            return value;
+
+        }
+
+
+        // =====================================
+        // 数値取得
+        // =====================================
+
+        function getNumber(
+            element
+        ) {
+
+            const value =
+                getInputValue(
+                    element
+                );
+
+
             const number =
-                Number(value);
+                Number(
+                    value
+                );
 
 
             if (
@@ -226,10 +282,105 @@ document.addEventListener(
 
 
         // =====================================
+        // 時間入力チェック
+        // =====================================
+
+        function validateTime(
+            hourElement,
+            minuteElement,
+            secondElement,
+            label
+        ) {
+
+            const hour =
+                getNumber(
+                    hourElement
+                );
+
+
+            const minute =
+                getNumber(
+                    minuteElement
+                );
+
+
+            const second =
+                getNumber(
+                    secondElement
+                );
+
+
+            // ---------------------------------
+            // 時
+            // ---------------------------------
+
+            if (
+                hour < 0
+            ) {
+
+                alert(
+                    label
+                    +
+                    "の時間が正しくありません。"
+                );
+
+                return false;
+
+            }
+
+
+            // ---------------------------------
+            // 分
+            // ---------------------------------
+
+            if (
+                minute < 0
+                ||
+                minute > 59
+            ) {
+
+                alert(
+                    label
+                    +
+                    "の「分」は00～59で入力してください。"
+                );
+
+                return false;
+
+            }
+
+
+            // ---------------------------------
+            // 秒
+            // ---------------------------------
+
+            if (
+                second < 0
+                ||
+                second > 59
+            ) {
+
+                alert(
+                    label
+                    +
+                    "の「秒」は00～59で入力してください。"
+                );
+
+                return false;
+
+            }
+
+
+            return true;
+
+        }
+
+
+        // =====================================
         // 時間を秒へ変換
         // =====================================
 
-        function getTimeInSeconds(
+        function timeToSeconds(
             hourElement,
             minuteElement,
             secondElement
@@ -265,14 +416,13 @@ document.addEventListener(
 
 
         // =====================================
-        // 時間入力チェック
+        // 時間をHH:MM:SSへ変換
         // =====================================
 
-        function validateTime(
+        function timeToString(
             hourElement,
             minuteElement,
-            secondElement,
-            label
+            secondElement
         ) {
 
             const hour =
@@ -293,30 +443,26 @@ document.addEventListener(
                 );
 
 
-            if (
-                hour < 0
-                ||
-                minute < 0
-                ||
-                minute > 59
-                ||
-                second < 0
-                ||
-                second > 59
-            ) {
-
-                alert(
-                    label
-                    +
-                    "の時間指定が正しくありません。"
-                );
-
-                return false;
-
-            }
-
-
-            return true;
+            return (
+                String(hour).padStart(
+                    2,
+                    "0"
+                )
+                +
+                ":"
+                +
+                String(minute).padStart(
+                    2,
+                    "0"
+                )
+                +
+                ":"
+                +
+                String(second).padStart(
+                    2,
+                    "0"
+                )
+            );
 
         }
 
@@ -327,20 +473,20 @@ document.addEventListener(
 
         function getOutputFormat() {
 
-            const radio =
+            const selected =
                 document.querySelector(
                     "input[name='output-format']:checked"
                 );
 
 
-            if (!radio) {
+            if (!selected) {
 
                 return "mp3";
 
             }
 
 
-            return radio.value;
+            return selected.value;
 
         }
 
@@ -364,17 +510,30 @@ document.addEventListener(
 
 
             // =================================
-            // filename
+            // ファイル名
             // =================================
 
             const filename =
                 data.filename
                 ||
+                data.file
+                ||
                 "download";
 
 
             // =================================
-            // URL
+            // ダウンロードURL
+            // =================================
+            //
+            // ytdown.pyが返す
+            // filenameだけではブラウザから
+            // ダウンロードできない。
+            //
+            // そのため /files/... を使用する。
+            //
+            // ただしサーバー側で
+            // download_url / urlを返した場合は
+            // それを優先する。
             // =================================
 
             let downloadUrl =
@@ -385,18 +544,24 @@ document.addEventListener(
 
             if (!downloadUrl) {
 
-                console.warn(
-                    "[YTDOWN] download URLがありません:",
-                    data
-                );
-
-                return;
+                downloadUrl =
+                    "/files/"
+                    +
+                    encodeURIComponent(
+                        filename
+                    );
 
             }
 
 
+            console.log(
+                "[YTDOWN] download URL:",
+                downloadUrl
+            );
+
+
             // =================================
-            // リンク
+            // リンク作成
             // =================================
 
             const link =
@@ -421,14 +586,6 @@ document.addEventListener(
                 "download-button";
 
 
-            link.target =
-                "_blank";
-
-
-            link.rel =
-                "noopener";
-
-
             downloadArea.appendChild(
                 link
             );
@@ -437,18 +594,26 @@ document.addEventListener(
 
 
         // =====================================
-        // メイン処理
+        // YouTubeダウンロード
         // =====================================
 
         async function downloadYoutube() {
 
             console.log(
+                "=========================================="
+            );
+
+            console.log(
                 "[YTDOWN] download start"
+            );
+
+            console.log(
+                "=========================================="
             );
 
 
             // =================================
-            // 入力取得
+            // URL取得
             // =================================
 
             const url =
@@ -469,7 +634,32 @@ document.addEventListener(
 
 
             // =================================
-            // 時間チェック
+            // URL簡易確認
+            // =================================
+
+            if (
+                !url.includes(
+                    "youtube.com"
+                )
+                &&
+                !url.includes(
+                    "youtu.be"
+                )
+            ) {
+
+                alert(
+                    "YouTubeのURLを入力してください。"
+                );
+
+                youtubeUrl.focus();
+
+                return;
+
+            }
+
+
+            // =================================
+            // 開始時間チェック
             // =================================
 
             if (
@@ -486,6 +676,10 @@ document.addEventListener(
             }
 
 
+            // =================================
+            // 終了時間チェック
+            // =================================
+
             if (
                 !validateTime(
                     endHour,
@@ -501,19 +695,19 @@ document.addEventListener(
 
 
             // =================================
-            // 秒へ変換
+            // 時間を秒へ変換
             // =================================
 
-            const startTime =
-                getTimeInSeconds(
+            const startSeconds =
+                timeToSeconds(
                     startHour,
                     startMinute,
                     startSecond
                 );
 
 
-            const endTime =
-                getTimeInSeconds(
+            const endSeconds =
+                timeToSeconds(
                     endHour,
                     endMinute,
                     endSecond
@@ -521,16 +715,60 @@ document.addEventListener(
 
 
             // =================================
+            // 時間文字列
+            // =================================
+
+            const startTime =
+                timeToString(
+                    startHour,
+                    startMinute,
+                    startSecond
+                );
+
+
+            const endTime =
+                timeToString(
+                    endHour,
+                    endMinute,
+                    endSecond
+                );
+
+
+            console.log(
+                "[YTDOWN] startTime:",
+                startTime
+            );
+
+            console.log(
+                "[YTDOWN] endTime:",
+                endTime
+            );
+
+            console.log(
+                "[YTDOWN] startSeconds:",
+                startSeconds
+            );
+
+            console.log(
+                "[YTDOWN] endSeconds:",
+                endSeconds
+            );
+
+
+            // =================================
             // 終了時間チェック
             //
-            // 00:00:00の場合は
-            // 終了時間未指定として扱う。
+            // 00:00:00の場合:
+            //   最後まで
+            //
+            // それ以外:
+            //   開始より後である必要がある。
             // =================================
 
             if (
-                endTime > 0
+                endSeconds > 0
                 &&
-                endTime <= startTime
+                endSeconds <= startSeconds
             ) {
 
                 alert(
@@ -565,8 +803,14 @@ document.addEventListener(
             }
 
 
+            console.log(
+                "[YTDOWN] format:",
+                format
+            );
+
+
             // =================================
-            // 表示
+            // 画面初期化
             // =================================
 
             clearDownloadArea();
@@ -585,7 +829,7 @@ document.addEventListener(
                 true;
 
 
-            const originalText =
+            const originalButtonText =
                 convertButton.textContent;
 
 
@@ -596,7 +840,7 @@ document.addEventListener(
             try {
 
                 // =================================
-                // リクエストデータ
+                // ytdown.pyへ送信
                 // =================================
 
                 const requestData = {
@@ -617,16 +861,12 @@ document.addEventListener(
 
 
                 console.log(
-                    "[YTDOWN] request:",
+                    "[YTDOWN] request data:",
                     requestData
                 );
 
 
                 // =================================
-                // ytdown.py
-                //
-                // Flask:
-                //
                 // POST /ytdown
                 // =================================
 
@@ -654,8 +894,14 @@ document.addEventListener(
                     );
 
 
+                console.log(
+                    "[YTDOWN] HTTP status:",
+                    response.status
+                );
+
+
                 // =================================
-                // レスポンス取得
+                // レスポンス形式確認
                 // =================================
 
                 const contentType =
@@ -716,14 +962,14 @@ document.addEventListener(
                         ||
                         data.error
                         ||
-                        "YouTube変換に失敗しました。"
+                        "YouTubeダウンロードに失敗しました。"
                     );
 
                 }
 
 
                 // =================================
-                // Python側success確認
+                // Python側エラー
                 // =================================
 
                 if (
@@ -735,7 +981,7 @@ document.addEventListener(
                         ||
                         data.error
                         ||
-                        "YouTube変換に失敗しました。"
+                        "YouTubeダウンロードに失敗しました。"
                     );
 
                 }
@@ -746,8 +992,6 @@ document.addEventListener(
                 // =================================
 
                 setStatus(
-                    data.message
-                    ||
                     "ダウンロードの準備ができました。"
                 );
 
@@ -762,7 +1006,15 @@ document.addEventListener(
 
 
                 console.log(
+                    "=========================================="
+                );
+
+                console.log(
                     "[YTDOWN] download completed"
+                );
+
+                console.log(
+                    "=========================================="
                 );
 
             }
@@ -782,7 +1034,7 @@ document.addEventListener(
                 alert(
                     error.message
                     ||
-                    "YouTube変換に失敗しました。"
+                    "YouTubeダウンロードに失敗しました。"
                 );
 
             }
@@ -797,8 +1049,7 @@ document.addEventListener(
 
 
                 convertButton.textContent =
-                    originalText;
-
+                    originalButtonText;
 
             }
 
@@ -820,10 +1071,7 @@ document.addEventListener(
 
 
         // =====================================
-        // Enterキー
-        //
-        // URL入力欄でEnterを押した場合も
-        // ダウンロードを実行する。
+        // URL欄 Enter
         // =====================================
 
         youtubeUrl.addEventListener(
@@ -846,9 +1094,9 @@ document.addEventListener(
 
 
         // =====================================
-        // 数字以外を除去
+        // 時間入力
         //
-        // 時間入力を簡単にする。
+        // 数字以外を削除
         // =====================================
 
         const timeInputs = [
@@ -856,6 +1104,7 @@ document.addEventListener(
             startHour,
             startMinute,
             startSecond,
+
             endHour,
             endMinute,
             endSecond
@@ -886,6 +1135,29 @@ document.addEventListener(
                     }
                 );
 
+
+                // ---------------------------------
+                // Enterで実行
+                // ---------------------------------
+
+                input.addEventListener(
+                    "keydown",
+                    function (event) {
+
+                        if (
+                            event.key ===
+                            "Enter"
+                        ) {
+
+                            event.preventDefault();
+
+                            downloadYoutube();
+
+                        }
+
+                    }
+                );
+
             }
         );
 
@@ -893,6 +1165,14 @@ document.addEventListener(
         // =====================================
         // 初期状態
         // =====================================
+
+        setStatus(
+            ""
+        );
+
+
+        clearDownloadArea();
+
 
         console.log(
             "[YTDOWN] initialization complete"
