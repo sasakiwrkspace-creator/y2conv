@@ -219,6 +219,194 @@ body {
 
 
 /* =========================================
+   YouTube変換 タブ1
+========================================= */
+
+.youtube-input-row,
+.youtube-time-row,
+.youtube-format-row {
+    display: flex;
+
+    align-items: center;
+
+    width: 100%;
+
+    margin-bottom: 18px;
+}
+
+
+/* =========================================
+   ラベル
+========================================= */
+
+.youtube-input-row > label,
+.youtube-time-row > label,
+.youtube-format-label {
+    flex: 0 0 90px;
+
+    width: 90px;
+
+    margin: 0;
+
+    font-size: 15px;
+    font-weight: normal;
+
+    white-space: nowrap;
+}
+
+
+/* =========================================
+   YouTube URL
+========================================= */
+
+.youtube-input-row {
+    gap: 10px;
+}
+
+.youtube-input-row .url-input {
+    flex: 1 1 auto;
+
+    width: auto;
+}
+
+
+/* =========================================
+   時間
+========================================= */
+
+.youtube-time-row {
+    gap: 10px;
+}
+
+.youtube-time-row .time-input {
+    width: 100px;
+    height: 40px;
+
+    padding: 5px 8px;
+
+    border: 1px solid #bbb;
+    border-radius: 5px;
+
+    background: #fff;
+    color: #222;
+
+    font-family: inherit;
+    font-size: 14px;
+
+    text-align: center;
+
+    outline: none;
+}
+
+.youtube-time-row .time-input:focus {
+    border-color: #007bff;
+
+    box-shadow:
+        0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+.youtube-time-row .time-separator {
+    margin: 0 4px;
+
+    font-size: 18px;
+    font-weight: normal;
+
+    color: #555;
+}
+
+
+/* =========================================
+   出力形式
+========================================= */
+
+.youtube-format-row {
+    gap: 10px;
+
+    margin-bottom: 24px;
+}
+
+.youtube-format-row .output-format-option {
+    display: inline-flex;
+
+    align-items: center;
+
+    min-height: 36px;
+
+    padding: 5px 10px;
+
+    border: none;
+    border-radius: 0;
+
+    background: transparent;
+
+    cursor: pointer;
+
+    font-size: 14px;
+}
+
+.youtube-format-row .output-format-option:hover {
+    background: transparent;
+}
+
+.youtube-format-row .output-format-option input {
+    margin: 0 5px 0 0;
+
+    cursor: pointer;
+}
+
+
+/* =========================================
+   ダウンロードボタン
+========================================= */
+
+.youtube-download-row {
+    display: flex;
+
+    justify-content: center;
+
+    width: 100%;
+
+    margin-top: 8px;
+}
+
+.youtube-download-row .execute-button {
+    width: 180px;
+    min-width: 180px;
+
+    height: 46px;
+
+    padding: 0;
+
+    border: 1px solid #7cb518;
+    border-radius: 4px;
+
+    background: #8bc34a;
+    color: #fff;
+
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+
+    cursor: pointer;
+}
+
+.youtube-download-row .execute-button:hover:not(:disabled) {
+    background: #7cb342;
+    border-color: #689f38;
+}
+
+.youtube-download-row .execute-button:active:not(:disabled) {
+    background: #689f38;
+    border-color: #558b2f;
+}
+
+.youtube-download-row .execute-button:disabled {
+    opacity: 0.5;
+
+    cursor: not-allowed;
+}
+
+/* =========================================
    URL入力
 ========================================= */
 
